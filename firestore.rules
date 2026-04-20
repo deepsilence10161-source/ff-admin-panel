@@ -1,0 +1,188 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Users collection
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+
+      match /{subcollection}/{docId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    // Matches - anyone logged in can read, only admin can write
+    match /matches/{matchId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+
+      match /{subcollection}/{docId} {
+        allow read: if isAuth();
+        allow write: if isAdmin();
+      }
+    }
+
+    // Tournaments
+    match /tournaments/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Join Requests
+    match /joinRequests/{reqId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Notifications - user can read own, anyone can write (for system notifications)
+    match /notifications/{docId} {
+      allow read: if isAuth() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if isAuth();
+    }
+
+    // Wallet Requests
+    match /walletRequests/{reqId} {
+      allow read: if isAuth() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuth();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Payment Requests
+    match /paymentRequests/{reqId} {
+      allow read: if isAdmin();
+      allow write: if isAuth();
+    }
+
+    // Polls
+    match /polls/{pollId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+
+      match /votes/{uid} {
+        allow read: if isAuth();
+        allow write: if isOwner(uid);
+      }
+    }
+
+    // Referrals
+    match /referrals/{refId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+
+    // App Settings
+    match /appSettings/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Admins collection
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Profile Requests
+    match /profileRequests/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // KYC Requests
+    match /kycRequests/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // Support
+    match /support/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+
+      match /{docId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid) || isAdmin();
+      }
+    }
+
+    // Results
+    match /results/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Gift Tickets
+    match /giftTickets/{giftId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+
+    // Vouchers
+    match /vouchers/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Announcements
+    match /announcements/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Disputes
+    match /disputes/{disputeId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAdmin();
+    }
+
+    // Season/Weekly Stats
+    match /seasonStats/{docId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    match /weeklyStats/{docId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+
+    // Presence & Typing
+    match /presence/{uid} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid);
+    }
+    match /supportTyping/{docId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+
+    // Scratch Cards
+    match /scratchCards/{docId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+
+    // Catch-all: authenticated users can read, only admin can write
+    match /{document=**} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+  }
+}

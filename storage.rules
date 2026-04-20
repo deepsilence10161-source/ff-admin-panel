@@ -1,0 +1,104 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    function isSmallFile() {
+      // Max 5MB
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    function isValidImage() {
+      return isImage() && isSmallFile();
+    }
+
+    // Profile Images - user can upload own, anyone logged in can view
+    match /profileImages/{uid}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) && isValidImage();
+      allow delete: if isOwner(uid);
+    }
+
+    // Banner Images - user can upload own
+    match /bannerImages/{uid}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) && isValidImage();
+      allow delete: if isOwner(uid);
+    }
+
+    // Match Screenshots / Result Proofs - user can upload
+    match /screenshots/{uid}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) && isValidImage();
+    }
+
+    // Payment Screenshots / Deposit Proofs
+    match /paymentProofs/{uid}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) && isValidImage();
+    }
+
+    // KYC Documents
+    match /kyc/{uid}/{fileName} {
+      allow read: if isOwner(uid) || request.auth != null;
+      allow write: if isOwner(uid) && isSmallFile();
+    }
+
+    // Match Thumbnails / Admin uploads
+    match /matches/{fileName} {
+      allow read: if isAuth();
+      allow write: if request.auth != null;
+    }
+
+    // Poll Images - admin uploads
+    match /polls/{fileName} {
+      allow read: if isAuth();
+      allow write: if request.auth != null;
+    }
+
+    // Withdrawal screenshots
+    match /withdrawalProofs/{uid}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) && isValidImage();
+    }
+
+    // Result screenshots
+    match /results/{uid}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) && isValidImage();
+    }
+
+    // General user uploads
+    match /uploads/{uid}/{allPaths=**} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) && isSmallFile();
+      allow delete: if isOwner(uid);
+    }
+
+    // Admin uploads - any path
+    match /admin/{allPaths=**} {
+      allow read: if isAuth();
+      allow write: if request.auth != null;
+    }
+
+    // Public assets - logos, banners etc
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Catch-all - authenticated users can read, write with size limit
+    match /{allPaths=**} {
+      allow read: if isAuth();
+      allow write: if isAuth() && request.resource.size < 10 * 1024 * 1024;
+    }
+  }
+}

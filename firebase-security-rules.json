@@ -1,0 +1,261 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+        "realMoney":   { ".read": "auth != null && auth.uid == $uid", ".write": "root.child('admins').child(auth.uid).exists()" },
+        "wallet":      { ".read": "auth != null && auth.uid == $uid", ".write": "root.child('admins').child(auth.uid).exists()" },
+        "coins":       { ".write": "auth != null && auth.uid == $uid" },
+        "skyDiamonds": { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "greenDiamonds": { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "coinHistory": { ".read": "auth != null && auth.uid == $uid", ".write": "auth != null && auth.uid == $uid" },
+        "skyDiamondHistory": { ".read": "auth != null && auth.uid == $uid", ".write": "root.child('admins').child(auth.uid).exists()" },
+        "greenDiamondHistory": { ".read": "auth != null && auth.uid == $uid", ".write": "root.child('admins').child(auth.uid).exists()" },
+        "isBanned":    { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "isFrozen":    { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "stats": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "root.child('admins').child(auth.uid).exists()",
+          "matches":     { ".write": "auth != null && auth.uid == $uid" },
+          "adMatches":   { ".write": "auth != null && auth.uid == $uid" },
+          "coinMatches": { ".write": "auth != null && auth.uid == $uid" },
+          "paidMatches": { ".write": "auth != null && auth.uid == $uid" }
+        },
+        "transactions": { ".read": "auth != null && auth.uid == $uid", ".write": "auth != null && auth.uid == $uid" },
+        "notifications": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null",
+          "$notif": { ".write": "auth != null" }
+        },
+        "readNotifications": { ".read": "auth != null && auth.uid == $uid", ".write": "auth != null && auth.uid == $uid" },
+        "tds": { ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())", ".write": "auth != null && auth.uid == $uid" },
+        "kyc": {
+          ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+          ".write": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+          "status": { ".write": "root.child('admins').child(auth.uid).exists()" },
+          "verifiedAt": { ".write": "root.child('admins').child(auth.uid).exists()" }
+        },
+        "ageVerified":      { ".write": "auth != null && auth.uid == $uid" },
+        "dateOfBirth":      { ".write": "auth != null && auth.uid == $uid" },
+        "tcAccepted":       { ".write": "auth != null && auth.uid == $uid" },
+        "selfExcluded":     { ".write": "auth != null && auth.uid == $uid" },
+        "selfExcludedTill": { ".write": "auth != null && auth.uid == $uid" },
+        "ign":              { ".write": "auth != null && auth.uid == $uid" },
+        "fcmToken":         { ".write": "auth != null && auth.uid == $uid" },
+        "lastSeen":         { ".write": "auth != null && auth.uid == $uid" },
+        "onlineStatus":     { ".write": "auth != null && auth.uid == $uid" },
+        "seenRoomPopup":    { ".write": "auth != null && auth.uid == $uid" },
+        "duoTeam":          { ".write": "auth != null && auth.uid == $uid" },
+        "squadTeam":        { ".write": "auth != null && auth.uid == $uid" },
+        "partnerUid":       { ".write": "auth != null && auth.uid == $uid" },
+        "squadUids":        { ".write": "auth != null && auth.uid == $uid" },
+        "profileImage":     { ".write": "auth != null && auth.uid == $uid" },
+        "bio":              { ".write": "auth != null && auth.uid == $uid" },
+        "phone":            { ".write": "auth != null && auth.uid == $uid" },
+        "city":             { ".write": "auth != null && auth.uid == $uid" },
+        "state":            { ".write": "auth != null && auth.uid == $uid" },
+        "lastJoinAt":       { ".write": "auth != null && auth.uid == $uid" },
+        "loginStreak":      { ".write": "auth != null && auth.uid == $uid" },
+        "lastLoginDate":    { ".write": "auth != null && auth.uid == $uid" },
+        "totalLoginStreak": { ".write": "auth != null && auth.uid == $uid" },
+        "lastCheckIn":      { ".write": "auth != null && auth.uid == $uid" },
+        "streakHistory":    { ".write": "auth != null && auth.uid == $uid" },
+        "badges":           { ".write": "auth != null && auth.uid == $uid" },
+        "referralCode":     { ".write": "auth != null && auth.uid == $uid" },
+        "referralBonusReceived":    { ".write": "auth != null && auth.uid == $uid" },
+        "pendingReferralJoinBonus": { ".write": "auth != null && auth.uid == $uid" },
+        "joinedMatches":    { ".write": "auth != null && auth.uid == $uid" },
+        "achievements":     { ".write": "auth != null && auth.uid == $uid" }
+      }
+    },
+
+    "joinRequests": {
+      "$req": {
+        ".read": "auth != null",
+        ".write": "auth != null && (data.exists() == false || root.child('admins').child(auth.uid).exists())",
+        "adminVerified": { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "slotNumber":    { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "inRoom":        { ".write": "auth != null" },
+        "rank":          { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "kills":         { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "reward":        { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "resultStatus":  { ".write": "root.child('admins').child(auth.uid).exists()" }
+      }
+    },
+
+    "matches": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).exists()",
+      "$mid": {
+        "joinedSlots": { ".write": "auth != null" },
+        "filledSlots": { ".write": "auth != null" },
+        "results":     { ".write": "root.child('admins').child(auth.uid).exists()" }
+      }
+    },
+
+    "tournaments": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+
+    "results": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+
+    "resultSubmissions": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "matchResults": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+
+    "notifications": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()",
+      "$nid": { ".write": "auth != null" }
+    },
+
+    "support": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())"
+      }
+    },
+
+    "chats":     { ".read": "auth != null", ".write": "auth != null" },
+    "matchChat": { ".read": "auth != null", ".write": "auth != null" },
+    "lobbyChat": { ".read": "auth != null", ".write": "auth != null" },
+
+    "referrals": {
+      ".read": "auth != null",
+      "$refId": { ".write": "auth != null" }
+    },
+
+    "profileRequests": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())"
+      }
+    },
+
+    "profileUpdates": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())"
+      }
+    },
+
+    "vouchers": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).exists()",
+      "$code": {
+        "usedBy":    { ".write": "auth != null" },
+        "usedCount": { ".write": "auth != null" }
+      }
+    },
+
+    "giftTickets":    { ".read": "auth != null", ".write": "auth != null" },
+    "supportRequests":{ ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+
+    "polls": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).exists()",
+      "$pollId": {
+        "votes":      { ".write": "auth != null" },
+        "options":    { ".write": "auth != null" },
+        "totalVotes": { ".write": "auth != null" }
+      }
+    },
+
+    "pollVotes": { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+
+    "walletRequests": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      "$req": {
+        ".read": "auth != null && (data.child('uid').val() == auth.uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && (data.exists() == false || root.child('admins').child(auth.uid).exists())",
+        "status":     { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "approvedAt": { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "rejectedAt": { ".write": "root.child('admins').child(auth.uid).exists()" },
+        "utr":        { ".write": "root.child('admins').child(auth.uid).exists()" }
+      }
+    },
+
+    "paymentRequests": { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+    "coinRequests":    { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+
+    "disputes": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      "$disputeId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "status": { ".write": "root.child('admins').child(auth.uid).exists()" }
+      }
+    },
+
+    "activityLogs":    { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "adminAlerts":     { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+    "adminActions":    { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "adminActivityLog":{ ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "adminWatchlist":  { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "admins":          { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "appSettings":     { ".read": "auth != null", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "appConfig":       { ".read": "auth != null", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "announcements":   { ".read": "auth != null", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "matchTemplates":  { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "platformStats":   { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+    "platformEarnings":{ ".read": "root.child('admins').child(auth.uid).exists()", ".write": "root.child('admins').child(auth.uid).exists()" },
+
+    "kycRequests": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.uid == $uid || root.child('admins').child(auth.uid).exists())",
+        "status": { ".write": "root.child('admins').child(auth.uid).exists()" }
+      }
+    },
+
+    "presence": {
+      ".read": "auth != null",
+      "$uid": { ".write": "auth != null && auth.uid == $uid" }
+    },
+
+    "supportTyping": { ".read": "auth != null", ".write": "auth != null" },
+    "seasonStats":   { ".read": "auth != null", ".write": "auth != null" },
+    "weeklyStats":   { ".read": "auth != null", ".write": "auth != null" },
+
+    "deviceFingerprints": { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+    "deviceJoins":        { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+    "ffUIDIndex":         { ".read": "auth != null", ".write": "auth != null" },
+    "earlyAccessUsers":   { ".read": "auth != null", ".write": "auth != null" },
+    "scratchCards":       { ".read": "auth != null", ".write": "auth != null" },
+    "matchInterest":      { ".read": "auth != null", ".write": "auth != null" },
+    "matchFeedback":      { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+    "weeklyChallenge":    { ".read": "auth != null", ".write": "auth != null" },
+    "seasonLeaderboard":  { ".read": "auth != null", ".write": "auth != null" },
+
+    "tdsRecords": { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+    "tdsHeld":    { ".read": "root.child('admins').child(auth.uid).exists()", ".write": "auth != null" },
+
+    "refundRequests": {
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+
+    "$other": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    }
+  }
+}
