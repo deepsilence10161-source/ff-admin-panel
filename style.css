@@ -1,0 +1,458 @@
+/* ================================================================
+   MINI eSPORTS ADMIN — UI UPGRADE v10
+   Complete visual overhaul — professional gaming dark theme
+================================================================ */
+
+/* ── Google Fonts — Inter for body, Syne for headings ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap');
+
+/* ── Override root variables ── */
+:root {
+  --primary: #00ff9c;
+  --primary-dark: #00cc7a;
+  --primary-glow: rgba(0,255,156,.35);
+  --danger: #ff3b5c;
+  --warning: #ffaa00;
+  --info: #00aaff;
+  --purple: #b964ff;
+  --cyan: #00eeff;
+  --gold: #ffd700;
+  --bg-dark: #070709;
+  --bg-card: #0f0f14;
+  --bg-card2: #14141c;
+  --bg-input: #0a0a10;
+  --border: rgba(255,255,255,.07);
+  --border-light: rgba(255,255,255,.12);
+  --text: #f0f0f5;
+  --text-dim: #8888aa;
+  --text-muted: #555566;
+  --sidebar-w: 240px;
+  --topbar-h: 56px;
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+
+body {
+  font-family: 'Inter', 'Rajdhani', sans-serif !important;
+  background: var(--bg-dark) !important;
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(0,255,156,.03) 0%, transparent 45%),
+    radial-gradient(ellipse at 85% 90%, rgba(185,100,255,.03) 0%, transparent 45%) !important;
+  background-attachment: fixed !important;
+}
+
+/* ── Sidebar — glassmorphism upgrade ── */
+.sidebar {
+  background: rgba(10,10,15,.95) !important;
+  border-right: 1px solid var(--border) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+.sidebar-brand {
+  padding: 18px 16px 14px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.sidebar-brand-text {
+  font-family: 'Syne', 'Orbitron', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #00ff9c, #00d4ff, #b964ff) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  letter-spacing: .5px !important;
+}
+
+.nav-item {
+  border-radius: 10px !important;
+  margin: 2px 8px !important;
+  border-left: none !important;
+  padding: 10px 12px !important;
+  transition: all .18s ease !important;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,.05) !important;
+  color: #fff !important;
+  transform: translateX(2px) !important;
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(0,255,156,.12), rgba(0,212,255,.06)) !important;
+  border-left: none !important;
+  border-right: 3px solid var(--primary) !important;
+  color: var(--primary) !important;
+  box-shadow: inset 0 0 20px rgba(0,255,156,.04) !important;
+}
+
+.nav-item i {
+  width: 20px !important;
+  font-size: 14px !important;
+}
+
+/* ── Topbar upgrade ── */
+.topbar {
+  background: rgba(7,7,9,.9) !important;
+  border-bottom: 1px solid var(--border) !important;
+  backdrop-filter: blur(24px) !important;
+  height: 56px !important;
+}
+
+.topbar-title {
+  font-family: 'Syne', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: .8px !important;
+  color: var(--text) !important;
+}
+
+/* ── Stat cards — premium look ── */
+.stat-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  padding: 16px !important;
+  transition: all .2s !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.stat-card::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(135deg, rgba(255,255,255,.02), transparent) !important;
+  pointer-events: none !important;
+}
+
+.stat-card:hover {
+  border-color: rgba(255,255,255,.15) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4) !important;
+}
+
+.stat-card .value {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 26px !important;
+  font-weight: 800 !important;
+}
+
+.stat-card h3 {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 10px !important;
+  letter-spacing: .8px !important;
+}
+
+/* ── Section title upgrade ── */
+.section-title {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  letter-spacing: -.2px !important;
+}
+
+/* ── Cards — beautiful borders ── */
+.card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 24px rgba(0,0,0,.3) !important;
+}
+
+.card-header {
+  background: rgba(255,255,255,.02) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 14px 18px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+/* ── Tables — pro look ── */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+th {
+  background: rgba(255,255,255,.03) !important;
+  color: var(--text-muted) !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: .8px !important;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+td {
+  padding: 10px 12px !important;
+  border-bottom: 1px solid rgba(255,255,255,.04) !important;
+  font-size: 13px !important;
+  vertical-align: middle !important;
+}
+
+tr:last-child td { border-bottom: none !important; }
+
+tr:hover td {
+  background: rgba(255,255,255,.025) !important;
+}
+
+/* ── Buttons — premium ── */
+.btn {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  letter-spacing: .2px !important;
+  transition: all .15s !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #00ff9c, #00cc7a) !important;
+  color: #000 !important;
+  box-shadow: 0 2px 12px rgba(0,255,156,.25) !important;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 4px 20px rgba(0,255,156,.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff3b5c, #cc0033) !important;
+  box-shadow: 0 2px 12px rgba(255,0,60,.2) !important;
+}
+
+.btn-ghost {
+  border: 1px solid var(--border-light) !important;
+  color: var(--text-dim) !important;
+}
+
+.btn-ghost:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  background: rgba(0,255,156,.05) !important;
+}
+
+/* ── Form inputs — cleaner ── */
+.form-input {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+  font-family: 'Inter', sans-serif !important;
+  transition: all .2s !important;
+  color: var(--text) !important;
+}
+
+.form-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(0,255,156,.1) !important;
+  outline: none !important;
+}
+
+.form-group label {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .4px !important;
+  color: var(--text-dim) !important;
+  margin-bottom: 6px !important;
+}
+
+/* ── Badges ── */
+.badge {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  border-radius: 7px !important;
+  padding: 3px 8px !important;
+}
+
+/* ── Modal upgrade ── */
+.modal-backdrop {
+  background: rgba(0,0,0,.75) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.modal-content {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.7) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border) !important;
+  padding: 18px 20px !important;
+}
+
+.modal-title {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 800 !important;
+  font-size: 16px !important;
+}
+
+/* ── Screenshots / Images ── */
+.ss-thumb {
+  border-radius: 10px !important;
+  border: 2px solid rgba(0,255,156,.2) !important;
+  transition: all .2s !important;
+}
+.ss-thumb:hover {
+  border-color: var(--primary) !important;
+  transform: scale(1.05) !important;
+}
+
+/* ── Section background ── */
+.section.active {
+  background: transparent !important;
+}
+
+/* ── Quick Create button — special ── */
+#_v10QcBtn, #_v10QcBtn:hover {
+  background: linear-gradient(135deg, #00ff9c, #00d4ff) !important;
+  color: #000 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 16px rgba(0,255,156,.3) !important;
+}
+
+/* ── Attendance stats ── */
+#_v10AttStats .stat-box,
+#attContent [style*="border-radius:12px"] {
+  border-radius: 14px !important;
+}
+
+/* ── Template bar ── */
+#_v10TplBar {
+  background: rgba(0,212,255,.04) !important;
+  border: 1px solid rgba(0,212,255,.1) !important;
+  border-radius: 14px !important;
+}
+
+/* ── Toast notifications ── */
+.toast, .showToast {
+  font-family: 'Inter', sans-serif !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* ── Empty state ── */
+.empty-state {
+  background: rgba(255,255,255,.02) !important;
+  border: 1px dashed rgba(255,255,255,.08) !important;
+  border-radius: 16px !important;
+  padding: 40px 20px !important;
+  text-align: center !important;
+  color: var(--text-muted) !important;
+  font-size: 13px !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.2); }
+
+/* ── Match result table ── */
+#mrPlayerTable tr[data-uid]:hover {
+  background: rgba(0,255,156,.03) !important;
+}
+
+#mrPlayerTable tr[data-uid] td {
+  padding: 10px 12px !important;
+  vertical-align: middle !important;
+}
+
+.mr-rank-input, .mr-kills-input {
+  background: rgba(255,255,255,.05) !important;
+  border: 1.5px solid rgba(255,255,255,.1) !important;
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  color: var(--text) !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  width: 70px !important;
+  text-align: center !important;
+  transition: all .2s !important;
+  font-family: 'Inter', monospace !important;
+}
+
+.mr-rank-input:focus, .mr-kills-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(0,255,156,.15) !important;
+  outline: none !important;
+}
+
+/* ── Section headers with gradient line ── */
+.section-header::after {
+  content: '' !important;
+  display: block !important;
+  height: 1px !important;
+  background: linear-gradient(90deg, var(--primary), transparent) !important;
+  margin-top: 10px !important;
+  width: 100% !important;
+  opacity: .3 !important;
+}
+
+/* ── Premium request cards ── */
+#premReqList td img,
+#spReqList td img {
+  border-radius: 8px !important;
+  border: 2px solid var(--border-light) !important;
+  cursor: zoom-in !important;
+  transition: transform .2s !important;
+}
+
+#premReqList td img:hover,
+#spReqList td img:hover {
+  transform: scale(1.1) !important;
+}
+
+/* ── Dashboard welcome banner ── */
+.dashboard-banner {
+  background: linear-gradient(135deg, rgba(0,255,156,.08), rgba(185,100,255,.05), rgba(0,212,255,.05)) !important;
+  border: 1px solid rgba(0,255,156,.15) !important;
+  border-radius: 18px !important;
+  padding: 20px !important;
+  margin-bottom: 18px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* ── Nav badge glow ── */
+.nav-badge {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 800 !important;
+  animation: badgePulse 2s infinite !important;
+}
+
+.nav-badge.orange { background: var(--warning) !important; color: #000 !important; }
+.nav-badge.green  { background: var(--primary) !important; color: #000 !important; }
+.nav-badge.red    { background: var(--danger) !important;  color: #fff !important; }
+
+@keyframes badgePulse {
+  0%,100% { box-shadow: 0 0 0 0 currentColor; }
+  50%      { box-shadow: 0 0 6px 2px rgba(255,170,0,.4); }
+}
+
+/* ── Sidebar active item glow ── */
+.nav-item.active::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(90deg, rgba(0,255,156,.06), transparent) !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+}
+
+/* ── Data table zebra + hover ── */
+.data-table tbody tr:nth-child(even) td {
+  background: rgba(255,255,255,.012) !important;
+}
+
+.data-table tbody tr:hover td {
+  background: rgba(0,255,156,.03) !important;
+}
