@@ -1,0 +1,135 @@
+{
+  "rules": {
+
+    "support": {
+      "$ticketId": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "supportTyping": {
+      "$key": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "supportRequests": {
+      ".read":  "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["userId"]
+    },
+
+    "deviceJoins": {
+      "$deviceId": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "appSettings": {
+      ".read":  true,
+      ".write": "auth != null"
+    },
+
+    "adminConfig": {
+      ".read":  true,
+      ".write": "auth != null"
+    },
+
+    "admins": {
+      ".read":  "auth != null",
+      ".write": false
+    },
+
+    "creatorVideos": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "videoReports": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "tdsRecords": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "tdsHeld": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "adminActions": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "earlyAccessUsers": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "platformEarnings": {
+      ".read":  "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+
+    "seasonStats": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "flaggedDevices": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "deviceBlacklist": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "appConfig": {
+      ".read":  true,
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+
+    "analytics": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "users": {
+      "$uid": {
+        "videoStrikes": {
+          ".read":  "auth != null",
+          ".write": "auth != null"
+        },
+        "selfExcluded": {
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "selfExcludedTill": {
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "presence": {
+      "$uid": {
+        ".read":  "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "$other": {
+      ".read":  false,
+      ".write": false
+    }
+  }
+}
