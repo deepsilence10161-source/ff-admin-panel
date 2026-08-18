@@ -168,11 +168,14 @@ patchWhenReady('mrPublishResults', function () {
           await supa.from('match_results').upsert(rows, { onConflict: 'match_id,user_id' });
           console.log('[v23 Fix#2] ✅ match_results synced to Supabase:', rows.length, 'rows, match:', supaMatchId);
 
-          /* Also update Supabase matches.status */
+          /* Also update Supabase matches.status.
+             ✅ FIX (2026-08-18): removed `publish_lock` from this payload —
+             the column doesn't exist in the real schema (verified via REST,
+             42703), and one invalid column made the ENTIRE update fail, so
+             matches stayed non-'completed' in Supabase after publishing. */
           await supa.from('matches').update({
             status:               'completed',
-            result_published_at:  new Date().toISOString(),
-            publish_lock:         false
+            result_published_at:  new Date().toISOString()
           }).eq('id', supaMatchId).then(null, function () {});
 
         } catch (supaErr) {

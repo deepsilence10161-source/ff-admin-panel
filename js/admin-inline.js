@@ -521,14 +521,23 @@ async function initializeAdminPanel(){
       });
     });
   }
+  /* ✅ FIX (2026-08-18, F3 live-testing): loader timeout 6000→3500ms.
+     The 7 loaders run in PARALLEL, and each timed-out promise keeps
+     resolving in the background (the data still renders when it arrives),
+     so the 6s caps only ever delayed the moment the loading screen is
+     hidden. Worst case before: 2.5s bridge-wait + 6s loaders ≈ 8.5s+
+     (plus ~50-script parse time), which could cross the outer 15s
+     force-open ceiling on slow connections and flash the "INITIALIZING"
+     spinner for 15s. With 3.5s caps the panel opens in ~6s worst case
+     while every section still fills in live. */
   await Promise.all([
-    _withTimeout(function(){return refreshDashboard();}, 'refreshDashboard', 6000),
-    _withTimeout(function(){return loadTournaments();}, 'loadTournaments', 6000),
-    _withTimeout(function(){return loadTeamRequests();}, 'loadTeamRequests', 6000),
-    _withTimeout(function(){return loadSupportChats();}, 'loadSupportChats', 6000),
-    _withTimeout(function(){return loadSupportTickets('open');}, 'loadSupportTickets', 6000),
-    _withTimeout(function(){return loadSettings();}, 'loadSettings', 6000),
-    _withTimeout(function(){return loadVouchers();}, 'loadVouchers', 6000)
+    _withTimeout(function(){return refreshDashboard();}, 'refreshDashboard', 3500),
+    _withTimeout(function(){return loadTournaments();}, 'loadTournaments', 3500),
+    _withTimeout(function(){return loadTeamRequests();}, 'loadTeamRequests', 3500),
+    _withTimeout(function(){return loadSupportChats();}, 'loadSupportChats', 3500),
+    _withTimeout(function(){return loadSupportTickets('open');}, 'loadSupportTickets', 3500),
+    _withTimeout(function(){return loadSettings();}, 'loadSettings', 3500),
+    _withTimeout(function(){return loadVouchers();}, 'loadVouchers', 3500)
   ]);
   setInterval(syncTournamentStatuses,30000);
   setInterval(sendScheduledReminders,300000);
@@ -807,20 +816,21 @@ async function approveProfile(rid, evt){
       console.log('✅ FF UID is unique or belongs to same user');
     }
     
-    /* STEP 8: Build the update object — ONLY include fields that have values */
+    /* STEP 8: Build the update object — ONLY include fields that have values.
+       ✅ FIX (2026-08-18, live DB verification): removed `approved`,
+       `accessMode`, `profileUpdatePending`, `status`, `pendingUid` and
+       `profileRequired` — NONE of them exist as users-table columns (REST
+       42703 on each), and the bridge's supaUpdate() throws on the first
+       bad column, so this STEP 9 write was aborting the entire approval
+       (no IGN/FF UID saved, no notification, request left pending).
+       `profile_status` is now written lowercase 'approved' — the exact
+       value the user panel's profile_status==='approved' checks match
+       ('APPROVED'/uppercase never matched anything). */
     var userData={
-      approved:true,
-      accessMode:'FULL',
       profileVerified:true,
-      profileStatus:'verified',
-      profile_status:'APPROVED',
-      profileUpdatePending:false,
-      status:'active',
-      pendingProfile:null,
+      profile_status:'approved',
       /* ✅ Bug 12 Fix: Clear all pending fields so user panel shows correct approved data */
       pendingIgn: null,
-      pendingUid: null,
-      profileRequired: false,
       profileRequestCount: (currentUser.profileRequestCount||0)
     };
     
@@ -900,7 +910,11 @@ async function approveProfile(rid, evt){
     
     /* STEP 13a: Supabase sync + clear pending fields */
     if(window._supa && proposedIgn){
-      window._supa.from("users").update({ign:proposedIgn,ff_uid:proposedFfUid||null,phone:proposedPhone||null,profile_status:"approved",pending_ign:null,pending_uid:null,profile_required:false,updated_at:new Date().toISOString()}).eq("id",uid).then(null, function(e){console.warn("[ApproveProfile] Supabase sync:",e.message);});
+      /* ✅ FIX (2026-08-18): removed `pending_uid:null` and
+         `profile_required:false` from this payload — neither column exists
+         on users (REST 42703), so the ENTIRE update was failing
+         silently. The remaining fields now go through. */
+      window._supa.from("users").update({ign:proposedIgn,ff_uid:proposedFfUid||null,phone:proposedPhone||null,profile_status:"approved",pending_ign:null,updated_at:new Date().toISOString()}).eq("id",uid).then(null, function(e){console.warn("[ApproveProfile] Supabase sync:",e.message);});
     }
     /* STEP 13b: Log the action */
     await rtdb.ref('activityLogs').push({
@@ -2186,11 +2200,12 @@ async function saveTournament(){
                 read:false,
                 type:'room_released'
               }));
-              promises.push(rtdb.ref('userMatches/'+uid+'/matches/'+id).update({
-                roomId:ri,
-                roomPassword:rp,
-                roomReleasedAt:Date.now()
-              }));
+              /* ✅ FIX (2026-08-18): removed the `userMatches/...` room
+                 denormalization write — user_matches has no room_id /
+                 room_password / room_released_at columns (REST 42703), so
+                 the write always failed; the user panel reads room details
+                 from matches.room_id + the notification above, never from
+                 user_matches. */
             }
           }
         });
@@ -2333,11 +2348,11 @@ async function sendRoomNotificationToMatch(matchId, roomId, roomPassword, matchN
             read:false,
             type:'room_released'
           }));
-          promises.push(rtdb.ref('userMatches/'+uid+'/matches/'+matchId).update({
-            roomId:roomId,
-            roomPassword:roomPassword,
-            roomReleasedAt:Date.now()
-          }));
+          /* ✅ FIX (2026-08-18): removed the `userMatches/...` room
+             denormalization write — user_matches has no room_id /
+             room_password / room_released_at columns (REST 42703); the
+             user panel reads room details from matches.room_id and the
+             notification above, never from user_matches. */
         }
       }
     });
@@ -3206,7 +3221,13 @@ async function publishResults(){
         var resultPushRef=rtdb.ref('results').push();
         await resultPushRef.set({userId:uid,matchId:mid,matchName:t?t.name:'',rank:rank,kills:kills,killPrize:killPrize,rankPrize:rp,winnings:tw,won:rank===1,entryFee:t?t.entryFee||0:0,totalPlayers:totalPlayers,timestamp:Date.now(),createdAt:Date.now(),synced:false,cashbackGiven:false});
         await rtdb.ref(DB_JOIN+'/'+rid).update({kills:kills,rank:rank,killPrize:killPrize,rankPrize:rp,reward:tw,resultStatus:'completed'});
-        await rtdb.ref('userMatches/'+uid+'/matches/'+mid).update({kills:kills,rank:rank,killPrize:killPrize,rankPrize:rp,reward:tw,resultStatus:'completed'});
+        /* ✅ FIX (2026-08-18): removed the `userMatches/...` result write —
+           user_matches has no kills/rank/kill_prize/rank_prize/reward/
+           result_status columns (REST 42703) and the filter never matched
+           (id=uid vs real UUID), so it always failed/affected 0 rows. The
+           authoritative result record is matches/{id}/results/{uid} (above)
+           and the join_requests row; user_matches is not read by the user
+           panel (verified) nor kept in sync, so dropping it loses nothing. */
         await rtdb.ref(DB_USERS+'/'+uid+'/totalKills').transaction(function(v){return(v||0)+kills;});
         await rtdb.ref(DB_USERS+'/'+uid+'/stats/kills').transaction(function(v){return(v||0)+kills;});
         if(tw>0){

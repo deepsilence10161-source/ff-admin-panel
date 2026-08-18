@@ -411,7 +411,11 @@
 (function () {
   'use strict';
 
-  window.fa67_generateDailyReport = function () {
+  /* ✅ FIX (2026-08-18, F8): added `silent` mode — when true, the report
+     is computed but the modal is NOT opened (used by the once-per-day
+     auto-notify below so the dashboard is never covered on login). */
+  window.fa67_generateDailyReport = function (opts) {
+    opts = opts || {};
     /* Bug New-7 Fix: Read from Supabase wallet_transactions (source of truth).
        Firebase withdrawalRequests can be stale or partial after Supabase migration. */
     if (!window._supa) {
@@ -491,6 +495,7 @@
           (pending > 0  ? '<div style="background:rgba(255,165,0,.08);border-radius:10px;padding:10px;font-size:12px;color:#ffa500;margin-top:6px">⏳ ' + pending + ' requests abhi bhi pending</div>' : '') +
         '</div>';
 
+      if (opts.silent) return; /* ✅ FIX (2026-08-18, F8): silent mode — no modal */
       if (window.openAdminModal) window.openAdminModal('📋 Daily Payout Report', h);
       else if (window.openModal) window.openModal('📋 Daily Payout Report', h);
     }
@@ -511,7 +516,17 @@
         localStorage.setItem(key, '1');
         setTimeout(function () {
           var hour = new Date().getHours();
-          if (hour >= 9) window.fa67_generateDailyReport(); // Show from 9am onwards
+          if (hour >= 9 && window.fa67_generateDailyReport) {
+            /* ✅ FIX (2026-08-18, F8): generate silently (no modal — the
+               old code auto-opened the report on every admin load and
+               covered the dashboard), then surface a non-blocking toast. */
+            window.fa67_generateDailyReport({ silent: true });
+            setTimeout(function () {
+              if (window.toast) {
+                window.toast('📋 Daily Payout Report ready — Quick Tools → Daily Report', 'ok');
+              }
+            }, 1500);
+          }
         }, 6000);
       }
     }

@@ -264,12 +264,19 @@
        below for the matching fix. */
     if (d.profile_status  !== undefined) s.profile_status   = d.profile_status;
     if (d.profileStatus   !== undefined) s.profile_status   = d.profileStatus;
-    if (d.status      !== undefined) s.status          = d.status;
-    if (d.approved    !== undefined) s.approved        = d.approved;
     if (d.pendingIgn  !== undefined) s.pending_ign     = d.pendingIgn;
-    if (d.pendingUid  !== undefined) s.pending_uid     = d.pendingUid;
-    if (d.profileRequired !== undefined) s.profile_required = d.profileRequired;
-    if (d.accessMode  !== undefined) s.access_mode     = d.accessMode;
+    /* ✅ FIX (2026-08-18, live DB verification): the users table has NO
+       columns for `status`, `approved`, `access_mode`, `profile_update_pending`,
+       `pending_uid`, or `profile_required` — all confirmed via REST
+       (Postgres 42703, e.g. "column users.status does not exist", hint
+       "users.state"). Mapping them here meant every users/{uid} update that
+       carried ANY of these keys (approveProfile's STEP 9 payload carried
+       all six) was rejected by PostgREST — and because supaUpdate() throws
+       on error, approveProfile() aborted at that write and the approval
+       NEVER landed (no IGN/FF UID set, no notification, request left
+       pending). These keys are now dropped instead of mapped, so the
+       remaining valid fields still go through. Read-side fallbacks in
+       userFromSupa already tolerate their absence. */
     if (d.totalKills  !== undefined) s.total_kills     = d.totalKills;
     if (d.totalWinnings !== undefined) s.total_winnings = d.totalWinnings;
     if (d.is_banned   !== undefined) s.is_banned       = d.is_banned;
@@ -1463,6 +1470,18 @@
     Object.keys(updateData).forEach(function(k) {
       if (updateData[k] === undefined) delete updateData[k];
     });
+
+    /* ✅ FIX (2026-08-18): if every key was dropped (e.g. a caller sent
+       only columns that don't exist on this table — like
+       profileUpdatePending / status / approved on users), there is
+       nothing to update; bail out as a no-op instead of sending an empty
+       PATCH to PostgREST (which some versions reject). Callers that
+       awaited this see success, which is correct: there was nothing real
+       to write. */
+    if (Object.keys(updateData).length === 0) {
+      console.warn('[Bridge] UPDATE no-op on', table, '(path:', p.raw + ') — all fields dropped (unknown columns?).');
+      return;
+    }
 
     var upQ = supa.from(table).update(updateData).eq(filter.col, filter.val);
     if (extraFilter) upQ = upQ.eq(extraFilter.col, extraFilter.val);
