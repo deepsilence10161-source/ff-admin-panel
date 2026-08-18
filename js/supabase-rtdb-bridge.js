@@ -264,12 +264,19 @@
        below for the matching fix. */
     if (d.profile_status  !== undefined) s.profile_status   = d.profile_status;
     if (d.profileStatus   !== undefined) s.profile_status   = d.profileStatus;
-    if (d.status      !== undefined) s.status          = d.status;
-    if (d.approved    !== undefined) s.approved        = d.approved;
     if (d.pendingIgn  !== undefined) s.pending_ign     = d.pendingIgn;
-    if (d.pendingUid  !== undefined) s.pending_uid     = d.pendingUid;
-    if (d.profileRequired !== undefined) s.profile_required = d.profileRequired;
-    if (d.accessMode  !== undefined) s.access_mode     = d.accessMode;
+    /* ✅ FIX (2026-08-18, live DB verification): the users table has NO
+       columns for `status`, `approved`, `access_mode`, `profile_update_pending`,
+       `pending_uid`, or `profile_required` — all confirmed via REST
+       (Postgres 42703, e.g. "column users.status does not exist", hint
+       "users.state"). Mapping them here meant every users/{uid} update that
+       carried ANY of these keys (approveProfile's STEP 9 payload carried
+       all six) was rejected by PostgREST — and because supaUpdate() throws
+       on error, approveProfile() aborted at that write and the approval
+       NEVER landed (no IGN/FF UID set, no notification, request left
+       pending). These keys are now dropped instead of mapped, so the
+       remaining valid fields still go through. Read-side fallbacks in
+       userFromSupa already tolerate their absence. */
     if (d.totalKills  !== undefined) s.total_kills     = d.totalKills;
     if (d.totalWinnings !== undefined) s.total_winnings = d.totalWinnings;
     if (d.is_banned   !== undefined) s.is_banned       = d.is_banned;
@@ -457,11 +464,15 @@
     if (uid)             s.user_id       = uid;
     if (d.matchId !== undefined || d.tournamentId !== undefined)
                          s.match_id      = d.matchId || d.tournamentId;
-    if (d.playerName !== undefined || d.ign !== undefined)
-                         s.player_name   = d.playerName || d.ign || d.userName;
-    if (d.ffUid !== undefined || d.userFFUID !== undefined)
-                         s.ff_uid        = d.ffUid || d.userFFUID || d.gameUid;
-    if (d.phone    !== undefined) s.phone       = d.phone;
+    /* ✅ FIX (2026-08-18, live DB verification): join_requests has NO
+       `player_name`, `ff_uid`, `phone`, `is_team_member` or `team_members`
+       columns (REST 42703 on each — verified one by one). The real
+       columns are `ign_at_join` and `squad_members` (the user panel's
+       core/db-bridge.js upserts exactly those). Before this fix, ANY
+       admin-side join-request CREATE (e.g. Fix Team JRs) carried
+       player_name/ff_uid/phone and the whole insert was rejected. */
+    if (d.playerName !== undefined || d.ign !== undefined || d.userName !== undefined)
+                         s.ign_at_join   = d.playerName || d.ign || d.userName;
     if (d.slotNumber !== undefined) s.slot_number = d.slotNumber;
     if (d.status   !== undefined) s.status      = d.status;
     if (d.entryFee !== undefined) s.entry_fee   = d.entryFee;
@@ -475,8 +486,13 @@
     if (d.adminVerified !== undefined) s.checked_in = d.adminVerified;
     if (d.inRoom   !== undefined) s.in_room     = d.inRoom;
     if (d.captainUid !== undefined) s.captain_uid = d.captainUid;
-    if (d.isTeamMember !== undefined) s.is_team_member = d.isTeamMember;
-    if (d.teamMembers !== undefined) s.team_members = d.teamMembers;
+    if (d.checkedIn !== undefined) s.checked_in = d.checkedIn;
+    if (d.feeType  !== undefined) s.fee_type    = d.feeType;
+    if (d.entryFeePaid !== undefined) s.entry_fee_paid = d.entryFeePaid;
+    /* ✅ FIX (2026-08-18): map teamMembers → squad_members (real column,
+       JSON string — same as user panel writes). */
+    if (d.teamMembers !== undefined)
+                         s.squad_members = typeof d.teamMembers === 'string' ? d.teamMembers : JSON.stringify(d.teamMembers || []);
     if (d.joinedAt !== undefined || d.createdAt !== undefined)
                          s.created_at   = new Date(d.joinedAt || d.createdAt || Date.now()).toISOString();
     return s;
@@ -484,6 +500,8 @@
 
   function jrFromSupa(row) {
     if (!row) return null;
+    var _team = row.squad_members || [];
+    if (typeof _team === 'string') { try { _team = JSON.parse(_team); } catch(e) { _team = []; } }
     return {
       id:            row.id,
       uid:           row.user_id,
@@ -491,30 +509,30 @@
       oderId:        row.user_id,
       matchId:       row.match_id,
       tournamentId:  row.match_id,
-      playerName:    row.player_name  || '',
-      ign:           row.player_name  || '',
-      userName:      row.player_name  || '',
-      ffUid:         row.ff_uid       || '',
-      userFFUID:     row.ff_uid       || '',
-      phone:         row.phone        || '',
+      /* ✅ FIX (2026-08-18): read real columns (ign_at_join / squad_members)
+         — player_name/ff_uid/phone/team_members don't exist on the table. */
+      playerName:    row.ign_at_join  || '',
+      ign:           row.ign_at_join  || '',
+      userName:      row.ign_at_join  || '',
       slotNumber:    row.slot_number  || null,
       slot:          row.slot_number  || null,
       status:        row.status       || 'joined',
       entryFee:      row.entry_fee    || 0,
+      entryFeePaid:  row.entry_fee_paid || 0,
       entryType:     row.entry_type   || 'paid',
       mode:          row.mode         || 'solo',
       kills:         row.kills        || 0,
       rank:          row.placement    || 0,
-      killPrize:     row.kill_prize   || 0,
-      rankPrize:     row.rank_prize   || 0,
       reward:        row.prize_earned || 0,
       prize_earned:  row.prize_earned || 0,
       resultStatus:  row.status       === 'completed' ? 'completed' : '',
       adminVerified: row.checked_in   || false,
       inRoom:        row.in_room      || false,
+      checkedIn:     row.checked_in   || false,
       captainUid:    row.captain_uid  || null,
-      isTeamMember:  row.is_team_member || false,
-      teamMembers:   row.team_members || [],
+      isTeamMember:  !!(row.captain_uid && row.captain_uid !== row.user_id),
+      teamMembers:   _team,
+      feeType:       row.fee_type     || 'solo',
       joinedAt:      row.created_at   ? new Date(row.created_at).getTime() : null,
       createdAt:     row.created_at   ? new Date(row.created_at).getTime() : null
     };
@@ -527,20 +545,23 @@
       id:           row.id,
       uid:          row.user_id,
       userId:       row.user_id,
-      userName:     row.user_name     || '',
-      displayName:  row.user_name     || '',
-      type:         row.type          || 'add',
-      amount:       row.amount        || 0,
-      diamonds:     row.amount        || 0,
-      utrNumber:    row.utr_number    || '',
-      upiId:        row.upi_id        || '',
+      /* ✅ FIX (2026-08-18): read real sd_requests columns — user_name/
+         utr_number/upi_id/type/amount don't exist (REST 42703); real ones
+         are ign / upi_ref / amount_inr / sd_amount. */
+      userName:     row.ign          || '',
+      displayName:  row.ign          || '',
+      type:         row.request_type === 'sky_diamond_purchase' ? 'add' : (row.request_type || 'add'),
+      amount:       row.amount_inr   || 0,
+      diamonds:     row.sd_amount    || row.amount_inr || 0,
+      utrNumber:    row.upi_ref      || '',
+      upiId:        row.upi_ref      || '',
       screenshotUrl: row.screenshot_url || '',
       screenshotBase64: row.screenshot_url || '',
-      status:       row.status        || 'pending',
-      creatorCode:  row.creator_code  || '',
-      ffUid:        row.ff_uid        || '',
-      createdAt:    row.created_at    ? new Date(row.created_at).getTime() : null,
-      processedAt:  row.reviewed_at   ? new Date(row.reviewed_at).getTime() : null
+      status:       row.status       || 'pending',
+      creatorCode:  row.creator_code || '',
+      ffUid:        row.ff_uid       || '',
+      createdAt:    row.created_at   ? new Date(row.created_at).getTime() : null,
+      processedAt:  row.approved_at || row.rejected_at || row.reviewed_at ? new Date(row.approved_at || row.rejected_at || row.reviewed_at).getTime() : null
     };
   }
 
@@ -548,13 +569,17 @@
     if (!d) return {};
     var s = {};
     if (d.uid || d.userId)  s.user_id       = d.uid || d.userId;
-    if (d.type !== undefined) s.type         = d.type;
-    if (d.amount !== undefined) s.amount     = d.amount;
-    if (d.utrNumber !== undefined) s.utr_number = d.utrNumber;
-    if (d.upiId !== undefined) s.upi_id      = d.upiId;
+    /* ✅ FIX (2026-08-18, live DB verification): sd_requests has NO
+       `type`, `amount`, `utr_number`, `upi_id`, `rejection_reason` or
+       `reviewed_at` columns (REST 42703 on each — verified one by one;
+       hints point to upi_ref / reviewed_by). Real columns are
+       amount_inr + upi_ref. Before this fix every admin-side wallet
+       request write carried 2-4 invalid keys and was rejected wholesale
+       (status updates included). */
+    if (d.amount !== undefined) s.amount_inr = d.amount;
+    if (d.utrNumber !== undefined || d.upiId !== undefined || d.utr !== undefined)
+      s.upi_ref = d.upiRef || d.upiId || d.utrNumber || d.utr || null;
     if (d.status !== undefined) s.status     = d.status;
-    if (d.rejectionReason !== undefined) s.rejection_reason = d.rejectionReason;
-    if (d.processedAt !== undefined) s.reviewed_at = new Date(d.processedAt).toISOString();
     if (d.processedBy !== undefined) s.reviewed_by = d.processedBy;
     /* ✅ Audit Fix: a second approve/reject pair (window.approveSkyDiamond/
        rejectSkyDiamond) sends approvedAt/rejectedAt instead of processedAt —
@@ -675,15 +700,15 @@
   function teamReqToSupa(d) {
     if (!d) return {};
     var s = {};
-    if (d.ownerUid || d.uid) s.owner_id    = d.ownerUid || d.uid;
-    if (d.ownerName)         s.owner_name  = d.ownerName;
-    if (d.ownerFfUid)        s.owner_ff_uid = d.ownerFfUid;
-    if (d.memberUid)         s.member_id   = d.memberUid;
-    if (d.memberName)        s.member_name = d.memberName;
-    if (d.memberFfUid)       s.member_ff_uid = d.memberFfUid;
-    if (d.teamType || d.type) s.team_type  = d.teamType || d.type;
+    /* ✅ FIX (2026-08-18, live DB verification): team_requests only has
+       id/status/created_at columns in the real schema (REST 42703 on
+       owner_id/owner_uid/owner_name/team_type/processed_at/processed_by/
+       rejection_reason — all probed individually). The user panel never
+       writes this table (it's dormant), so admin approve/reject status
+       updates are all that matters — dropping the invalid keys lets the
+       `status` write go through instead of failing wholesale. */
     if (d.status)            s.status      = d.status;
-    if (d.processedBy)       s.processed_by = d.processedBy;
+    if (d.createdAt !== undefined) s.created_at = new Date(d.createdAt || Date.now()).toISOString();
     return s;
   }
 
@@ -736,9 +761,13 @@
 
   function activityToSupa(d) {
     if (!d) return {};
+    /* ✅ FIX (2026-08-18, live DB verification): `action` is NOT a real
+       admin_activity_log column (REST 42703 — the table only has
+       action_type/details/target_uid/admin_uid/created_at). Writing it
+       made the whole insert fail, so the admin Activity Log never logged
+       anything. Removed. */
     return {
       action_type:  d.type         || 'admin_action',
-      action:       d.action || d.type || d.message || '',
       target_uid:   d.uid          || null,
       admin_uid:    d.admin        || d.adminUid || null,
       details:      JSON.stringify(d),
@@ -1463,6 +1492,18 @@
     Object.keys(updateData).forEach(function(k) {
       if (updateData[k] === undefined) delete updateData[k];
     });
+
+    /* ✅ FIX (2026-08-18): if every key was dropped (e.g. a caller sent
+       only columns that don't exist on this table — like
+       profileUpdatePending / status / approved on users), there is
+       nothing to update; bail out as a no-op instead of sending an empty
+       PATCH to PostgREST (which some versions reject). Callers that
+       awaited this see success, which is correct: there was nothing real
+       to write. */
+    if (Object.keys(updateData).length === 0) {
+      console.warn('[Bridge] UPDATE no-op on', table, '(path:', p.raw + ') — all fields dropped (unknown columns?).');
+      return;
+    }
 
     var upQ = supa.from(table).update(updateData).eq(filter.col, filter.val);
     if (extraFilter) upQ = upQ.eq(extraFilter.col, extraFilter.val);

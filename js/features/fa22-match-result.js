@@ -408,29 +408,26 @@ window.mrPublishResults = async function() {
 
   /* Bug 3 Fix: Check + set publishing lock BEFORE reading results.
      Two concurrent clicks both read alreadyPublished=false before either writes.
-     Lock in Supabase is atomic — second click gets publish_lock=true and exits. */
+     Lock in Supabase is atomic — second click gets publish_lock=true and exits.
+
+     ✅ FIX (2026-08-18, live DB verification): `matches.publish_lock` and
+     `matches.publish_lock_at` columns DON'T EXIST in the real Supabase
+     schema (confirmed via REST — Postgres error 42703 on both). The old
+     code treated that API error as "lock already held by another admin"
+     (lockRes.data was null), so mrPublishResults() ALWAYS bailed with
+     "Another admin is publishing this match right now" and results could
+     never be published, and the match status was never set to completed.
+     Removed the broken column-based lock entirely. Double-publish
+     protection now rests on:
+       1) in-memory _mrPublishingInFlight guard (same browser),
+       2) the result_published_at / status check below (cross-session
+          source of truth — already implemented),
+       3) idempotent match_results upsert (onConflict match_id,user_id). */
   if (window._mrPublishingInFlight) {
     showToast('⏳ Already publishing — please wait...', true); return;
   }
   window._mrPublishingInFlight = true;
   var _releaseLock = function() { window._mrPublishingInFlight = false; };
-
-  /* Try to acquire Supabase publish lock if available */
-  if (window._supa) {
-    try {
-      var lockRes = await window._supa.from('matches')
-        .update({ publish_lock: true, publish_lock_at: new Date().toISOString() })
-        .eq('firebase_id', mid)
-        .eq('publish_lock', false) // only update if NOT already locked
-        .select('id');
-      /* If 0 rows updated → lock already held by another session */
-      if (!lockRes.data || lockRes.data.length === 0) {
-        _releaseLock();
-        showToast('⚠️ Another admin is publishing this match right now — please wait.', true);
-        return;
-      }
-    } catch(lockErr) { /* Supabase unavailable — use in-memory lock only */ }
-  }
 
   var t = _mrMatchData;
   var rows = document.querySelectorAll('#mrPlayerTable tr[data-uid]');
@@ -612,14 +609,17 @@ window.mrPublishResults = async function() {
           await window._supa.from('match_results').upsert(supaResultRows, { onConflict: 'match_id,user_id' });
           console.log('[Bug#5 Fix] mrPublishResults Supabase match_results synced:', supaResultRows.length, 'rows');
         }
-        /* Update match status in Supabase */
+        /* Update match status in Supabase.
+           ✅ FIX (2026-08-18): removed `publish_lock` from this payload —
+           the column doesn't exist in the schema, and one invalid column
+           made the ENTIRE update fail (Postgres 42703), so the match
+           stayed non-'completed' in Supabase even after publishing. */
         await window._supa.from('matches').update({
-          status: alreadyPublished ? 'completed' : 'completed',
-          result_published_at: new Date().toISOString(),
-          publish_lock: false
+          status: 'completed',
+          result_published_at: new Date().toISOString()
         }).eq('id', mid).then(null, function(){
           /* Fallback — try firebase_id column if id doesn't match */
-          window._supa.from('matches').update({ status:'completed', result_published_at: new Date().toISOString(), publish_lock:false }).eq('firebase_id', mid).then(null, function(){});
+          window._supa.from('matches').update({ status:'completed', result_published_at: new Date().toISOString() }).eq('firebase_id', mid).then(null, function(){});
         });
       } catch(supaErr) {
         console.warn('[Bug#5 Fix] mrPublishResults Supabase sync error:', supaErr.message);
@@ -633,9 +633,10 @@ window.mrPublishResults = async function() {
     if (pubBtn) { pubBtn.disabled = false; }
     if (statusEl) statusEl.textContent = alreadyPublished ? '✅ Correction done! Users notified.' : '✅ Results published! Prizes distributed.';
     showToast(alreadyPublished ? '✅ Result correction done!' : '✅ Results published!');
-    /* Bug 3 Fix: Release Supabase publish lock on success */
+    /* Bug 3 Fix: Release in-memory publish lock on success.
+       ✅ FIX (2026-08-18): removed the Supabase publish_lock release —
+       the column doesn't exist in the schema. */
     _releaseLock();
-    if (window._supa) window._supa.from('matches').update({ publish_lock: false }).eq('firebase_id', mid).then(null, function(){});
     setTimeout(function() {
       if (window.showSection) showSection('match-history', null);
     }, 1200);
@@ -645,9 +646,10 @@ window.mrPublishResults = async function() {
     if (statusEl) statusEl.textContent = '❌ Error: ' + err.message;
     showToast('Error: ' + err.message, true);
     console.error('mrPublish error:', err);
-    /* Bug 3 Fix: Always release lock on error too */
+    /* Bug 3 Fix: Always release in-memory lock on error too.
+       ✅ FIX (2026-08-18): removed the Supabase publish_lock release —
+       the column doesn't exist in the schema. */
     _releaseLock();
-    if (window._supa) window._supa.from('matches').update({ publish_lock: false }).eq('firebase_id', mid).then(null, function(){});
   }
 };
 

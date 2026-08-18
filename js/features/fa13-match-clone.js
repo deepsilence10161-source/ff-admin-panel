@@ -26,7 +26,11 @@ window.fa13DoClone=async function(matchId){
     orig.name=name;
     orig.matchTime=new Date(dt).getTime();
     orig.status='upcoming';
-    orig.roomId=''; orig.roomPass=''; orig.roomReleased=false;
+    /* ✅ FIX (2026-08-18, live DB verification): `orig.roomReleased=false`
+       mapped to a `room_released` column that doesn't exist in the schema
+       (REST 42703), and one invalid key made the whole clone push FAIL.
+       Use the real `roomStatus` column instead. */
+    orig.roomId=''; orig.roomPass=''; orig.roomStatus='pending';
     orig.createdAt=Date.now();
     delete orig.result;
     var nr=rtdb.ref('matches').push();

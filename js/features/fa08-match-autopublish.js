@@ -16,7 +16,13 @@ window.fa08ScheduleRoom=async function(matchId,roomId,roomPass){
 
 window.fa08PublishNow=async function(matchId,roomId,roomPass){
   try{
-    await rtdb.ref('matches/'+matchId).update({roomId:roomId,roomPass:roomPass,roomReleased:true,roomReleasedAt:Date.now()});
+    /* ✅ FIX (2026-08-18, live DB verification): `roomReleased:true` mapped
+       to a `room_released` column that doesn't exist in the real Supabase
+       schema (REST returns 42703, hint points to room_released_at) — the
+       one invalid key made the ENTIRE update fail, so room_id/room_password
+       never reached Supabase and users never saw the room. Dropped it:
+       room_released_at (real column) + room_id presence is the signal. */
+    await rtdb.ref('matches/'+matchId).update({roomId:roomId,roomPass:roomPass,roomReleasedAt:Date.now()});
     // Notify all joined players
     var js=await rtdb.ref('joinRequests').orderByChild('matchId').equalTo(matchId).once('value');
     var batch={};
