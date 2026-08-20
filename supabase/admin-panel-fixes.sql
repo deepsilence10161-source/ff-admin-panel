@@ -391,10 +391,17 @@ BEGIN
    WHERE id::text = v_uid
    RETURNING coins INTO v_new_coins;
 
-  INSERT INTO public.wallet_transactions (user_id, currency, txn_type, amount, reason, created_at)
-  SELECT v_uid, 'coins', 'credit', p_coins, 'mission_reward:' || p_mission_key, now()
-  WHERE EXISTS (SELECT 1 FROM information_schema.tables
-                WHERE table_schema='public' AND table_name='wallet_transactions');
+  -- Audit trail — dynamic EXECUTE isliye ki agar wallet_transactions table
+  -- exist hi na kare to function parse-time par fail na ho.
+  BEGIN
+    IF to_regclass('public.wallet_transactions') IS NOT NULL THEN
+      EXECUTE 'INSERT INTO public.wallet_transactions (user_id, currency, txn_type, amount, reason, created_at)
+               VALUES ($1, ''coins'', ''credit'', $2, $3, now())'
+        USING v_uid, p_coins, 'mission_reward:' || p_mission_key;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;  -- audit log fail ho to reward mat roko
+  END;
 
   RETURN jsonb_build_object('success', true, 'already_claimed', false, 'awarded', p_coins, 'coins', v_new_coins);
 END;
