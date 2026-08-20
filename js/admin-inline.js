@@ -584,7 +584,10 @@ function _execGlobalSearch(q,res){
    ============================================= */
 function setupRealtimeListeners(){
   rtdb.ref(DB_PROFILE).on('value',function(s){var c=0;s.forEach(function(x){if(!x.val().status||x.val().status==='pending')c++;});updateBadge('profileBadge',c);});
-  rtdb.ref(DB_WALLET).on('value',function(s){var c=0;s.forEach(function(x){if(x.val().status==='pending')c++;});updateBadge('walletBadge',c);});
+  /* ✅ 2026-08-20: #walletBadge was deleted with the Wallet tab. The same
+     pending count now drives the Sky Diamond tab badge, which is where
+     these requests are reviewed. */
+  rtdb.ref(DB_WALLET).on('value',function(s){var c=0;s.forEach(function(x){if(x.val().status==='pending')c++;});updateBadge('skyDiaBadge',c);});
   rtdb.ref(DB_TEAM).on('value',function(s){var c=0;s.forEach(function(x){if(x.val().status==='pending')c++;});updateBadge('teamBadge',c);});
 
   /* CHAT BADGE — uses senderId (not sender) to detect non-admin messages
@@ -716,8 +719,12 @@ async function approveProfile(rid, evt){
      Now takes the event as an explicit parameter from the
      onclick="approveProfile(id, event)" call instead. */
   var event = evt;
-  /* Disable the button that was clicked to prevent double-clicks */
-  if(event&&event.target){var clickedBtn=event.target.closest('.btn');if(clickedBtn){clickedBtn.disabled=true;clickedBtn.style.opacity='0.5';clickedBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}}
+  /* ✅ FIX (live-testing 2026-08-20): same stuck-spinner bug as
+     approveProfileUpdate — the button was disabled + swapped to a
+     spinner but never restored on ANY of the ~8 early-return paths, on
+     error, or on success. _btnBusy() guarantees restoration via the
+     finally block below (plus a 30s failsafe). */
+  var _doneBtn = (window._btnBusy ? window._btnBusy(evt) : function(){});
   try{
     /* STEP 1: Read the profile request */
     var rs=await rtdb.ref(DB_PROFILE+'/'+rid).once('value');
@@ -866,7 +873,7 @@ async function approveProfile(rid, evt){
       if (proposedPhone)  supaUpdate.phone          = proposedPhone;
       if (proposedAvatar) supaUpdate.avatar_url     = proposedAvatar;
       await window._supa.from('users').update(supaUpdate).eq('id', uid)
-        .catch(function(e){ console.warn('[approveProfile] Supabase sync failed:', e.message); });
+        .then(null, function(e){ console.warn('[approveProfile] Supabase sync failed:', e && e.message); });
       console.log('✅ Supabase users table synced for', uid);
     }
     
@@ -939,7 +946,9 @@ async function approveProfile(rid, evt){
     showToast('✅ Profile approved! IGN: '+(proposedIgn||'N/A')+', FF: '+(proposedFfUid||'N/A'));
   }catch(e){
     console.error('approveProfile error:',e);
-    showToast('Error: '+e.message,true);
+    showToast('Error: '+(e&&e.message?e.message:e),true);
+  }finally{
+    _doneBtn();
   }
 }
 
@@ -1007,11 +1016,16 @@ function renderProfileUpdates(snap){
 async function approveProfileUpdate(rid, evt){
   console.log('═══════════════════════════════');
   console.log('APPROVE PROFILE UPDATE: '+rid);
-  /* ✅ FIX (live-testing — same bare-`event` bug as approveProfile above,
-     same class of "button silently does nothing" symptom). */
-  var event = evt;
-  /* Disable button to prevent double-clicks */
-  if(event&&event.target){var clickedBtn=event.target.closest('.btn');if(clickedBtn){clickedBtn.disabled=true;clickedBtn.style.opacity='0.5';clickedBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';}}
+  /* ✅ FIX (live-testing 2026-08-20): the button was put into a spinner
+     state here but NEVER restored — not on the early `return` paths
+     (request not found / UID missing / IGN taken / FF UID taken), not on
+     the catch path, and not on success. Combined with the
+     `.catch is not a function` TypeError thrown a few lines below (see
+     js/supabase-compat-patch.js), the observed symptom was exactly
+     "error toast aaya aur button me chakri ghumti rah gayi".
+     _btnBusy() returns a restore function that a finally block always
+     runs, plus it has its own 30s failsafe. */
+  var _doneBtn = (window._btnBusy ? window._btnBusy(evt) : function(){});
   try{
     var rs=await rtdb.ref(DB_PROFILE_UPDATE+'/'+rid).once('value');
     if(!rs.exists()){showToast('Request not found!',true);return;}
@@ -1114,32 +1128,41 @@ async function approveProfileUpdate(rid, evt){
     
     /* FIX Bug#2: Sync approved profile changes to Supabase
        The Firebase child_changed watcher syncs ign but NOT ff_uid.
-       We must explicitly sync both here to keep databases consistent. */
+       We must explicitly sync both here to keep databases consistent.
+       ✅ 2026-08-20: awaited + `.then(null, ...)` instead of `.catch(...)`.
+       PostgrestBuilder has no .catch() (see supabase-compat-patch.js);
+       the old form threw a TypeError right here and aborted the handler
+       before the success toast / button restore ever ran. */
     if(window._supa){
       var supaUpd={updated_at:new Date().toISOString()};
       if(newIgn) supaUpd.ign=newIgn;
       if(newFfUid) supaUpd.ff_uid=newFfUid;
       if(newPhone) supaUpd.phone=newPhone;
       if(newAvatar) supaUpd.avatar_url=newAvatar;
-      window._supa.from('users').update(supaUpd).eq('id',uid)
-        .catch(function(e){console.warn('[Bug#2 Fix] approveProfileUpdate Supabase sync failed:',e.message);});
-      /* Also log wallet_transactions entry for audit trail */
+      var _sr = await window._supa.from('users').update(supaUpd).eq('id',uid)
+        .then(function(r){return r;}, function(e){return {error:e};});
+      if(_sr && _sr.error){ console.warn('[Bug#2 Fix] approveProfileUpdate Supabase sync failed:', _sr.error.message); }
+      /* Audit trail — best effort, never blocks the approval */
       window._supa.from('admin_activity_log').insert({
         admin_uid:_adminUid(),
         action:'profile_update_approved',
         target_uid:uid,
         details:JSON.stringify({newIgn:newIgn,newFfUid:newFfUid,requestId:rid}),
         created_at:new Date().toISOString()
-      }).catch(function(){});
+      }).then(null,function(){});
       console.log('[Bug#2 Fix] approveProfileUpdate Supabase synced:',uid,supaUpd);
     }
     
     console.log('✅ Profile update approved!');
     console.log('═══════════════════════════════');
     showToast('✅ Profile update approved! '+(changeMsg.join(', ')||''));
+    /* Refresh the table so the row flips to "approved" straight away */
+    if(typeof setupProfileUpdateListener==='function'){try{rtdb.ref(DB_PROFILE_UPDATE).once('value',function(s){renderProfileUpdates(s);});}catch(_e){}}
   }catch(e){
     console.error('approveProfileUpdate error:',e);
-    showToast('Error: '+e.message,true);
+    showToast('Error: '+(e&&e.message?e.message:e),true);
+  }finally{
+    _doneBtn();
   }
 }
 
@@ -3422,40 +3445,22 @@ function setupJoinRequestsListener(){
   });
 }
 function normalizeWalletType(t){if(!t)return 'add';t=t.toLowerCase();if(t==='deposit'||t==='add'||t==='add_money'||t==='addmoney')return 'add';if(t==='withdraw'||t==='withdrawal')return 'withdraw';return t;}
-function renderWalletRequests(){
-  var f=document.getElementById('walletFilter')?document.getElementById('walletFilter').value:'all';var tb=document.getElementById('walletRequestsTable');tb.innerHTML='';var c=0;
-  Object.keys(allWalletRequests).forEach(function(id){
-    var w=allWalletRequests[id];var tp=normalizeWalletType(w.type);if(f!=='all'&&tp!==f)return;c++;
-    var uid=getUid(w)||'N/A',un=w.userName||w.displayName||getUserName(uid);
-    var tb_=tp==='add'?'<span class="badge" style="background:rgba(0,212,255,.15);color:#00d4ff"><i class="fas fa-gem"></i> Sky Diamond Buy</span>':tp==='diamond_purchase'?'<span class="badge" style="background:rgba(0,212,255,.15);color:#00d4ff"><i class="fas fa-gem"></i> Diamond Purchase</span>':'<span class="badge purple"><i class="fas fa-arrow-up"></i> Withdraw</span>';
-    var sb=w.status==='approved'?'green':w.status==='rejected'?'red':'yellow';
-    var _ssrc=w.screenshotUrl||w.screenshotBase64||w.screenshot||w.proofImage||''; var ss=_ssrc?'<img src="'+_ssrc+'" style="width:36px;height:36px;border-radius:6px;cursor:pointer;object-fit:cover;border:1px solid var(--border)" onclick="viewScreenshot(this.src)">':'<span class="text-muted text-xxs">No photo</span>';
-    var utr=w.utrNumber||w.utr||w.transactionId||w.referenceId||'',upi=w.upiId||w.upi||'';
-    var dh='';
-    if(tp==='add'&&utr)dh='<span class="wallet-utr">UTR: '+utr+'</span>';
-    else if(tp==='withdraw'&&upi)dh='<div class="text-xxs"><span class="text-dim">UPI:</span> <strong class="text-warning">'+upi+'</strong></div>';
-    else dh='<span class="text-muted text-xxs">'+(utr||upi||'—')+'</span>';
-    var acts='';
-    if(w.status==='pending'){
-      if(tp==='add')acts='<button class="btn btn-primary btn-xs" onclick="approveAddMoney(\''+id+'\', event)"><i class="fas fa-check"></i></button> <button class="btn btn-danger btn-xs" onclick="openRejectModal(\'wallet\',\''+id+'\', event)"><i class="fas fa-times"></i></button>';
-      else acts='<button class="btn btn-primary btn-xs" onclick="openWithdrawalModal(\''+id+'\')"><i class="fas fa-money-bill-wave"></i></button> <button class="btn btn-danger btn-xs" onclick="openRejectModal(\'wallet\',\''+id+'\')"><i class="fas fa-times"></i></button>';
-    }
-    var ffUid_w = w.ffUid||w.gameUid||(usersCache[uid]&&usersCache[uid].ffUid)||'—';
-    var ign_w = w.userName||w.displayName||getUserName(uid)||(usersCache[uid]&&usersCache[uid].ign)||'—';
-    tb.innerHTML+='<tr>'
-      +'<td><span style="font-weight:700;color:var(--primary);font-size:11px">'+ign_w+'</span><div style="font-size:9px;color:#666;font-family:monospace">'+uid.substring(0,8)+'…</div></td>'
-      +'<td><span style="font-family:monospace;font-size:10px;color:var(--info);background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">'+ffUid_w+'</span></td>'
-      +'<td>'+tb_+'</td>'
-      +'<td class="font-bold" style="color:#00d4ff">'+(tp==='add'||tp==='diamond_purchase'?'💎':'₹')+(w.diamonds||w.amount||0)+'</td>'
-      +'<td>'+dh+'</td>'
-      +'<td>'+(w.creatorCode?'<span style="font-size:11px;font-weight:800;color:#00d4ff;background:rgba(0,212,255,.1);padding:2px 8px;border-radius:8px">🔵 '+w.creatorCode+'</span>':'<span style="color:#444;font-size:10px">—</span>')+'</td>'
-      +'<td>'+ss+'</td>'
-      +'<td><span class="badge '+sb+'">'+(w.status||'pending')+'</span></td>'
-      +'<td>'+acts+'</td>'
-      +'</tr>';
-  });
-  document.getElementById('walletCount').textContent=c;
-}
+/* ✅ 2026-08-20: renderWalletRequests() used to be the Wallet tab's
+   renderer and did `document.getElementById('walletRequestsTable').innerHTML`
+   with NO null guard. That element no longer exists, and several other
+   files still call this function on a timer / after a Supabase sync
+   (admin-supabase-sync.js, admin-fixes-v25-SUPABASE.js), so leaving it
+   as-is would have thrown "Cannot set properties of null" every few
+   seconds forever. It is now a safe alias that refreshes the Sky
+   Diamond tab instead — same data, new home. */
+window.renderWalletRequests = function() {
+  if (!document.getElementById('skyDiaReqList')) return;
+  var sec = document.getElementById('section-skyDiamondRequests');
+  if (sec && sec.classList.contains('active') && typeof window.loadSkyDiamondReqSection === 'function') {
+    window.loadSkyDiamondReqSection();
+  }
+};
+
 function viewScreenshot(src){document.getElementById('screenshotFullImg').src=src;document.getElementById('screenshotModal').classList.add('show');}
 async function approveAddMoney(rid, evt){
   /* ✅ FIX (live-testing — CRITICAL): bare `event.target...` with NO
@@ -3466,9 +3471,10 @@ async function approveAddMoney(rid, evt){
      call. Same class of bug as approveProfile/approveProfileUpdate,
      but worse here because there was no defensive `if(event&&...)`
      check at all. Now takes the event as an explicit parameter. */
-  var event = evt;
-  /* Disable button immediately to prevent double-clicks */
-  if(event&&event.target){var _b=event.target.closest('.btn');if(_b){_b.disabled=true;_b.style.opacity='0.5';}}
+  /* ✅ 2026-08-20: same always-restore guarantee as the other approve
+     buttons — the old code disabled the button and dimmed it but never
+     re-enabled it on the two early-return paths or on error. */
+  var _doneBtn = (window._btnBusy ? window._btnBusy(evt) : function(){});
   try{
     var w=allWalletRequests[rid];
     if(!w)return showToast('Not found',true);
@@ -3523,9 +3529,12 @@ async function approveAddMoney(rid, evt){
     /* Wallet audit trail — for fa54 security monitoring */
     await rtdb.ref('walletAuditLog').push({uid:uid,action:'MANUAL_APPROVED',amount:amt,note:'UTR: '+(w.utrNumber||w.utr||w.transactionId||'none')+' | Admin: '+_adminEmail(),timestamp:Date.now(),adminUid:_adminUid()});
     showToast('✅ Payment approved — ₹'+amt+' added to '+userName);
+    if(typeof loadSkyDiamondReqSection==='function')loadSkyDiamondReqSection();
   }catch(e){
     console.error('approveAddMoney error:',e);
-    showToast('Error: '+e.message,true);
+    showToast('Error: '+(e&&e.message?e.message:e),true);
+  }finally{
+    _doneBtn();
   }
 }
 function openWithdrawalModal(rid){var w=allWalletRequests[rid];if(!w)return;pendingWithdrawData={requestId:rid};withdrawProofBase64=null;document.getElementById('withdrawProofPreview').style.display='none';document.getElementById('confirmWithdrawBtn').disabled=true;document.getElementById('withdrawAdminMsg').value='';var uid=getUid(w)||'N/A',upi=w.upiId||w.upi||'N/A',amt=w.amount||0,un=w.userName||w.displayName||getUserName(uid);document.getElementById('withdrawUserName').textContent=un;document.getElementById('withdrawUserUid').textContent=uid;document.getElementById('withdrawUpiId').textContent=upi;document.getElementById('withdrawAmount').textContent='₹'+amt;document.getElementById('withdrawPayLink').href='upi://pay?pa='+encodeURIComponent(upi)+'&pn='+encodeURIComponent(un)+'&am='+amt+'&cu=INR';document.getElementById('withdrawalModal').classList.add('show');}
@@ -4609,40 +4618,85 @@ async function saveGlobalMessage(){try{var gMsg=document.getElementById('settGlo
 async function clearGlobalMessage(){try{await rtdb.ref('appSettings/banner').set(null);await rtdb.ref('appSettings/globalMessage').set(null);await rtdb.ref('appSettings/ticker').set(null);document.getElementById('settGlobalMsg').value='';showToast('Cleared!');}catch(e){showToast('Error: '+e.message,true);}}
 async function saveSpectateLink(){try{await rtdb.ref('appSettings/spectateLink').set(document.getElementById('settSpectateLink').value.trim());showToast('Saved!');}catch(e){showToast('Error: '+e.message,true);}}
 
-/* ─── AD REWARDS SETTINGS ─── */
+/* ─── AD REWARDS SETTINGS ───────────────────────────────────────────
+   🐞 ROOT-CAUSE FIX (live testing 2026-08-20) — "Ek ad dekhne par user
+   ko 10 coin milne chahiye the, mile 50".
+
+   There were THREE different ad-reward numbers in the system and the
+   admin panel was editing the one nobody reads:
+
+     1. THIS card wrote Supabase app_settings key='ad_rewards'
+        ({coinsPerAd, dailyCoinAdLimit}).  →  The User Panel never reads
+        the 'ad_rewards' key ANYWHERE. Pure dead config. Changing it did
+        literally nothing.
+     2. App Settings → "Ad Watch Coins" writes app_settings
+        key='live_config' field adCoinsPerWatch (+ adDailyLimit).
+        THIS is the one the User Panel reads, as window.CFG.adCoinsPerWatch
+        (features/app-config.js → features/ads.js watchAdForCoins).
+     3. The User Panel's features/rewarded-bonus.js defines a SECOND
+        window.watchAdForCoins that hardcodes 50 coins and ignores CFG
+        entirely — and because index.html loads rewarded-bonus.js AFTER
+        ads.js, that hardcoded 50 overwrites the config-driven one. That
+        is why the user got 50 instead of 10. ← must be fixed in the
+        USER PANEL (see the handover notes); the admin side cannot
+        override a hardcoded literal.
+
+   Admin-side fix (here): stop writing the dead 'ad_rewards' key as the
+   source of truth. Read/write live_config.adCoinsPerWatch and
+   live_config.adDailyLimit — the values the User Panel actually reads —
+   using a read-merge-write so we never clobber the other ~60 live_config
+   fields that App Settings owns. 'ad_rewards' is still mirrored for any
+   legacy consumer, but live_config wins. */
 async function saveAdRewards() {
-  /* ✅ FIX (2026-08): moved from Firebase (appSettings/adRewards) to
-     Supabase app_settings (key='ad_rewards') — 'appSettings' is no
-     longer a Firebase-only path (see supabase-rtdb-bridge.js), so the
-     old rtdb.ref() write would have silently no-op'd. Also removed the
-     Sky Diamond Reward fields — ads never granted diamonds in the User
-     Panel, that half of the form was fully disconnected from any live
-     code. */
   try {
     if (!window._supa) { showToast('Error: Supabase not ready', true); return; }
-    var data = {
-      coinsPerAd:       Number(document.getElementById('adRewardCoinsPerAd').value)     || 5,
-      dailyCoinAdLimit: Number(document.getElementById('adRewardCoinDailyLimit').value) || 20,
-      updatedAt: Date.now()
-    };
-    var r = await window._supa.from('app_settings').upsert(
-      { key: 'ad_rewards', value: data, updated_at: new Date().toISOString() },
+    var coins = Number(document.getElementById('adRewardCoinsPerAd').value) || 10;
+    var limit = Number(document.getElementById('adRewardCoinDailyLimit').value) || 5;
+
+    /* READ-MERGE-WRITE: live_config is a single JSONB blob shared with
+       the App Settings page. A bare upsert of {adCoinsPerWatch,...}
+       would wipe every other field in it. */
+    var cur = await window._supa.from('app_settings').select('value').eq('key', 'live_config').maybeSingle();
+    var merged = (cur && cur.data && cur.data.value && typeof cur.data.value === 'object')
+      ? JSON.parse(JSON.stringify(cur.data.value)) : {};
+    merged.adCoinsPerWatch = coins;
+    merged.adDailyLimit    = limit;
+    merged.updatedAt       = Date.now();
+
+    var w = await window._supa.from('app_settings').upsert(
+      { key: 'live_config', value: merged, updated_at: new Date().toISOString() },
       { onConflict: 'key' }
     );
-    if (r.error) throw new Error(r.error.message);
+    if (w.error) throw new Error(w.error.message);
+
+    /* Legacy mirror — harmless, kept so any old consumer stays in sync. */
+    await window._supa.from('app_settings').upsert(
+      { key: 'ad_rewards', value: { coinsPerAd: coins, dailyCoinAdLimit: limit, updatedAt: Date.now() }, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    ).then(null, function(){});
+
+    /* Keep the App Settings page's inputs in sync if it is already rendered,
+       so the two editors can never show contradicting numbers. */
+    var a = document.getElementById('as_adCoins');      if (a) a.value = coins;
+    var b = document.getElementById('as_adDailyLimit'); if (b) b.value = limit;
+
     var msg = document.getElementById('adRewardSaveMsg');
     if (msg) { msg.style.display = 'inline'; setTimeout(function(){ msg.style.display='none'; }, 3000); }
-    showToast('✅ Ad Reward Settings saved!');
-  } catch(e) { showToast('Error: ' + e.message, true); }
+    showToast('✅ Ad Reward saved — user app ko ' + coins + ' 🪙 per ad milega (max ' + limit + '/day)');
+  } catch(e) {
+    console.error('saveAdRewards:', e);
+    showToast('Error: ' + (e && e.message ? e.message : e), true);
+  }
 }
 async function loadAdRewards() {
   try {
     if (!window._supa) return;
-    var r = await window._supa.from('app_settings').select('value').eq('key', 'ad_rewards').single();
-    var d = (r.data && r.data.value) || {};
-    var set = function(id, val, def) { var el=document.getElementById(id); if(el) el.value = val||def; };
-    set('adRewardCoinsPerAd',     d.coinsPerAd,        5);
-    set('adRewardCoinDailyLimit', d.dailyCoinAdLimit, 20);
+    /* Source of truth = live_config (what the User Panel reads). */
+    var r = await window._supa.from('app_settings').select('value').eq('key', 'live_config').maybeSingle();
+    var d = (r && r.data && r.data.value) || {};
+    var set = function(id, val, def) { var el = document.getElementById(id); if (el) el.value = (val != null ? val : def); };
+    set('adRewardCoinsPerAd',     d.adCoinsPerWatch, 10);
+    set('adRewardCoinDailyLimit', d.adDailyLimit,     5);
   } catch(e) { console.error('loadAdRewards:', e); }
 }
 
@@ -4657,7 +4711,7 @@ async function deleteVoucher(id){if(!confirm('Delete?'))return;try{await rtdb.re
    UI NAVIGATION WITH BACK BUTTON SUPPORT
    ============================================= */
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('show');}
-var sIcons={bracketAdmin:'fa-sitemap',clanWarAdmin:'fa-shield-alt',cityChampAdmin:'fa-city',mentorAdmin:'fa-graduation-cap',cleanBadgeAdmin:'fa-check-circle',quicktools:'fa-tools',disputes:'fa-exclamation-triangle',dashboard:'fa-chart-line',profileVerification:'fa-user-check',profileUpdates:'fa-user-edit',users:'fa-users',tournaments:'fa-trophy',joinedPlayers:'fa-clipboard-check',matchResult:'fa-trophy',results:'fa-bullseye',wallets:'fa-wallet',teams:'fa-user-friends',support:'fa-comments',notifications:'fa-bell',settings:'fa-cog',roster:'fa-shield-alt',analytics:'fa-chart-bar',lookup:'fa-search',activity:'fa-history'};
+var sIcons={bracketAdmin:'fa-sitemap',clanWarAdmin:'fa-shield-alt',cityChampAdmin:'fa-city',mentorAdmin:'fa-graduation-cap',cleanBadgeAdmin:'fa-check-circle',quicktools:'fa-tools',disputes:'fa-exclamation-triangle',dashboard:'fa-chart-line',profileVerification:'fa-user-check',profileUpdates:'fa-user-edit',users:'fa-users',tournaments:'fa-trophy',joinedPlayers:'fa-clipboard-check',matchResult:'fa-trophy',results:'fa-bullseye',teams:'fa-user-friends',support:'fa-comments',notifications:'fa-bell',settings:'fa-cog',roster:'fa-shield-alt',analytics:'fa-chart-bar',lookup:'fa-search',activity:'fa-history'};
 var sTitles={bracketAdmin:'Brackets',clanWarAdmin:'Clan Wars',cityChampAdmin:'City Championship',mentorAdmin:'Mentor Management',cleanBadgeAdmin:'Clean Badges',quicktools:'Quick Tools',disputes:'Disputes',dashboard:'Dashboard',sponsoredTournaments:'Sponsored Prizes',appSettings:'App Settings',profileVerification:'New Verifications',profileUpdates:'Profile Updates',users:'Users',tournaments:'Matches',joinedPlayers:'Joined Players',matchResult:'Match Result',results:'Match Results',wallets:'Wallet Requests',teams:'Team Requests',support:'Support Chat',notifications:'Notifications',settings:'Settings',roster:'Live Roster',analytics:'Analytics',lookup:'Player Lookup',activity:'Activity Log'};
 
 /* Track current section for back button */
@@ -4725,7 +4779,7 @@ function showSection(sec,el,skipHistory){
   if(sec==='results')loadTournaments();
   if(sec==='teams')loadTeamRequests();
   if(sec==='support'){loadSupportChats();loadSupportTickets('open');}
-  if(sec==='wallets')renderWalletRequests();
+  /* ✅ 2026-08-20: 'wallets' section removed — see Sky Diamond tab. */
   if(sec==='users')renderUsers();
   if(sec==='settings'){loadSettings();loadVouchers();loadAdRewards();} if(sec==='skyDiamondRequests'){loadSkyDiamondReqSection();} if(sec==='premiumRequests'){loadPremiumReqSection();} if(sec==='seasonPass'){loadSeasonPassSection();}
   if(sec==='analytics'){if(window.loadAnalytics)loadAnalytics();}
@@ -5759,71 +5813,129 @@ window.loadSkyDiamondReqSection = async function() {
   if (!list) return;
   list.innerHTML = '<div style="text-align:center;padding:20px;color:#888"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
   try {
-    /* ✅ FIX (2026-08-17): This used to read Firebase walletRequests/
-       skyDiamondRequests nodes, which quick-deposit.js never actually
-       wrote UTR/UPI or screenshot_url into (see quick-deposit.js fix) —
-       so this table always showed "No photo" and had no UTR/UPI column
-       at all, even after a user uploaded proof. sd_requests in Supabase
-       is now the real source of truth for this data (screenshot_url,
-       upi_ref columns), so read from there instead. */
+    /* ✅ 2026-08-17: sd_requests in Supabase is the source of truth for
+       screenshot_url / upi_ref — the old Firebase walletRequests +
+       skyDiamondRequests nodes never received them.
+
+       ✅ 2026-08-20 (Wallet tab removal): this table now also carries
+       every column the deleted "Wallet Requests" tab used to show, so
+       nothing was lost when that tab was deleted:
+         IGN (+short uid)  · FF UID  · Type badge  · Diamonds
+         Price Paid (₹)    · UTR/UPI · Creator Code · Proof screenshot
+         Status            · Time    · Actions
+       Plus the status filter (#skyDiaFilter) and the "Manual" wallet
+       adjust button, both moved over from that tab's header.
+       FF UID and Creator Code are not columns on sd_requests, so they
+       are resolved from the joined users row / usersCache — exactly how
+       the old wallet table resolved them. */
     var supa = window._supa;
     if (!supa) { list.innerHTML = '<div style="text-align:center;padding:20px;color:#f66">Supabase not connected</div>'; return; }
-    var res = await supa.from('sd_requests')
-      .select('id, user_id, ign, sd_amount, amount_inr, screenshot_url, upi_ref, status, created_at')
-      .eq('request_type', 'sky_diamond_purchase')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
+
+    var filterEl = document.getElementById('skyDiaFilter');
+    var filter   = filterEl ? filterEl.value : 'pending';
+
+    /* Try the FK-joined select first (gives us ff_uid without an extra
+       round trip). If the FK alias isn't present in this project, fall
+       back to the plain select — the old code assumed the join always
+       worked, which silently blanked the whole table when it didn't. */
+    var cols = 'id, user_id, ign, sd_amount, amount_inr, screenshot_url, upi_ref, status, created_at, request_type';
+    var q = supa.from('sd_requests')
+      .select(cols + ', users!sd_requests_user_id_fkey(ign, ff_uid)')
+      .eq('request_type', 'sky_diamond_purchase');
+    if (filter !== 'all') q = q.eq('status', filter);
+    var res = await q.order('created_at', { ascending: false }).limit(300);
+
+    if (res.error) {
+      console.warn('[SkyDia] joined select failed, retrying without join:', res.error.message);
+      var q2 = supa.from('sd_requests').select(cols).eq('request_type', 'sky_diamond_purchase');
+      if (filter !== 'all') q2 = q2.eq('status', filter);
+      res = await q2.order('created_at', { ascending: false }).limit(300);
+    }
     if (res.error) {
       list.innerHTML = '<div style="text-align:center;padding:20px;color:#f66">Error: ' + res.error.message + '</div>';
       return;
     }
-    var rows = (res.data || []).map(function(r) { return { id: r.id, data: r }; });
-    document.getElementById('skyDiaCount').textContent = rows.length;
-    var bd = document.getElementById('skyDiaBadge');
-    if (bd) { bd.textContent = rows.length; bd.style.display = rows.length ? 'flex' : 'none'; }
+
+    var rows = res.data || [];
+    var cntEl = document.getElementById('skyDiaCount');
+    if (cntEl) cntEl.textContent = rows.length;
+
+    /* Badge always counts PENDING only, regardless of the active filter. */
+    var pendingCount = filter === 'pending'
+      ? rows.length
+      : rows.filter(function(r){ return (r.status || 'pending') === 'pending'; }).length;
+    if (filter !== 'pending' && filter !== 'all') pendingCount = null;
+    if (pendingCount !== null && window.updateBadge) window.updateBadge('skyDiaBadge', pendingCount);
+
     if (!rows.length) {
-      list.innerHTML = '<div style="text-align:center;padding:30px;color:#666"><i class="fas fa-gem" style="font-size:32px;margin-bottom:10px;display:block;color:#00d4ff33"></i>No pending Sky Diamond requests</div>';
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:#666"><i class="fas fa-gem" style="font-size:32px;margin-bottom:10px;display:block;color:#00d4ff33"></i>No ' + (filter === 'all' ? '' : filter + ' ') + 'Sky Diamond requests</div>';
       return;
     }
-    var h = '<div class="table-wrapper"><table><thead><tr><th>User</th><th>Diamonds</th><th>Price Paid</th><th>UTR / UPI</th><th>Screenshot</th><th>Status</th><th>Time</th><th>Actions</th></tr></thead><tbody>';
-    rows.forEach(function(item) {
-      var r = item.data; var id = item.id;
-      var uid = r.user_id || '';
-      var ign = r.ign || uid.substring(0,8) || '—';
-      var diamonds = r.sd_amount || 0;
-      var price = r.amount_inr || 0;
-      var utr = r.upi_ref || '<span class="text-muted text-xxs">—</span>';
-      var ss = r.screenshot_url || '';
-      var ssHtml = ss ? '<img src="'+ss+'" style="width:40px;height:40px;border-radius:6px;cursor:pointer;object-fit:cover;border:1px solid rgba(0,212,255,.3)" onclick="viewScreenshot(this.src)">' : '<span class="text-muted text-xxs">No photo</span>';
-      var status = r.status || 'pending';
-      var statusColor = status==='approved'?'#00ff9c':status==='rejected'?'#ff5555':'#ffd700';
-      var time = r.created_at ? new Date(r.created_at).toLocaleString('en-IN') : '—';
+
+    var esc = function(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+
+    var h = '<div class="table-wrapper"><table><thead><tr>' +
+            '<th>IGN</th><th>FF UID</th><th>Type</th><th>Diamonds</th><th>Price Paid</th>' +
+            '<th>UTR / UPI</th><th>Creator Code</th><th>Proof</th><th>Status</th><th>Time</th><th>Actions</th>' +
+            '</tr></thead><tbody>';
+
+    rows.forEach(function(r) {
+      var id       = r.id;
+      var uid      = r.user_id || '';
+      var joined   = r.users || {};
+      var cached   = (window.usersCache && window.usersCache[uid]) || {};
+      var ign      = joined.ign || r.ign || cached.ign || cached.displayName || (uid ? uid.substring(0,8) : '—');
+      var ffUid    = joined.ff_uid || r.ff_uid || cached.ffUid || cached.gameUid || '—';
+      var diamonds = Number(r.sd_amount) || 0;
+      var price    = Number(r.amount_inr) || 0;
+      var utr      = r.upi_ref || '';
+      var creator  = r.creator_code || cached.creatorCode || '';
+      var ss       = r.screenshot_url || '';
+      var status   = r.status || 'pending';
+      var time     = r.created_at ? new Date(r.created_at).toLocaleString('en-IN') : '—';
+
+      var ssHtml = ss
+        ? '<img src="' + esc(ss) + '" style="width:40px;height:40px;border-radius:6px;cursor:pointer;object-fit:cover;border:1px solid rgba(0,212,255,.3)" onclick="viewScreenshot(this.src)">'
+        : '<span class="text-muted text-xxs">No photo</span>';
+      var statusColor = status === 'approved' ? '#00ff9c' : status === 'rejected' ? '#ff5555' : '#ffd700';
+
+      var acts = '';
+      if (status === 'pending') {
+        acts = '<button class="btn btn-primary btn-xs" onclick="approveSkyDiaReq(\'' + esc(id) + '\',\'' + esc(uid) + '\',' + diamonds + ',true,event)"><i class="fas fa-check"></i> Approve</button> ' +
+               '<button class="btn btn-danger btn-xs" onclick="rejectSkyDiaReq(\'' + esc(id) + '\',true,event)"><i class="fas fa-times"></i></button>';
+      } else {
+        acts = '<span class="text-xxs text-muted">' + esc(status) + '</span>';
+      }
+
       h += '<tr>';
-      h += '<td><span style="font-weight:700;color:var(--primary)">' + ign + '</span><div style="font-size:9px;color:#666;font-family:monospace">' + uid.substring(0,10) + '</div></td>';
+      h += '<td><span style="font-weight:700;color:var(--primary);font-size:11px">' + esc(ign) + '</span><div style="font-size:9px;color:#666;font-family:monospace">' + esc(uid.substring(0,10)) + '…</div></td>';
+      h += '<td><span style="font-family:monospace;font-size:10px;color:var(--info);background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">' + esc(ffUid) + '</span></td>';
+      h += '<td><span class="badge" style="background:rgba(0,212,255,.15);color:#00d4ff"><i class="fas fa-gem"></i> Sky Diamond Buy</span></td>';
       h += '<td><span style="font-size:15px;font-weight:900;color:#00d4ff">💎 ' + diamonds + '</span></td>';
       h += '<td><span style="font-weight:700;color:#00ff9c">₹' + price + '</span></td>';
-      h += '<td><span style="font-family:monospace;font-size:10px;color:#ccc">' + utr + '</span></td>';
+      h += '<td>' + (utr ? '<span class="wallet-utr" style="font-family:monospace;font-size:10px;color:#ccc">UTR: ' + esc(utr) + '</span>' : '<span class="text-muted text-xxs">—</span>') + '</td>';
+      h += '<td>' + (creator ? '<span style="font-size:11px;font-weight:800;color:#00d4ff;background:rgba(0,212,255,.1);padding:2px 8px;border-radius:8px">🔵 ' + esc(creator) + '</span>' : '<span style="color:#444;font-size:10px">—</span>') + '</td>';
       h += '<td>' + ssHtml + '</td>';
-      h += '<td><span style="color:' + statusColor + ';font-weight:700;font-size:10px;text-transform:uppercase">' + status + '</span></td>';
-      h += '<td style="font-size:11px;color:#666">' + time + '</td>';
-      h += '<td>';
-      /* ✅ Note (2026-08-17): id here is already the real sd_requests.id
-         (Supabase UUID), since this table now reads directly from
-         Supabase — approveSkyDiaReq/rejectSkyDiaReq below are tolerant of
-         receiving either a UUID or a legacy Firebase key. */
-      h += '<button class="btn btn-primary btn-xs" onclick="approveSkyDiaReq(\'' + id + '\',\'' + uid + '\',' + diamonds + ',true)"><i class="fas fa-check"></i> Approve</button> ';
-      h += '<button class="btn btn-danger btn-xs" onclick="rejectSkyDiaReq(\'' + id + '\',true)"><i class="fas fa-times"></i></button>';
-      h += '</td></tr>';
+      h += '<td><span style="color:' + statusColor + ';font-weight:700;font-size:10px;text-transform:uppercase">' + esc(status) + '</span></td>';
+      h += '<td style="font-size:11px;color:#666">' + esc(time) + '</td>';
+      h += '<td>' + acts + '</td>';
+      h += '</tr>';
     });
+
     h += '</tbody></table></div>';
     list.innerHTML = h;
   } catch(e) {
-    list.innerHTML = '<div style="color:var(--danger);padding:16px">Error: ' + e.message + '</div>';
+    console.error('loadSkyDiamondReqSection error:', e);
+    list.innerHTML = '<div style="color:var(--danger);padding:16px">Error: ' + (e && e.message ? e.message : e) + '</div>';
   }
 };
 
-window.approveSkyDiaReq = async function(reqId, uid, diamonds, isSkyNode) {
-  if (!uid || !diamonds) return showToast('Invalid data', true);
+
+window.approveSkyDiaReq = async function(reqId, uid, diamonds, isSkyNode, evt) {
+  /* ✅ 2026-08-20: evt added so the button spinner is always restored
+     (same stuck-spinner class of bug as the profile approve buttons). */
+  var _doneBtn = (window._btnBusy ? window._btnBusy(evt) : function(){});
+  if (!uid || !diamonds) { _doneBtn(); return showToast('Invalid data', true); }
   try {
     /* BUG #26 FIX (2026-07): same triple-credit root cause as approveAddMoney —
        both writes below mapped to the same sky_diamonds column via the bridge,
@@ -5843,10 +5955,15 @@ window.approveSkyDiaReq = async function(reqId, uid, diamonds, isSkyNode) {
     await rtdb.ref('users/' + uid + '/transactions').push({ type: 'sky_diamond_credit', amount: diamonds, currency: 'sky', description: 'Sky Diamond purchase approved', timestamp: Date.now() });
     showToast('✅ 💎 ' + diamonds + ' Sky Diamonds credited!');
     loadSkyDiamondReqSection();
-  } catch(e) { showToast('Error: ' + e.message, true); }
+  } catch(e) {
+    console.error('approveSkyDiaReq error:', e);
+    showToast('Error: ' + (e && e.message ? e.message : e), true);
+  } finally { _doneBtn(); }
 };
 
-window.rejectSkyDiaReq = async function(reqId, isSkyNode) {
+window.rejectSkyDiaReq = async function(reqId, isSkyNode, evt) {
+  var _doneBtn = (window._btnBusy ? window._btnBusy(evt) : function(){});
+  try {
   /* ✅ BUG FIX (2026-07-17, CRITICAL): this was Firebase-RTDB-only — a
      plain status flag flip with zero Supabase sync and zero refund logic
      of any kind. For request_type='green_diamond_withdrawal' (routed
@@ -5883,6 +6000,10 @@ window.rejectSkyDiaReq = async function(reqId, isSkyNode) {
   await rtdb.ref(node + '/' + reqId).update({ status: 'rejected', rejectedAt: Date.now() }).catch(function(){});
   showToast('Request rejected.');
   loadSkyDiamondReqSection();
+  } catch(e) {
+    console.error('rejectSkyDiaReq error:', e);
+    showToast('Error: ' + (e && e.message ? e.message : e), true);
+  } finally { _doneBtn(); }
 };
 
 window.loadPremiumReqSection = async function() {
@@ -5890,84 +6011,204 @@ window.loadPremiumReqSection = async function() {
   if (!list) return;
   list.innerHTML = '<div style="text-align:center;padding:20px;color:#888"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>';
   try {
-    var snap = await rtdb.ref('premiumRequests').orderByChild('status').equalTo('pending').once('value');
+    /* ✅ 2026-08-20 (Wallet tab removal): gained the columns the deleted
+       Wallet Requests tab had and this table was missing — FF UID,
+       UTR/UPI and an explicit Status column — plus a status filter
+       (#premiumFilter), so approved/rejected history is reachable here
+       instead of only in the old wallet list. */
+    var filterEl = document.getElementById('premiumFilter');
+    var filter   = filterEl ? filterEl.value : 'pending';
+
+    var ref = rtdb.ref('premiumRequests');
+    var snap = (filter === 'all')
+      ? await ref.once('value')
+      : await ref.orderByChild('status').equalTo(filter).once('value');
+
     var rows = [];
-    if (snap.exists()) snap.forEach(function(c){ rows.push({ id: c.key, data: c.val() }); });
-    document.getElementById('premiumReqCount').textContent = rows.length;
-    var bd = document.getElementById('premiumBadge');
-    if (bd) { bd.textContent = rows.length; bd.style.display = rows.length ? 'flex' : 'none'; }
+    if (snap.exists()) snap.forEach(function(c){ rows.push({ id: c.key, data: c.val() || {} }); });
+    rows.sort(function(a,b){ return (b.data.createdAt||0) - (a.data.createdAt||0); });
+
+    var cntEl = document.getElementById('premiumReqCount');
+    if (cntEl) cntEl.textContent = rows.length;
+
+    if (filter === 'pending' || filter === 'all') {
+      var pend = rows.filter(function(r){ return (r.data.status || 'pending') === 'pending'; }).length;
+      if (window.updateBadge) window.updateBadge('premiumBadge', pend);
+    }
+
     if (!rows.length) {
-      list.innerHTML = '<div style="text-align:center;padding:30px;color:#666"><i class="fas fa-crown" style="font-size:32px;margin-bottom:10px;display:block;color:#ffd70033"></i>No pending Premium requests</div>';
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:#666"><i class="fas fa-crown" style="font-size:32px;margin-bottom:10px;display:block;color:#ffd70033"></i>No ' + (filter === 'all' ? '' : filter + ' ') + 'Premium requests</div>';
       return;
     }
+
+    var esc = function(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
     var tierColors = { '1': '#ffd700', '2': '#00d4ff', '3': '#b964ff' };
     var tierNames  = { '1': 'Tier 1 — ₹49', '2': 'Tier 2 — ₹99', '3': 'Tier 3 — ₹199' };
-    var h = '<div class="table-wrapper"><table><thead><tr><th>User</th><th>Plan</th><th>Price</th><th>Screenshot</th><th>Requested</th><th>Actions</th></tr></thead><tbody>';
+
+    var h = '<div class="table-wrapper"><table><thead><tr>' +
+            '<th>IGN</th><th>FF UID</th><th>Plan</th><th>Price</th><th>UTR / UPI</th>' +
+            '<th>Proof</th><th>Status</th><th>Requested</th><th>Actions</th>' +
+            '</tr></thead><tbody>';
+
     rows.forEach(function(item) {
-      var r = item.data; var id = item.id;
-      var uid = r.uid || '';
-      var ign = r.userName || r.ign || uid.substring(0,8) || '—';
-      var tier = String(r.tier || r.tierId || '1');
-      var price = r.price || 49;
-      var col = tierColors[tier] || '#ffd700';
-      var ss = r.screenshotBase64 || '';
-      var ssHtml = ss ? '<img src="'+ss+'" style="width:40px;height:40px;border-radius:6px;cursor:pointer;object-fit:cover;border:1px solid rgba(255,215,0,.3)" onclick="viewScreenshot(this.src)">' : '<span class="text-muted text-xxs">No photo</span>';
+      var r = item.data, id = item.id;
+      var uid    = r.uid || r.userId || r.user_id || '';
+      var cached = (window.usersCache && window.usersCache[uid]) || {};
+      var ign    = r.userName || r.ign || cached.ign || cached.displayName || (uid ? uid.substring(0,8) : '—');
+      var ffUid  = r.ffUid || r.ff_uid || cached.ffUid || cached.gameUid || '—';
+      /* tier can arrive as 1 / '1' / 'tier1' — normalise to a digit so the
+         onclick below never emits invalid JS (that used to be a silent
+         "button does nothing" for non-numeric tiers). */
+      var tierRaw = r.tier != null ? r.tier : (r.tierId != null ? r.tierId : 1);
+      var tierNum = parseInt(String(tierRaw).replace(/\D/g,''), 10);
+      if (!(tierNum >= 1 && tierNum <= 3)) tierNum = 1;
+      var tier   = String(tierNum);
+      var price  = r.price || r.amount || { '1': 49, '2': 99, '3': 199 }[tier] || 49;
+      var utr    = r.utrNumber || r.utr || r.transactionId || r.upiRef || r.upi_ref || r.upiId || '';
+      var col    = tierColors[tier] || '#ffd700';
+      var ss     = r.screenshotUrl || r.screenshotBase64 || r.screenshot || r.proofImage || '';
+      var status = r.status || 'pending';
+      var statusColor = status === 'approved' ? '#00ff9c' : status === 'rejected' ? '#ff5555' : '#ffd700';
+      var ssHtml = ss
+        ? '<img src="' + esc(ss) + '" style="width:40px;height:40px;border-radius:6px;cursor:pointer;object-fit:cover;border:1px solid rgba(255,215,0,.3)" onclick="viewScreenshot(this.src)">'
+        : '<span class="text-muted text-xxs">No photo</span>';
       var time = r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN') : '—';
+
+      var acts;
+      if (status === 'pending') {
+        acts = '<button class="btn btn-primary btn-xs" style="background:linear-gradient(135deg,' + col + ',#ff8c00);border:none;color:#000" onclick="approvePremiumReq(\'' + esc(id) + '\',\'' + esc(uid) + '\',' + tier + ',event)"><i class="fas fa-crown"></i> Approve 30d</button> ' +
+               '<button class="btn btn-danger btn-xs" onclick="rejectPremiumReq(\'' + esc(id) + '\',event)"><i class="fas fa-times"></i></button>';
+      } else {
+        acts = '<span class="text-xxs text-muted">' + esc(status) + '</span>';
+      }
+
       h += '<tr>';
-      h += '<td><span style="font-weight:700;color:var(--primary)">' + ign + '</span><div style="font-size:9px;color:#666;font-family:monospace">' + uid.substring(0,10) + '</div></td>';
-      h += '<td><span style="padding:3px 10px;border-radius:8px;background:' + col + '22;border:1px solid ' + col + '55;color:' + col + ';font-weight:800;font-size:12px">👑 Premium ' + (tierNames[tier] || 'Tier '+tier) + '</span></td>';
-      h += '<td><span style="font-weight:700;color:#00ff9c">₹' + price + '</span></td>';
+      h += '<td><span style="font-weight:700;color:var(--primary);font-size:11px">' + esc(ign) + '</span><div style="font-size:9px;color:#666;font-family:monospace">' + esc(uid.substring(0,10)) + '…</div></td>';
+      h += '<td><span style="font-family:monospace;font-size:10px;color:var(--info);background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">' + esc(ffUid) + '</span></td>';
+      h += '<td><span style="padding:3px 10px;border-radius:8px;background:' + col + '22;border:1px solid ' + col + '55;color:' + col + ';font-weight:800;font-size:12px">👑 Premium ' + esc(tierNames[tier] || ('Tier ' + tier)) + '</span></td>';
+      h += '<td><span style="font-weight:700;color:#00ff9c">₹' + esc(price) + '</span></td>';
+      h += '<td>' + (utr ? '<span style="font-family:monospace;font-size:10px;color:#ccc">' + esc(utr) + '</span>' : '<span class="text-muted text-xxs">—</span>') + '</td>';
       h += '<td>' + ssHtml + '</td>';
-      h += '<td style="font-size:11px;color:#666">' + time + '</td>';
-      h += '<td><button class="btn btn-primary btn-xs" style="background:linear-gradient(135deg,' + col + ',#ff8c00);border:none;color:#000" onclick="approvePremiumReq(\'' + id + '\',\'' + uid + '\',' + tier + ')"><i class="fas fa-crown"></i> Approve 30d</button> <button class="btn btn-danger btn-xs" onclick="rejectPremiumReq(\'' + id + '\')"><i class="fas fa-times"></i></button></td>';
+      h += '<td><span style="color:' + statusColor + ';font-weight:700;font-size:10px;text-transform:uppercase">' + esc(status) + '</span></td>';
+      h += '<td style="font-size:11px;color:#666">' + esc(time) + '</td>';
+      h += '<td>' + acts + '</td>';
       h += '</tr>';
     });
+
     h += '</tbody></table></div>';
     list.innerHTML = h;
   } catch(e) {
-    list.innerHTML = '<div style="color:var(--danger);padding:16px">Error: ' + e.message + '</div>';
+    console.error('loadPremiumReqSection error:', e);
+    list.innerHTML = '<div style="color:var(--danger);padding:16px">Error: ' + (e && e.message ? e.message : e) + '</div>';
   }
 };
 
-window.approvePremiumReq = async function(reqId, uid, tier) {
-  if (!uid) return;
+window.approvePremiumReq = async function(reqId, uid, tier, evt) {
+  /* ✅ FIX (live-testing 2026-08-20) — "Premium request accept karne par error".
+     Three separate defects were stacked here:
+       1. NO guard on window._supa. If the authenticated Supabase client
+          wasn't ready yet (it is recreated on login + on every hourly
+          Firebase token refresh — a ~200ms window each time), the very
+          first line threw
+          "TypeError: Cannot read properties of undefined (reading 'rpc')"
+          and the generic catch showed it as a raw red toast.
+       2. `tier` arrived as a STRING from the table markup, so the
+          gdBonus lookup {1:5,2:15,3:35}[tier] worked by luck but
+          p_tier was sent to Postgres as text → the RPC signature
+          approve_premium(uuid,int,int) didn't match and Postgres
+          answered PGRST202 "function ... does not exist". Now coerced
+          to a real integer.
+       3. No button state handling at all, and no distinction between
+          "RPC is missing from the database" and "RPC ran and refused".
+          The admin just saw an opaque error with no next step.
+     Also adds the same always-restore button guarantee as the profile
+     approve buttons. */
+  var _doneBtn = (window._btnBusy ? window._btnBusy(evt) : function(){});
   try {
-    var tierNames  = { 1: 'Silver', 2: 'Gold', 3: 'Diamond' };
-    var gdBonus    = { 1: 5, 2: 15, 3: 35 }[tier] || 0;
-    /* BUG #4/#5/#29 FIX (2026-07): the old multi-key rtdb.ref(...).update({...}) call was
-       silently dropped entirely by the Supabase bridge's converter (didn't recognize any of
-       these slash-keys or camelCase field names), AND separately mapped to columns
-       (premium_tier, premium_expires_at) that don't exist in the schema — premium never
-       actually activated for anyone, ever, regardless of how many times admin approved a
-       request. Also, premium_level/premium_expires are now locked from direct client writes
-       (Category A security fix), so this must go through an admin-checked RPC regardless. */
-    var r = await window._supa.rpc('approve_premium', { p_uid: uid, p_tier: tier, p_days: 30 });
-    if (r.error || (r.data && r.data.success === false)) {
-      var msg = (r.data && r.data.error) || (r.error && r.error.message) || 'Unknown error';
-      showToast('❌ ' + msg, true);
+    if (!uid) { showToast('❌ User UID missing on this request', true); return; }
+
+    var tierNum   = parseInt(tier, 10);
+    if (!(tierNum >= 1 && tierNum <= 3)) tierNum = 1;
+    var tierNames = { 1: 'Silver', 2: 'Gold', 3: 'Diamond' };
+    var gdBonus   = { 1: 5, 2: 15, 3: 35 }[tierNum] || 0;
+
+    var supa = window._supa;
+    if (!supa) {
+      showToast('❌ Supabase abhi connect nahi hua — 2 second baad dobara try karo', true);
       return;
     }
-    /* Credit Green Diamonds monthly bonus — also fixed to use the real increment_balance RPC
-       instead of a Firebase-only write the user panel's balance display never reads. */
-    if (gdBonus > 0) {
-      await window._supa.rpc('increment_balance', { p_uid: uid, p_col: 'green_diamonds', p_amount: gdBonus });
+
+    /* ── 1. Activate premium through the admin-checked RPC ── */
+    var r = await supa.rpc('approve_premium', { p_uid: uid, p_tier: tierNum, p_days: 30 });
+    if (r.error) {
+      /* PGRST202 = the function does not exist / signature mismatch.
+         Tell the admin exactly what to do instead of a cryptic error. */
+      if (String(r.error.code) === 'PGRST202' || /does not exist|Could not find the function/i.test(r.error.message || '')) {
+        console.error('[approvePremiumReq] approve_premium RPC missing in Supabase:', r.error);
+        showToast('❌ Database me approve_premium() function nahi hai. supabase/admin-panel-fixes.sql run karo.', true);
+        return;
+      }
+      showToast('❌ ' + r.error.message, true);
+      return;
     }
-    await rtdb.ref('premiumRequests/' + reqId).update({ status: 'approved', approvedAt: Date.now(), approvedBy: auth.currentUser ? _adminUid() : 'admin' });
-    await rtdb.ref('users/' + uid + '/notifications').push({
-      title: '👑 Premium ' + (tierNames[tier]||('Tier '+tier)) + ' Activated!',
-      message: 'Premium ' + (tierNames[tier]||'Tier '+tier) + ' 30 din ke liye activate ho gaya! ' + gdBonus + ' Green Diamonds bhi credit kiye gaye hain.',
-      type: 'premium_activated', read: false, timestamp: Date.now(), createdAt: Date.now()
-    });
-    showToast('✅ Premium ' + (tierNames[tier]||('Tier '+tier)) + ' activated! ' + gdBonus + ' GD credited.');
+    if (r.data && r.data.success === false) {
+      showToast('❌ ' + (r.data.error || 'Premium activate nahi hua'), true);
+      return;
+    }
+
+    /* ── 2. Green Diamond monthly bonus (non-fatal if it fails) ── */
+    if (gdBonus > 0) {
+      var gr = await supa.rpc('increment_balance', { p_uid: uid, p_col: 'green_diamonds', p_amount: gdBonus });
+      if (gr && gr.error) {
+        console.warn('[approvePremiumReq] GD bonus failed (premium IS active):', gr.error.message);
+        showToast('⚠️ Premium active ho gaya, lekin ' + gdBonus + ' GD bonus credit nahi hua: ' + gr.error.message, true);
+      }
+    }
+
+    /* ── 3. Flip the request row + notify the user (best effort) ── */
+    try {
+      await rtdb.ref('premiumRequests/' + reqId).update({
+        status: 'approved', approvedAt: Date.now(),
+        approvedBy: (window.auth && auth.currentUser) ? _adminUid() : 'admin'
+      });
+    } catch (se) {
+      console.warn('[approvePremiumReq] status update failed:', se && se.message);
+      showToast('⚠️ Premium active hai, par request status update nahi hua: ' + (se && se.message), true);
+    }
+    try {
+      await window._adminNotifyUser(uid, {
+        title: '👑 Premium ' + (tierNames[tierNum] || ('Tier ' + tierNum)) + ' Activated!',
+        message: 'Premium ' + (tierNames[tierNum] || ('Tier ' + tierNum)) + ' 30 din ke liye activate ho gaya!' +
+                 (gdBonus > 0 ? ' ' + gdBonus + ' Green Diamonds bhi credit kiye gaye hain.' : ''),
+        type: 'premium_activated'
+      });
+    } catch (ne) { console.warn('[approvePremiumReq] notify failed:', ne && ne.message); }
+
+    showToast('✅ Premium ' + (tierNames[tierNum] || ('Tier ' + tierNum)) + ' activated!' + (gdBonus > 0 ? ' ' + gdBonus + ' GD credited.' : ''));
     loadPremiumReqSection();
-  } catch(e) { showToast('Error: ' + e.message, true); }
+  } catch (e) {
+    console.error('approvePremiumReq error:', e);
+    showToast('Error: ' + (e && e.message ? e.message : e), true);
+  } finally {
+    _doneBtn();
+  }
 };
 
-window.rejectPremiumReq = async function(reqId) {
-  await rtdb.ref('premiumRequests/' + reqId).update({ status: 'rejected', rejectedAt: Date.now() });
-  showToast('Request rejected.');
-  loadPremiumReqSection();
+window.rejectPremiumReq = async function(reqId, evt) {
+  /* Same always-restore + real error surfacing as approve. */
+  var _doneBtn = (window._btnBusy ? window._btnBusy(evt) : function(){});
+  try {
+    await rtdb.ref('premiumRequests/' + reqId).update({ status: 'rejected', rejectedAt: Date.now() });
+    showToast('Request rejected.');
+    loadPremiumReqSection();
+  } catch (e) {
+    console.error('rejectPremiumReq error:', e);
+    showToast('Error: ' + (e && e.message ? e.message : e), true);
+  } finally {
+    _doneBtn();
+  }
 };
+
 
 /* ══ SEASON PASS APPROVAL ══ */
 window.approveSeasonPass = async function(reqId, uid, season) {

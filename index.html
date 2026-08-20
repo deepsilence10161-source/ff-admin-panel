@@ -38,7 +38,7 @@
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src  'self' 'unsafe-inline'
+  script-src  'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:
               https://www.gstatic.com
               https://apis.google.com
               https://cdn.jsdelivr.net
@@ -47,6 +47,8 @@
               https://cdn.onesignal.com
               https://onesignal.com
               https://*.firebaseio.com;
+  worker-src  'self' blob:;
+  child-src   'self' blob:;
   style-src   'self' 'unsafe-inline'
               https://fonts.googleapis.com
               https://cdnjs.cloudflare.com;
@@ -57,7 +59,7 @@
               https://i.ibb.co
               https://*.supabase.co
               https://*.googleapis.com;
-  connect-src 'self'
+  connect-src 'self' blob: data:
               https://*.supabase.co
               wss://*.supabase.co
               https://*.firebaseio.com
@@ -66,7 +68,10 @@
               https://apis.google.com
               https://onesignal.com
               https://api.imgbb.com
-              https://cdnjs.cloudflare.com;
+              https://i.ibb.co
+              https://cdnjs.cloudflare.com
+              https://cdn.jsdelivr.net
+              https://tessdata.projectnaptha.com;
   frame-src   https://onesignal.com
               https://accounts.google.com
               https://*.firebaseapp.com
@@ -88,6 +93,12 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="js/admin-ui-v10.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- 🐞 CRITICAL COMPAT FIX: supabase-js v2 query builders are thenables with
+     no .catch()/.finally(). ~40 call sites in this panel use .catch() on them
+     and were throwing "TypeError: .catch is not a function" mid-handler
+     (that is the Profile-Update / Premium approve "error + spinning button"
+     bug). Must load before every other panel script. -->
+<script src="js/supabase-compat-patch.js"></script>
 <script>
   /* Admin panel constants */
   window.SUPABASE_URL = 'https://hddhkculuyrfoevxmlwy.supabase.co';
@@ -163,7 +174,13 @@
 
 <div class="nav-divider"></div>
 <div class="nav-section-label">Finance</div>
-<div class="nav-item" onclick="showSection('wallets',this)"><i class="fas fa-wallet"></i><span class="nav-label">Wallet Requests</span><span class="nav-badge green" id="walletBadge" style="display:none">0</span></div>
+<!-- ✅ REMOVED (2026-08-20, user request): "Wallet Requests" sidebar tab.
+     It was a duplicate view of three sections that already exist as their
+     own sidebar tabs (Sky Diamond Buy, Premium Requests, Sponsored
+     Prizes). Every column it showed — IGN, FF UID, Type, Amount,
+     UTR/UPI, Creator Code, Proof, Status, Actions, the status filter and
+     the "Manual" wallet-adjust button — has been carried over into those
+     three tabs, so nothing was lost. See #section-skyDiamondRequests. -->
 <div class="nav-item" onclick="showSection('sponsoredTournaments',this);loadSponsoredSection()"><i class="fas fa-medal" style="color:#ffd700"></i><span class="nav-label">Sponsored Prizes</span><span class="nav-badge" id="sponsoredBadge" style="display:none;background:linear-gradient(135deg,#ffd700,#ff8c00);color:#000">0</span></div>
 <div class="nav-item" onclick="showSection('skyDiamondRequests',this);loadSkyDiamondReqSection()"><i class="fas fa-gem" style="color:#00d4ff"></i><span class="nav-label">Sky Diamond Buy</span><span class="nav-badge cyan" id="skyDiaBadge" style="display:none">0</span></div>
 <div class="nav-item" onclick="showSection('premiumRequests',this);loadPremiumReqSection()"><i class="fas fa-crown" style="color:#ffd700"></i><span class="nav-label">Premium Requests</span><span class="nav-badge orange" id="premiumBadge" style="display:none">0</span></div>
@@ -600,8 +617,8 @@
 </div>
 <div class="card"><div class="card-body compact">
 <div class="table-wrapper"><table>
-  <thead><tr><th>Player (IGN)</th><th>Amount</th><th>UPI ID</th><th>Tournament</th><th>Submitted</th><th>Actions</th></tr></thead>
-  <tbody id="sponsoredWdTable"><tr><td colspan="6" style="text-align:center;color:#555;padding:20px">Loading...</td></tr></tbody>
+  <thead><tr><th>Player (IGN)</th><th>FF UID</th><th>Amount</th><th>UPI ID</th><th>UTR</th><th>Proof</th><th>Tournament</th><th>Submitted</th><th>Actions</th></tr></thead>
+  <tbody id="sponsoredWdTable"><tr><td colspan="9" style="text-align:center;color:#555;padding:20px">Loading...</td></tr></tbody>
 </table></div>
 </div></div>
 </div>
@@ -631,22 +648,27 @@
   </div>
 </div>
 
-<div class="section" id="section-wallets">
-<div class="section-header"><div class="section-title"><i class="fas fa-wallet text-primary"></i> Wallet Requests <span class="count" id="walletCount">0</span></div>
-<div class="section-actions">
-<button class="btn btn-purple btn-sm" onclick="openManualWalletModal()"><i class="fas fa-plus-minus"></i> Manual</button>
-<select id="walletFilter" class="form-input" style="max-width:160px;padding:6px 10px" onchange="renderWalletRequests()"><option value="all">All</option><option value="add">💎 Sky Diamond Buy</option><option value="diamond_purchase">💎 Diamond Purchase</option><option value="sponsored_withdraw">🏆 Sponsored Prizes</option></select>
-<button onclick="showSection('skyDiamondRequests',document.querySelector('[onclick*=skyDiamondRequests]'))" style="padding:5px 12px;border-radius:8px;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);color:#00d4ff;font-size:12px;font-weight:700;cursor:pointer">💎 Sky Diamond Requests</button>
-<button onclick="showSection('premiumRequests',document.querySelector('[onclick*=premiumRequests]'))" style="padding:5px 12px;border-radius:8px;background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.3);color:#ffd700;font-size:12px;font-weight:700;cursor:pointer">👑 Premium Requests</button>
-</div></div>
-<div class="card"><div class="card-body compact"><div class="table-wrapper"><table><thead><tr><th>IGN</th><th>FF UID</th><th>Type</th><th>Amount</th><th>UTR / UPI</th><th>Proof</th><th>Status</th><th>Actions</th></tr></thead><tbody id="walletRequestsTable"></tbody></table></div></div></div>
-</div>
+<!-- ✅ REMOVED (2026-08-20): #section-wallets ("Wallet Requests").
+     Fully deleted from the DOM, the sidebar, showSection(), the badge
+     listeners and the Supabase sync patchers. Its data (Firebase
+     walletRequests → Supabase sd_requests) is now rendered by the
+     Sky Diamond Buy tab below, which gained every column this table
+     had: FF UID, Type, Creator Code, the status filter and the
+     "Manual" wallet-adjust button. -->
 
 <!-- SKY DIAMOND BUY REQUESTS -->
 <div class="section" id="section-skyDiamondRequests">
 <div class="section-header">
   <div class="section-title"><i class="fas fa-gem" style="color:#00d4ff"></i> Sky Diamond Purchase Requests <span class="count" id="skyDiaCount">0</span></div>
   <div class="section-actions">
+    <!-- ✅ Carried over from the deleted Wallet Requests tab -->
+    <button class="btn btn-purple btn-sm" onclick="openManualWalletModal()"><i class="fas fa-plus-minus"></i> Manual</button>
+    <select id="skyDiaFilter" class="form-input" style="max-width:150px;padding:6px 10px" onchange="loadSkyDiamondReqSection()">
+      <option value="pending">⏳ Pending</option>
+      <option value="all">All</option>
+      <option value="approved">✅ Approved</option>
+      <option value="rejected">❌ Rejected</option>
+    </select>
     <button class="btn btn-ghost btn-sm" onclick="loadSkyDiamondReqSection()"><i class="fas fa-sync-alt"></i> Refresh</button>
   </div>
 </div>
@@ -673,6 +695,12 @@
 <div class="section-header">
   <div class="section-title"><i class="fas fa-crown" style="color:#ffd700"></i> Premium Upgrade Requests <span class="count" id="premiumReqCount">0</span></div>
   <div class="section-actions">
+    <select id="premiumFilter" class="form-input" style="max-width:150px;padding:6px 10px" onchange="loadPremiumReqSection()">
+      <option value="pending">⏳ Pending</option>
+      <option value="all">All</option>
+      <option value="approved">✅ Approved</option>
+      <option value="rejected">❌ Rejected</option>
+    </select>
     <button class="btn btn-ghost btn-sm" onclick="loadPremiumReqSection()"><i class="fas fa-sync-alt"></i> Refresh</button>
   </div>
 </div>
@@ -754,6 +782,17 @@
   <div class="card-header" style="color:#ff9f1c"><i class="fas fa-play-circle"></i> 📺 Ad Rewards Settings</div>
   <div class="card-body">
     <div style="font-size:12px;color:#888;margin-bottom:14px">Yahan set karo kitne ads dekhne par kitne Coins milenge. Yahi settings user ke Watch Ad button mein apply hongi.</div>
+    <!-- ✅ 2026-08-20: this card now reads/writes app_settings key='live_config'
+         (fields adCoinsPerWatch + adDailyLimit) — the EXACT values the User
+         Panel reads as window.CFG. It previously wrote key='ad_rewards',
+         which no user-panel code ever reads, so edits here did nothing. -->
+    <div style="background:rgba(255,60,60,.07);border:1px solid rgba(255,60,60,.25);border-radius:10px;padding:10px;font-size:11px;color:#ffb3b3;margin-bottom:12px">
+      <b>⚠️ User Panel note:</b> yeh value tabhi apply hogi jab User Panel ka
+      <code>features/rewarded-bonus.js</code> fix ho jaye — us file mein ek doosra
+      <code>watchAdForCoins()</code> hai jo <b>50 coins hardcoded</b> deta hai aur
+      <code>features/ads.js</code> wale config-driven version ko overwrite kar deta hai
+      (index.html mein baad mein load hota hai). Isi wajah se 10 ki jagah 50 coins mile the.
+    </div>
     <!-- ✅ REMOVED (2026-08): Sky Diamond Reward sub-box — ads never
          granted diamonds in the User Panel (only coins, via
          features/watch-earn.js); this config was fully disconnected
@@ -763,12 +802,12 @@
       <!-- Coin Rewards -->
       <div style="background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:12px;padding:14px">
         <div style="font-size:13px;font-weight:700;color:#ffd700;margin-bottom:10px">🪙 Coin Reward</div>
-        <div class="form-group"><label style="font-size:11px">1 Ad dekhne par kitne 🪙 Coins milenge</label><input type="number" id="adRewardCoinsPerAd" class="form-input" placeholder="5" min="1" max="500" value="5"></div>
-        <div class="form-group"><label style="font-size:11px">Daily ad limit for coins</label><input type="number" id="adRewardCoinDailyLimit" class="form-input" placeholder="20" min="1" max="200" value="20"></div>
+        <div class="form-group"><label style="font-size:11px">1 Ad dekhne par kitne 🪙 Coins milenge</label><input type="number" id="adRewardCoinsPerAd" class="form-input" placeholder="10" min="1" max="500" value="10"></div>
+        <div class="form-group"><label style="font-size:11px">Daily ad limit for coins</label><input type="number" id="adRewardCoinDailyLimit" class="form-input" placeholder="5" min="1" max="200" value="5"></div>
       </div>
     </div>
     <div style="margin-top:12px;background:rgba(255,255,255,.04);border-radius:10px;padding:10px;font-size:11px;color:#888">
-      <b style="color:#ff9f1c">Example:</b> "5 coins per ad, daily limit 20" → user din mein max 20 ads dekh kar 100 🪙 kama sakta hai.
+      <b style="color:#ff9f1c">Example:</b> "10 coins per ad, daily limit 5" → user din mein max 5 ads dekh kar 50 🪙 kama sakta hai.
     </div>
     <button class="btn btn-primary mt-3" onclick="saveAdRewards()"><i class="fas fa-save"></i> Save Ad Reward Settings</button>
     <span id="adRewardSaveMsg" style="display:none;margin-left:10px;color:#00ff9c;font-size:12px;font-weight:700">✅ Saved!</span>
@@ -1336,7 +1375,20 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <!-- firebase-storage-compat removed: screenshots use ImgBB (core/imgbb.js) -->
 <!-- firebase-firestore-compat removed: all data uses Supabase (core/db.js) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<!-- 🐞 OCR FIX (live testing 2026-08-20): this used to load tesseract.js
+     **4.1.1**, but js/features/fa53-ocr-autofill.js calls the v5-only API
+     `Tesseract.createWorker('eng', 1, {...})` and points workerPath/corePath
+     at tesseract.js@5 / tesseract.js-core@5.
+     In 4.1.1 the signature is `createWorker(options)` — the string 'eng' got
+     spread into `{0:'e',1:'n',2:'g'}`, no language was ever loaded and no
+     initialize() was called, so every OCR run threw before reading a single
+     pixel. Screenshot auto-fill has therefore never worked in production.
+     Now loading v5 so library and calling code match.
+     (CSP above also gained worker-src blob:, 'wasm-unsafe-eval' and
+     cdn.jsdelivr.net/tessdata in connect-src — Tesseract spawns its worker
+     from a blob URL and streams the WASM core + eng.traineddata from
+     jsdelivr, all three of which the old policy blocked outright.) -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted)

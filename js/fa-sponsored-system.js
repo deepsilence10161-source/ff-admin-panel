@@ -272,11 +272,11 @@ window.deleteSponsoredTournament = function(id) {
 function loadSponsoredWithdrawals() {
   var tbody = document.getElementById('sponsoredWdTable');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555;padding:16px">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#555;padding:16px">Loading...</td></tr>';
 
   (window.rtdb||window.db).ref('walletRequests').orderByChild('type').equalTo('sponsored_withdraw').once('value', function(snap) {
     if (!snap.exists()) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555;padding:20px">Abhi koi withdrawal request nahi</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#555;padding:20px">Abhi koi withdrawal request nahi</td></tr>';
       // Update badge
       updateBadge('sponsoredBadge', 0);
       return;
@@ -310,10 +310,26 @@ function loadSponsoredWithdrawals() {
         actionsBtns = '<button onclick="approveSponsoredWd(\'' + row.id + '\',\'' + escAttr(d.uid) + '\',' + (d.amount||0) + ')" style="padding:5px 10px;border-radius:8px;background:linear-gradient(135deg,#00ff9c,#00cc7a);border:none;color:#000;font-size:11px;font-weight:800;cursor:pointer;margin-right:4px">✅ Approve</button>' +
           '<button onclick="rejectSponsoredWd(\'' + row.id + '\',\'' + escAttr(d.uid) + '\',' + (d.amount||0) + ')" style="padding:5px 10px;border-radius:8px;background:rgba(255,60,60,.12);border:1px solid rgba(255,60,60,.3);color:#ff6b6b;font-size:11px;font-weight:700;cursor:pointer">❌ Reject</button>';
       }
+      /* ✅ 2026-08-20 (Wallet tab removal): FF UID, UTR and the Proof
+         screenshot are carried over from the deleted Wallet Requests
+         table so no column was lost when that tab was deleted. FF UID
+         is resolved from usersCache the same way the wallet table did. */
+      var _uid    = d.uid || d.userId || '';
+      var _cached = (window.usersCache && window.usersCache[_uid]) || {};
+      var _ffUid  = d.ffUid || d.gameUid || _cached.ffUid || _cached.gameUid || '—';
+      var _utr    = d.utrNumber || d.utr || d.transactionId || d.referenceId || '';
+      var _ssrc   = d.screenshotUrl || d.screenshotBase64 || d.screenshot || d.proofImage || d.adminProofUrl || '';
+      var _ssHtml = _ssrc
+        ? '<img src="' + escHtml(_ssrc) + '" style="width:36px;height:36px;border-radius:6px;cursor:pointer;object-fit:cover;border:1px solid rgba(255,255,255,.15)" onclick="if(window.viewScreenshot)viewScreenshot(this.src);else window.open(this.src)">'
+        : '<span style="color:#555;font-size:10px">No photo</span>';
+
       html += '<tr>';
-      html += '<td>' + escHtml(d.userName||d.uid||'—') + '</td>';
+      html += '<td><span style="font-weight:700;color:var(--primary);font-size:11px">' + escHtml(d.userName||_uid||'—') + '</span><div style="font-size:9px;color:#666;font-family:monospace">' + escHtml(String(_uid).substring(0,10)) + '…</div></td>';
+      html += '<td><span style="font-family:monospace;font-size:10px;color:#00d4ff;background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">' + escHtml(_ffUid) + '</span></td>';
       html += '<td style="color:#00ff9c;font-weight:800">₹' + (d.amount||0) + '</td>';
       html += '<td><code style="font-size:11px">' + escHtml(d.upiId||'—') + '</code></td>';
+      html += '<td>' + (_utr ? '<span style="font-family:monospace;font-size:10px;color:#ccc">' + escHtml(_utr) + '</span>' : '<span style="color:#555;font-size:10px">—</span>') + '</td>';
+      html += '<td>' + _ssHtml + '</td>';
       html += '<td style="font-size:11px;color:#888">Sponsored Prize</td>';
       html += '<td style="font-size:11px;color:#666">' + dateStr + '</td>';
       html += '<td>' + statusHtml + (actionsBtns ? '<br><div style="margin-top:5px">' + actionsBtns + '</div>' : '') + '</td>';
