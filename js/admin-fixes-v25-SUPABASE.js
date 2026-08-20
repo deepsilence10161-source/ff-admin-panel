@@ -171,7 +171,7 @@
       if (!supa || !window._supaAuthed) return;
 
       var tables = [
-        { table: 'sd_requests',       badge: 'walletBadge',   filter: { status: 'pending' } },
+        { table: 'sd_requests',       badge: 'skyDiaBadge',   filter: { status: 'pending' } }, /* ✅ 2026-08-20: was 'walletBadge' (element deleted with the Wallet tab) */
         { table: 'profile_requests',  badge: 'profileBadge',  filter: { status: 'pending' } },
         { table: 'profile_updates',   badge: 'profileUpdBadge', filter: { status: 'pending' } },
         { table: 'join_requests',     badge: 'joinBadge',     filter: { status: 'joined' } },
@@ -213,55 +213,21 @@
     window._updateBadgeCounts = updateBadgeCounts;
 
     /* ─────────────────────────────────────────────────────────────
-       6. FIX: walletRequests — setupWalletListener via Supabase
+       6. ✅ REMOVED (2026-08-20) — setupWalletListener Supabase patch.
+
+       This was the third competing implementation of the same loader
+       (admin-inline.js + admin-supabase-sync.js had the other two), and
+       the most broken of the three: it selected req.amount,
+       req.utr_number, req.upi_id, req.creator_code and req.type, none
+       of which are columns on sd_requests (the real ones are sd_amount,
+       amount_inr, upi_ref, screenshot_url, request_type). Whenever this
+       copy won the load race, the wallet table rendered ₹0 amounts,
+       blank UTRs and "No photo" for every row.
+
+       The Wallet Requests tab is deleted; Sky Diamond requests are
+       loaded by the single canonical loadSkyDiamondReqSection() in
+       admin-inline.js.
     ───────────────────────────────────────────────────────────── */
-    var _origSetupWalletListener = window.setupWalletListener;
-    if (typeof _origSetupWalletListener === 'function') {
-      window.setupWalletListener = function() {
-        var supa = window._supa;
-        if (!supa) return _origSetupWalletListener && _origSetupWalletListener();
-
-        function loadWallet() {
-          supa.from('sd_requests').select('*, users!sd_requests_user_id_fkey(ign, ff_uid, phone)')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false })
-            .limit(200)
-            .then(function(r) {
-              if (r.error) return;
-              window.allWalletRequests = {};
-              (r.data || []).forEach(function(req) {
-                var u = req.users || {};
-                window.allWalletRequests[req.id] = {
-                  id:           req.id,
-                  uid:          req.user_id,
-                  userId:       req.user_id,
-                  type:         req.type || 'add',
-                  amount:       req.amount || 0,
-                  diamonds:     req.amount || 0,
-                  utrNumber:    req.utr_number || '',
-                  upiId:        req.upi_id || '',
-                  screenshotUrl: req.screenshot_url || '',
-                  screenshotBase64: req.screenshot_url || '',
-                  status:       req.status || 'pending',
-                  userName:     u.ign || '',
-                  displayName:  u.ign || '',
-                  ffUid:        u.ff_uid || req.ff_uid || '',
-                  creatorCode:  req.creator_code || '',
-                  createdAt:    req.created_at ? new Date(req.created_at).getTime() : Date.now()
-                };
-              });
-              if (typeof window.renderWalletRequests === 'function') window.renderWalletRequests(window.allWalletRequests);
-            });
-        }
-        loadWallet();
-
-        try {
-          supa.channel('v25_wallet_changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'sd_requests' }, loadWallet)
-            .subscribe();
-        } catch(e) { setInterval(loadWallet, 8000); }
-      };
-    }
 
     /* ─────────────────────────────────────────────────────────────
        7. FIX: setupProfileListener via Supabase

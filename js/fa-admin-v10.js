@@ -304,7 +304,7 @@
     if (typeof Tesseract === 'undefined') {
       /* Load Tesseract dynamically */
       var script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; /* ✅ 2026-08-20: was tesseract.js@4.1.1 (cdnjs) — must match the v5 bundle index.html loads and the v5 worker/core paths fa53 uses. */
       script.onload = function () { _runTesseract(imageData, isCS, playerList, onComplete, progressEl); };
       script.onerror = function () {
         if (progressEl) progressEl.innerHTML = '❌ Tesseract load failed. Manual fill karo.';

@@ -430,7 +430,10 @@ patchWhenReady('mrPublishResults', function () {
   var SECTION_LISTENERS = {
     'profileVerification': ['setupProfileListener'],
     'profileUpdates':      ['setupProfileUpdateListener'],
-    'wallets':             ['setupWalletListener'],
+    /* ✅ 2026-08-20: 'wallets' section deleted (Wallet Requests tab removed).
+       setupWalletListener still exists and still keeps allWalletRequests
+       warm for the withdrawal modal, but it is no longer tied to a
+       section's lifecycle, so nothing to (de)register here. */
     'users':               ['setupUsersListener'],
     'teams':               [],  /* loadTeamRequests() is on-demand, fine */
     'support':             []   /* loadSupportChats() re-runs on navigate, fine */

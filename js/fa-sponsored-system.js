@@ -8,7 +8,11 @@
 
 window.loadSponsoredSection = function() {
   loadSponsoredTournaments();
-  loadSponsoredWithdrawals();
+  /* Defined by js/admin-supabase-sponsored.js (the single live owner of
+     withdrawal logic). Guarded because that file waits for _supaAuthed
+     before defining it, so it can legitimately be missing for the first
+     couple of seconds after login. */
+  if (typeof window.loadSponsoredWithdrawals === 'function') window.loadSponsoredWithdrawals();
 };
 
 /* ── CREATE MODAL ── */
@@ -268,135 +272,35 @@ window.deleteSponsoredTournament = function(id) {
   });
 };
 
-/* ── LOAD SPONSORED WITHDRAWALS ── */
-function loadSponsoredWithdrawals() {
-  var tbody = document.getElementById('sponsoredWdTable');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555;padding:16px">Loading...</td></tr>';
+/* ══════════════════════════════════════════════════════════════════════
+   ✅ REMOVED (2026-08-20) — loadSponsoredWithdrawals / approveSponsoredWd /
+   rejectSponsoredWd used to live here.
 
-  (window.rtdb||window.db).ref('walletRequests').orderByChild('type').equalTo('sponsored_withdraw').once('value', function(snap) {
-    if (!snap.exists()) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#555;padding:20px">Abhi koi withdrawal request nahi</td></tr>';
-      // Update badge
-      updateBadge('sponsoredBadge', 0);
-      return;
-    }
+   THEY WERE DEAD CODE, AND DANGEROUSLY SO.
 
-    var rows = [];
-    var pendingCount = 0;
-    snap.forEach(function(c) {
-      var d = c.val();
-      if (d.status === 'pending') pendingCount++;
-      rows.unshift({ id: c.key, d: d });
-    });
+   index.html loads js/admin-supabase-sponsored.js (line ~1477) AFTER this
+   file (line ~1467), and that file unconditionally reassigns all three
+   window.* functions, then self-starts on a 60s setInterval. So the
+   versions below never ran — but they *looked* live, which is why the
+   Wallet-tab column migration was first applied here by mistake.
 
-    updateBadge('sponsoredBadge', pendingCount);
-    document.getElementById('sponsoredCount').textContent = rows.length;
+   The two implementations were not equivalent either:
+     • this one read Firebase walletRequests where type='sponsored_withdraw'
+     • the live one reads Supabase wallet_transactions where
+       txn_type='pending_withdraw'
+     • this one's approve did a Firebase-only sponsoredWinnings transaction
+       (the user's real Supabase balance never moved — they could resubmit
+       the same withdrawal forever)
+     • the live one calls the resolve_sponsored_withdrawal RPC, which
+       atomically re-checks the balance and decrements the real column
 
-    var html = '';
-    rows.forEach(function(row) {
-      var d = row.d;
-      var statusHtml = '';
-      var dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-IN') : '—';
-      if (d.status === 'pending') {
-        statusHtml = '<span style="color:#ffd700;font-weight:700">⏳ Pending</span>';
-      } else if (d.status === 'approved') {
-        statusHtml = '<span style="color:#00ff9c;font-weight:700">✅ Approved</span>';
-      } else {
-        statusHtml = '<span style="color:#ff6b6b;font-weight:700">❌ Rejected</span>';
-      }
-      var actionsBtns = '';
-      if (d.status === 'pending') {
-        actionsBtns = '<button onclick="approveSponsoredWd(\'' + row.id + '\',\'' + escAttr(d.uid) + '\',' + (d.amount||0) + ')" style="padding:5px 10px;border-radius:8px;background:linear-gradient(135deg,#00ff9c,#00cc7a);border:none;color:#000;font-size:11px;font-weight:800;cursor:pointer;margin-right:4px">✅ Approve</button>' +
-          '<button onclick="rejectSponsoredWd(\'' + row.id + '\',\'' + escAttr(d.uid) + '\',' + (d.amount||0) + ')" style="padding:5px 10px;border-radius:8px;background:rgba(255,60,60,.12);border:1px solid rgba(255,60,60,.3);color:#ff6b6b;font-size:11px;font-weight:700;cursor:pointer">❌ Reject</button>';
-      }
-      html += '<tr>';
-      html += '<td>' + escHtml(d.userName||d.uid||'—') + '</td>';
-      html += '<td style="color:#00ff9c;font-weight:800">₹' + (d.amount||0) + '</td>';
-      html += '<td><code style="font-size:11px">' + escHtml(d.upiId||'—') + '</code></td>';
-      html += '<td style="font-size:11px;color:#888">Sponsored Prize</td>';
-      html += '<td style="font-size:11px;color:#666">' + dateStr + '</td>';
-      html += '<td>' + statusHtml + (actionsBtns ? '<br><div style="margin-top:5px">' + actionsBtns + '</div>' : '') + '</td>';
-      html += '</tr>';
-    });
-    tbody.innerHTML = html;
-  });
-}
+   Keeping a second, wrong copy around only invites someone to "fix" the
+   dead one again. Sponsored withdrawal logic now lives in exactly ONE
+   place: js/admin-supabase-sponsored.js.
 
-window.approveSponsoredWd = function(reqId, uid, amount) {
-  if (!confirm('₹' + amount + ' ki withdrawal approve karo?')) return;
-  var rtdb = window.rtdb || window.db;
-  if (!rtdb) return;
-
-  /* Bug Critical #4 Fix: Deduct sponsoredWinnings BEFORE marking approved.
-     Previous code only updated status — users could resubmit the same amount
-     repeatedly since the balance was never reduced, draining sponsor funds. */
-  if (uid && amount > 0) {
-    // Deduct from Firebase sponsoredWinnings
-    rtdb.ref('users/' + uid + '/sponsoredWinnings').transaction(function(v) {
-      var cur = Number(v) || 0;
-      if (cur < amount) return cur; // insufficient — abort transaction
-      return cur - amount;
-    }, function(err, committed) {
-      if (err || !committed) {
-        if (window.showToast) showToast('❌ Insufficient sponsored balance — transaction aborted', true);
-        return;
-      }
-      // Deduction succeeded — now mark approved
-      rtdb.ref('walletRequests/' + reqId).update({ status: 'approved', approvedAt: Date.now(), deductedAmount: amount });
-
-      // Also deduct from Supabase if available
-      if (window._supa) {
-        window._supa.from('users').select('sponsored_winnings').eq('id', uid).single()
-          .then(function(r) {
-            var cur = Number((r.data || {}).sponsored_winnings) || 0;
-            window._supa.from('users').update({ sponsored_winnings: Math.max(0, cur - amount) }).eq('id', uid).then(null, function(){});
-            window._supa.from('wallet_transactions').insert({
-              user_id: uid, txn_type: 'sponsored_withdrawal_approved',
-              currency: 'inr', amount: amount, ref_id: reqId,
-              description: 'Sponsored prize withdrawal approved'
-            }).then(null, function(){});
-          }).catch(function(){});
-      }
-
-      // Notify user via dual-write
-      var notif = { type: 'withdrawal_approved', title: '✅ Withdrawal Approved!',
-        message: '₹' + amount + ' ki withdrawal request approve ho gayi. Payment aapke UPI pe bheja ja raha hai.',
-        read: false, timestamp: Date.now() };
-      rtdb.ref('users/' + uid + '/notifications').push(notif);
-      if (window._supa) {
-        window._supa.from('notifications').insert({
-          user_id: uid, type: notif.type, title: notif.title, body: notif.message, is_read: false
-        }).then(null, function(){});
-      }
-
-      if (window.showToast) showToast('✅ Withdrawal approved & balance deducted!', false);
-      loadSponsoredWithdrawals();
-    });
-  } else {
-    // Zero amount or no uid — just update status
-    rtdb.ref('walletRequests/' + reqId).update({ status: 'approved', approvedAt: Date.now() });
-    if (window.showToast) showToast('✅ Withdrawal approved!', false);
-    loadSponsoredWithdrawals();
-  }
-};
-
-window.rejectSponsoredWd = function(reqId, uid, amount) {
-  if (!confirm('Reject karo? Amount wapas user ke balance mein add ho jayega.')) return;
-  (window.rtdb||window.db).ref('walletRequests/' + reqId).update({ status: 'rejected', rejectedAt: Date.now() });
-  // Refund
-  if (uid) {
-    (window.rtdb||window.db).ref('users/' + uid + '/sponsoredWinnings').transaction(function(v) { return (v||0) + amount; });
-    (window.rtdb||window.db).ref('users/' + uid + '/notifications').push({
-      type: 'withdrawal_rejected',
-      title: '❌ Withdrawal Rejected',
-      message: '₹' + amount + ' ki request reject ho gayi. Amount wapas aapke balance mein aa gaya.',
-      read: false, timestamp: Date.now()
-    });
-  }
-  showToast('Withdrawal rejected. Refund done.', false);
-  loadSponsoredWithdrawals();
-};
+   This file still owns sponsored TOURNAMENT management (create / list /
+   distribute prizes / delete), which is not duplicated anywhere.
+   ══════════════════════════════════════════════════════════════════════ */
 
 /* ── Helpers ── */
 function escHtml(s) {

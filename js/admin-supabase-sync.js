@@ -468,66 +468,22 @@
 })();
 
 /* ═══════════════════════════════════════════════════════════════════
-   SUPABASE SD_REQUESTS → Admin Wallet Panel Bridge
-   Users submit deposits to Supabase sd_requests.
-   Admin reads from Supabase (not Firebase walletRequests).
-═══════════════════════════════════════════════════════════════════ */
-(function() {
-  function _patchWalletListener() {
-    /* ✅ FIX (BUG L-14): same anon-client race as _startAllSync — wait
-       for the authenticated client before reading sd_requests, which
-       has its own admin-only SELECT policy. */
-    if (!window._supa || !window._supaAuthed || !window.setupWalletListener) {
-      setTimeout(_patchWalletListener, 1500);
-      return;
-    }
+   ✅ REMOVED (2026-08-20) — "SUPABASE SD_REQUESTS → Admin Wallet Panel
+   Bridge" (_patchWalletListener).
 
-    /* Override setupWalletListener to load from Supabase */
-    window.setupWalletListener = function() {
-      _loadSupabaseWallet();
-      /* Poll every 30 seconds for new requests */
-      setInterval(_loadSupabaseWallet, 30000);
-    };
-
-    /* Patch renderWalletRequests to also show Supabase data */
-    function _loadSupabaseWallet() {
-      if (!window._supa) return;
-      window._supa.from('sd_requests')
-        .select('*, users!sd_requests_user_id_fkey(ign, ff_uid, email)')
-        .order('created_at', { ascending: false })
-        .limit(200)
-        .then(function(r) {
-          if (r.error) { console.error('[WalletSync] Supabase read error:', r.error.message); return; }
-          window.allWalletRequests = {};
-          (r.data || []).forEach(function(row) {
-            window.allWalletRequests[row.id] = {
-              uid: row.user_id,
-              userId: row.user_id,
-              userName: (row.users && row.users.ign) || row.ign || '',
-              ffUid: (row.users && row.users.ff_uid) || '',
-              amount: row.sd_amount || row.amount_inr || 0,
-              diamonds: row.sd_amount || 0,
-              utrNumber: row.upi_ref || '',
-              utr: row.upi_ref || '',
-              screenshotUrl: row.payment_proof || '',
-              status: row.status || 'pending',
-              type: 'add',
-              createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
-              _supaId: row.id
-            };
-          });
-          /* Also update the badge */
-          var pending = Object.values(window.allWalletRequests).filter(function(w) { return w.status === 'pending'; }).length;
-          if (window.updateBadge) window.updateBadge('walletBadge', pending);
-          if (window.renderWalletRequests) window.renderWalletRequests();
-        })
-        .catch(function(e) { console.error('[WalletSync] Error:', e.message); });
-    }
-
-    console.log('[AdminSync] Wallet listener patched to use Supabase sd_requests ✅');
-  }
-
-  setTimeout(_patchWalletListener, 2000);
-})();
+   Two reasons:
+   1. The Wallet Requests tab it fed no longer exists. Sky Diamond
+      requests are now loaded directly by loadSkyDiamondReqSection()
+      in admin-inline.js — a single, canonical loader.
+   2. It was writing WRONG data even while it lived: it read
+      `row.payment_proof` as the screenshot, but sd_requests stores the
+      screenshot in `screenshot_url` (confirmed by the schema the rest
+      of the panel selects). Every request therefore rendered "No photo"
+      here. admin-fixes-v25-SUPABASE.js had a THIRD copy of the same
+      patch reading yet another set of non-existent columns
+      (req.amount / req.utr_number / req.upi_id / req.creator_code),
+      and the three overwrote each other depending on load timing.
+      Both duplicates are gone; there is one loader now.
+   ═══════════════════════════════════════════════════════════════════ */
 
 /* Bug 27 / Bug#118: Sponsored withdrawal functions moved to admin-supabase-sponsored.js */

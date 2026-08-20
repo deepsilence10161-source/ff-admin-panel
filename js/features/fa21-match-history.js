@@ -272,7 +272,13 @@ window.openResultCorrection = async function(matchId, userId, userName) {
     h += '<input type="number" id="rcPrize" min="0" placeholder="Override prize amount" style="width:100%;padding:10px;border-radius:8px;background:#111;border:1px solid rgba(255,170,0,.3);color:#ffaa00;font-size:14px;text-align:center;box-sizing:border-box">';
     h += '</div></div>';
 
-    h += '<button onclick="submitResultCorrection(\''+matchId+'\',\''+userId+'\',\''+userName+'\')" style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#ffaa00,#ff8800);color:#000;font-weight:800;border:none;cursor:pointer;font-size:14px"><i class="fas fa-save"></i> Save Correction</button>';
+    /* ✅ FIX (2026-08-20): userName is player-controlled. An IGN containing an
+       apostrophe (e.g. O'Brien, D'Boss — common in Free Fire) closed the JS
+       string early and produced a syntactically broken onclick, so the
+       "Save Correction" button silently did nothing for those players.
+       Escape backslashes and quotes before embedding. */
+    var _escJs = function(v){ return String(v == null ? '' : v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); };
+    h += '<button onclick="submitResultCorrection(\''+_escJs(matchId)+'\',\''+_escJs(userId)+'\',\''+_escJs(userName)+'\')" style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#ffaa00,#ff8800);color:#000;font-weight:800;border:none;cursor:pointer;font-size:14px"><i class="fas fa-save"></i> Save Correction</button>';
     h += '</div>';
 
     mb.innerHTML = h;
