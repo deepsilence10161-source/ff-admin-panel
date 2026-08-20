@@ -295,7 +295,11 @@ window.loadClanWarAdmin=function(){
           h+='</div>';
         });
         h+='</div>';
-        document.getElementById('clanWarAdminContent').innerHTML=h;
+        /* ✅ FIX (2026-08-20): unguarded. This runs inside a nested async
+           Firebase callback; loadClanWarAdmin() only checks the element at
+           the TOP of the function, so navigating away before the callback
+           landed threw "Cannot set properties of null". */
+        var _cw=document.getElementById('clanWarAdminContent'); if(_cw) _cw.innerHTML=h;
       });
     });
   });

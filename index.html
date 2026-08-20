@@ -1262,7 +1262,15 @@
 </div>
 <div class="grid-3">
 <div class="form-group"><label>Entry Fee (₹) *</label><input type="number" id="bulkFee" class="form-input" value="30"></div>
-
+<!-- 🐞 FIX (2026-08-20): this input had been deleted, leaving an empty slot in
+     the grid-3, but js/admin-scheduler.js still does
+       document.getElementById('bulkPerKill').value = '10'   (line 15)
+     as the FIRST statement of openBulkScheduler(), before modal.classList.add('show').
+     That threw "Cannot set properties of null" every single time, so the Bulk
+     Match Scheduler modal NEVER OPENED — clicking the button did nothing at all.
+     createBulkMatches() reads it too (line 50) and hard-requires perKill > 0
+     (line 64), so bulk creation was doubly dead. Restored. -->
+<div class="form-group"><label>Per Kill Prize *</label><input type="number" id="bulkPerKill" class="form-input" value="10" min="0"></div>
 <div class="form-group"><label>Max Slots *</label><input type="number" id="bulkSlots" class="form-input" value="12"></div>
 </div>
 <div class="grid-3">
