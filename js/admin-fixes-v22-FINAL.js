@@ -539,12 +539,13 @@ patchWhenReady('mrPublishResults', function () {
   setTimeout(function () {
     var style = document.createElement('style');
     style.textContent = [
-      '#v22RefreshBtn { position:fixed; bottom:20px; right:20px; z-index:9999;',
+      '#v22RefreshBtn { position:fixed; bottom:calc(72px + env(safe-area-inset-bottom, 0px)); right:16px; z-index:90;',
       '  background:rgba(0,212,255,.15); border:1px solid rgba(0,212,255,.4);',
       '  color:#00d4ff; border-radius:50%; width:44px; height:44px;',
       '  display:flex; align-items:center; justify-content:center;',
       '  cursor:pointer; font-size:16px; backdrop-filter:blur(10px);',
       '  transition:all .2s; box-shadow:0 4px 20px rgba(0,212,255,.2); }',
+      '@media(min-width:1025px){ #v22RefreshBtn { bottom:20px; right:20px; } }',
       '#v22RefreshBtn:hover { background:rgba(0,212,255,.3); transform:scale(1.1); }',
       '#v22RefreshBtn.spinning i { animation:spin .8s linear infinite; }',
       '@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }'

@@ -1195,15 +1195,16 @@ function renderUsers(){
   usersSnapshot.forEach(function(ch){
     var u=ch.val(),uid=ch.key,ign=u.ign||'N/A',ff=u.ffUid||'N/A';
     if(q&&ign.toLowerCase().indexOf(q)<0&&ff.toLowerCase().indexOf(q)<0&&uid.toLowerCase().indexOf(q)<0)return;c++;
-    var db_=u.wallet?u.wallet.depositBalance||0:u.realMoney?u.realMoney.deposited||0:0;
-    var wb=u.wallet?u.wallet.winningBalance||0:u.realMoney?u.realMoney.winnings||0:0;
-    var bal=db_+wb,mt=u.stats?u.stats.matches||0:0,lv=u.level||1,bn=u.isBanned||u.blocked;
+    var sky=Number(u.skyDiamonds!=null?u.skyDiamonds:(u.wallet?u.wallet.depositBalance:0))||0;
+    var gd=Number(u.greenDiamonds!=null?u.greenDiamonds:(u.wallet?u.wallet.winningBalance:0))||0;
+    var coins=Number(u.coins)||0;
+    var mt=u.stats?u.stats.matches||0:0,lv=u.level||1,bn=u.isBanned||u.blocked;
     var st=bn?'<span class="badge red">Banned</span>':u.approved?'<span class="badge green">Active</span>':'<span class="badge yellow">Pending</span>';
     /* ✅ FIX (2026-08-17): 'complete' just meant "profile info filled in"
        (and was users.profile_status's old column default, now fixed
        separately) — not "approved by admin". Only 'approved' should show
        the verified checkmark. */
-    var ph=u.phone||'-',em=u.email||'-',vf=(u.profileStatus==='approved')?'<span class="badge green">✓</span>':'<span class="badge yellow">—</span>';
+    var ph=u.phone||'-',em=u.email||'-',vf=(u.profileStatus==='approved'||u.profile_status==='approved'||u.profileVerified)?'<span class="badge green">✓</span>':'<span class="badge yellow">—</span>';
     /* Bug#1 Fix: escape user-supplied IGN, ffUid, phone, email before HTML injection */
     var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
     var row='<tr>';
@@ -1211,7 +1212,7 @@ function renderUsers(){
     row+='<td><span style="font-family:monospace;font-size:11px;color:var(--info);background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">'+_e(ff)+'</span></td>';
     row+='<td style="font-size:11px;color:var(--text-dim)">'+_e(ph)+'</td>';
     row+='<td style="font-size:10px;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_e(em)+'</td>';
-    row+='<td><span style="color:var(--primary);font-weight:700">₹'+bal+'</span><div style="font-size:9px;color:var(--text-muted)">D:₹'+db_+' W:₹'+wb+'</div></td>';
+    row+='<td><span style="color:#00d4ff;font-weight:700">💎'+sky+'</span><div style="font-size:9px;color:var(--text-muted)">💚'+gd+' · 🪙'+coins+'</div></td>';
     row+='<td>'+mt+'</td>';
     row+='<td><span class="badge cyan">Lv'+lv+'</span></td>';
     row+='<td>'+vf+'</td>';

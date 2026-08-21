@@ -70,7 +70,7 @@ h1,h2,h3,h4,h5,h6,.section-title,.login-title,.sidebar-brand,.stat-card h3,.topb
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:90;backdrop-filter:blur(2px)}
 
 /* MAIN */
-.main-content{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;transition:margin .3s}
+.main-content{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;transition:margin .3s;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
 .topbar{position:sticky;top:0;z-index:50;height:var(--topbar-h);padding:0 16px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,10,10,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);gap:10px}
 .topbar-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
 .topbar-title{font-size:12px;color:var(--text);letter-spacing:1px;white-space:nowrap}

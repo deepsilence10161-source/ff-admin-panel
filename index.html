@@ -83,7 +83,7 @@
 <meta name="theme-color" content="#050507">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mini eSports — Admin Panel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -226,7 +226,7 @@
 </div>
 <div class="global-search">
 <i class="fas fa-search search-icon"></i>
-<input type="text" id="globalSearchInput" placeholder="Search UID / Username..." oninput="handleGlobalSearch(this.value)" onfocus="handleGlobalSearch(this.value)" onblur="setTimeout(()=>document.getElementById('globalSearchResults').classList.remove('show'),200)">
+<input type="text" id="globalSearchInput" placeholder="UID / IGN" oninput="handleGlobalSearch(this.value)" onfocus="handleGlobalSearch(this.value)" onblur="setTimeout(()=>document.getElementById('globalSearchResults').classList.remove('show'),200)">
 <div class="search-results" id="globalSearchResults"></div>
 </div>
 <div class="topbar-actions">
