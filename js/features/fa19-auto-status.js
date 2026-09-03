@@ -1,6 +1,7 @@
 /* ADMIN FEATURE A19: Auto Match Status Update
-   Match time aane par status "upcoming" → "ongoing" automatic.
-   Match time + 30min baad "ongoing" → "completed" automatic. */
+   Keep the database vocabulary aligned with admin-inline.js and the user
+   panel: upcoming → live → completed. The old "ongoing" value made one
+   scheduler disagree with the rest of the app. */
 (function(){
 'use strict';
 function checkStatuses(){
@@ -10,12 +11,13 @@ function checkStatuses(){
     s.forEach(function(c){
       var d=c.val(); if(!d||!d.matchTime) return;
       var mt=Number(d.matchTime);
-      var endTime=mt+(d.duration||30)*60000;
+      /* Match lifecycle is one hour everywhere else in the admin panel. */
+      var endTime=mt+(d.duration||60)*60000;
       if(d.status==='upcoming'&&now>=mt&&now<endTime){
-        updates['matches/'+c.key+'/status']='ongoing';
+        updates['matches/'+c.key+'/status']='live';
         updates['matches/'+c.key+'/startedAt']=now;
       }
-      if(d.status==='ongoing'&&now>=endTime){
+      if((d.status==='live'||d.status==='ongoing')&&now>=endTime){
         updates['matches/'+c.key+'/status']='completed';
         updates['matches/'+c.key+'/completedAt']=now;
       }

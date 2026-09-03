@@ -4,7 +4,7 @@
           Withdrawal duplicate guard, Gift ticket visibility
    Features: Admin-Editable Daily Bonus Rewards, Extended Push Notifs,
              Recently Won Feed management, Invite & Earn admin view,
-             WhatsApp share config, Referral Leaderboard admin
+             Native share-sheet result sharing, Referral Leaderboard admin
    ═══════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -478,15 +478,28 @@
     var msg = '🏆 ' + playerName + ' ne ' + matchName + ' mein ₹' + amount + ' jeeta Mini eSports pe!\n\n' +
       '🎮 Tum bhi khelke jeeto — join karo ab!\n' +
       '📲 ' + (window.location.origin || 'https://mini-esports.app');
-    var h = '<div>';
-    h += '<div style="background:rgba(0,0,0,.4);border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px;color:#ddd;line-height:1.7">' + msg.replace(/\n/g, '<br>') + '</div>';
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-    h += '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn" style="background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;justify-content:center;display:flex;align-items:center;gap:6px"><i class="fab fa-whatsapp"></i> WhatsApp</a>';
-    h += '<a href="https://t.me/share/url?url=' + encodeURIComponent(window.location.origin || '') + '&text=' + encodeURIComponent(msg) + '" target="_blank" class="btn" style="background:linear-gradient(135deg,#0088cc,#005fa3);color:#fff;justify-content:center;display:flex;align-items:center;gap:6px"><i class="fab fa-telegram"></i> Telegram</a>';
-    h += '</div>';
-    h += '<button class="btn btn-ghost w-full" style="margin-top:8px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + msg.replace(/'/g, "\\'") + '\').then(function(){if(window.showToast)showToast(\'Copied!\')})"><i class="fas fa-copy"></i> Copy Message</button>';
-    h += '</div>';
-    _modal('📢 Share This Win', h);
+    /* Use the operating system share sheet only. On Android this opens the
+       user's native "Select an app to open" chooser (including WhatsApp),
+       without routing through the retired, buggy WhatsApp share page. */
+    if (navigator.share) {
+      navigator.share({title:'Mini eSports Winner', text:msg}).catch(function(err){
+        /* Closing/cancelling the chooser is not an error for the admin. */
+        if (err && err.name !== 'AbortError') console.warn('Native share failed:',err);
+      });
+      return;
+    }
+    /* Desktop/web browsers without Web Share keep the old web behaviour:
+       open WhatsApp Web directly. This is only a URL fallback — the old
+       in-app "Share on WhatsApp" page/modal is not used anymore. */
+    var waUrl='https://wa.me/?text='+encodeURIComponent(msg);
+    var opened=window.open(waUrl,'_blank','noopener,noreferrer');
+    if(!opened && navigator.clipboard) {
+      navigator.clipboard.writeText(msg).then(function(){
+        if(window.showToast)showToast('WhatsApp Web open nahi hua — message copied.');
+      }).catch(function(){if(window.showToast)showToast('Share is not available on this device.',true);});
+    } else if(!opened && window.showToast) {
+      showToast('Share is not available on this device.',true);
+    }
   };
 
   /* ════════════════════════════════════════════════════════════

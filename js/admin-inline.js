@@ -1816,8 +1816,40 @@ function populateJoinedFilter(){
   jF.value=currentVal||'all';
 }
 function filterTournaments(f,btn){currentFilter=f;document.querySelectorAll('.filter-tab').forEach(function(t){t.classList.remove('active')});if(btn)btn.classList.add('active');loadTournaments();}
+/* Build a schedule timestamp without relying on Date.parse(). Android WebView
+   versions have historically interpreted datetime strings differently (and a
+   missing date can accidentally become "now" in some form integrations).
+   The round-trip checks also reject impossible dates instead of silently
+   normalising them into another day. */
+function readMatchSchedule(){
+  var date=(document.getElementById('tMatchDate')||{}).value||'';
+  var time=(document.getElementById('tMatchTimeOnly')||{}).value||'';
+  var match=/^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(date);
+  var clock=/^(\\d{2}):(\\d{2})$/.exec(time);
+  if(!match||!clock)return {valid:false,reason:'date_time_required'};
+  var y=Number(match[1]), mo=Number(match[2]), day=Number(match[3]);
+  var h=Number(clock[1]), min=Number(clock[2]);
+  var value=new Date(y,mo-1,day,h,min,0,0);
+  if(value.getFullYear()!==y||value.getMonth()!==mo-1||value.getDate()!==day||value.getHours()!==h||value.getMinutes()!==min){
+    return {valid:false,reason:'invalid_date'};
+  }
+  return {valid:true,ms:value.getTime(),value:date+'T'+time};
+}
+function setMatchDateMinimum(){
+  var dateEl=document.getElementById('tMatchDate');
+  if(dateEl){
+    var now=new Date(), pad=function(n){return String(n).padStart(2,'0');};
+    dateEl.min=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  }
+}
 function openTournamentModal(){
   ['tournamentId','tName','tEntryFee','tMaxSlots','tFirstPrize','tSecondPrize','tThirdPrize','tPerKill','tMatchTime','tMatchDate','tMatchTimeOnly','tRoomId','tRoomPass'].forEach(function(i){var e=document.getElementById(i);if(e)e.value=''});
+  /* A new match always starts with today's date; the admin only has to pick
+     the clock time. Never invent a timestamp from the current time while
+     saving — both fields must be explicitly present. */
+  var _newDate=document.getElementById('tMatchDate');
+  if(_newDate){var _n=new Date(),_p=function(n){return String(n).padStart(2,'0');};_newDate.value=_n.getFullYear()+'-'+_p(_n.getMonth()+1)+'-'+_p(_n.getDate());}
+  setMatchDateMinimum();
   document.getElementById('tGameMode').value='solo';
   document.getElementById('tMap').value='Bermuda';
   document.getElementById('tEntryType').value='paid';
@@ -2132,7 +2164,11 @@ async function saveTournament(){
   var f2=Number(document.getElementById('tSecondPrize').value)||0;
   var f3=Number(document.getElementById('tThirdPrize').value)||0;
   var pp=f1+f2+f3; // auto-calc from prizes — must be after f1,f2,f3
-  var mts=document.getElementById('tMatchTime').value;
+  /* Read the two native controls as one verified local timestamp. The hidden
+     field is retained only for backward compatibility; it is never trusted as
+     the source of truth. */
+  var schedule=readMatchSchedule();
+  var mts=schedule.valid?schedule.value:'';
   var ri=document.getElementById('tRoomId').value.trim();
   var rp=document.getElementById('tRoomPass').value.trim();
   var roomReleaseMin = Number((document.getElementById('tRoomReleaseMin')||{}).value)||5;
@@ -2146,9 +2182,9 @@ async function saveTournament(){
     document.getElementById('tName').focus();
     setLoading(saveBtn,false);return;
   }
-  if(!mts){
-    showToast('❌ Please fill: Match Time',true);
-    document.getElementById('tMatchTime').focus();
+  if(!schedule.valid){
+    showToast(schedule.reason==='invalid_date'?'❌ Invalid match date':'❌ Please select both match date and time',true);
+    (document.getElementById('tMatchTimeOnly')||document.getElementById('tMatchDate')).focus();
     setLoading(saveBtn,false);return;
   }
   if(et!=='paid'&&et!=='coin'&&et!=='ad'){
@@ -2184,14 +2220,15 @@ async function saveTournament(){
     if(pkEl)pkEl.focus();
     setLoading(saveBtn,false);return;
   }
-  /* FIX Bug#108: Prevent scheduling matches for past dates */
-  if(mts){
-    var _bug108Parts = mts.split(/[-T:]/).map(Number);
-    var scheduledMs = new Date(_bug108Parts[0], _bug108Parts[1]-1, _bug108Parts[2], _bug108Parts[3], _bug108Parts[4], 0, 0).getTime();
-    if(scheduledMs<Date.now()-60000){ /* 1 minute tolerance */
-      showToast('❌ Match time cannot be in the past!',true);
-      setLoading(saveBtn,false);return;
-    }
+  /* Never create a match that is already live. A five-minute buffer protects
+     against picker/clock latency and makes an accidental "current time"
+     write fail safely instead of publishing a live match. Edits use the same
+     rule only when the time is actually changed. */
+  var scheduledMs=schedule.ms;
+  var _timeWasChangedForValidation=!id||Math.abs(scheduledMs-(_editOriginalMatchTime||0))>60000;
+  if(_timeWasChangedForValidation&&scheduledMs<Date.now()+5*60*1000){
+    showToast('❌ Match time kam se kam 5 minute baad honi chahiye',true);
+    setLoading(saveBtn,false);return;
   }
   
   console.log('Match validation PASSED — all required fields present');
@@ -2211,25 +2248,17 @@ async function saveTournament(){
      the Date from explicit numeric parts instead removes any string-
      parsing ambiguity entirely — this is the most robust form
      regardless of what the root cause on the device turns out to be. */
-  var mt;
-  if (mts) {
-    var _mtParts = mts.split(/[-T:]/).map(Number);
-    mt = new Date(_mtParts[0], _mtParts[1]-1, _mtParts[2], _mtParts[3], _mtParts[4], 0, 0).getTime();
-  } else {
-    mt = 0;
-  }
+  /* readMatchSchedule() already performed strict validation and explicit
+     local construction. Reusing its number here prevents a second parser
+     from ever producing a different time. */
+  var mt=schedule.ms;
 
-  /* ✅ SAFETY GUARD (2026-08-28): second layer of defense on top of the
-     blur()+rAF fix above. If the picker's value still somehow reads as
-     "right now" (within 2 minutes) while the admin clearly intended a
-     future time — the classic symptom of this bug — warn instead of
-     silently saving a match that will immediately show as live. */
-  if (mt && Math.abs(mt - Date.now()) < 2*60*1000) {
-    console.warn('[saveTournament] matchTime suspiciously close to now:', new Date(mt), '— picker value may not have committed yet');
-    if (!confirm('⚠️ Match time abhi ke bahut kareeb hai (' + new Date(mt).toLocaleString() + ') — yeh galat ho sakta hai agar tumne future time set kiya tha. Time field dobara check karo. Phir bhi save karna hai?')) {
-      setLoading(saveBtn,false);
-      return;
-    }
+  /* Defense-in-depth: this should already be caught above. Do not offer a
+     confirm bypass for a timestamp that is effectively "now"; that was the
+     exact failure mode reported by admins. */
+  if (!id && Math.abs(mt-Date.now()) < 2*60*1000) {
+    showToast('❌ Match time picker value current time ke bahut kareeb hai. Dobara time select karo.',true);
+    setLoading(saveBtn,false);return;
   }
 
   try{

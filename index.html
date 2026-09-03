@@ -1143,9 +1143,10 @@
 </div>
 <div class="form-group"><label>Match Time *</label>
   <div style="display:flex;gap:8px">
-    <input type="date" id="tMatchDate" class="form-input" style="flex:1.2">
-    <input type="time" id="tMatchTimeOnly" class="form-input" style="flex:1">
+    <div style="flex:1.2"><label for="tMatchDate" style="display:block;font-size:10px;color:var(--text-muted);margin-bottom:3px">Date</label><input type="date" id="tMatchDate" class="form-input" style="width:100%"></div>
+    <div style="flex:1"><label for="tMatchTimeOnly" style="display:block;font-size:10px;color:var(--text-muted);margin-bottom:3px">Local time</label><input type="time" id="tMatchTimeOnly" class="form-input" style="width:100%" step="60"></div>
   </div>
+  <div style="font-size:10px;color:#00d4ff;margin-top:5px"><i class="fas fa-shield-alt"></i> Time isi device ke local time mein save hoga. Match kam se kam 5 minute baad hona chahiye.</div>
   <!-- ✅ BUG FIX (2026-08-29): "Match time select hi nahi ho raha" —
        the combined datetime-local picker was reported to not respond
        to taps at all inside this modal (field stayed empty, green/
@@ -1377,7 +1378,7 @@
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted)
 ═══════════════════════════════════════════════ -->
-<script src="js/admin-inline.js?v=20260828a"></script>
+<script src="js/admin-inline.js?v=20260903a"></script>
 
 <!-- ═══════════════════════════════════════════════
      SUPABASE RTDB BRIDGE — Firebase → Supabase migration
@@ -1417,11 +1418,11 @@
 <script src="js/features/fa12-bulk-notify.js?v=20260828a"></script>
 <script src="js/features/fa13-match-clone.js?v=20260828a"></script>
 <script src="js/features/fa14-player-lookup.js?v=20260828a"></script>
-<script src="js/features/fa15-match-result-reminder.js?v=20260828a"></script>
+<script src="js/features/fa15-match-result-reminder.js?v=20260903a"></script>
 <script src="js/features/fa16-quick-ban.js?v=20260828a"></script>
 <script src="js/features/fa17-pending-profiles.js?v=20260828a"></script>
 <script src="js/features/fa18-match-stats.js?v=20260828a"></script>
-<script src="js/features/fa19-auto-status.js?v=20260828a"></script>
+<script src="js/features/fa19-auto-status.js?v=20260903a"></script>
 <script src="js/features/fa21-match-history.js?v=20260828a"></script>
 <script src="js/features/fa22-match-result.js?v=20260828a"></script>
 <script src="js/features/fa24-admin-smart-tools.js?v=20260828a"></script>
@@ -1444,11 +1445,11 @@
      (load after features, order matters)
 ═══════════════════════════════════════════════ -->
 <script src="js/fix13-realtime-analytics.js?v=20260828a"></script>
-<script src="js/admin-fixes-v7.js?v=20260828a"></script>
+<script src="js/admin-fixes-v7.js?v=20260903a"></script>
 <script src="js/fixes-admin-v9.js?v=20260828a"></script>
 <script src="js/fa-admin-v10.js?v=20260828a"></script>
 <script src="js/fa-admin-v10-final.js?v=20260828a"></script>
-<script src="js/fa-sponsored-system.js?v=20260828a"></script>
+<script src="js/fa-sponsored-system.js?v=20260903b"></script>
 <script src="js/fa-growth-admin.js?v=20260828a"></script>
 <script src="js/fa-app-settings.js?v=20260828a"></script>
 <!-- ✅ FIX (Audit H2): yeh file exist karti thi lekin kabhi load hi nahi hoti thi —

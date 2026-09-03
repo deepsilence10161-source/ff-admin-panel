@@ -174,6 +174,15 @@ function loadSponsoredTournaments(loadMore) {
     var hasMore = snap.numChildren() === _sponsorPageSize;
 
     var items = Object.values(_sponsorAllItems).sort(function(a,b){ return (b.d.createdAt||0) - (a.d.createdAt||0); });
+    /* Repair legacy records where prizes were distributed and the sponsor
+       campaign was marked completed, but its linked real match remained
+       upcoming. This is idempotent and prevents Join Now from reappearing. */
+    items.forEach(function(item){
+      if(item.d.status==='completed' && item.d.matchId){
+        (window.rtdb||window.db).ref('matches/'+item.d.matchId).update({status:'completed',completedAt:item.d.distributedAt||Date.now()})
+          .catch(function(err){console.warn('[Sponsored] legacy match status repair failed:',err);});
+      }
+    });
     var html = '<div style="display:grid;gap:12px">';
     items.forEach(function(item) {
       var d = item.d;
@@ -329,11 +338,24 @@ window.confirmDistributePrizes = function(tourId) {
     done++;
   });
 
-  // Mark tournament as distributed
-  (window.rtdb||window.db).ref('sponsoredTournaments/' + tourId).update({
-    prizeDistributed: true,
-    distributedAt: Date.now(),
-    status: 'completed'
+  // Mark tournament as distributed, and atomically close its real match too.
+  // The sponsor row and matches row have separate statuses. Previously only
+  // the sponsor row became completed, so the user panel still saw the linked
+  // match as upcoming and incorrectly rendered Join Now.
+  var _dbForSponsor=(window.rtdb||window.db);
+  var _completedAt=Date.now();
+  _dbForSponsor.ref('sponsoredTournaments/' + tourId).once('value').then(function(snap){
+    var sponsorData=snap&&snap.val?snap.val():null;
+    var matchId=sponsorData&&sponsorData.matchId;
+    var sponsorUpdate={prizeDistributed:true,distributedAt:_completedAt,status:'completed'};
+    var writes=[_dbForSponsor.ref('sponsoredTournaments/' + tourId).update(sponsorUpdate)];
+    if(matchId){
+      writes.push(_dbForSponsor.ref('matches/' + matchId).update({status:'completed',completedAt:_completedAt}));
+    }
+    return Promise.all(writes);
+  }).catch(function(err){
+    console.error('[Sponsored] Could not close sponsor/match lifecycle:',err);
+    showToast('Prize credit ho gaya, lekin match status sync nahi hua. Matches tab mein check karo.',true);
   });
 
   // Close modal

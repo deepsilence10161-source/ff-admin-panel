@@ -5,7 +5,7 @@
 var _checked={};
 
 function checkPending(){
-  rtdb.ref('matches').orderByChild('status').equalTo('ongoing').once('value',function(s){
+  rtdb.ref('matches').orderByChild('status').equalTo('live').once('value',function(s){
     var now=Date.now();
     s.forEach(function(c){
       var d=c.val()||{};
