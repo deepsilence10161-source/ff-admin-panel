@@ -1,0 +1,56 @@
+# ════════════════════════════════════════════════
+#  Mini eSports — Apache Security Headers
+#  Deploy this at the root of your web server.
+#  Works on Apache 2.2+ with mod_headers enabled.
+# ════════════════════════════════════════════════
+
+<IfModule mod_headers.c>
+    # Block clickjacking
+    Header always set X-Frame-Options "DENY"
+
+    # Prevent MIME-type sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Limit referrer information
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Disable browser features not needed
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+
+    # Force HTTPS for 1 year (enable only after confirming HTTPS works!)
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # Remove server version header (reduces info leakage)
+    Header unset X-Powered-By
+    Header unset Server
+</IfModule>
+
+# ── Prevent directory listing ──
+Options -Indexes
+
+# ── Block access to sensitive files ──
+<FilesMatch "\.(env|json|md|log|sql|sh|py|rb|lock|git)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow firebase-rules.json to be blocked too (it's for copy-paste, not serving)
+<Files "firebase-rules.json">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# ── Cache static assets ──
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css             "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/png            "access plus 30 days"
+    ExpiresByType image/jpeg           "access plus 30 days"
+    ExpiresByType image/webp           "access plus 30 days"
+</IfModule>
+
+# ── Gzip compression ──
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
