@@ -1915,6 +1915,7 @@
 
   var _channels = {};
   var _pollingTimers = {};
+  var _onceWarnAt = {}; /* path -> last warn timestamp (spam throttle) */
 
   function setupRealtimeListener(p, callback, query) {
     var supa = getSupa();
@@ -2040,8 +2041,25 @@
       if (typeof callbackFn === 'function') callbackFn(snap);
       return snap;
     });
+    /* ✅ SAFETY NET (2026-09-19): darjanon badge/poller callers .once() ko
+       fire-and-forget use karte hain (return value ignore). Supabase fail ho
+       to ye promise reject hokar "unhandled rejection" ban jaata tha — har
+       poll cycle me console spam + strict setups me fatal. Ye extra branch
+       sirf original promise ko "handled" mark karta hai; await/try-catch
+       wale callers ka behavior bilkul same rehta hai (unhe rejection abhi
+       bhi milti hai). Warning 60s me 1/path tak throttle hai. */
+    promise.catch(function(e) { _bridgeOnceWarn(self._p.raw, e); });
     return promise;
   };
+
+  function _bridgeOnceWarn(path, e) {
+    try {
+      var now = Date.now();
+      if (_onceWarnAt[path] && now - _onceWarnAt[path] < 60000) return;
+      _onceWarnAt[path] = now;
+      console.warn('[Bridge] once(' + path + ') failed:', (e && e.message) || e);
+    } catch (_) { /* warn must never throw */ }
+  }
 
 
   /* REALTIME LISTENER — value, child_added, child_changed, child_removed */

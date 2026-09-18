@@ -68,7 +68,7 @@
         if ((st === 'completed' || st === 'finished') && !v.resultPublished) results.completedUnpaid++;
       });
       checkDone();
-    });
+    }).catch(function() { checkDone(); });
 
     // Users
     rtdb.ref('users').once('value', function(s) {
@@ -79,7 +79,7 @@
         if (Number(u.lastSeen||0) > weekAgo || Number(u.lastLoginAt||0) > weekAgo) results.activeUsers++;
       });
       checkDone();
-    });
+    }).catch(function() { checkDone(); });
 
     // Verifications
     rtdb.ref('profileRequests').once('value', function(s) {
@@ -88,7 +88,7 @@
         if (v && (!v.status || v.status === 'pending')) results.pendingVerif++;
       });
       checkDone();
-    });
+    }).catch(function() { checkDone(); });
 
     // Profile updates
     rtdb.ref('profileUpdates').once('value', function(s) {
@@ -97,7 +97,7 @@
         if (v && (!v.status || v.status === 'pending')) results.pendingUpdates++;
       });
       checkDone();
-    });
+    }).catch(function() { checkDone(); });
 
     // Withdrawals — Bug New-2 Fix: always filter by type='withdraw' to avoid
     // counting deposit requests as pending withdrawals (false positive alert)
@@ -113,13 +113,13 @@
         });
       }
       checkDone();
-    });
+    }).catch(function() { checkDone(); });
 
     // Feedback/surveys
     rtdb.ref('matchFeedback').once('value', function(s) {
       // Just check it exists
       checkDone();
-    });
+    }).catch(function() { checkDone(); });
   }
 
   function showHealthDashboard() {
