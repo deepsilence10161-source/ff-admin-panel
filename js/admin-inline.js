@@ -4519,30 +4519,47 @@ async function toggleMaintenance(){
 /* ════════════════════════════════════════════════
    TDS SYSTEM — Admin Functions
    ════════════════════════════════════════════════ */
+/* ✅ HARDENED (2026-09-18): pehle HAR Settings visit par ek naya PERMANENT
+   .on('value') listener jud jaata tha (kabhi .off() nahi hota) — dheere-dheere
+   listener/channel pile-up. Ab listener sirf EK baar attach hota hai. */
+var _tdsListenerAttached = false;
 function loadTDSState() {
-  rtdb.ref('appSettings/tdsConfig').on('value', function(s) {
-    var cfg = s.val() || {};
-    var on = cfg.active === true;
-    var tog = document.getElementById('tdsToggle');
-    if (tog) tog.checked = on;
-    var banner = document.getElementById('tdsBanner');
-    var offBanner = document.getElementById('tdsOffBanner');
-    if (banner) banner.style.display = on ? 'block' : 'none';
-    if (offBanner) offBanner.style.display = on ? 'none' : 'block';
-  });
+  try {
+    if (!_tdsListenerAttached) {
+      _tdsListenerAttached = true;
+      try {
+        rtdb.ref('appSettings/tdsConfig').on('value', function(s) {
+          var cfg = s.val() || {};
+          var on = cfg.active === true;
+          var tog = document.getElementById('tdsToggle');
+          if (tog) tog.checked = on;
+          var banner = document.getElementById('tdsBanner');
+          var offBanner = document.getElementById('tdsOffBanner');
+          if (banner) banner.style.display = on ? 'block' : 'none';
+          if (offBanner) offBanner.style.display = on ? 'none' : 'block';
+        });
+      } catch (e) {
+        _tdsListenerAttached = false;
+        console.error('[TDS] listener attach failed:', e && e.message);
+      }
+    }
+  } catch (e) { console.error('[TDS] loadTDSState:', e && e.message); }
   /* TDS stats load karo */
-  rtdb.ref('tdsHeld').once('value', function(s) {
-    var total = 0; var users = {};
-    if (s.exists()) s.forEach(function(c) {
-      var d = c.val();
-      total += Number(d.amount) || 0;
-      if (d.uid) users[d.uid] = true;
+  try {
+    var _tdsP = rtdb.ref('tdsHeld').once('value', function(s) {
+      var total = 0; var users = {};
+      if (s.exists()) s.forEach(function(c) {
+        var d = c.val();
+        total += Number(d.amount) || 0;
+        if (d.uid) users[d.uid] = true;
+      });
+      var el = document.getElementById('tdsTotalHeld');
+      var el2 = document.getElementById('tdsTotalUsers');
+      if (el) el.textContent = '₹' + total;
+      if (el2) el2.textContent = Object.keys(users).length;
     });
-    var el = document.getElementById('tdsTotalHeld');
-    var el2 = document.getElementById('tdsTotalUsers');
-    if (el) el.textContent = '₹' + total;
-    if (el2) el2.textContent = Object.keys(users).length;
-  });
+    if (_tdsP && typeof _tdsP.catch === 'function') _tdsP.catch(function(){});
+  } catch (e) { console.error('[TDS] stats load:', e && e.message); }
 }
 
 async function toggleTDS() {
@@ -4616,8 +4633,9 @@ function viewTDSRecords() {
 var _origLoadSettings = window.loadSettings;
 window.loadSettings = async function() {
   if (_origLoadSettings) await _origLoadSettings.apply(this, arguments);
-  loadTDSState();
-  loadPreviewState();
+  /* ✅ HARDENED (2026-09-18): ek loader throw kare to dusra skip na ho. */
+  try { loadTDSState(); } catch (e) { console.error('[Settings] loadTDSState failed:', e && e.message); }
+  try { loadPreviewState(); } catch (e) { console.error('[Settings] loadPreviewState failed:', e && e.message); }
 };
 
 /* ════════════════════════════════════════════════
@@ -4626,38 +4644,71 @@ window.loadSettings = async function() {
    Supabase app_settings table (key='preview_mode'). Same for
    earlyAccessUsers → early_access_users table.
    ════════════════════════════════════════════════ */
+/* ✅ HARDENED (2026-09-18): pehle har Settings visit = 2 nayi queries, koi
+   rejection handler nahi (fail par unhandled rejection), aur _supa-missing par
+   HAR VISIT apni infinite retry chain. Ab: single-flight + ONE shared bounded
+   retry (30s) + rejection handlers. Query bodies bilkul same hain. */
+var _pvLoading = false;
+var _pvWaitTimer = null;
+var _pvWaitCount = 0;
 function loadPreviewState() {
-  if (!window._supa) { setTimeout(loadPreviewState, 500); return; }
-  window._supa.from('app_settings').select('value').eq('key', 'preview_mode').single()
-    .then(function(r) {
-      var cfg = (r.data && r.data.value) || {};
-      var on = cfg.active === true;
-      var tog = document.getElementById('previewToggle');
-      if (tog) tog.checked = on;
-      var ab = document.getElementById('previewActiveBanner');
-      var ob = document.getElementById('previewOffBanner');
-      if (ab) ab.style.display = on ? 'block' : 'none';
-      if (ob) ob.style.display = on ? 'none' : 'block';
-      /* Fill message & date */
-      var msgEl = document.getElementById('previewMessage');
-      var dtEl  = document.getElementById('previewLaunchDate');
-      if (msgEl && cfg.message) msgEl.value = cfg.message;
-      if (dtEl  && cfg.launchDate) dtEl.value = cfg.launchDate;
-    });
-  /* Early user counts */
-  window._supa.from('early_access_users').select('joined_at')
-    .then(function(r) {
-      var rows = r.data || [];
-      var total = rows.length, today = 0;
-      var todayStart = new Date(); todayStart.setHours(0,0,0,0);
-      rows.forEach(function(row) {
-        if (row.joined_at && new Date(row.joined_at).getTime() >= todayStart.getTime()) today++;
-      });
-      var te = document.getElementById('earlyTotalCount');
-      var td = document.getElementById('earlyTodayCount');
-      if (te) te.textContent = total;
-      if (td) td.textContent = today;
-    });
+  if (_pvLoading) return;
+  if (!window._supa) {
+    if (_pvWaitTimer) return;
+    _pvWaitCount = 0;
+    _pvWaitTimer = setInterval(function() {
+      _pvWaitCount++;
+      if (window._supa) {
+        clearInterval(_pvWaitTimer); _pvWaitTimer = null;
+        loadPreviewState();
+      } else if (_pvWaitCount >= 60) {
+        clearInterval(_pvWaitTimer); _pvWaitTimer = null;
+      }
+    }, 500);
+    return;
+  }
+  _pvLoading = true;
+  var _pvPending = 2;
+  var _pvFailsafe = setTimeout(function() { _pvLoading = false; }, 15000);
+  var _pvOne = function() { if (--_pvPending <= 0) { _pvLoading = false; clearTimeout(_pvFailsafe); } };
+  try {
+    window._supa.from('app_settings').select('value').eq('key', 'preview_mode').single()
+      .then(function(r) {
+        _pvOne();
+        var cfg = (r.data && r.data.value) || {};
+        var on = cfg.active === true;
+        var tog = document.getElementById('previewToggle');
+        if (tog) tog.checked = on;
+        var ab = document.getElementById('previewActiveBanner');
+        var ob = document.getElementById('previewOffBanner');
+        if (ab) ab.style.display = on ? 'block' : 'none';
+        if (ob) ob.style.display = on ? 'none' : 'block';
+        /* Fill message & date */
+        var msgEl = document.getElementById('previewMessage');
+        var dtEl  = document.getElementById('previewLaunchDate');
+        if (msgEl && cfg.message) msgEl.value = cfg.message;
+        if (dtEl  && cfg.launchDate) dtEl.value = cfg.launchDate;
+      }, function(e) { _pvOne(); console.error('[Preview] preview_mode load failed:', e && e.message); });
+    /* Early user counts */
+    window._supa.from('early_access_users').select('joined_at')
+      .then(function(r) {
+        _pvOne();
+        var rows = r.data || [];
+        var total = rows.length, today = 0;
+        var todayStart = new Date(); todayStart.setHours(0,0,0,0);
+        rows.forEach(function(row) {
+          if (row.joined_at && new Date(row.joined_at).getTime() >= todayStart.getTime()) today++;
+        });
+        var te = document.getElementById('earlyTotalCount');
+        var td = document.getElementById('earlyTodayCount');
+        if (te) te.textContent = total;
+        if (td) td.textContent = today;
+      }, function(e) { _pvOne(); console.error('[Preview] early-access count failed:', e && e.message); });
+  } catch (e) {
+    _pvLoading = false;
+    clearTimeout(_pvFailsafe);
+    console.error('[Preview] loadPreviewState:', e && e.message);
+  }
 }
 
 async function togglePreviewMode() {

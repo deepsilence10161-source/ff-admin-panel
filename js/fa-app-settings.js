@@ -12,71 +12,241 @@
 var _AS  = {}; // main config cache (app_settings.live_config)
 var _CVS = {}; // creator+video settings cache (app_settings.creator_system + .video_moderation)
 
-window.loadAppSettings = function() {
-  if (!window._supa) { setTimeout(window.loadAppSettings, 500); return; }
+/* ================================================================
+   SETTINGS LOAD STATE — crash-hardening (2026-09-18)
+   REPORT: "Settings tab me jaate hi poora admin panel crash" + "loading
+   screen pehle nahi thi".
+   ROOT CAUSE (confirmed): har Settings click = 1 nayi Supabase query,
+   koi dedup nahi — aur jab tak window._supa ready nahi hota, HAR CLICK
+   apni alag INFINITE 500ms retry chain bana deta tha (loadAppSettings +
+   loadPreviewState dono me). Slow network (3 KB/s jaisi) par admin
+   tap-tap-tap karta hai → darjanon hanging queries + full re-renders
+   ek saath → network/JS starve → panel dead/frozen lagta hai. Upar se
+   har visit par loadTDSState() ek PERMANENT listener bhi jod deta tha.
+   FIX: single-flight + ONE shared bounded retry + instant cached render
+   (Settings turant khulta hai, loading ka wait nahi) + stale-response
+   guard + background refresh jo typed edits kabhi wipe nahi karta.
+   ================================================================ */
+var _AS_loading = false;      // ek waqt me sirf 1 fresh load chalega
+var _AS_loadedOnce = false;   // session me kam se kam 1 render ho chuka (cache ya fresh)
+var _AS_freshOnce = false;    // session me kam se kam 1 FRESH network load success
+var _AS_dirty = false;        // admin ne form me kuch type/badal diya hai
+var _AS_gen = 0;              // generation — purani (stale) response discard
+var _AS_timer = null;         // current attempt ka timeout handle
+var _AS_supaWaitTimer = null; // _supa-wait shared chain (ONE — per-click nahi)
+var _AS_supaWaitCount = 0;
+var _AS_CACHE_KEY = 'ff_admin_settings_cache_v1';
 
-  /* ✅ BUG FIX (2026-09-17, confirmed via screenshot): "Loading
-     settings..." spinner stays up forever, and the whole admin panel
-     stops responding to clicks after that — happened on a visibly
-     very slow connection (3 KB/s in the reporting screenshot's status
-     bar). The .then()/.catch() fix from the previous round only
-     covers the query actually rejecting; it does nothing if the
-     underlying network request just hangs and never settles at all
-     (neither resolves nor rejects) — which is exactly what a
-     3 KB/s connection can do to a request that would normally take
-     under a second. A native Promise has no built-in timeout, so a
-     genuinely stuck fetch leaves .then()/.catch() both permanently
-     unfired — the previous fix couldn't have helped a screenshot
-     taken on a version that predates it, but it also can't fully fix
-     this specific "request never settles" case on its own. Racing the
-     real query against a manual timeout, using Promise.race, forces
-     SOME outcome within 10s no matter what the network does — this is
-     also why "poora admin panel kaam karna band kar deta hai" makes
-     sense even though only this one tab's content looked broken: an
-     unresolved promise chain doesn't freeze other buttons by itself,
-     but on a connection this slow, every OTHER admin action fired
-     afterward (tab switches, other loads) queues up behind the same
-     starved network/JS-engine conditions, making the whole panel feel
-     dead until something actually completes or times out. */
-  var _settingsTimedOut = false;
-  var _timeoutTimer = setTimeout(function () {
-    _settingsTimedOut = true;
+/* HTML-escape — saved config me quotes/HTML ho (APK URL, season name,
+   package label) to markup tootna nahi chahiye. */
+function _AS_esc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _AS_readCache() {
+  try {
+    var raw = localStorage.getItem(_AS_CACHE_KEY);
+    if (!raw) return null;
+    var o = JSON.parse(raw);
+    if (!o || typeof o !== 'object' || !o.AS || typeof o.AS !== 'object') return null;
+    return o;
+  } catch (e) { return null; }
+}
+
+function _AS_writeCache() {
+  try { localStorage.setItem(_AS_CACHE_KEY, JSON.stringify({ AS: _AS, CVS: _CVS, ts: Date.now() })); }
+  catch (e) { /* private mode / storage full — cache optional hai */ }
+}
+
+function _AS_setSaveEnabled(on) {
+  var b = document.getElementById('saveAppSettingsBtn');
+  if (!b) return;
+  b.disabled = !on;
+  b.style.opacity = on ? '' : '.55';
+  b.title = on ? '' : 'Settings load hone ke baad enable hoga';
+}
+
+/* Save button shuru me DISABLED — bina fresh load ke Save dabane se sare
+   DEFAULTS save ho jaate (production pricing/commission WIPE!). Fresh load
+   success par enable hota hai. Fa-app-settings body end me load hota hai,
+   isliye DOM yahan ready hai. */
+try { _AS_setSaveEnabled(false); } catch (e) {}
+
+/* Default SD packages — jab saved shape array na ho (purana/corrupt data)
+   to poora render fail karne ke bajay defaults dikhao. */
+var _AS_DEFAULT_SDP = [
+  { label: 'Starter', diamonds: 50,  price: 49 },
+  { label: 'Popular', diamonds: 120, price: 99, popular: true },
+  { label: 'Value',   diamonds: 260, price: 199 },
+  { label: 'Mega',    diamonds: 600, price: 399 }
+];
+function _AS_coerceSDPackages(v) {
+  if (Array.isArray(v) && v.length) return v;
+  if (v && typeof v === 'object') {
+    /* Purana keyed-object shape {0:{...},1:{...}} → array me badlo. */
+    var arr = Object.keys(v).sort().map(function(k) { return v[k]; })
+      .filter(function(p) { return p && typeof p === 'object'; });
+    if (arr.length) return arr;
+  }
+  return _AS_DEFAULT_SDP.slice();
+}
+
+function _AS_showSpinnerIfEmpty() {
+  var cont = document.getElementById('appSettingsContent');
+  if (cont && !cont.querySelector('input') && cont.innerHTML.indexOf('fa-spinner') === -1) {
+    cont.innerHTML = '<div style="text-align:center;padding:40px;color:#555"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Loading settings...</div>';
+  }
+}
+
+function _AS_showError(htmlMsg) {
+  var cont = document.getElementById('appSettingsContent');
+  if (!cont) return;
+  /* Cached form dikh raha ho to error se usse mat hatao — toast dikhao. */
+  if (cont.querySelector('input')) {
+    if (window.showToast) showToast('⚠️ Settings refresh fail — purani values dikh rahi hain', true);
+    return;
+  }
+  cont.innerHTML = '<div style="text-align:center;padding:40px;color:#ff6b6b"><i class="fas fa-exclamation-triangle fa-2x"></i><br><br>' + htmlMsg + '<br><br><button class="btn btn-ghost btn-sm" onclick="loadAppSettings(true)">Retry</button></div>';
+}
+
+window.loadAppSettings = function(force) {
+  var cont = document.getElementById('appSettingsContent');
+  /* FAST PATH: session me already render ho chuka → turant dikhao, koi
+     spinner/loading nahi. Background me chupchaap refresh bhi karo. */
+  if (_AS_loadedOnce && !force) {
+    if (!_AS_dirty || (cont && !cont.querySelector('input'))) {
+      try { _renderAppSettings(); } catch (e) { console.error('[AppSettings] cached render failed:', e); }
+    }
+    _AS_fetchFresh(true, false);
+    return;
+  }
+  /* Pehli baar: disk cache se TURANT render, phir background refresh —
+     Settings tab hamesha instantly khulta hai jaise pehle khulta tha. */
+  if (!_AS_loadedOnce && !force) {
+    var c = _AS_readCache();
+    if (c) {
+      _AS = c.AS || {};
+      _CVS = c.CVS || {};
+      try { _renderAppSettings(); _AS_loadedOnce = true; }
+      catch (e) { console.error('[AppSettings] cached render failed:', e); _AS_loadedOnce = false; }
+      if (_AS_loadedOnce) { _AS_fetchFresh(true, false); return; }
+    }
+  }
+  _AS_fetchFresh(false, !!force);
+};
+
+function _AS_fetchFresh(isBackground, force) {
+  /* Ek waqt me sirf 1 fresh load: rapid tap-tap-tap par bhi query storm nahi.
+     Sirf EXPLICIT Refresh/Retry (force) purani hanging attempt ko cancel karke
+     nayi shuru karta hai — uska late response stale hokar discard hoga. */
+  if (_AS_loading) {
+    if (!isBackground && force) {
+      _AS_gen++;
+      _AS_loading = false;
+      if (_AS_timer) { clearTimeout(_AS_timer); _AS_timer = null; }
+    } else {
+      return;
+    }
+  }
+  if (!window._supa) { _AS_waitForSupa(isBackground); return; }
+
+  _AS_loading = true;
+  var myGen = ++_AS_gen;
+  var settled = false;
+
+  /* Spinner SIRF jab content poori khaali ho — cached form ko kabhi mat hatao. */
+  if (!isBackground) _AS_showSpinnerIfEmpty();
+
+  _AS_timer = setTimeout(function() {
+    if (settled || myGen !== _AS_gen) return;
+    settled = true; _AS_loading = false; _AS_timer = null;
     console.error('[AppSettings] load timed out after 10s — network likely too slow/stuck');
-    var cont = document.getElementById('appSettingsContent');
-    if (cont) cont.innerHTML = '<div style="text-align:center;padding:40px;color:#ff6b6b"><i class="fas fa-wifi fa-2x"></i><br><br>Settings load hone mein bahut time lag raha hai.<br><span style="font-size:11px;color:#888">Network slow ho sakta hai — check karo aur retry karo.</span><br><br><button class="btn btn-ghost btn-sm" onclick="loadAppSettings()">Retry</button></div>';
+    if (!isBackground) _AS_showError('Settings load hone mein bahut time lag raha hai.<br><span style="font-size:11px;color:#888">Network slow ho sakta hai — check karo aur retry karo.</span>');
   }, 10000);
 
-  window._supa.from('app_settings').select('key,value').in('key', ['live_config', 'creator_system', 'video_moderation'])
-    .then(function(r) {
-      clearTimeout(_timeoutTimer);
-      if (_settingsTimedOut) return; /* already showed the timeout message; a late success shouldn't silently replace it without the admin re-triggering */
-      if (r.error) { console.error('[AppSettings] load error:', r.error.message); _renderAppSettings(); return; }
-      var rows = r.data || [];
-      var byKey = {};
-      rows.forEach(function(row) { byKey[row.key] = row.value; });
-      _AS = byKey.live_config || {};
-      _CVS.creator = byKey.creator_system || {};
-      _CVS.video = byKey.video_moderation || {};
-      _renderAppSettings();
-    }, function(e) {
-      clearTimeout(_timeoutTimer);
-      if (_settingsTimedOut) return;
-      /* ✅ BUG FIX (2026-09-17): "App Settings tab pe jaate hi crash" —
-         this .then() had no second/reject argument and no .catch(), so
-         if the Supabase query itself ever rejected (network drop,
-         timeout, auth token mid-refresh), it became a silent unhandled
-         promise rejection: the "Loading settings..." spinner stayed up
-         forever with zero visible error, which can look and feel like
-         the whole tab crashed/froze even though nothing else on the
-         page actually broke. Now surfaces a real error message in the
-         panel itself instead of an infinite silent spinner, and logs
-         the actual failure reason to the console so it can be diagnosed
-         from a screenshot instead of guessed at. */
-      console.error('[AppSettings] load promise rejected:', e);
-      var cont = document.getElementById('appSettingsContent');
-      if (cont) cont.innerHTML = '<div style="text-align:center;padding:40px;color:#ff6b6b"><i class="fas fa-exclamation-triangle fa-2x"></i><br><br>Settings load nahi ho payi.<br><span style="font-size:11px;color:#888">' + ((e && e.message) || String(e)) + '</span><br><br><button class="btn btn-ghost btn-sm" onclick="loadAppSettings()">Retry</button></div>';
-    });
+  var q;
+  try {
+    q = window._supa.from('app_settings').select('key,value').in('key', ['live_config', 'creator_system', 'video_moderation']);
+  } catch (e) {
+    if (_AS_timer) { clearTimeout(_AS_timer); _AS_timer = null; }
+    settled = true; _AS_loading = false;
+    console.error('[AppSettings] query build failed:', e);
+    if (!isBackground) _AS_showError('Settings load nahi ho payi.<br><span style="font-size:11px;color:#888">' + _AS_esc((e && e.message) || String(e)) + '</span>');
+    return;
+  }
+
+  q.then(function(r) {
+    if (_AS_timer) { clearTimeout(_AS_timer); _AS_timer = null; }
+    if (settled || myGen !== _AS_gen) return; /* stale response — discard */
+    settled = true; _AS_loading = false;
+    if (!r || r.error) {
+      console.error('[AppSettings] load error:', r && r.error && r.error.message);
+      if (!isBackground) _AS_showError('Settings load nahi ho payi.<br><span style="font-size:11px;color:#888">' + _AS_esc((r && r.error && r.error.message) || 'Unknown error') + '</span>');
+      return;
+    }
+    var rows = Array.isArray(r.data) ? r.data : [];
+    var byKey = {};
+    rows.forEach(function(row) { if (row && row.key) byKey[row.key] = row.value; });
+    var freshAS = (byKey.live_config && typeof byKey.live_config === 'object') ? byKey.live_config : {};
+    var freshCreator = (byKey.creator_system && typeof byKey.creator_system === 'object') ? byKey.creator_system : {};
+    var freshVideo = (byKey.video_moderation && typeof byKey.video_moderation === 'object') ? byKey.video_moderation : {};
+
+    /* Background refresh + data bilkul same → re-render bekaar, chupchaap skip. */
+    if (isBackground && _AS_loadedOnce) {
+      try {
+        if (JSON.stringify({ a: _AS, c: _CVS }) === JSON.stringify({ a: freshAS, c: { creator: freshCreator, video: freshVideo } })) {
+          _AS_freshOnce = true; _AS_setSaveEnabled(true);
+          return;
+        }
+      } catch (e) {}
+    }
+    /* Background refresh + admin beech me type kar raha ho → re-render SKIP
+       (warna uski typing wipe ho jaayegi). Data stash karke toast dikhao. */
+    if (isBackground && _AS_dirty) {
+      _AS = freshAS; _CVS.creator = freshCreator; _CVS.video = freshVideo;
+      _AS_writeCache(); _AS_loadedOnce = true; _AS_freshOnce = true;
+      _AS_setSaveEnabled(true);
+      if (window.showToast) showToast('↻ Nayi settings available — Refresh dabao taaki dikhe', false);
+      return;
+    }
+    _AS = freshAS; _CVS.creator = freshCreator; _CVS.video = freshVideo;
+    _AS_writeCache();
+    _AS_loadedOnce = true; _AS_freshOnce = true;
+    _AS_setSaveEnabled(true);
+    try { _renderAppSettings(); }
+    catch (e) {
+      console.error('[AppSettings] _renderAppSettings() threw:', e);
+      if (!isBackground) _AS_showError('Settings render nahi ho payi.<br><span style="font-size:11px;color:#888;word-break:break-word">' + _AS_esc((e && e.message) || String(e)) + '</span>');
+    }
+  }, function(e) {
+    if (_AS_timer) { clearTimeout(_AS_timer); _AS_timer = null; }
+    if (settled || myGen !== _AS_gen) return;
+    settled = true; _AS_loading = false;
+    console.error('[AppSettings] load promise rejected:', e);
+    if (!isBackground) _AS_showError('Settings load nahi ho payi.<br><span style="font-size:11px;color:#888">' + _AS_esc((e && e.message) || String(e)) + '</span>');
+  });
 };
+
+/* _supa ka wait — ONE shared bounded chain (30s max). Pehle HAR CLICK apni
+   infinite retry chain banata tha jo _supa aane tak kabhi rukti nahi thi. */
+function _AS_waitForSupa(isBackground) {
+  if (_AS_supaWaitTimer) return;
+  _AS_supaWaitCount = 0;
+  if (!isBackground) _AS_showSpinnerIfEmpty();
+  _AS_supaWaitTimer = setInterval(function() {
+    _AS_supaWaitCount++;
+    if (window._supa) {
+      clearInterval(_AS_supaWaitTimer); _AS_supaWaitTimer = null;
+      _AS_fetchFresh(isBackground);
+      return;
+    }
+    if (_AS_supaWaitCount >= 60) {
+      clearInterval(_AS_supaWaitTimer); _AS_supaWaitTimer = null;
+      console.error('[AppSettings] Supabase client 30s me ready nahi hua');
+      if (!isBackground) _AS_showError('Connection ready nahi ho paya.<br><span style="font-size:11px;color:#888">Network check karo aur retry karo.</span>');
+    }
+  }, 500);
+}
 
 function _renderAppSettings() {
   try {
@@ -193,7 +363,8 @@ function _renderAppSettings() {
   );
 
   /* 3. STREAK MILESTONES */
-  var sm = val('streakMilestones', {});
+  var _smRaw = val('streakMilestones', {});
+  var sm = (_smRaw && typeof _smRaw === 'object') ? _smRaw : {};
   html += section('Streak Milestone Rewards', 'fas fa-fire', '#ff8c00',
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
     row('sm_3',   '🔥 Day 3 Coins',   (sm[3]  && sm[3].coins)  || 20) +
@@ -277,17 +448,17 @@ function _renderAppSettings() {
   );
 
   /* 8. SKY DIAMOND PACKAGES */
-  var sdp = val('sdPackages', [
+  var sdp = _AS_coerceSDPackages(val('sdPackages', [
     {label:'Starter',  diamonds:50,  price:49},
     {label:'Popular',  diamonds:120, price:99,  popular:true},
     {label:'Value',    diamonds:260, price:199},
     {label:'Mega',     diamonds:600, price:399},
-  ]);
+  ])); /* ✅ FIX (2026-09-18): _AS_coerceSDPackages — non-array shape kabhi forEach crash na kare */
   var sdHtml = '<div style="font-size:11px;color:#888;margin-bottom:10px">User in packages se Sky Diamonds kharida karte hain</div>';
   sdHtml += '<div id="sdPackagesContainer">';
   sdp.forEach(function(pkg, i) {
     sdHtml += '<div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px">';
-    sdHtml += '<div class="form-group" style="margin:0"><label style="font-size:11px">Label</label><input type="text" id="sdp_label_' + i + '" class="form-input" value="' + (pkg.label||'') + '" style="font-size:12px"></div>';
+    sdHtml += '<div class="form-group" style="margin:0"><label style="font-size:11px">Label</label><input type="text" id="sdp_label_' + i + '" class="form-input" value="' + _AS_esc(pkg.label||'') + '" style="font-size:12px"></div>';
     sdHtml += '<div class="form-group" style="margin:0"><label style="font-size:11px">💎 Diamonds</label><input type="number" id="sdp_dia_' + i + '" class="form-input" value="' + (pkg.diamonds||0) + '" style="font-size:12px"></div>';
     sdHtml += '<div class="form-group" style="margin:0"><label style="font-size:11px">₹ Price</label><input type="number" id="sdp_price_' + i + '" class="form-input" value="' + (pkg.price||0) + '" style="font-size:12px"></div>';
     sdHtml += '<button onclick="removeSDPackage(' + i + ')" style="padding:8px;border-radius:8px;background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.2);color:#ff6b6b;cursor:pointer;margin-bottom:0">✕</button>';
@@ -343,7 +514,15 @@ function _renderAppSettings() {
   );
 
   var cont = document.getElementById('appSettingsContent');
-  if (cont) cont.innerHTML = html;
+  if (cont) {
+    cont.innerHTML = html;
+    /* ✅ FIX (2026-09-18): admin kuch type kare to dirty mark — background
+       refresh phir re-render SKIP karega taaki typing wipe na ho. Property
+       assignment hai, isliye har render par listener pile-up nahi hota. */
+    cont.oninput = function() { _AS_dirty = true; };
+    cont.onchange = function() { _AS_dirty = true; };
+  }
+  _AS_dirty = false;
   } catch (e) {
     /* ✅ BUG FIX (2026-09-17): "App Settings tab pe jaate hi crash" —
        this whole function had no try/catch, so any unexpected data
@@ -356,12 +535,21 @@ function _renderAppSettings() {
        an unexplained frozen spinner, so the real cause is visible from
        a screenshot instead of needing guesswork. */
     console.error('[AppSettings] _renderAppSettings() threw:', e);
-    var cont2 = document.getElementById('appSettingsContent');
-    if (cont2) cont2.innerHTML = '<div style="text-align:center;padding:40px;color:#ff6b6b"><i class="fas fa-exclamation-triangle fa-2x"></i><br><br>Settings render nahi ho payi.<br><span style="font-size:11px;color:#888;word-break:break-word">' + (e && e.message || String(e)) + '</span><br><span style="font-size:10px;color:#666">' + (e && e.stack ? e.stack.split('\n').slice(0,3).join('<br>') : '') + '</span><br><br><button class="btn btn-ghost btn-sm" onclick="loadAppSettings()">Retry</button></div>';
+    /* ✅ FIX (2026-09-18): message escape karke dikhao (XSS-safe) + cached
+       form ho to usse mat hatao — _AS_showError dono sambhalta hai. */
+    _AS_showError('Settings render nahi ho payi.<br><span style="font-size:11px;color:#888;word-break:break-word">' + _AS_esc((e && e.message) || String(e)) + '</span>');
   }
 }
 
 window.saveAppSettings = function() {
+  /* ✅ FIX (2026-09-18, CRITICAL): settings load/render hue bina Save dabane
+     se har field ka DEFAULT save ho jaata — production pricing/commission ka
+     poora config WIPE! Slow network par ye aasani se ho sakta tha (header ka
+     Save button hamesha visible rehta hai). Ab fresh load ke bina Save block. */
+  if (!_AS_freshOnce || !document.getElementById('as_adCoins')) {
+    if (window.showToast) showToast('⚠️ Settings abhi load ho rahi hai — load hone ke baad Save dabao', true);
+    return;
+  }
   var db = window.rtdb || window.db;
   if (!db) return;
   var btn = document.getElementById('saveAppSettingsBtn');
@@ -500,6 +688,12 @@ window.saveAppSettings = function() {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
     return;
   }
+  /* ✅ FIX (2026-09-18): save failsafe — network hang ho to 25s me button wapas enable. */
+  var _saveFailsafe = setTimeout(function() {
+    var b2 = document.getElementById('saveAppSettingsBtn');
+    if (b2) { b2.disabled = false; b2.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
+    if (window.showToast) showToast('⚠️ Save timeout — network slow hai, dobara try karo', true);
+  }, 25000);
   window._supa.from('app_settings')
     .upsert({ key: 'live_config', value: config, updated_at: new Date().toISOString() }, { onConflict: 'key' })
     .then(function(r1) {
@@ -512,6 +706,7 @@ window.saveAppSettings = function() {
       return Promise.all([p2, p3]);
     })
     .then(function(results) {
+      clearTimeout(_saveFailsafe);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
       var err = results.find(function(r) { return r && r.error; });
       if (err) {
@@ -523,6 +718,7 @@ window.saveAppSettings = function() {
       }
     })
     .then(null, function(e) {
+      clearTimeout(_saveFailsafe);
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
       if (window.showToast) showToast('Error: ' + (e.message || e), true);
     });
@@ -565,7 +761,11 @@ window.resetAppSettings = function() {
       if (window.showToast) showToast('Settings reset ho gayi — defaults apply honge.', false);
       _AS = {};
       _renderAppSettings();
+    }, function(e) {
+      console.error('[AppSettings] reset failed:', e);
+      if (window.showToast) showToast('Reset fail: ' + ((e && e.message) || e), true);
     });
 };
 
 console.log('✅ fa-app-settings.js loaded');
+
