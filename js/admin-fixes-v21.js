@@ -1086,6 +1086,9 @@ patchWhenReady('cancelTournament', function () {
        codebase. */
     var db = (window.rtdb && window.rtdb._isSupaBridge) ? window.rtdb : null;
     if (db) {
+      /* ✅ FIX (2026-09-19): precheck read guard — fail ho to normal cancel
+         flow (_orig) use karo, poora cancel kabhi mat roko. */
+      try {
       var mSnap = await db.ref((window.DB_MATCHES || 'matches') + '/' + mid).once('value');
       var match = mSnap.val() || {};
       if (Number(match.entryFee) === 0 && match.entryType === 'free') {
@@ -1096,6 +1099,7 @@ patchWhenReady('cancelTournament', function () {
         window.showToast('✅ Free match cancelled');
         return;
       }
+      } catch (e) { console.warn('[v21] free-match precheck failed, default cancel flow:', e && e.message); }
     }
     return _orig.apply(this, arguments);
   };

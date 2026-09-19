@@ -1333,6 +1333,10 @@ function renderUsers(){
 }
 
 async function openUserModal(uid){
+  /* ✅ FIX (2026-09-19): poora body try/catch — user read fail ho to pehle silent
+     death + unhandled rejection hota tha. Ab toast dikhta hai. Callers sab
+     fire-and-forget onclick hain, isliye wrap 100% safe. */
+  try{
   var sn=await rtdb.ref(DB_USERS+'/'+uid).once('value');if(!sn.exists())return showToast('Not found',true);var u=sn.val();
   document.getElementById('userModalName').textContent=(u.ign||'Unknown');var bd=document.getElementById('userModalBody');
   var db_=u.wallet?u.wallet.depositBalance||0:u.realMoney?u.realMoney.deposited||0:0;
@@ -1352,6 +1356,7 @@ async function openUserModal(uid){
   var ft=document.getElementById('userModalFooter'),bn=u.isBanned||u.blocked,lbHid=u.leaderboardHidden;
   ft.innerHTML=(bn?'<button class="btn btn-primary btn-sm" onclick="unbanUser(\''+uid+'\');closeModal(\'userModal\')"><i class="fas fa-unlock"></i> Unban</button>':'<button class="btn btn-warning btn-sm" onclick="banUser(\''+uid+'\');closeModal(\'userModal\')"><i class="fas fa-ban"></i> Ban</button>')+' '+(lbHid?'<button class="btn btn-primary btn-sm" onclick="toggleLeaderboardHidden(\''+uid+'\',false)"><i class="fas fa-eye"></i> Show on Leaderboard</button>':'<button class="btn btn-ghost btn-sm" onclick="toggleLeaderboardHidden(\''+uid+'\',true)"><i class="fas fa-eye-slash"></i> Hide from Leaderboard</button>')+' <button class="btn btn-danger btn-sm" onclick="deleteUser(\''+uid+'\');closeModal(\'userModal\')"><i class="fas fa-trash"></i> Delete</button> <button class="btn btn-ghost btn-sm" onclick="closeModal(\'userModal\')">Close</button>';
   document.getElementById('userModal').classList.add('show');
+  }catch(e){console.error('[openUserModal]',e&&e.message);showToast('User load nahi ho paya: '+(e&&e.message||e),true);}
 }
 /* ✅ NEW (2026-08-22): the durable, race-free replacement for manually
    deleting a row from the `leaderboard` table — a direct delete gets
@@ -1472,7 +1477,11 @@ async function processManualWallet(){
   if(!uid)return showToast('Enter UID',true);
   if(amt<=0)return showToast('Amount must be greater than 0',true);
   if(amt>999999)return showToast('Amount too large (max 999,999)',true);
-  var s=await rtdb.ref(DB_USERS+'/'+uid).once('value');
+  /* ✅ FIX (2026-09-19): user-existence read guard — ye await andar wale
+     money try/catch ke BAHAR tha; fail par unhandled rejection hota tha. */
+  var s;
+  try{ s=await rtdb.ref(DB_USERS+'/'+uid).once('value'); }
+  catch(e){ showToast('User load nahi ho paya: '+(e&&e.message||e),true); return; }
   if(!s.exists())return showToast('User not found',true);
   var modalBtns=document.querySelectorAll('#manualWalletModal .btn-primary');
   modalBtns.forEach(function(b){setLoading(b,true);});
@@ -5202,6 +5211,8 @@ async function toggleVerify(reqKey, el) {
 /* Scans all joinRequests for duo/squad captains and creates missing teammate JRs */
 async function fixMissingTeammateJRs() {
   if (!confirm('Yeh scan karega sab active duo/squad captain JRs aur missing teammate entries create karega. Continue?')) return;
+  /* ✅ FIX (2026-09-19): body try/catch — scan-read fail par silent death hota tha. */
+  try {
   showToast('Scanning...', 'info');
   
   var snap = await rtdb.ref('joinRequests').once('value');
@@ -5314,6 +5325,7 @@ async function fixMissingTeammateJRs() {
   
   showToast('✅ Fix complete! Created: ' + created + ' entries' + (errors > 0 ? ', Errors: ' + errors : ''), errors > 0 ? 'warning' : 'success');
   if (created > 0) refreshJoinedPlayers();
+  } catch(e) { console.error('[fixMissingTeammateJRs]', e && e.message); showToast('Scan fail: ' + ((e && e.message) || e), true); }
 }
 
 /* ✅ FIX (2026-08-17, CRITICAL): loadMatchResultSection() was called by the
@@ -6268,6 +6280,9 @@ window.rejectSeasonPass = async function(reqId) {
 window.loadSeasonPassSection = async function() {
   var el = document.getElementById('section-seasonPass');
   if (!el) return;
+  /* ✅ FIX (2026-09-19): body try/catch — read fail par section spinner par
+     hamesha latak jaata tha. Ab error state render hota hai. */
+  try {
   el.innerHTML = '<div class="section-title"><i class="fas fa-ticket-alt" style="color:#b964ff"></i> Season Pass Requests <span class="count" id="spCount">0</span></div><div id="spReqList"><div class="empty-state">Loading...</div></div>';
   var snap = await rtdb.ref('seasonPassRequests').orderByChild('status').equalTo('pending').once('value');
   var list = document.getElementById('spReqList');
@@ -6295,6 +6310,12 @@ window.loadSeasonPassSection = async function() {
   });
   h += '</tbody></table></div>';
   list.innerHTML = h;
+  } catch(e) {
+    console.error('[loadSeasonPassSection]', e && e.message);
+    var _list = document.getElementById('spReqList');
+    if (_list) _list.innerHTML = '<div class="empty-state">Load nahi ho paya — <a href="#" onclick="loadSeasonPassSection();return false">Retry</a></div>';
+    if (window.showToast) showToast('Season Pass load fail: ' + ((e && e.message) || e), true);
+  }
 };
 
 /* ══════════════════════════════════════════════════════

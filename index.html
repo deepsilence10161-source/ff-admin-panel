@@ -97,6 +97,20 @@
      behavior change to successful requests). Must load immediately
      after the Supabase SDK and before every other panel script that
      might call .catch() on a query builder. -->
+<!-- GLOBAL PROMISE FIREWALL (2026-09-19): panel me kahin bhi koi promise
+     rejection unhandled reh jaaye (purana code, race, ya future code) to wo
+     "Uncaught (in promise)" red error / strict-handler crash na bane — yahan
+     pakad ke stack ke saath warning me log hota hai. Handled code (try/catch,
+     .catch) ka behavior bilkul NAHI badalta. Sabse pehle load hota hai. -->
+<script>
+window.addEventListener('unhandledrejection', function (e) {
+  try {
+    e.preventDefault();
+    var r = e.reason;
+    console.warn('[Firewall] contained unhandled rejection:', (r && (r.stack || r.message)) || r);
+  } catch (_) { /* firewall must never throw */ }
+});
+</script>
 <script src="js/supabase-compat-patch.js?v=20260917a"></script>
 <script>
   /* Admin panel constants */
@@ -1404,7 +1418,7 @@
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted)
 ═══════════════════════════════════════════════ -->
-<script src="js/admin-inline.js?v=20260918a"></script>
+<script src="js/admin-inline.js?v=20260919b"></script>
 
 <!-- ═══════════════════════════════════════════════
      SUPABASE RTDB BRIDGE — Firebase → Supabase migration
@@ -1438,20 +1452,20 @@
 <script src="js/features/fa04-bulk-notification.js?v=20260917a"></script>
 <script src="js/features/fa05-platform-health.js?v=20260919a"></script>
 <script src="js/features/fa06-duplicate-detector.js?v=20260917a"></script>
-<script src="js/features/fa08-match-autopublish.js?v=20260917a"></script>
+<script src="js/features/fa08-match-autopublish.js?v=20260919a"></script>
 <script src="js/features/fa10-user-activity-heatmap.js?v=20260917a"></script>
 <script src="js/features/fa11-result-auto-calc.js?v=20260917a"></script>
-<script src="js/features/fa12-bulk-notify.js?v=20260917a"></script>
+<script src="js/features/fa12-bulk-notify.js?v=20260919a"></script>
 <script src="js/features/fa13-match-clone.js?v=20260917a"></script>
 <script src="js/features/fa14-player-lookup.js?v=20260917a"></script>
 <script src="js/features/fa15-match-result-reminder.js?v=20260917a"></script>
 <script src="js/features/fa16-quick-ban.js?v=20260917a"></script>
-<script src="js/features/fa17-pending-profiles.js?v=20260917a"></script>
+<script src="js/features/fa17-pending-profiles.js?v=20260919a"></script>
 <script src="js/features/fa18-match-stats.js?v=20260917a"></script>
 <script src="js/features/fa19-auto-status.js?v=20260917a"></script>
 <script src="js/features/fa21-match-history.js?v=20260917a"></script>
-<script src="js/features/fa22-match-result.js?v=20260917a"></script>
-<script src="js/features/fa24-admin-smart-tools.js?v=20260917a"></script>
+<script src="js/features/fa22-match-result.js?v=20260919a"></script>
+<script src="js/features/fa24-admin-smart-tools.js?v=20260919a"></script>
 <script src="js/features/fa25-fraud-dashboard.js?v=20260917a"></script>
 <script src="js/features/fa26-poll-suggestion.js?v=20260917a"></script>
 <script src="js/features/fa27-anticheat-complete.js?v=20260917a"></script>
@@ -1491,7 +1505,7 @@
      v21 BUG FIX PATCH — Loads LAST to patch all above scripts
      Fixes all 120 bugs from comprehensive analysis report
      ═══════════════════════════════════════════════════════ -->
-<script src="js/admin-fixes-v21.js?v=20260917a"></script>
+<script src="js/admin-fixes-v21.js?v=20260919a"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      v22 FINAL PATCH — Loads AFTER v21

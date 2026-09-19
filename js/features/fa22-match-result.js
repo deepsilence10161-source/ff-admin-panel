@@ -431,7 +431,7 @@ window.mrPublishResults = async function() {
 
   var t = _mrMatchData;
   var rows = document.querySelectorAll('#mrPlayerTable tr[data-uid]');
-  if (!rows.length) return showToast('No players loaded', true);
+  if (!rows.length) { _releaseLock(); return showToast('No players loaded', true); }
 
   // ✅ FIX: Duplicate rank check — publish se pehle block karo
   var rankTeamCheck = {};
@@ -446,16 +446,20 @@ window.mrPublishResults = async function() {
     if (rankTeamCheck[rank].indexOf(teamId) === -1) rankTeamCheck[rank].push(teamId);
     if (rankTeamCheck[rank].length > 1) hasDup = true;
   });
-  if (hasDup) return showToast('⚠️ Duplicate ranks hain! Fix karo phir publish karo.', true);
+  if (hasDup) { _releaseLock(); return showToast('⚠️ Duplicate ranks hain! Fix karo phir publish karo.', true); }
 
   // Check published status
-  var statusSnap = await rtdb.ref('matches/' + mid + '/status').once('value');
+  /* ✅ FIX (2026-09-19): read guard + lock release — fail par pehle unhandled
+     rejection ke saath _mrPublishingInFlight hamesha stuck ho jaata tha. */
+  var statusSnap;
+  try { statusSnap = await rtdb.ref('matches/' + mid + '/status').once('value'); }
+  catch(e) { _releaseLock(); showToast('Match status load nahi ho paya: ' + ((e && e.message) || e), true); return; }
   var alreadyPublished = (statusSnap.val() === 'resultPublished');
 
   var confirmMsg = alreadyPublished
     ? '⚠️ Results already published!\n\nCorrect karna chahte ho?\n• Zyada paise gaye → extra wapas katenge\n• Kam paise gaye → baaki add honge\n• Users ko notification milegi'
     : 'Confirm: Results publish karein aur prizes distribute karein?';
-  if (!confirm(confirmMsg)) return;
+  if (!confirm(confirmMsg)) { _releaseLock(); return; }
 
   // Warn about unfilled rows
   var unfilledNames = [];
@@ -471,7 +475,7 @@ window.mrPublishResults = async function() {
     var warnMsg = '⚠️ ' + unfilledNames.length + ' players ka rank/kills fill nahi hai:\n' +
       unfilledNames.slice(0, 5).join(', ') + (unfilledNames.length > 5 ? '...' : '') +
       '\n\nFir bhi publish karna hai?';
-    if (!confirm(warnMsg)) return;
+    if (!confirm(warnMsg)) { _releaseLock(); return; }
   }
 
   var pubBtn = document.getElementById('mrPublishBtn');

@@ -5,6 +5,8 @@
 var _scheduled={};
 
 window.fa08ScheduleRoom=async function(matchId,roomId,roomPass){
+  /* ✅ FIX (2026-09-19): body try/catch — read fail par silent death hota tha. */
+  try{
   var s=await rtdb.ref('matches/'+matchId).once('value');
   var t=s.val(); if(!t||!t.matchTime){ showToast('Match time not set',true); return; }
   var delay=Number(t.matchTime)-Date.now();
@@ -12,6 +14,7 @@ window.fa08ScheduleRoom=async function(matchId,roomId,roomPass){
   _scheduled[matchId]={roomId:roomId,roomPass:roomPass};
   setTimeout(async function(){ await fa08PublishNow(matchId,roomId,roomPass); },delay);
   showToast('✅ Room ID auto-publish scheduled for match time!');
+  }catch(e){console.error('[fa08]',e&&e.message);showToast('Room schedule fail: '+(e&&e.message||e),true);}
 };
 
 window.fa08PublishNow=async function(matchId,roomId,roomPass){

@@ -170,6 +170,8 @@ window.showMassBan = function() {
 };
 window._doMassBan = async function() {
   var rt = rtdb(); if (!rt) return;
+  /* ✅ FIX (2026-09-19): body try/catch — users-read fail par silent death hota tha. */
+  try {
   var raw=(document.getElementById('massBanUIDs')||{}).value||'';
   var uids=raw.split('\n').map(function(s){return s.trim();}).filter(Boolean);
   if(!uids.length){if(window.showToast)showToast('UIDs enter karo',true);return;}
@@ -202,6 +204,7 @@ window._doMassBan = async function() {
   await Promise.all(promises);
   if(window.showToast)showToast('✅ '+done+' users banned ('+uids.length+' UIDs given)');
   if(window.closeGenericModal)closeGenericModal();
+  } catch(e) { console.error('[_doMassBan]', e && e.message); if(window.showToast)showToast('Mass ban fail: ' + ((e && e.message) || e), true); }
 };
 window._doMassBlacklist = async function() {
   var rt = rtdb(); if (!rt) return;
@@ -364,6 +367,8 @@ window.showRevenueComparison = async function() {
 /* ─── A33: USER NOTES / WATCHLIST ─── */
 window.showUserNote = async function(uid, ign) {
   var rt=rtdb(); if(!rt) return;
+  /* ✅ FIX (2026-09-19): body try/catch — note-read fail par modal khulta hi nahi tha. */
+  try {
   var snap=await rt.ref('adminNotes/'+uid).once('value');
   var existing=snap.val()||'';
   var h='<div style="padding:4px">';
@@ -375,6 +380,7 @@ window.showUserNote = async function(uid, ign) {
   h+='</div></div>';
   var m=document.getElementById('genericModal'),mt=document.getElementById('genericModalTitle'),mb=document.getElementById('genericModalBody');
   if(m&&mt&&mb){mt.innerHTML='📝 User Note';mb.innerHTML=h;m.classList.add('show');}
+  } catch(e) { console.error('[showUserNote]', e && e.message); if(window.showToast)showToast('Note load fail: ' + ((e && e.message) || e), true); }
 };
 window._saveNote = async function(uid) {
   var rt=rtdb(); var txt=(document.getElementById('noteText')||{}).value||'';
@@ -767,6 +773,9 @@ window.showUPIVerifier = function() {
 };
 window._checkUTR = async function() {
   var rt=rtdb(); if(!rt) return;
+  /* ✅ FIX (2026-09-19): body try/catch — read fail par "Checking..." spinner
+     hamesha latka rehta tha. Ab inline error dikhta hai. */
+  try {
   var utr=((document.getElementById('utrInput')||{}).value||'').trim();
   var el=document.getElementById('utrResult'); if(!el||!utr) return;
   el.innerHTML='<div style="color:#aaa;text-align:center"><i class="fas fa-spinner fa-spin"></i> Checking...</div>';
@@ -790,6 +799,12 @@ window._checkUTR = async function() {
     h+='</div></div>';
   });
   el.innerHTML=h;
+  } catch(e) {
+    console.error('[_checkUTR]', e && e.message);
+    var _el=document.getElementById('utrResult');
+    if(_el) _el.innerHTML='<div style="color:#ff4444;text-align:center">Check fail — dobara try karo</div>';
+    if(window.showToast)showToast('UTR check fail: ' + ((e && e.message) || e), true);
+  }
 };
 
 })();

@@ -14,6 +14,8 @@ window.fa12BulkNotify=function(){
 };
 
 window.fa12Send=async function(){
+  /* ✅ FIX (2026-09-19): body try/catch — users-read fail par silent death hota tha. */
+  try{
   var target=document.getElementById('bn_target').value;
   var title=document.getElementById('bn_title').value.trim();
   var msg=document.getElementById('bn_msg').value.trim();
@@ -33,5 +35,6 @@ window.fa12Send=async function(){
   await rtdb.ref().update(batch);
   showToast('✅ Notifications sent to '+(Object.keys(batch).length)+' users!');
   closeAdminModal();
+  }catch(e){console.error('[fa12]',e&&e.message);showToast('Bulk notify fail: '+(e&&e.message||e),true);}
 };
 })();

@@ -11,6 +11,8 @@ function checkPending(){
 }
 
 window.fa17PendingProfiles=async function(){
+  /* ✅ FIX (2026-09-19): body try/catch — read fail par silent death hota tha. */
+  try{
   var s=await rtdb.ref('profileRequests').orderByChild('status').equalTo('pending').once('value');
   var list=[];
   s.forEach(function(c){ var d=c.val(); d._k=c.key; list.push(d); });
@@ -27,6 +29,7 @@ window.fa17PendingProfiles=async function(){
   });
   h+='</div>';
   showAdminModal('👤 Pending Profiles ('+list.length+')',h);
+  }catch(e){console.error('[fa17]',e&&e.message);showToast('Pending profiles load fail: '+(e&&e.message||e),true);}
 };
 
 window.fa17Act=async function(key,uid,action){
