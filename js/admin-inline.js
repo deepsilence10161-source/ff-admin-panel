@@ -2280,7 +2280,7 @@ async function saveTournament(){
     document.getElementById('tMatchTime').focus();
     setLoading(saveBtn,false);return;
   }
-  if(et!=='paid'&&et!=='coin'&&et!=='ad'){
+  if(et!=='paid'&&et!=='coin'&&et!=='ad'&&et!=='free'){
     showToast('❌ Please select a valid Entry Type',true);
     setLoading(saveBtn,false);return;
   }
@@ -3638,7 +3638,7 @@ async function publishResults(){
               window._supa.from('users').update({win_streak:0}).eq('id',uid).then(null, function(){});
             }
             /* ✅ Insert match_results row for Supabase analytics */
-            window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:tw},{onConflict:'match_id,user_id'}).then(null, function(){});
+            window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:tw},{onConflict:'match_id,user_id'}).then(null, function(e){ console.error('[publishResults] match_results upsert FAIL uid='+uid+':', e && (e.message||e.code)); window._supaResultErrors=(window._supaResultErrors||0)+1; });
           }
         } else {
           await rtdb.ref(DB_USERS+'/'+uid+'/stats/winStreak').set(0);
@@ -3652,7 +3652,7 @@ async function publishResults(){
             window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_kills',p_amount:kills}).then(null, function(){});
             window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_matches',p_amount:1}).then(null, function(){});
             window._supa.from('users').update({win_streak:0}).eq('id',uid).then(null, function(){});
-            window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:0},{onConflict:'match_id,user_id'}).then(null, function(){});
+            window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:0},{onConflict:'match_id,user_id'}).then(null, function(e){ console.error('[publishResults] match_results upsert FAIL (non-winner) uid='+uid+':', e && (e.message||e.code)); window._supaResultErrors=(window._supaResultErrors||0)+1; });
           }
         }
         // Cashback removed — no real money refund
@@ -3912,85 +3912,65 @@ var CHAT_PATH_SECONDARY='chats';        /* Secondary/fallback path */
    
    This function checks BOTH paths for compatibility with different User Panel versions
 */
-async function loadSupportChats(){
-  console.log('Setting up chat listeners on: '+CHAT_PATH_PRIMARY+'/ and '+CHAT_PATH_SECONDARY+'/');
-  
-  /* Helper function to process chat snapshot */
-  function processChatSnapshot(snap, pathName){
-    console.log('Chat snapshot from '+pathName+'/, exists:',snap.exists());
-    if(!snap.exists())return;
-    
-    snap.forEach(function(us){
-      var uid=us.key;var lm='',ur=0,lt=0,un='';
-      /* FIX: support path uses /messages sub-node; chats path is flat */
-      var msgNode = us.child('messages');
-      var infoNode = us.child('info');
-      /* Read user info from /info node */
-      if(infoNode.exists()){var info=infoNode.val();un=info.userIGN||info.userName||info.displayName||'';}
-      /* Read messages from /messages sub-node (support path) or directly (chats path) */
-      var msgSnap = (pathName==='support' && msgNode.exists()) ? msgNode : us;
-      msgSnap.forEach(function(ms){
-        var m=ms.val();
-        if(typeof m !== 'object' || !m) return; /* skip non-message nodes like info */
-        if(!m.text && !m.message) return;
-        lm=m.message||m.text||'';
-        var mt=m.createdAt||m.timestamp||0;
-        if(mt>lt)lt=mt;
-        if(!isAdminMsg(m)&&!m.read)ur++;
-        if(!un&&!isAdminMsg(m)&&(m.senderName||m.userName))un=m.senderName||m.userName;
-      });
-      if(!un)un=getUserName(uid);
-      
-      if(!allChatUsers[uid]||allChatUsers[uid].lastTime<lt){
-        allChatUsers[uid]={userName:un,lastMsg:lm,unread:ur,lastTime:lt,chatPath:pathName};
-      }else if(allChatUsers[uid]){
-        allChatUsers[uid].unread+=ur;
-      }
-    });
-  }
-  
-  /* Helper function to render chat user list */
-  function renderChatList(){
-    var ls=document.getElementById('chatUserList');ls.innerHTML='';
-    var users=Object.keys(allChatUsers).map(function(uid){
-      return {uid:uid,...allChatUsers[uid]};
-    });
-    
-    if(users.length===0){
-      ls.innerHTML='<div class="chat-empty" style="padding:30px 0"><i class="fas fa-comments"></i><span class="text-xs">No conversations</span></div>';
+var _supportScanTimer = null;
+/* FIX (2026-09-20): Inbox hamesha khaali tha — root reads (support/, supportChats/)
+   RTDB rules mein PERMISSION_DENIED hain, par per-user read support/{uid} ALLOWED hai.
+   Ab: Supabase users se uid-list → har uid ka support/{uid} node padho (15-parallel
+   batches) → list render. Har 20s me auto-refresh. Rules badle bina bhi chalta hai. */
+async function _scanSupportInboxes(){
+  try{
+    var supa = window._supa; if(!supa) return;
+    var res = await supa.from('users').select('id,ign').order('created_at',{ascending:false}).limit(300);
+    if(res.error){ console.warn('[SupportScan] users fetch fail:', res.error.message); return; }
+    var ulist = res.data || [];
+    var found = {};
+    for(var i=0;i<ulist.length;i+=15){
+      var batch = ulist.slice(i,i+15);
+      await Promise.all(batch.map(async function(u){
+        try{
+          var s = await rtdb.ref('support/'+u.id).once('value');
+          if(!s.exists()) return;
+          var info = s.child('info').val() || {};
+          var msgs = s.child('messages');
+          var last='', lastT=0, unread=0;
+          if(msgs.exists()){
+            msgs.forEach(function(ms){
+              var m = ms.val() || {};
+              if(typeof m !== 'object' || (!m.text && !m.message)) return;
+              last = m.message || m.text || '';
+              var mt = m.createdAt || m.timestamp || 0;
+              if(mt > lastT) lastT = mt;
+              if(!isAdminMsg(m) && !m.read) unread++;
+            });
+          }
+          if(!last && info.lastMessage){ last = info.lastMessage; lastT = info.lastMessageTime || 0; }
+          if(!last) return;
+          found[u.id] = { userName: info.userIGN || info.userName || u.ign || 'User', lastMsg: last, unread: unread, lastTime: lastT, chatPath: 'support' };
+        }catch(e){}
+      }));
+    }
+    allChatUsers = found;
+    /* render chat list (same markup as before) */
+    var ls = document.getElementById('chatUserList'); if(!ls) return;
+    var users = Object.keys(found).map(function(uid){ return Object.assign({uid:uid}, found[uid]); });
+    if(!users.length){
+      ls.innerHTML = '<div class="chat-empty" style="padding:30px 0"><i class="fas fa-comments"></i><span class="text-xs">No conversations</span></div>';
       return;
     }
-    
-    users.sort(function(a,b){return b.lastTime-a.lastTime});
+    users.sort(function(a,b){ return b.lastTime - a.lastTime; });
+    var h='';
     users.forEach(function(u){
-      var ini=(u.userName||u.uid).charAt(0).toUpperCase(),ts=u.lastTime?formatChatTime(u.lastTime):'';
-      ls.innerHTML+='<div class="chat-user-item '+(activeChatUid===u.uid?'active':'')+'" onclick="openChat(\''+u.uid+'\')"><div class="chat-avatar">'+ini+'</div><div class="chat-user-info"><div class="chat-user-name"><span>'+(u.userName||u.uid.substring(0,12))+'</span><span class="chat-time">'+ts+'</span></div><div class="chat-user-preview">'+u.lastMsg+'</div></div>'+(u.unread>0?'<div class="chat-unread-dot">'+u.unread+'</div>':'')+'</div>';
+      var ini=(u.userName||u.uid).charAt(0).toUpperCase(), ts=u.lastTime?formatChatTime(u.lastTime):'';
+      h += '<div class="chat-user-item '+(activeChatUid===u.uid?'active':'')+'" onclick="openChat(\''+u.uid+'\')"><div class="chat-avatar">'+ini+'</div><div class="chat-user-info"><div class="chat-user-name"><span>'+(u.userName||u.uid.substring(0,12))+'</span><span class="chat-time">'+ts+'</span></div><div class="chat-user-preview">'+u.lastMsg+'</div></div>'+(u.unread>0?'<div class="chat-unread-dot">'+u.unread+'</div>':'')+'</div>';
     });
-  }
-  
-  /* Listen to PRIMARY path: supportChats/ */
-  rtdb.ref(CHAT_PATH_PRIMARY).on('value',function(snap){
-    allChatUsers={};  /* Reset on each update */
-    processChatSnapshot(snap, CHAT_PATH_PRIMARY);
-    
-    /* Also check SECONDARY path: support/ */
-    rtdb.ref(CHAT_PATH_SECONDARY).once('value',function(snap2){
-      processChatSnapshot(snap2, CHAT_PATH_SECONDARY);
-      renderChatList();
-    });
-  });
-  
-  /* Also listen to SECONDARY path: support/ for real-time updates */
-  rtdb.ref(CHAT_PATH_SECONDARY).on('value',function(snap){
-    console.log('Secondary chat path ('+CHAT_PATH_SECONDARY+'/) updated');
-    /* Refresh the primary listener which will merge both */
-    rtdb.ref(CHAT_PATH_PRIMARY).once('value',function(snap2){
-      allChatUsers={};
-      processChatSnapshot(snap2, CHAT_PATH_PRIMARY);
-      processChatSnapshot(snap, CHAT_PATH_SECONDARY);
-      renderChatList();
-    });
-  });
+    ls.innerHTML = h;
+  }catch(e){ console.warn('[SupportScan] error:', e && e.message); }
+}
+function loadSupportChats(){
+  console.log('[SupportScan] per-uid inbox scanner active (support/{uid} reads — rules-safe)');
+  _scanSupportInboxes();
+  if(_supportScanTimer) clearInterval(_supportScanTimer);
+  _supportScanTimer = setInterval(_scanSupportInboxes, 20000);
 }
 function formatChatTime(ts){var d=new Date(ts),n=new Date();if(d.toDateString()===n.toDateString())return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return d.toLocaleDateString([],{month:'short',day:'numeric'});}
 function filterChatUsers(q){q=q.toLowerCase();document.querySelectorAll('.chat-user-item').forEach(function(el){var nm=el.querySelector('.chat-user-name span');var t=nm?nm.textContent.toLowerCase():'';el.style.display=t.indexOf(q)>=0?'':'none';});}
@@ -4018,7 +3998,7 @@ function openChat(uid){
     });
   }
   markAsRead(CHAT_PATH_PRIMARY);
-  markAsRead(CHAT_PATH_SECONDARY);
+  /* FIX: CHAT_PATH_SECONDARY (supportChats) reads denied + flat structure — skip to avoid console noise */
   
   /* FIX Bug#9: Properly detach previous Firebase listener.
      ORIGINAL BUG: chatListener was set to the return value of ref.on()
@@ -4027,55 +4007,38 @@ function openChat(uid){
      FIX: chatListener is now always set to a proper cleanup closure. */
   if(typeof chatListener === 'function') chatListener();
   
-  /* Listen to BOTH paths and merge messages */
+  /* FIX (2026-09-20): supportChats/{uid} reads PERMISSION_DENIED hain — pehle Promise.all
+   dono paths par tha, ek denied read pura render abort kar deti thi → thread hamesha khaali.
+   Ab sirf support/{uid}/messages (wahi path jahan user panel likhta hai), proper error
+   handling + correct sort key (createdAt||timestamp). */
   function renderMessages(){
     var me=document.getElementById('chatMessages');if(!me)return;
-    var allMessages=[];
-    
     function fetchAndRender(){
-      /* FIX: Read from support/{uid}/messages — same path user writes to */
-      Promise.all([
-        rtdb.ref('support/'+uid+'/messages').orderByChild('createdAt').once('value'),
-        rtdb.ref(CHAT_PATH_SECONDARY+'/'+uid).once('value')
-      ]).then(function(results){
-        allMessages=[];
-        /* Primary: support/{uid}/messages */
-        if(results[0].exists()){
-          results[0].forEach(function(ms){
-            allMessages.push({key:ms.key,...ms.val()});
+      rtdb.ref('support/'+uid+'/messages').orderByChild('createdAt').limitToLast(200).once('value')
+        .then(function(snap){
+          var allMessages=[];
+          if(snap.exists()) snap.forEach(function(ms){ allMessages.push({key:ms.key,...ms.val()}); });
+          if(allMessages.length===0){
+            me.innerHTML='<div class="chat-empty"><i class="fas fa-comment-dots"></i><span class="text-xs">No messages</span></div>';
+            return;
+          }
+          allMessages.sort(function(a,b){ return (a.createdAt||a.timestamp||0)-(b.createdAt||b.timestamp||0); });
+          me.innerHTML='';
+          var ld='';
+          allMessages.forEach(function(m){
+            var ia=isAdminMsg(m),ts=(m.createdAt||m.timestamp)?new Date(m.createdAt||m.timestamp):null,ds=ts?ts.toLocaleDateString():'';
+            if(ds&&ds!==ld){ld=ds;me.innerHTML+='<div style="text-align:center;padding:6px;font-size:9px;color:var(--text-muted)">'+eh(ds)+'</div>';}
+            var tm=ts?ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+            var msgText=eh(m.message||m.text||''); /* SECURITY: escape user-typed message */
+            me.innerHTML+='<div class="chat-bubble '+(ia?'admin':'user')+'">'+msgText+'<div class="time">'+eh(tm)+(ia?' <i class="fas fa-check-double" style="color:var(--primary)"></i>':'')+'</div></div>';
           });
-        }
-        /* Secondary: chats/{uid} — fallback for old messages */
-        if(results[1].exists()){
-          results[1].forEach(function(ms){
-            var m={key:ms.key,...ms.val()};
-            if(!allMessages.find(function(x){return x.text===m.text&&Math.abs((x.createdAt||x.timestamp||0)-(m.createdAt||m.timestamp||0))<2000})){
-              allMessages.push(m);
-            }
-          });
-        }
-        
-        if(allMessages.length===0){
-          me.innerHTML='<div class="chat-empty"><i class="fas fa-comment-dots"></i><span class="text-xs">No messages</span></div>';
-          return;
-        }
-        
-        /* Sort by timestamp */
-        allMessages.sort(function(a,b){return (a.timestamp||0)-(b.timestamp||0)});
-        
-        me.innerHTML='';
-        var ld='';
-        allMessages.forEach(function(m){
-          var ia=isAdminMsg(m),ts=m.timestamp?new Date(m.timestamp):null,ds=ts?ts.toLocaleDateString():'';
-          if(ds&&ds!==ld){ld=ds;me.innerHTML+='<div style="text-align:center;padding:6px;font-size:9px;color:var(--text-muted)">'+eh(ds)+'</div>';}
-          var tm=ts?ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-          var msgText=eh(m.message||m.text||''); /* SECURITY: escape user-typed message */
-          me.innerHTML+='<div class="chat-bubble '+(ia?'admin':'user')+'">'+msgText+'<div class="time">'+eh(tm)+(ia?' <i class="fas fa-check-double" style="color:var(--primary)"></i>':'')+'</div></div>';
+          me.scrollTop=me.scrollHeight;
+        })
+        .catch(function(e){
+          console.warn('[openChat] messages read fail:', e && (e.code||e.message));
+          me.innerHTML='<div class="chat-empty"><i class="fas fa-exclamation-triangle"></i><span class="text-xs">Chat load nahi hua — dobara koshish karo</span></div>';
         });
-        me.scrollTop=me.scrollHeight;
-      });
     }
-    
     fetchAndRender();
   }
   

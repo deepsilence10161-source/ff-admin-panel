@@ -4990,3 +4990,31 @@ Full writeup: see `2026-08-26b-SESSION-DELTA.sql`.
    listed in `sw.js`'s `LOCAL_FILES` must bump `CACHE_VER` too, or this
    exact "fix doesn't seem to apply in the APK" pattern will recur for
    that file** — this is a general hazard, not specific to WhatsApp.
+
+## Session: 2026-09-20 — SECURITY LOCKDOWN (wallet/match_results guards), publish RLS fix, support-chat fixes, schema reconciliation
+
+**Panels:** Admin `v26.13` (admin-inline/live-dash `?v=20260920a`) • User `v32.17` (admin-badge `?v=20260920a`)
+
+### DB changes (live-applied + COMPLETE_SCHEMA SECTION 23 me merged — idempotent)
+1. **`fft_guard_wallet_insert()` + `trg_fft_wallet_insert_guard`** — wallet_transactions INSERT sirf system/admin. User ke legit 4 types allow: `pending_withdraw`, `pending_deposit`, `debit(match_entry)`, `debit(squad_bank_contribution)`. Fake `match_win`/`credit` user se ab 400.
+2. **`fft_guard_match_results_write()` + `trg_fft_match_results_guard`** — match_results INSERT/UPDATE/DELETE sirf system/admin.
+3. **`mr_insert_admin` policy** — match_results INSERT me admin bypass (pehle `mr_insert_own` sirf own-row deti thi — **yahi publish-flow ka Supabase-half chupchap tod raha tha**). Unique constraint `match_results_match_id_user_id_key` pehle se thi.
+4. **2026-08-23 delta merge** — `premium_monthly_bonus_claims` table + `claim_premium_monthly_bonus` + `cast_poll_vote` + `get_my_poll_vote` + pmbc policies COMPLETE_SCHEMA me add (live DB me the, file me missing the).
+5. Cleanup: 3 audit-fake rows deleted (2 wallet + 1 match_results).
+6. NOTE: `guard_users_self_update` (pehle se) ki wajah se SQL Editor/Mgmt API se users-row update blocked hota hai — `SET LOCAL role='service_role';` batch use karo.
+
+### Admin panel code changes
+- **Support inbox fix (HIGH):** `loadSupportChats()` root-level RTDB reads (`support/`, `supportChats/`) rules me PERMISSION_DENIED the → inbox hamesha "No conversations". Naya `_scanSupportInboxes()`: Supabase users-list → per-uid `support/{uid}` reads (15-parallel batches) → 20s auto-refresh. Rules change ki zaroorat nahi.
+- **Thread render fix (HIGH):** `openChat()` ka `renderMessages()` broken `Promise.all` (secondary path denied → poora render abort) tha + galat sort key (`timestamp` vs user-side `createdAt`). Ab single-path read + `(createdAt||timestamp)` sort + error-state UI.
+- **markAsRead:** secondary path skip (denied reads).
+- **Entry Type "free":** `#tEntryType` me `free` option + validation update (pehle entry_type=free matches edit-modal me khaali select → "Please select a valid Entry Type").
+- **normalizeWalletType polyfill** admin-live-dash.js me (console ReferenceError fix).
+- **match_results upsert error-logging** publishResults me (silent `.then(null)` ki jagah console.error — aage debug aasan).
+
+### User panel code changes
+- **Help-menu "Support Chat" button fix (HIGH):** `features/admin-badge.js` — button ab `closeModal(); navTo('chat')` karta hai. Pehle `startChat()` call hoti thi jo sirf listeners lagati hai, screen-switch nahi karti → button dead tha. (Chat screen = `#scrChat`, entry = `navTo('chat')` — router khud `startChat()` karta hai.)
+
+### Verified flows (live tests)
+- Support chat E2E: user msg → RTDB `support/{uid}/messages` → admin thread render → admin reply → user ko realtime ✓
+- Security: fake wallet/result writes user se BLOCKED; legit deposit/join/log flows ALLOWED; admin flows ALLOWED ✓
+- Realtime: match-edit user ko 0s, coins 4s, naya match instant (Supabase channels — untouched) ✓

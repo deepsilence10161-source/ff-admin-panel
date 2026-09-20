@@ -113,6 +113,15 @@ function getTimeAgo(timestamp) {
     return Math.floor(diff / 86400000) + 'd ago';
 }
 
+/* FIX: normalizeWalletType was referenced but never defined (console error on live wallet reads) */
+if (typeof window.normalizeWalletType !== 'function') {
+  window.normalizeWalletType = function(t){
+    t = (t || '').toString().toLowerCase();
+    if (t === 'withdraw' || t === 'withdrawal' || t === 'payout') return 'withdraw';
+    if (t === 'deposit' || t === 'add_money' || t === 'addmoney') return 'deposit';
+    return t;
+  };
+}
 function setupLivePendingCounts() {
     // Live wallet pending count
     rtdb.ref(DB_WALLET).on('value', function(s) {
