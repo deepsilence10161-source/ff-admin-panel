@@ -5321,3 +5321,15 @@ Delta: `2026-09-20o-ROUND12-DELTA.sql`; schema SECTION 23 **Part O**.
 - Observations (cosmetic, non-security): users.green_diamonds INT column commissions ko
   round karta hai (1.25→1); join_requests status 'pending' hi rehta hai pure flow me
   (finalize isko bhi count karta hai). Jab creator-commission polish karo tab dekhna.
+
+
+### Round-14 (same day) — MATCH-LIFECYCLE FULL-CHAIN E2E (0 fixes needed ✓)
+- Join (fee-debit+ledger) → checkin (client-PATCH, clamp guards kills/prize ✓) →
+  admin publish via panel-path (Firebase-JWT third-party-auth token): increment_balance
+  + wallet ledger + jr completed + match completed + result_published_at + match_results
+  (admin guard-trigger pass) — qa2 EXACT -5+20 ✓
+- Room-creds (get_room_credentials): not-joined DENY ✓ / joined=auto-checkin ✓ /
+  release-window: room_status='released' YA scheduled-minus-release-minutes ✓ /
+  not_released_yet DENY ✓ (future-match+hidden)
+- Design-note: admin re-publish double-pay possible (guard client-side) — admin-trusted;
+  correction-flow exists. Wallet-ledger rows: wt_insert_own admin-branch ✓.
