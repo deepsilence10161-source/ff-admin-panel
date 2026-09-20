@@ -5345,3 +5345,18 @@ Delta: `2026-09-20q-ROUND15-DELTA.sql`; schema SECTION 23 **Part P**.
 - Overload-grants per-signature hote hain — has_function_privilege single-oid par dekho,
   regprocedure::text ke saath.
 - increment_poll_vote (unauthenticated vote-rigger) service-only rakha; cron-fn bhi.
+
+
+### Round-16 (same day) — REMAINING RPC BATCH AUDIT (36 fns) — all green ✓
+- set_user_ban_status: is_caller_admin() helper-guard ✓ (live-probe: non-admin not_authorized)
+- apply_referral_code: p_reward IGNORED (server-config referralJoinCoins) ✓, post-match +
+  UNIQUE guards ✓ / form_auto_squad_team: matching-op, SKIP LOCKED ✓ (no-money, by-design)
+- join_clan: p_role client-passed BUT result-role 'member' clamped ✓ (live-probe) /
+  leave_clan self-only ✓ / contribute_to_squad_bank: self + FOR UPDATE locks ✓
+- rate_creator_match: played-check + per-(match,rater) upsert ✓ / creator_set_room: owner ✓ /
+  track_mission_progress: LEAST(progress,target) cap + server-known-target completion ✓ /
+  purchase_cosmetic: dup + balance-lock ✓ / post_squad_finder_listing: self-upsert ✓ /
+  start_free_trial: trial_used once-flag ✓ / submit_age_verification + set_user_location_once:
+  self, once-only ✓
+- OneSignal = CDN SDK worker (no keys embedded); Firebase web-config public-by-design.
+- FULL REGRESSION: E2E 8/8 + Admin Breadth PASS (fraud/health 0-errors post-bridge-fix).
