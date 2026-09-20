@@ -5298,3 +5298,14 @@ Delta: `2026-09-20n-ROUND10-DELTA.sql`; schema SECTION 23 **Part N**.
   remove-friend 204-par-0-rows. **Dono repair ab live.** Rule: har client write-path
   ek baar live-probe karo — sirf policy-dump se "lagta hai theek" kaafi nahi.
 - R5-inconclusives band: admins/creator_payouts inserts admin-gated ✓.
+
+
+### Round-12 (same day) — XSS-HARDENING + crown-jewel re-verify
+Delta: `2026-09-20o-ROUND12-DELTA.sql`; schema SECTION 23 **Part O**.
+- ★ PostgREST probe-lesson: `Prefer: return=representation` INSERT par RETURNING
+  ki SELECT-policy bhi lagti hai — target-row (doosre user ki) invisible ho to
+  **42501 RLS-error aata hai jabki insert hota hai!** return=minimal se asli
+  verdict milta hai.
+- XSS defense-in-depth: (1) DB CHECK constraints ign/ff_uid no-HTML — source-level
+  ban, har writer par lagoo; (2) render-side admEsc escapes admin-panel raw spots.
+- Naya user-visible field add karo to: CHECK constraint + render-escape DONO.
