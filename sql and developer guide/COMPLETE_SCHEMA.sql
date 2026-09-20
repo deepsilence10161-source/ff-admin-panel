@@ -10347,6 +10347,69 @@ END;
 $fn$;
 GRANT EXECUTE ON FUNCTION public.claim_watch_earn_reward(text) TO anon, authenticated;
 
+
+-- ──────────────── Part K (2026-09-20j ROUND-7 PLATFORM AUDIT) ────────────────
+-- ★ service_role ke public-schema grants ZERO the (purana lockdown) — har
+-- Edge-Function DB-op dead. Restore: ALL TABLES + ALL SEQUENCES grants.
+-- Realtime 63 tables = RLS-consistent (no new leak). Cron no-show-refunds
+-- solid (SKIP LOCKED). Auth: anonymous-signins OFF. Backups: free-tier (ops).
+-- Edge fns: paytm-callback/create verify_jwt fixes + create-order v3
+-- (Firebase-JWKS in-fn auth) — code user-panel repo. PayTM_* secrets owner-ops.
+-- Context: 2026-09-20j-ROUND7-DELTA.sql
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 2026-09-20j ROUND-7 — CRON/AUTH/REALTIME/BACKUP/EDGE-FUNCTIONS AUDIT
+-- ═══════════════════════════════════════════════════════════════════
+-- (SQL parts neeche; config/API changes comments me — live applied ✅)
+--
+-- R7-1 ★ SERVICE_ROLE GRANTS — SAFEEC FINDING:
+--   service_role ke paas public schema ki IN tables par ZERO grants the
+--   (purana lockdown sab kuch REVOKE kar gaya tha). Har Edge Function ka
+--   DB-op dead tha (paytm-create-order insert 403/42501 de raha tha —
+--   live-captured). FIX (live): blanket restore —
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
+--   (13 RPCs jinke EXECUTE sirf anon/authenticated ke paas hain waise hi
+--   rahne diye — edge fns unhe call nahi karte; least-privilege.)
+--   NOTE: naya table banate waqt default privileges service_role ko
+--   dekh lena — ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ... TO service_role.
+--
+-- R7-2 cron audit: internal_process_no_show_refunds (every minute) —
+--   FOR UPDATE SKIP LOCKED + claim_no_show_refund se same eligibility +
+--   idempotent status-flip + wallet-ledger + notif. SOLID — koi fix nahi.
+--
+-- R7-3 realtime: supabase_realtime publication me 63 tables (sab RLS-on;
+--   postgres_changes RLS-filtered hota hai → REST jaisa hi access, koi
+--   naya leak nahi). messages-publication khaali.
+--
+-- R7-4 auth config (live PATCH):
+--   external_anonymous_users_enabled: true → FALSE (0 native auth.users;
+--   anon-session spam/JWT-abuse surface band).
+--   mailer_autoconfirm=true / password_min_length=6 — native-auth path
+--   unused (Firebase third-party hi real path hai) — documented, no change.
+--
+-- R7-5 backups: pitr_enabled=false, backups=[] (free tier) — WAL-archiving
+--   (walg) on hai. RECOMMENDATION: periodic pg_dump off-platform (owner ops).
+--
+-- R7-6 ★ EDGE FUNCTIONS (live fixes, code user-panel repo me):
+--   • paytm-callback: verify_jwt TRUE → PayTM webhook 401 (deposits confirm
+--     nahi hote the). → verify_jwt=false (fn khud PayTM /v3/order/status
+--     merchant-signed se verify karta hai — safe webhook pattern). LIVE ✅
+--   • paytm-create-order: platform gateway Firebase-RS256 JWT reject karta
+--     tha (UNAUTHORIZED_ASYMMETRIC_JWT) → deposits 100% DEAD. v3 deployed:
+--     in-fn Firebase JWKS verify (imgbb-upload pattern, fail-closed) +
+--     service grants fix → chain live. Remaining: PAYTM_* secrets set karna
+--     (owner creds): PAYTM_MID, PAYTM_MERCHANT_KEY, PAYTM_WEBSITE,
+--     PAYTM_ENV, PAYTM_CALLBACK_URL=https://.../functions/v1/paytm-callback
+--   • imgbb-upload: code/auth SAHI (e2e-tested — gateway+JWKS pass), par
+--     ImgBB upstream "forbidden" deta hai (IMGBB_KEY invalid/blocked) —
+--     OWNER-OPS: imgbb account se nayi key `supabase secrets set IMGBB_KEY=...`
+--
+-- PROBES (live): create-order no-token→401 ✓ / tampered-JWT→401 ✓ /
+-- valid-Firebase→auth-pass+insert+clean-error ✓ (secrets missing tak sab
+-- chala) / callback fake-orderId→crash-safe, no-flip ✓ / E2E 8/8 ✓
+-- ═══════════════════════════════════════════════════════════════════
+
 -- ================================================================
 -- END SECTION 23
 -- ================================================================

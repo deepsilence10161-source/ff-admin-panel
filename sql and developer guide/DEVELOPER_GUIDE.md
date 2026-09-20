@@ -5246,3 +5246,19 @@ Delta: `2026-09-20i-ROUND6-DELTA.sql`; schema SECTION 23 **Part J**.
 - no-JWT sweep 18/18 safe. New RPC banate waqt rule: **koi bhi read-check-then-write
   claim lock ke bina nahi** — ya FOR UPDATE, ya UNIQUE constraint, ya status-CAS.
 - storage.buckets khaali — storage attack-surface zero (jab tak bucket na bane).
+
+
+### Round-7 (same day) — PLATFORM AUDIT (cron/auth/realtime/backup/edge)
+Delta: `2026-09-20j-ROUND7-DELTA.sql`; schema SECTION 23 **Part K**.
+- ★ service_role grants: purane lockdown ne public schema ki sab tables se service_role
+  ke grants REVOKE kar diye the — Edge Functions (service key) ka har DB-op silently
+  dead tha. Ab blanket restore. **Rule:** REVOKE-cleanup karte waqt service_role ko
+  mat bhoolo; naya table = default privileges me service_role include.
+- Edge gateway `verify_jwt` third-party (Firebase RS256) tokens reject karta hai —
+  pattern: **verify_jwt=false + in-function Firebase-JWKS fail-closed verify**
+  (imgbb-upload + ab paytm-create-order v3). Webhook fns (paytm-callback) bhi
+  verify_jwt=false par authoritative server-se-verify (PayTM status API).
+- Webhook security model: caller pe bharosa nahi — merchant-signed server-side status
+  verify. Fake order-id = sirf PayTM ka sach, flip impossible.
+- paytm-create-order aaj bhi "secrets missing" dega jab tak PAYTM_* secrets set nahi
+  (owner ops: `supabase secrets set ...`). imgbb ka IMGBB_KEY upstream-forbidden hai.
