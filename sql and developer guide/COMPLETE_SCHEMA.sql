@@ -10621,6 +10621,48 @@ END;
 $fn$;
 GRANT EXECUTE ON FUNCTION public.increment_own_match_played() TO anon, authenticated;
 
+
+-- ──────────────── Part N (2026-09-20n ROUND-10 PRIV-TABLES + FRIENDS) ────────────────
+-- city_championship / duel_records / season_stats ke leftover any-auth/self-write
+-- policies DROP (RPCs increment_city_score + record_duel_result = authorized paths).
+-- ★ FRIENDS FEATURE-REPAIR: friendships fr_insert_pair (user_a OR user_b = self)
+--   + fr_delete_own — pehle add-friend 401 aur remove-friend 0-rows tha (broken!).
+-- R5-inconclusives closed: admins/creator_payouts INSERT admin-gated ✓.
+-- Context: 2026-09-20n-ROUND10-DELTA.sql
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 2026-09-20n ROUND-10 — PRIVILEGED-TABLES SWEEP + FRIENDS FEATURE-REPAIR
+-- ═══════════════════════════════════════════════════════════════════
+-- LIVE-CONFIRMED + FIXED (policies live-applied ✅):
+--   R10-1 city_championship cc_insert_auth/cc_update_auth (any-auth):
+--     qa1 ne throwaway city row ka score 99999 tamper kiya (LIVE).
+--     increment_city_score RPC pehle se solid tha (self-only + caps) →
+--     dono direct policies DROP. Client fallback bhi hata (user-repo).
+--   R10-2 duel_records dr_upsert_own (ALL, self): fake wins/losses 201.
+--     record_duel_result RPC (both-rows atomic) pehle se hai → DROP.
+--   R10-3 season_stats ss_self_write (ALL, self): fake wins/points 201.
+--     Client kahin write nahi karta → admin-only write (ss_admin_write).
+--   R10-4 ★ FRIENDS FEATURE PRODUCTION-ME BROKEN THA:
+--     (a) add-friend 2-row upsert → 401 (fr_insert_own sirf user_a=self
+--         allow karta tha; client dono rows ek saath bhejta hai → PURA
+--         statement fail). (b) remove-friend → 204-par-0-rows (koi DELETE
+--         policy hi nahi!). FIX: fr_insert_pair (user_a=self OR user_b=self)
+--         + fr_delete_own (same). Ab add/remove dono kaam karte hain ✓
+--   R10-5 R5-inconclusives CLOSED: admins INSERT 401 ✓, creator_payouts
+--     INSERT 401 ✓ (dono admin-gated policies sahi kaam karti hain).
+--
+-- VERIFY (live re-probes): city-tamper BLOCK / increment_city_score RPC OK
+-- (score 10→15, kills 5→7) / season-fake BLOCK / duel-fake BLOCK /
+-- record_duel_result RPC OK (winner 1-0, loser 0-1, dono rows) /
+-- friend-add 2-row OK / friend-remove row-gone — 7/7 ✓
+-- ═══════════════════════════════════════════════════════════════════
+
+-- (Policy statements live me applied — reference COMPLETE_SCHEMA Part N)
+-- DROP POLICY cc_insert_auth ON city_championship;  DROP POLICY cc_update_auth ON city_championship;
+-- DROP POLICY dr_upsert_own ON duel_records;
+-- DROP POLICY ss_self_write ON season_stats;  + ss_admin_write (admin ALL)
+-- friendships: fr_insert_own → fr_insert_pair;  + fr_delete_own  (FEATURE-REPAIR)
+
 -- ================================================================
 -- END SECTION 23
 -- ================================================================

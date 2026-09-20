@@ -5286,3 +5286,15 @@ Delta: `2026-09-20m-ROUND9-DELTA.sql`; schema SECTION 23 **Part M**.
 - Firebase-rules tight hone ke baad admin-tools bhi migrate hone hote hain: fraud-tools ab
   `admin-devicejoins-bridge.js` se per-device reads (users.device_fp listing) karte hain.
   **Rule:** rule-tighten → poore codebase me us node ke ROOT reads grep karo (admin bhi).
+
+
+### Round-10 (same day) — PRIVILEGED-TABLES sweep + FRIENDS repair
+Delta: `2026-09-20n-ROUND10-DELTA.sql`; schema SECTION 23 **Part N**.
+- Jab client ka direct-write path baad me RPC se replace ho jaye → uski PURANI direct
+  policy bhi drop karo (city_championship/duel_records me leftover any-auth writes
+  live-tamperable the).
+- ★ Silent-broken pattern: client 2-row upsert + policy sirf pehli row allow → PURA
+  insert 401 (add-friend kabhi kaam hi nahi kiya). Aur DELETE-policy missing →
+  remove-friend 204-par-0-rows. **Dono repair ab live.** Rule: har client write-path
+  ek baar live-probe karo — sirf policy-dump se "lagta hai theek" kaafi nahi.
+- R5-inconclusives band: admins/creator_payouts inserts admin-gated ✓.
