@@ -5222,3 +5222,17 @@ Delta: `2026-09-20g-ROUND4B-DELTA.sql`; schema SECTION 23 **Part H2** (5 fns ke 
   cancel kar sakta tha).
 - **unlock_squad_bank_cosmetic**: cost catalog `app_settings.squad_bank_items` se (8 items).
 - **increment_clan_score**: per-call caps score≤30/kills≤30/wins≤1.
+
+
+### Round-5 (same day) — RLS POLICY AUDIT (96 tables)
+Delta: `2026-09-20h-ROUND5-DELTA.sql`; schema SECTION 23 **Part I**.
+- Sab tables blanket I/U/D grants rakhte hain — **policies hi security hain**. Naya table
+  banate waqt INSERT/UPDATE policies me ALWAYS value-constraints bhi likho (sirf
+  user_id-ownership kaafi nahi — amounts/status/tiers client-set hone se money-printers
+  bante hain: bpp_own case).
+- Fix hue: battle_pass_progress (zero-state only), mission_progress (incomplete-only),
+  join_requests (free/ad-only insert + client-update clamp trigger), sd_requests (pending-only).
+- ★ Debug-lesson: PATCH ka 204 write-proof NAHI — RLS USING rows chhupa deta hai aur
+  PostgREST 0-rows par bhi 204 deta hai. Hamesha fresh-read se confirm karo.
+- Definer-RPC pattern ka fayda: RLS policies client ko jitna tight karo, RPC (owner postgres)
+  unaffected — "tight client RLS + definer RPCs" hi correct architecture hai.
