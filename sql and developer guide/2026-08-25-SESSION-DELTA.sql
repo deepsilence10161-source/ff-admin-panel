@@ -1,0 +1,124 @@
+-- ================================================================
+-- SESSION DELTA — 2026-08-25
+-- 7 bugs reported live by Junaid (screenshots), all in User Panel.
+-- IMPORTANT: this session required ZERO schema/RPC/RLS changes.
+-- Every bug traced back to client-side JS — server-side (RPCs, grants,
+-- RLS policies) were individually verified live via Supabase MCP and
+-- confirmed already correct for bugs #5 and #6 below. No SQL to apply.
+-- Kept as a session record for the audit trail / DEVELOPER_GUIDE.
+-- ================================================================
+
+-- ── Bug #1: New user's Free Fire IGN pre-filled with their Google
+-- account displayName ("Abc Pqr") ── User Panel, core/boot.js (4 spots)
+-- Root cause: `ign: user.displayName || user.email || 'Player'` at
+-- every account-creation code path. ign is FF-specific identity data
+-- and must start empty — a user's Google name is not their Free Fire
+-- IGN. Fixed: ign now starts null/empty; Google name kept separately
+-- as UD.accountName (avatar-letter/greeting use only, never written to
+-- users.ign). No DB change — users.ign was already nullable.
+
+-- ── Bug #2: Verification vs Update modal always said "Profile Update"
+-- / "Submit for Verification" regardless of new-user vs already-
+-- verified ── User Panel, js/ui-fixes.js + screens/profile.js
+-- Backend routing (profile_requests vs profile_updates table) was
+-- already correct; only the modal title/button text was misleading.
+-- Fixed: title/button now read "Profile Verification" / "Submit for
+-- Verification" for new users, "Profile Update" / "Submit Update" for
+-- already-verified users.
+
+-- ── Bug #3: WhatsApp share crashed with net::ERR_UNKNOWN_URL_SCHEME,
+-- both in-app WebView and plain Chrome ── User Panel, js/fixes-v7.js
+-- A broken intent://send/?...#Intent;...;end URL had been
+-- reintroduced in the Invite & Earn modal specifically, even though
+-- core/utils.js's _waShareUrl() (plain https://wa.me/ link) already
+-- fixed this exact problem everywhere else on 2026-08-24. Fixed: this
+-- modal now uses the same shared _waShareUrl() helper as every other
+-- WhatsApp button in the app.
+
+-- ── Bug #4: Green Diamond count showed correctly in Wallet but 0/stale
+-- in the header chip after certain actions ── User Panel,
+-- js/bugfixes-v29-final.js, features/squad-bank.js, js/diamond-system.js
+-- Three separate spend/withdraw code paths updated only
+-- UD.green_diamonds (snake_case) after a balance change, never
+-- UD.greenDiamonds (camelCase) — header.js and wallet.js both read the
+-- camelCase field exclusively, so the header silently kept showing the
+-- pre-transaction value until the next full server refresh happened to
+-- overwrite it. Fixed: all three now update both fields and explicitly
+-- call updateHdr() so the header reflects the true balance immediately.
+
+-- ── Bug #5: Cosmetics Store purchase succeeded (toast + unlock shown)
+-- but reverted to "locked"/"Buy" on refresh ── User Panel,
+-- features/growth.js
+-- Verified live via Supabase MCP: purchase_cosmetic RPC, user_cosmetics
+-- grants, and its RLS policy ("uc_own") are all correct — a purchase
+-- genuinely persists. Root cause was purely client-side: showCosmetics
+-- Store() rendered from whatever window.UD.cosmetics happened to
+-- contain the instant the modal opened, without ever waiting for or
+-- re-fetching the real ownership data — if opened shortly after a page
+-- load (common right after verifying a purchase), _loadExtras()'s
+-- background SELECT from user_cosmetics could still be in flight, so
+-- UD.cosmetics was still {} and every owned item showed as buyable.
+-- Fixed: showCosmeticsStore() now forces a fresh _loadExtras() fetch +
+-- re-render every time it opens, so it can never show a false "locked"
+-- state again. No DB change — the RPC/grants/RLS were already right.
+
+-- ── Bug #6: Creator "Match Banao" always failed with generic
+-- "Match create nahi ho paya", no matter the input ── User Panel,
+-- features/creator-match-host.js
+-- Verified live via Supabase MCP: creator_create_match RPC simulated
+-- directly with Junaid's own creator account (Team Wolf) and the exact
+-- values from the screenshot — succeeded cleanly every time. Root
+-- cause was purely client-side: the .then() callback only ever read
+-- r.data and checked d.success — it never checked r.error at all.
+-- Supabase JS v2's .rpc() call RESOLVES (does not reject) even on a
+-- genuine PostgREST/auth error, fulfilling with {data:null,
+-- error:{...}} in that case — so any real server-side error (an
+-- expired Firebase→Supabase JWT bridge token, a transient RLS hiccup,
+-- etc.) landed here as d = null and silently fell through to the
+-- generic fallback message, discarding the actual r.error.message/code
+-- that would have explained exactly what went wrong. Fixed: r.error is
+-- now checked first and shown/logged distinctly (with a login-session-
+-- expired hint when the message looks auth-related); the unmapped-
+-- error-code fallback now also includes the raw error code in the
+-- toast and logs the full d object to console, so any future
+-- unexpected server response is diagnosable immediately instead of
+-- being a silent dead end. No DB change — the RPC itself was already
+-- correct.
+
+-- ── Bug #7: Sponsored Tournaments (Home) and the "Invite & Earn" row
+-- (Profile) both visibly blinked — appeared for an instant, then
+-- vanished, repeatedly ── User Panel, screens/home.js, core/listeners.js,
+-- screens/profile.js, js/fixes-v7.js
+-- Two different but same-shaped bugs:
+--   (a) Sponsored block: renderHome() runs very frequently (every
+--       match-timer tick, every realtime match update) and always
+--       rebuilt the sponsored container as a brand-new EMPTY div before
+--       doing a full innerHTML replace of the whole home list — wiping
+--       out whatever renderSponsoredTournaments() had separately filled
+--       in, every time, until the next 15s poll/realtime event happened
+--       to refill it. On top of that, _loadSponsored() itself fully
+--       cleared its in-memory SP_T table before repopulating it on every
+--       15s poll, a second independent empty-then-full cycle. Fixed:
+--       renderHome() now carries forward whatever sponsored HTML is
+--       already on screen instead of starting empty, and re-runs the
+--       real renderer immediately after its replace so the block is
+--       never blank even for one frame; _loadSponsored() now diffs SP_T
+--       in place instead of clear-then-refill.
+--   (b) Invite & Earn row: was injected via a separate 400ms setTimeout
+--       AFTER renderProfile() finished — but renderProfile() itself
+--       runs on every _applyUser()/realtime user-row update and always
+--       fully replaces #profileContent's innerHTML, wiping the
+--       separately-injected button immediately, which then got
+--       re-inserted 400ms later, repeatedly. Fixed: the button is now
+--       built as a native part of renderProfile()'s own single HTML
+--       string (no separate injection, no timing race at all); the old
+--       late-injection hook in js/fixes-v7.js was removed.
+-- No DB change — both were pure client-side render-timing bugs.
+
+-- ================================================================
+-- Every touched file passed `node -c` syntax validation before
+-- packaging: core/boot.js, js/ui-fixes.js, screens/profile.js,
+-- js/fixes-v7.js, js/bugfixes-v29-final.js, features/squad-bank.js,
+-- js/diamond-system.js, features/growth.js, screens/home.js,
+-- core/listeners.js, features/creator-match-host.js.
+-- ================================================================

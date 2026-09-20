@@ -1,0 +1,72 @@
+-- ================================================================
+-- SESSION DELTA — 2026-08-25 (second pass, same day)
+-- 3 bugs reported after testing the first 2026-08-25 delivery, plus
+-- one architecture question (WhatsApp open behavior — answered
+-- directly to Junaid, no code change needed there; native Android
+-- side in MainActivity.java was already correct).
+-- Only DB-level action taken: a GRANT re-issue + PostgREST schema
+-- cache reload for creator_create_match (see bug #2 below). No table/
+-- column/RLS changes.
+-- ================================================================
+
+-- ── Bug #1: Green Diamond header chip still showed 0 after the
+-- previous session's fix ── User Panel, js/diamond-system.js
+-- Root cause: diamond-system.js installs its OWN full override of
+-- window.updateHdr() (for Sky Diamond/coins purposes) — and that
+-- override never touched the Green Diamond chip (#hdrGD) at all, and
+-- never fell back to the original core/header.js updateHdr() to cover
+-- it either (fallback only ran when window.UD was entirely missing).
+-- So the previous session's fix in core/header.js was correct but
+-- never actually executed — this override always won. Confirmed live:
+-- wallet screen showed the correct Green Diamond balance (reads the
+-- same window.UD.greenDiamonds field) while the header chip stayed
+-- frozen at its raw HTML "0". Fixed: restored the Green Diamond chip
+-- update inside diamond-system.js's own override, matching
+-- core/header.js's logic exactly.
+
+-- ── Bug #2: "permission denied for function creator_create_match" ──
+-- No code bug. Verified live: EXECUTE grant for `authenticated` and
+-- the function body's own auth/RLS logic were both already correct —
+-- confirmed by simulating the exact call AS the real `authenticated`
+-- role with a real user's JWT claims (SET LOCAL ROLE authenticated),
+-- which succeeded. Root cause: this function's signature changed on
+-- 2026-08-24 (CREATE OR REPLACE with new prize parameters), and
+-- PostgREST's cached API schema didn't pick up the change/grant
+-- automatically. Fix applied directly to the live DB (see migration
+-- "refresh_creator_create_match_grant_and_schema_cache"): re-issued
+-- GRANT EXECUTE and sent `NOTIFY pgrst, 'reload schema'`. No SQL
+-- needed here — already applied.
+
+-- ── Bug #3: Sponsored tournaments always went straight to "active"
+-- with no way for users to join ── Admin Panel js/fa-sponsored-system.js
+-- + index.html, User Panel screens/home.js
+-- Confirmed against live data: every sponsored_tournaments row so far
+-- (Sponsor1/2/3) has match_id = '' (empty). Root cause was two-part:
+--   (a) Admin's "Match ID" field was correctly labeled "existing match
+--       se link karo" but its placeholder contradictorily said
+--       "(optional)" — nothing enforced it being filled in, so it was
+--       silently skipped.
+--   (b) User Panel's sponsored card only ever showed a passive "Match
+--       Dekho" (view) link, gated on match_id AND the match already
+--       being loaded client-side — there was no actual Join action, so
+--       even a correctly-linked sponsored tournament had no direct way
+--       to join from that card.
+-- Fixed: admin now hard-requires a real, existing matches.id before
+-- allowing creation (validated with a live SELECT against the matches
+-- table, not just a client-side non-empty check) — see
+-- createSponsoredTournament / _saveSponsoredTournament split in
+-- fa-sponsored-system.js. User Panel's card now shows a real "⚡ Join
+-- Now" button wired through the same cJoin() flow every other match
+-- card uses, and shows a clear "match link missing" warning instead of
+-- silently rendering nothing for any older orphaned entries (like the
+-- current Sponsor1/2/3 test rows, which Junaid can now either delete
+-- or fix by re-linking a real match id through the corrected form).
+-- No DB change needed — matches/sponsored_tournaments schema and RLS
+-- were already fine; this was purely a missing-validation +
+-- missing-UI bug.
+
+-- ================================================================
+-- Files touched this pass: js/diamond-system.js, screens/home.js
+-- (User Panel); js/fa-sponsored-system.js, index.html (Admin Panel).
+-- All passed `node -c` syntax validation before packaging.
+-- ================================================================

@@ -1,0 +1,118 @@
+-- ================================================================
+-- SESSION DELTA — 2026-08-29
+-- 3 items: Match Time field not responding at all (new, more severe
+-- symptom than earlier sessions' timing bug), native WhatsApp share
+-- (per Junaid's explicit final instruction — zero URLs, ever), and
+-- completing the sponsor "Active" badge fix (the User Panel half was
+-- never actually applied in a prior session despite being logged).
+-- ================================================================
+
+-- ── Match Time field completely unresponsive — "select hi nahi ho
+-- raha" ── Admin Panel, index.html + js/admin-inline.js +
+-- js/fa-sponsored-system.js + js/features-admin.js + js/fa-admin-v10-final.js
+-- Screenshot showed the datetime-local field completely empty with a
+-- focused/green border but the native picker never opening — a more
+-- severe symptom than the earlier "wrong value committed" bug already
+-- fixed with blur()+requestAnimationFrame. No code-level cause could
+-- be found (no CSS blocking pointer-events, no JS intercepting focus/
+-- click on the field, no readonly/disabled state) — most likely a
+-- WebView-specific rendering issue with the combined datetime-local
+-- control specifically inside a scrolled/nested modal.
+--
+-- Fixed by replacing the combined datetime-local input with two
+-- separate native inputs (type="date" + type="time") in ALL FOUR
+-- independent match-creation forms found across this multi-session
+-- investigation:
+--   1. Admin Panel main "New/Edit Tournament" modal (tMatchTime →
+--      tMatchDate + tMatchTimeOnly, recombined into a hidden
+--      tMatchTime field right before saveTournament() reads it, so
+--      every downstream line — validation, mt computation — needed
+--      zero changes)
+--   2. Sponsor match creation (spTourMatchTime → spTourMatchDate +
+--      spTourMatchTimeOnly, same recombine pattern)
+--   3. Quick Match Create (qmTime → qmDate + qmTimeOnly)
+--   4. Quick Create templates (_qcTime → _qcDate + _qcTimeOnly,
+--      recombined into a hidden _qcTime field)
+-- Simpler native date/time widgets are far more reliably supported
+-- across Android WebView versions than the combined control. The
+-- existing blur()+rAF-wait hardening from 2026-08-28 was kept and
+-- applied to both new fields in every form, as defense in depth on
+-- top of the structural fix. Every edit-reload path (populating the
+-- fields when reopening an existing match) was updated to split the
+-- stored value into the two visible fields instead of the old single
+-- field. All five touched files passed `node -c`; index.html's
+-- script-tag balance was re-verified (same known false positive at
+-- line 25 — a code comment containing the word "script" in prose,
+-- not a real unclosed tag — confirmed unchanged from the 2026-08-28
+-- session's identical finding).
+
+-- ── Native WhatsApp share — per Junaid's explicit, repeated final
+-- instruction: "kahi bhi apk me url use na ho WhatsApp kholne ke
+-- liye, direct app khole package name se" ── User Panel
+-- android/.../MainActivity.java + core/utils.js
+-- Added a new AndroidBridge method, nativeShareWhatsApp(String text),
+-- following the exact same pattern as the existing native Google
+-- Sign-In (nativeGoogleSignIn()): a genuine Intent.ACTION_SEND
+-- addressed directly at the com.whatsapp package via setPackage() —
+-- this method builds, parses, or navigates to ZERO URL strings of any
+-- kind (no wa.me, no whatsapp://, no intent://), so it is
+-- structurally immune to the entire net::ERR_UNKNOWN_URL_SCHEME class
+-- of bug every previous URL-based approach kept running into across
+-- many sessions regardless of how many times the URL-building code
+-- itself was fixed. Falls back to com.whatsapp.w4b (WhatsApp
+-- Business) if the regular package isn't found, then to Android's own
+-- generic ACTION_SEND chooser (still zero URLs) as a last resort.
+--
+-- core/utils.js's openWhatsApp() now calls window.Android.
+-- nativeShareWhatsApp(msg) first whenever running inside the wrapped
+-- APK (window.Android exists) and no specific phone number is being
+-- targeted — every existing call site across the whole app (growth.js,
+-- fixes-v7.js's Invite & Earn, etc.) automatically gets this native,
+-- URL-free path with no further changes needed, since they all
+-- already route through this one shared function. Phone-targeted
+-- shares (which the native chooser-style intent can't pre-select a
+-- contact for) and any context outside the APK (plain browser/PWA,
+-- where window.Android doesn't exist) still use the wa.me web link as
+-- a fallback — this is the only remaining URL-based path, and it's
+-- unreachable from inside the APK for the ordinary "share to
+-- WhatsApp" case Junaid has been testing.
+--
+-- The 2026-08-26 URL-based safety net in shouldOverrideUrlLoading
+-- (catches any stray whatsapp:// URL and converts it to a proper
+-- intent) was kept in place but re-commented as defensive-only —
+-- nothing in this app's own JS should ever generate such a URL again,
+-- so it now exists purely as insurance against something entirely
+-- outside this app's control (e.g. a third-party ad SDK), not as the
+-- primary mechanism.
+--
+-- Requires a new APK build (GitHub Actions triggers automatically on
+-- push to main) to take effect — a JS-only zip update is not
+-- sufficient for the native Android method to exist on-device.
+
+-- ── Sponsor "Active" badge — completing a fix that was logged as done
+-- in a prior session but never actually applied to this file ──
+-- User Panel, screens/home.js
+-- The sponsored-tournament card's status badge was still hardcoded to
+-- a static "🟢 Active" regardless of the real linked match's actual
+-- live/upcoming/completed status — confirmed by re-reading the current
+-- file content directly, despite persistent memory logging this as
+-- already fixed (the fix had apparently only been applied to Admin
+-- Panel's campaign-status label, a different and correctly-separate
+-- concept, not to this User Panel match-facing card). Now reads
+-- MT[s.match_id].status when the real match has loaded, showing
+-- "🔴 Live" / "⏱ Upcoming" / "✅ Completed" to match its actual state,
+-- with a neutral "🎁 Sponsored" shown only as a fallback while the
+-- match hasn't loaded into memory yet — never a false "Active"/"Live"
+-- claim for a match still an hour+ from starting.
+-- ================================================================
+
+-- Files touched this session:
+--   Admin Panel: index.html, js/admin-inline.js, js/fa-sponsored-system.js,
+--     js/features-admin.js, js/fa-admin-v10-final.js
+--   User Panel: android/app/src/main/java/com/miniesports/app/MainActivity.java,
+--     core/utils.js, screens/home.js
+-- All JS files passed `node -c`; MainActivity.java's brace count was
+-- verified balanced (125 open / 125 close) as a basic sanity check
+-- since a full Gradle compile isn't available in this environment —
+-- GitHub Actions' build will be the real compile-time verification.
+-- ================================================================

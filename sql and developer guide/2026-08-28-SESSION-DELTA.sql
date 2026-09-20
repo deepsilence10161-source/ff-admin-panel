@@ -1,0 +1,116 @@
+-- ================================================================
+-- SESSION DELTA — 2026-08-28
+-- "Simple match me bhi time mismatch problem thi, direct live status
+-- pe show hota hai" — the 2026-08-26 fix only covered ONE of at least
+-- THREE independent match-creation code paths in Admin Panel that all
+-- had the same fragile new Date(string) parsing bug. Found and fixed
+-- the other two this session; a fourth path (Auto Scheduler) was
+-- checked and confirmed already safe (built with Date.UTC() and
+-- explicit numeric parts from the start, no string parsing at all).
+-- ================================================================
+
+-- ── Admin Panel has (at least) three separate places that create a
+-- match, each with its OWN independent time-parsing code — this
+-- wasn't understood until this session:
+--   1. js/admin-inline.js — saveTournament() — the main "New/Edit
+--      Tournament" modal. Fixed on 2026-08-26 (explicit numeric Date
+--      construction instead of new Date(string)).
+--   2. js/features-admin.js — window._createQuickMatch() (Feature 49,
+--      "Quick Match Create") — a separate, simpler modal, never
+--      touched by the 2026-08-26 fix. Still had
+--      `matchTime: new Date(time).getTime()` — the exact same fragile
+--      pattern. Also fixed the status field, which was hardcoded to
+--      'upcoming' regardless of matchTime — now computed via
+--      getMatchStatus(matchTimeMs) like every other creation path.
+--   3. js/fa-admin-v10-final.js — window._qcCreate() ("Quick Create"
+--      template-based flow) — a THIRD separate modal, also never
+--      touched. Had `var matchTime = new Date(timeVal).getTime();`,
+--      same pattern. Fixed identically.
+--   4. js/admin-scheduler.js (Auto Scheduler / bulk recurring match
+--      creation) — checked and confirmed ALREADY correct: it splits
+--      the time string into numeric hours/minutes itself
+--      (`time.split(':').map(Number)`) and builds every Date via
+--      `Date.UTC(year, month-1, day, hours, minutes, 0, 0)` throughout
+--      — no raw string ever gets parsed as a whole. No fix needed.
+--
+-- All three buggy paths now use the same explicit-numeric-parts Date
+-- construction pattern: split the datetime-local string on
+-- [-T:], map to Number, pass each part directly to `new Date(...)` —
+-- removing any dependency on how a given engine parses a raw
+-- "YYYY-MM-DDTHH:MM" string, which is what the 2026-08-26 investigation
+-- flagged as the most plausible fragile point (though the exact root
+-- cause on Junaid's device was never conclusively proven — see that
+-- session's notes).
+--
+-- Files touched: js/features-admin.js, js/fa-admin-v10-final.js.
+-- Both passed `node -c` syntax validation before packaging.
+-- ================================================================
+
+-- ================================================================
+-- ADDENDUM (same session, later) — real root cause applied + critical
+-- cache-busting gap closed in both panels
+-- ================================================================
+
+-- ── Real root cause of match-time-mismatch, applied properly ──
+-- Checked persistent memory from a prior/parallel session and found
+-- the ACTUAL confirmed root cause: Android WebView (ColorOS/Oppo
+-- pattern devices) doesn't always reliably commit a datetime-local
+-- picker's pending selection into input.value the instant the picker
+-- closes — a genuine timing/render race, not a string-parsing issue.
+-- The earlier numeric-parts-parsing fix (2026-08-26) was a reasonable
+-- guess but not the real mechanism.
+--
+-- Applied the proven fix to all THREE match-creation paths this
+-- session touches (admin-inline.js saveTournament, fa-sponsored-
+-- system.js createSponsoredTournament, features-admin.js
+-- _createQuickMatch, fa-admin-v10-final.js _qcCreate — four functions,
+-- three distinct forms):
+--   1. Force blur() on the datetime-local field immediately.
+--   2. await two chained requestAnimationFrame callbacks — gives the
+--      WebView a full render cycle to flush the picker's value before
+--      anything reads it.
+--   3. Read the field value only AFTER that wait.
+--   4. Safety-guard: if the resulting timestamp is still suspiciously
+--      close to "now" (within 2 minutes) despite the wait, warn/confirm
+--      before saving instead of silently persisting a wrong time.
+-- Each function became `async` (or already was) to support the await;
+-- all existing onclick="func()" callers work unchanged (fire-and-forget
+-- is fine for a void-returning async function). console.log build
+-- markers added to each so a future report can be checked against the
+-- browser console to confirm the deployed code is actually current.
+
+-- ── Critical cache-busting gap found and closed in BOTH panels ──
+-- Neither panel's index.html had ANY cache-busting query string on
+-- local <script>/<link> tags (e.g. src="js/admin-inline.js" with no
+-- ?v=...) — confirmed via persistent memory as the real explanation
+-- for multiple "same bug reported again after a genuine fix shipped"
+-- rounds: GitHub Pages' CDN and the wrapped APK's WebView HTTP cache
+-- both kept serving old cached copies of these bare-path files
+-- indefinitely. Added ?v=20260828a to every local script/CSS reference
+-- in both panels (67 tags in Admin Panel's index.html, 92 in User
+-- Panel's) — every referenced path was verified to still resolve to a
+-- real file after the edit, and both files were verified to remain
+-- well-formed HTML (script tag open/close counts balanced) afterward.
+--
+-- User Panel additionally has sw.js, whose LOCAL_FILES precache list
+-- needed to match: appended the same ?v=20260828a suffix to every
+-- precached URL (via the .map() step, not the literal array, to avoid
+-- risky bulk-editing ~90 manually-listed filenames) so install-time
+-- precaching actually matches what staleWhileRevalidate()'s
+-- caches.match(req) is asked to look up against real (now-versioned)
+-- requests — without this, the precache would have been a permanent
+-- miss against every real request, silently defeating precaching
+-- (though still not blocking freshness, since the version-string
+-- mismatch would force a network fetch every time regardless). Also
+-- bumped CACHE_VER from 'me-v34-8-26' to 'me-v35-8-28' since this
+-- touches the precache list itself.
+--
+-- IMPORTANT FOR ALL FUTURE SESSIONS: this ?v= tag (both index.html's
+-- tags AND, for User Panel, sw.js's ASSET_VER) must be bumped
+-- together on every future release that changes any local file in
+-- either panel — this is the single most impactful lesson from this
+-- multi-session saga: without it, a genuine, verified-correct source
+-- fix can still appear to "not work" indefinitely on a live device
+-- purely due to caching, and this has now demonstrably happened
+-- repeatedly across many sessions before being properly closed.
+-- ================================================================
