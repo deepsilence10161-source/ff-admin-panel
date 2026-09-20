@@ -5236,3 +5236,13 @@ Delta: `2026-09-20h-ROUND5-DELTA.sql`; schema SECTION 23 **Part I**.
   PostgREST 0-rows par bhi 204 deta hai. Hamesha fresh-read se confirm karo.
 - Definer-RPC pattern ka fayda: RLS policies client ko jitna tight karo, RPC (owner postgres)
   unaffected — "tight client RLS + definer RPCs" hi correct architecture hai.
+
+
+### Round-6 (same day) — CONCURRENCY-RACE audit
+Delta: `2026-09-20i-ROUND6-DELTA.sql`; schema SECTION 23 **Part J**.
+- Saare claim-RPCs par ThreadPool ×6-12 parallel battery: mission/bp/voucher/checkin/
+  streak/join sab locked (FOR UPDATE/UNIQUE) ✓. watch_earn me race-window theoretical tha
+  (interval-check ne lucky-save kiya) — ab FOR UPDATE deterministic.
+- no-JWT sweep 18/18 safe. New RPC banate waqt rule: **koi bhi read-check-then-write
+  claim lock ke bina nahi** — ya FOR UPDATE, ya UNIQUE constraint, ya status-CAS.
+- storage.buckets khaali — storage attack-surface zero (jab tak bucket na bane).
