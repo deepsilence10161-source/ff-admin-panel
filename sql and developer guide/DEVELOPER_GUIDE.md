@@ -5024,3 +5024,64 @@ Full writeup: see `2026-08-26b-SESSION-DELTA.sql`.
 2. **guard_users_self_update INVOKER fix** — purana SECURITY DEFINER guard SECURITY DEFINER RPCs ko bhi block kar raha tha (`validate_and_join_match` → "Column coins is not self-editable" → **JOIN FLOW poora dead**). Ab INVOKER + current_user check — RPCs (postgres context) allow, direct user tampering ab bhi blocked. **Live-verified:** joins ok:true; S1/S2/S3 blocked; bio self-edit OK; admin edit OK.
 3. **PUBLISH FULL E2E PASS (pehli baar!):** fresh match → 2 joins → checked_in → admin UI publish → 2 match_results rows (placement 1/2, kills, prize 110/55) → coins +110/+55 (increment_balance) → wallet `match_win` rows → join_requests completed+prize_earned → match completed+published. Phir poora revert.
 4. Firebase RTDB admin-token se direct REST writes denied (matches/status) — panel ke apne flows hi RTDB likhte hain; test-match status reset ke liye fresh match banao, published_at clear karna kaafi nahi (Firebase fallback check bhi hai).
+
+## Session: 2026-09-20b — ROUND-3 FIX BATCH (R3-1..R3-10 economy/security fixes + room-leak RPC + anon-role discovery)
+
+Round-3 max-depth testing ke saare found-bugs fix kiye gaye. Sab live DB par run + verify
+(FIX_VERIFY1/1b batteries). Delta SQL: `2026-09-20b-R3-FIX-DELTA.sql`; schema merge:
+COMPLETE_SCHEMA SECTION 23 Part D.
+
+### ★★ ANON-ROLE DISCOVERY (sabse important — future kaam me hamesha yaad rakho)
+Firebase JWT me `role` claim **nahi** hota. Third-party auth me PostgREST aise tokens ko
+**anon** role se chalata hai (`auth.jwt().sub` user-id deta hai, par `auth.uid()`/role
+authenticated nahi hota). Iska matlab:
+- Sirf `authenticated` ko granted RPC panel me **401 permission denied** deta hai — yehi
+  5 "dead features" (streak/watch-earn/voucher/own-match-played + naye RPCs) ka root cause tha.
+- RLS me sirf `TO authenticated` policies panel traffic par apply **nahi** hoti — anon
+  policies lagti hain. New tables/policies likhte waqt dhyan do.
+- Rule: **har user-facing RPC anon+authenticated dono ko grant karo** aur function ke andar
+  `auth.jwt()->'sub' IS NULL` guard rakho (real anonymous blocked).
+
+### Fixed RPCs (one-line)
+1. `claim_mission_reward` — reward ab server-side (mission_config); p_coins ignore; stale-
+   period/unknown-mission/double-claim guards; numeric overload DROPPED (PGRST203 mukti).
+2. `track_mission_progress` — unknown keys kabhi complete nahi (claim-chain band).
+3. `claim_streak_milestone` — server-cap LEAST(p_coins, streak_config[day]), days whitelist
+   {3,7,14,30,60,100}, FOR UPDATE, wtxn; revived via grants.
+4. `claim_battle_pass_tier` — GD ab battle_passes.tiers->rewardGd se (p_gd_reward ignored);
+   free-track par premium-check hata (design-fault); prem-track season-pass gated.
+5. `award_battle_pass_xp` — 2000 XP/day cap (battle_pass_progress.xp_today/xp_day cols added).
+6. `purchase_cosmetic` — price catalog (app_settings.cosmetic_prices) se; p_price ignored;
+   already-owned idempotent; balance check FOR UPDATE.
+7. `finalize_creator_commission` — naya p_internal flag: sirf internal publish-call ya admin;
+   **revenue-loss fix**: jr-status filter IN('joined','approved')→NOT IN('no_show','refunded',
+   'cancelled','rejected') — creator-match jrs 'pending' me hi rehte hain, commission
+   HAMESHA 0 ban raha tha (E2E me 15-fee match par 3.75 GD ab sahi credit hua).
+8. `creator_publish_result` — 42702 "r is ambiguous" crash FIXED (var `r` vs alias; ab `res`);
+   EXCEPTION-handler (fail par match 'live' atka nahi); finalize internal(p_internal=true).
+9. `get_room_credentials` — NAYA RPC (R3-2 room-leak ka server-half): joined + release-window
+   (admin release YA scheduled_at−release_minutes) verify karke hi room_id/password deta hai;
+   joined→checked_in auto-update.
+10. Overload drops: `contribute_to_squad_bank(int)`, `increment_city_score(5-arg)`;
+    `increment_poll_vote` REVOKE (bina-vote count inflation).
+11. Grants revived (401→200): claim_watch_earn_reward, redeem_voucher, increment_own_match_played,
+    claim_streak_milestone — sab real-E2E verified (voucher +25 coins + dup-block).
+
+### New config rows (app_settings)
+- `mission_config` {daily_match:10, daily_kills3:5, week_5matches:50, week_top3:30, week_share:20}
+  — panel CFG defaults ke exact match (week_share growth.js me removed hai, entry harmless).
+- `streak_config` {3:20, 7:100, 14:200, 30:500, 60:1000, 100:2000}
+- `cosmetic_prices` — 8 catalog items (frame_neon…vip_slot) panel defaults se.
+- NOTE: `live_config` row aaj bhi NAHI hai — panel CFG defaults chala raha hai; admin Settings
+  se live_config banaye to overrides apply honge (core/db.js config.load).
+
+### User-panel code fix (commit 6c97022)
+ROOM-LEAK (R3-2) client-half: `core/listeners.js _toMT` ab room_id/room_password strip karta
+hai (REST + realtime dono); `screens/room.js` showRP ab `get_room_credentials` RPC se creds
+leta hai (not_released_yet pe friendly toast); sw CACHE_VER me-v42-9-20a; index.html ?v bumps.
+
+### Design decisions (bugs NAHI, as-is rakha)
+- `rate_creator_match` re-rate = upsert design (avg recompute, count sahi) — bug nahi.
+- `claim_match_commission_payout` sirf coins-type claim karta hai; GD commissions publish par
+  instant credit (design).
+- `increment_poll_vote` panel-unused tha; revoke safe (grep-verified).
