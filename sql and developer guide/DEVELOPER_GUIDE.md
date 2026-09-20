@@ -5262,3 +5262,16 @@ Delta: `2026-09-20j-ROUND7-DELTA.sql`; schema SECTION 23 **Part K**.
   verify. Fake order-id = sirf PayTM ka sach, flip impossible.
 - paytm-create-order aaj bhi "secrets missing" dega jab tak PAYTM_* secrets set nahi
   (owner ops: `supabase secrets set ...`). imgbb ka IMGBB_KEY upstream-forbidden hai.
+
+
+### Round-8 (same day) — REMAINING USER-WRITABLE TABLES sweep
+Delta: `2026-09-20k-ROUND8-DELTA.sql`; schema SECTION 23 **Part L**.
+- 6 naye holes (sab live-exploit-proved): polls any-auth UPDATE (vote-rigging), clan_wars
+  fake-war insert, clan_members self-leader insert, clan_war_challenges spoof, gift_tickets
+  no-pay insert, request-tables self-approve rows.
+- **Policy design rule #2:** INSERT policies me sirf user_id kaafi nahi — status/amount/type
+  bhi constrain karo. Approve-flow wali har table par WITH CHECK status='pending'/'open'.
+- **Gift pattern:** payment+row creation hamesha ek definer-RPC me (atomic) — client se
+  do alag calls kabhi nahi (deduct fail → paisa kata, insert fail → free-ticket).
+- Clan-war feature dormant hai par uska client self-report score design launch se pehle
+  server-side RPC se replace karna hoga (warna war-rewards cheatable).
