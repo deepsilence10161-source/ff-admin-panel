@@ -5211,3 +5211,14 @@ Delta: `2026-09-20f-ROUND4-DELTA.sql`; schema SECTION 23 **Part H**.
   me is_admin guards ✓; referral dono server-config ✓.
 - **Data-notes** (koi action nahi): 'Sponsor1' filled_slots 0 vs 1 join (purana sponsored path);
   Hunter7 ledger-drift 54 historical (pre-ledger era). Dono real-user data — chhua nahi.
+
+
+### Round-4B (same day) — RPC ownership/amount audit ke 5 aur fixes
+Delta: `2026-09-20g-ROUND4B-DELTA.sql`; schema SECTION 23 **Part H2** (5 fns ke live bodies).
+- **increment_balance**: self ab sirf stats-cols (≤100/call); coins/gd/sd/rank_points/
+  filled_slots admin/service-only; anon grant (panel stats-path jo mahino se silent-401 tha, revive).
+- **increment_rank_points**: self 500/call + 2000/day (users.rp_today/rp_day).
+- **cancel_match_with_refunds**: is_admin guard (pehle ZERO guard — koi bhi koi bhi match
+  cancel kar sakta tha).
+- **unlock_squad_bank_cosmetic**: cost catalog `app_settings.squad_bank_items` se (8 items).
+- **increment_clan_score**: per-call caps score≤30/kills≤30/wins≤1.

@@ -9763,6 +9763,356 @@ GRANT EXECUTE ON FUNCTION public.claim_premium_monthly_bonus(integer, integer) T
 -- ── R4-4: legacy 2-arg overload drop ──
 DROP FUNCTION IF EXISTS public.claim_battle_pass_tier(text, integer);
 
+
+-- ──────────────── Part H2 (2026-09-20g ROUND-4B) ────────────────
+-- RPC ownership/amount audit ke 5 fixes (R4-5..R4-9) — live bodies neeche
+-- exactly wahi hain jo DB me hain. Context: 2026-09-20g-ROUND4B-DELTA.sql
+
+-- ── increment_balance(text, text, numeric) — live body ──
+CREATE OR REPLACE FUNCTION public.increment_balance(p_uid text, p_col text, p_amount numeric)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  stats_cols TEXT[] := ARRAY['total_wins','total_kills','total_matches','win_streak','clean_matches'];
+  admin_cols TEXT[] := ARRAY['coins','green_diamonds','sky_diamonds','rank_points','filled_slots'];
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_is_admin BOOLEAN;
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+BEGIN
+  /* FIX (2026-09-20 Round-4): pehle self-call se coins/green_diamonds/
+     sky_diamonds/rank_points SAB increment ho sakte the (unlimited
+     wallet-printer latent tha). Ab self = sirf stats cols (cap 100/call);
+     wallet/rank/filled_slots sirf admin/service. Panel (anon) stats-path
+     wapas zinda (grant + sub-guard). */
+  IF p_amount < 0 THEN
+    RAISE EXCEPTION 'Amount must be non-negative, got: %', p_amount;
+  END IF;
+  IF NOT (p_col = ANY(stats_cols) OR p_col = ANY(admin_cols)) THEN
+    RAISE EXCEPTION 'Column % not allowed', p_col;
+  END IF;
+
+  IF v_is_service THEN
+    -- service: sab allowed
+  ELSE
+    IF v_caller IS NULL THEN
+      RAISE EXCEPTION 'Not authorized — no caller identity';
+    END IF;
+    IF v_caller <> p_uid THEN
+      SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+      IF NOT COALESCE(v_is_admin, false) THEN
+        RAISE EXCEPTION 'Not authorized to modify balance for this user';
+      END IF;
+    END IF;
+    IF p_col = ANY(admin_cols) THEN
+      IF v_caller <> p_uid THEN
+        -- admin-ne-kisi-aur ko: theek (upar is_admin check ho chuka)
+      ELSE
+        RAISE EXCEPTION 'Wallet/rank columns sirf admin/service change kar sakte hain';
+      END IF;
+    ELSE
+      IF p_amount > 100 THEN
+        RAISE EXCEPTION 'Stats increment cap 100 per call';
+      END IF;
+    END IF;
+  END IF;
+
+  EXECUTE format(
+    'UPDATE users SET %I = COALESCE(%I, 0) + $1 WHERE id = $2',
+    p_col, p_col
+  ) USING p_amount, p_uid;
+END;
+$function$
+
+-- ── increment_rank_points(text, integer) — live body ──
+CREATE OR REPLACE FUNCTION public.increment_rank_points(p_uid text, p_points integer)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller   TEXT := auth.jwt() ->> 'sub';
+  v_is_admin BOOLEAN;
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_today DATE := CURRENT_DATE;
+  v_rp_today INT;
+BEGIN
+  /* FIX (2026-09-20 Round-4): self-increment ab capped — 250/call,
+     1000/day (legit calcRkScore ~111/match se upar). Admin/service
+     bypass. Pehle unlimited tha (self rank-printer). */
+  IF NOT v_is_service AND v_caller IS DISTINCT FROM p_uid THEN
+    IF v_caller IS NULL THEN
+      RAISE EXCEPTION 'Not authorized — no caller identity';
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RAISE EXCEPTION 'Not authorized to modify rank points for this user';
+    END IF;
+  END IF;
+  IF p_points < 0 THEN RAISE EXCEPTION 'Points must be non-negative'; END IF;
+
+  IF NOT v_is_service AND v_caller = p_uid THEN
+    IF p_points > 500 THEN
+      RAISE EXCEPTION 'Rank points cap 500 per call';
+    END IF;
+    SELECT CASE WHEN rp_day = v_today THEN rp_today ELSE 0 END INTO v_rp_today
+      FROM users WHERE id = p_uid FOR UPDATE;
+    IF v_rp_today >= 2000 THEN
+      RAISE EXCEPTION 'Daily rank points cap reached (2000)';
+    END IF;
+    UPDATE users SET rp_today = CASE WHEN rp_day = v_today THEN rp_today ELSE 0 END + p_points,
+      rp_day = v_today WHERE id = p_uid;
+  END IF;
+
+  UPDATE users SET rank_points = COALESCE(rank_points, 0) + p_points WHERE id = p_uid;
+END;
+$function$
+
+-- ── cancel_match_with_refunds(text, text) — live body ──
+CREATE OR REPLACE FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_match RECORD;
+  v_jr RECORD;
+  v_refund_count INT := 0;
+  v_currency TEXT;
+  v_caller TEXT := auth.jwt() ->> 'sub';
+BEGIN
+  /* FIX (2026-09-20 Round-4): YE RPC BINA GUARD KE THA — koi bhi user
+     kisi bhi match ko cancel karke sabko refunds dilwa sakta tha
+     (match-sabotage). Ab sirf admin. p_admin_uid ab caller se hi. */
+  IF v_caller IS NULL OR NOT COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'NOT_AUTHORIZED');
+  END IF;
+  p_admin_uid := COALESCE(p_admin_uid, v_caller);
+
+  SELECT * INTO v_match FROM matches WHERE id = p_match_id;
+  IF v_match IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'MATCH_NOT_FOUND');
+  END IF;
+  FOR v_jr IN
+  SELECT * FROM join_requests
+  WHERE match_id = p_match_id
+  AND status NOT IN ('cancelled', 'refunded', 'rejected')
+  AND COALESCE(entry_fee_paid, 0) > 0
+  FOR UPDATE
+  LOOP
+  v_currency := CASE WHEN v_jr.entry_type = 'coin' THEN 'coins' ELSE 'sky_diamonds' END;
+  v_currency := CASE WHEN v_jr.entry_type = 'coin' THEN 'coins' ELSE 'sky_diamonds' END;
+
+    IF v_currency = 'coins' THEN
+      UPDATE users SET coins = COALESCE(coins,0) + v_jr.entry_fee_paid WHERE id = v_jr.user_id;
+    ELSE
+      UPDATE users SET sky_diamonds = COALESCE(sky_diamonds,0) + v_jr.entry_fee_paid WHERE id = v_jr.user_id;
+    END IF;
+
+    INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status)
+    VALUES (v_jr.user_id, v_currency, 'credit', v_jr.entry_fee_paid, 'match_cancelled_refund', p_match_id, 'approved');
+
+    UPDATE join_requests SET status = 'refunded' WHERE id = v_jr.id;
+
+    INSERT INTO notifications(user_id, title, body, type, is_read, created_at, ref_id)
+    VALUES (
+      v_jr.user_id,
+      '💰 Match Cancelled — Refund',
+      '"' || COALESCE(v_match.name, v_match.title, p_match_id) || '" cancel ho gaya. Aapka entry fee wapas kar diya gaya hai.',
+      'refund',
+      false,
+      NOW(),
+      p_match_id
+    );
+
+    v_refund_count := v_refund_count + 1;
+  END LOOP;
+
+  UPDATE join_requests
+  SET status = 'cancelled'
+  WHERE match_id = p_match_id AND status NOT IN ('cancelled', 'refunded', 'rejected');
+
+  UPDATE matches SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = p_admin_uid WHERE id = p_match_id;
+
+  RETURN jsonb_build_object('ok', true, 'refund_count', v_refund_count);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+
+$function$
+
+-- ── unlock_squad_bank_cosmetic(uuid, text, integer, text) — live body ──
+CREATE OR REPLACE FUNCTION public.unlock_squad_bank_cosmetic(p_clan_id uuid, p_item_id text, p_cost integer, p_uid text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_catalog_cost TEXT;
+  v_caller   TEXT := auth.jwt() ->> 'sub';
+  v_gd       INT;
+  v_unlocked JSONB;
+  v_is_member BOOLEAN;
+BEGIN
+  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+  SELECT EXISTS(SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_uid) INTO v_is_member;
+  IF NOT v_is_member THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not a member of this clan');
+  END IF;
+
+  /* FIX (2026-09-20 Round-4): p_cost IGNORE — cost catalog se
+     (app_settings 'squad_bank_items'). Pehle member cost=1 likh ke koi
+     bhi item unlock kar sakta tha. */
+  SELECT value->p_item_id->>'cost' INTO v_catalog_cost FROM app_settings WHERE key = 'squad_bank_items';
+  IF v_catalog_cost IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'unknown_item');
+  END IF;
+  p_cost := v_catalog_cost::NUMERIC;
+
+  SELECT squad_bank_gd, COALESCE(squad_bank_unlocked, '{}'::JSONB)
+  INTO v_gd, v_unlocked
+  FROM clans WHERE id = p_clan_id FOR UPDATE;
+
+  IF v_gd IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Clan not found');
+  END IF;
+  IF v_unlocked ? p_item_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Already unlocked');
+  END IF;
+  IF v_gd < p_cost THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Insufficient squad bank balance');
+  END IF;
+
+  UPDATE clans SET
+    squad_bank_gd = squad_bank_gd - p_cost,
+    squad_bank_unlocked = v_unlocked || jsonb_build_object(
+      p_item_id, jsonb_build_object('unlockedAt', NOW(), 'unlockedBy', p_uid)
+    )
+  WHERE id = p_clan_id;
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$function$
+
+-- ── increment_clan_score(uuid, integer, integer, integer) — live body ──
+CREATE OR REPLACE FUNCTION public.increment_clan_score(p_clan_id uuid, p_score integer DEFAULT 1, p_kills integer DEFAULT 0, p_wins integer DEFAULT 0)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller     TEXT := auth.jwt() ->> 'sub';
+  v_is_member  BOOLEAN;
+BEGIN
+  -- ✅ SECURITY FIX (2026-07-17): documented as "caller must be a real
+  -- clan_members row for that clan" but this was never actually checked —
+  -- any authenticated caller could inflate (or, since p_score/p_kills/
+  -- p_wins weren't bounded to non-negative either, potentially deflate)
+  -- any clan's leaderboard stats regardless of membership.
+  IF v_caller IS NOT NULL THEN
+    SELECT EXISTS(
+      SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = v_caller
+    ) INTO v_is_member;
+    IF NOT v_is_member THEN
+      RAISE EXCEPTION 'Not a member of this clan';
+    END IF;
+  END IF;
+  IF p_score < 0 OR p_kills < 0 OR p_wins < 0 OR p_score > 30 OR p_kills > 30 OR p_wins > 1 THEN
+    /* FIX (2026-09-20 Round-4): per-call caps (legit: kills*1+wins*5/ma
+     tch — panel se max ~25). Spam-inflation band. */
+    RAISE EXCEPTION 'Score/kills/wins must be non-negative';
+  END IF;
+
+  UPDATE clans SET
+    weekly_score = COALESCE(weekly_score, 0) + p_score,
+    total_kills  = COALESCE(total_kills, 0)  + p_kills,
+    total_wins   = COALESCE(total_wins, 0)   + p_wins
+  WHERE id = p_clan_id;
+END;
+$function$
+
+-- ================================================================
+-- END Part H2
+-- ================================================================
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 2026-09-20g ROUND-4B DELTA — LIVE RUN ✅ (RPC ownership/amount audit)
+-- ═══════════════════════════════════════════════════════════════════
+-- Round-4 ke doosre half me SAARE crediting/updating RPCs ka systematic
+-- audit kiya (18 crediting + 36 WHERE-id-updating). 5 aur holes mile:
+--
+-- R4-5 ★ increment_balance — LATENT WALLET-PRINTER + DEAD STATS-PATH:
+--       allowed_cols me coins/green_diamonds/sky_diamonds/rank_points
+--       the aur self-call (caller==uid) admin-check se bacha hua tha.
+--       Panel anon-role se chalta hai isliye AAJ exploit nahi ho raha
+--       tha (anon ke paas EXECUTE hi nahi tha → panel ke stats-calls
+--       silently 401 ho rahe the = dead path), par kisi bhi
+--       authenticated session se millionair banaya ja sakta tha.
+--       FIX v2: self = SIRF stats-cols (total_wins/kills/matches,
+--       win_streak, clean_matches) cap 100/call; wallet+rank+
+--       filled_slots sirf admin/service. anon+authenticated grant
+--       (stats-path revived, sub-guard JWT se). Verify: self-coins
+--       blocked / stats+10 ok / cap 500-block. ✓
+--
+-- R4-6 increment_rank_points — SELF RANK-PRINTER: caller==p_uid par
+--       koi check hi nahi (unlimited RP → leaderboard/tier/mentor-rewards
+--       sab inflate). FIX v2: self = 500/call + 2000/day (users.
+--       rp_today/rp_day cols); admin/service bypass. Legit calcRkScore
+--       ~111/match — caps generous. Verify: 200 ok / 300-block(after 500
+--       cap) / day-cap. ✓
+--
+-- R4-7 ★ cancel_match_with_refunds — NO GUARD AT ALL: koi bhi user
+--       kisi bhi match ko cancel + sab refunds trigger kar sakta tha
+--       (match-sabotage, paid matches safe nahi). FIX v2: is_admin
+--       guard; p_admin_uid caller se. Verify: non-admin BLOCKED,
+--       admin cancel+refund(5 coins, jr→refunded). 2/2 ✓
+--
+-- R4-8 unlock_squad_bank_cosmetic — CLIENT-COST: member p_cost=1 likh ke
+--       koi bhi item unlock (clan-bank funds cheap-drain). FIX v2: cost
+--       app_settings 'squad_bank_items' catalog se (8 items seeded,
+--       panel squad-bank.js jaisa); p_cost IGNORE; unknown-item reject.
+--       Verify: tamper-1 → 50 debit, unknown reject. 2/2 ✓
+--
+-- R4-9 increment_clan_score — MEMBER-SPAM: membership-guard tha par
+--       values unlimited. FIX: per-call caps score≤30, kills≤30,
+--       wins≤1 (legit: kills*1+wins*5 per match ≈ max 25). Verify:
+--       999-block / legit-12 ok. 2/2 ✓
+--
+-- AUDIT-CLEAN (koi action nahi):
+--   set_user_ban_status / admin_set_fraud_score → is_caller_admin() ✓
+--   increment_poll_vote → grants GONE (pehle REVOKE'd) ✓
+--   admin_approve/reject_profile, resolve_sd_request, resolve_sponsored_
+--   withdrawal, review_creator_video, admin_sync_user_balance,
+--   admin_set_coins → sab admin-guarded ✓
+--   apply_referral_code / claim_referral_reward → server-config ✓
+-- ═══════════════════════════════════════════════════════════════════
+
+-- ── R4-5 cols + increment_balance v2 ──
+-- (function bodies COMPLETE_SCHEMA Part H2 me hain — live-run ho chuka)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS rp_today INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS rp_day DATE;
+
+-- ── R4-8: squad_bank_items catalog ──
+INSERT INTO app_settings(key, value) VALUES ('squad_bank_items', '{
+ "banner_fire":{"cost":50},"banner_neon":{"cost":80},"badge_champion":{"cost":120},
+ "tag_elite":{"cost":150},"room_theme":{"cost":200},"badge_ghost":{"cost":100},
+ "banner_ice":{"cost":60},"tag_shadow":{"cost":180}
+}'::jsonb) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- NOTE: increment_balance / increment_rank_points / cancel_match_with_
+-- refunds / unlock_squad_bank_cosmetic / increment_clan_score ke poore
+-- naye bodies live DB me hain aur COMPLETE_SCHEMA Part H2 me merge ho
+-- chuke hain (is file me repeat nahi — schema hi source of truth).
+
 -- ================================================================
 -- END SECTION 23
 -- ================================================================
