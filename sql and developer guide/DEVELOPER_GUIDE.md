@@ -5151,3 +5151,20 @@ Delta: `2026-09-20d-SEEDS-ADREV-DELTA.sql`; schema SECTION 23 **Part F**.
   ad_reward_log, wtxn, live_config amount/limit). Coin-Shop watch-ad + Bonus Ads dono live.
   ⚠ ads.js local `UD.coins += coinReward` optimistic display — server value hi source of
   truth (refresh par sync) — ab dono 10 par match.
+
+
+## Session: 2026-09-20e — TRIGGER-V3 (Phase-2 trigger ke 2 bugs pakde aur fix)
+
+Edge-testing me Phase-2 trigger (Part E v2) ke do apne hi bugs mile:
+1. **NULL-assign chhuta** — v2 ne creds match_rooms me bheje par matches
+   columns NULL nahi kiye → leak wapas. (Edge-test: UPDATE room_id='X' ke
+   baad matches.room_id still 'X'.)
+2. **ELSE-delete khatarnak** — admin bridge full-match upsert room_id:null
+   bhejta hai (RTDB copy me room nahi hota); v2 usse creator ke room creds
+   WIPE kar deta.
+
+**v3 final**: non-null → match_rooms upsert + `NEW.room_id/room_password := NULL`;
+null/'' → NO-OP (preserve). Explicit clear = match_rooms se direct DELETE.
+⚠ Trigger function badlo to hamesha triple-check: (a) NULL-assign, (b) kya
+hoga jab writer null bheje, (c) global creds-free sweep.
+Delta: `2026-09-20e-TRIGGER-V3-ADDENDUM.sql`; schema SECTION 23 **Part G**.
