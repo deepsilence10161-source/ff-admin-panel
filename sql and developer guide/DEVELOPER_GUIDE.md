@@ -5378,3 +5378,21 @@ Delta: `2026-09-20r-ROUND17-DELTA.sql`; schema SECTION 23 **Part Q**.
   (dummy set karke read-back), tabhi uske output pe bharosa karo.
 - claim_creator_payout / claim_match_commission_payout = status-only (admin
   manually pays) — ye design hai, credit-RPC nahi.
+
+
+### Round-18 (same day) — MAXIMUM-depth re-analysis + notifications hardening
+Delta: `2026-09-20t-ROUND18-DELTA.sql`; schema SECTION 23 **Part R**.
+- ★ notifications allowlist: naya client notification-type add karte waqt
+  usse `notif_insert` policy ke 12-type ARRAY me add karna HI hoga, warna
+  insert silently fail hoga (client .catch(no-op) hai — dhyan nahi aayega).
+  Ye jaan-boojh kar allowlist hai (phishing/spam vector band).
+- ★ METHOD-LESSON (imgbb false-alarm se): koi bhi 'tool-output' pe conclusion
+  se pehle tool ka roundtrip-verify karo (dummy value daalo, read-back dekho).
+  Mgmt-API secrets-GET SHA-256(value) deta hai — value nahi. Real path se
+  hi verify karo (realistic upload). Tiny 1x1 test-image par ImgBB anti-bot
+  'forbidden' deta hai.
+- Deep-sweep verdicts: increment/decrement_balance me admin-guard + col-lock
+  + cap-100 hai; battle_pass_progress client-update-blocked hai; award XP
+  self-only + 2000/day capped (design); dynamic-SQL sab %I+USING; storage
+  buckets khali (sab images ImgBB); realtime anon ko 0 row-events; RTDB
+  anon deny-all; Firebase generic login-error (no enum).
