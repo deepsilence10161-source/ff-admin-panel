@@ -5168,3 +5168,25 @@ null/'' → NO-OP (preserve). Explicit clear = match_rooms se direct DELETE.
 ⚠ Trigger function badlo to hamesha triple-check: (a) NULL-assign, (b) kya
 hoga jab writer null bheje, (c) global creds-free sweep.
 Delta: `2026-09-20e-TRIGGER-V3-ADDENDUM.sql`; schema SECTION 23 **Part G**.
+
+
+### ⚠ Aakhri manual item (admin ke liye): Fraud/Health — deviceJoins RTDB rules
+`runFraudCheck` `/deviceJoins` root-read par `permission_denied` deta hai (deployed rules me
+read sirf `$deviceId/$matchId` depth par hai; root enumeration denied). Ye rules-deploy mangta
+hai jo repo se nahi ho sakta — **Firebase Console → Realtime Database → Rules** me deviceJoins
+block ko is se replace karo:
+
+```json
+"deviceJoins": {
+  ".read": "auth != null",
+  "rules": {
+    "$deviceId": {
+      "$matchId": { ".read": "auth != null", ".write": "auth != null" }
+    }
+  }
+}
+```
+
+(phir Publish). Ye user-repo ke `firebase-security-rules.json` me bhi daal dena (file me abhi
+root .read nahi hai). NOTE: RTDB `matches` root-read deployed rules me ALREADY denied hai
+(repo-file se strict) — room-creds RTDB-leak ka koi risk nahi (enumeration impossible).
