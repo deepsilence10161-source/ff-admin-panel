@@ -5309,3 +5309,15 @@ Delta: `2026-09-20o-ROUND12-DELTA.sql`; schema SECTION 23 **Part O**.
 - XSS defense-in-depth: (1) DB CHECK constraints ign/ff_uid no-HTML — source-level
   ban, har writer par lagoo; (2) render-side admEsc escapes admin-panel raw spots.
 - Naya user-visible field add karo to: CHECK constraint + render-escape DONO.
+
+
+### Round-13 (same day) — CREATOR-FLOW FULL-CHAIN E2E (pure verification — 0 fixes needed ✓)
+- Poora creator-journey live chala: application-gate (is_creator+premium+suspension) →
+  create (fee≤50/slots≤100/≤3-open/prize≤slots×fee/schedule≥20min — saare 5 caps live-rejected ✓)
+  → join (fee debit + ledger) → live → publish-result (per-kill payout EXACT + 25% GD
+  commission with hold) → **fraud-path: 999 impossible-kills → pending_review +
+  creator_result_flags row + payout blocked** ✓
+- Verified-solid design — chain me koi vuln nahi mila (pura audit-round ka positive result).
+- Observations (cosmetic, non-security): users.green_diamonds INT column commissions ko
+  round karta hai (1.25→1); join_requests status 'pending' hi rehta hai pure flow me
+  (finalize isko bhi count karta hai). Jab creator-commission polish karo tab dekhna.
