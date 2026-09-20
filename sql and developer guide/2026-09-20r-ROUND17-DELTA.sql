@@ -1,3 +1,10 @@
+-- ═══ CORRECTION (2026-09-20t, R18) ═══
+-- Neeche 'DIAGNOSTIC (owner-action)' wala IMGBB_KEY finding GALAT nikla:
+-- Mgmt-API secrets-GET SHA-256(value) return karta hai, asli value NAHI
+-- (roundtrip-probe se proven). IMGBB_KEY secret bilkul sahi hai —
+-- realistic-image edge-fn upload 200-SUCCESS (i.ibb.co live URL mila).
+-- Upload working tha/ hai. Niche wala section historical-galat samjho;
+-- sahi lesson DEVELOPER_GUIDE me hai.
 -- ═══════════════════════════════════════════════════════════════════
 -- 2026-09-20s ROUND-17 — ULTIMATE DEEP-SWEEP (minor features + attacks)
 -- ═══════════════════════════════════════════════════════════════════

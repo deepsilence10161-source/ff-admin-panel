@@ -10769,7 +10769,7 @@ WITH CHECK ((auth.jwt() ->> 'sub') IN (SELECT users.id FROM users WHERE users.is
 -- ──────────────── Part Q (2026-09-20s ROUND-17 ULTIMATE-SWEEP) ────────────────
 -- cast_poll_vote invalid-option check; validate_and_join ACCOUNT_BANNED guard;
 -- gift_match_entry v4 friend auto-join; money-RPC final audits clean;
--- users-INSERT/support-inject blocked; IMGBB_KEY = hash pada hai (owner fix).
+-- users-INSERT/support-inject blocked; (imgbb R17-note CORRECTED in R18 — key sahi thi, upload OK).
 -- Context: 2026-09-20r-ROUND17-DELTA.sql
 
 -- ═══════════════════════════════════════════════════════════════════

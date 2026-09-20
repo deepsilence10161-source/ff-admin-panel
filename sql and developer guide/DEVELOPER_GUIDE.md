@@ -5369,8 +5369,12 @@ Delta: `2026-09-20r-ROUND17-DELTA.sql`; schema SECTION 23 **Part Q**.
   ki banned-user ka kya rule hai.
 - Poll/RPC me user-supplied keys (options) ko whitelist-validate karo — jsonb
   arbitrary keys se results tamper ho sakte the.
-- ★ IMGBB_KEY trap: secret me key ka HASH (64-char) save ho gaya tha, key
-  (32-char) nahi — upstream 'forbidden'. Secret set karte waqt ASLI key paste ho,
-  hash nahi.
+- ★ VERIFICATION LESSON (R18 — imgbb FALSE-ALARM correction): Mgmt-API
+  secrets-GET SHA-256(value) lautaata hai, value nahi — readback dekh kar
+  'key hash hai/kharab hai' conclude karna galat tha. IMGBB_KEY sahi nikla,
+  realistic-image upload 200-success. Hamesha ASLI user-path se verify karo.
+  Do aur traps: (a) tiny 1x1 test-image par ImgBB anti-bot 'forbidden' deta
+  hai — realistic image se test karo; (b) tool pehle roundtrip-se verify karo
+  (dummy set karke read-back), tabhi uske output pe bharosa karo.
 - claim_creator_payout / claim_match_commission_payout = status-only (admin
   manually pays) — ye design hai, credit-RPC nahi.
