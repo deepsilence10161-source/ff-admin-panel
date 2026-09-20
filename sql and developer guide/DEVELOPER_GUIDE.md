@@ -5099,3 +5099,36 @@ hai column-grants se).
 - `claim_match_commission_payout` sirf coins-type claim karta hai; GD commissions publish par
   instant credit (design).
 - `increment_poll_vote` panel-unused tha; revoke safe (grep-verified).
+
+
+## Session: 2026-09-20c — ROOM-LEAK PHASE-2 (server-side permanent fix)
+
+Phase-1 (RPC + client-strip) ke baad ab raw-API surface bhi band. Delta: `2026-09-20c-ROOM-PHASE2-DELTA.sql`,
+schema SECTION 23 **Part E**.
+
+### New table: `match_rooms`
+`match_id PK/FK→matches ON DELETE CASCADE, room_id, room_password, updated_at`. RLS ON, sirf
+admin-select policy (users.is_admin via auth.jwt sub), panel roles ko SELECT-only grant —
+INSERT/UPDATE/DELETE denied (sirf SECURITY DEFINER functions likhte hain).
+
+### Redirect trigger (kisi writer me change nahi lagana pada)
+`trg_redirect_match_room_secrets` BEFORE INSERT/UPDATE OF room_id,room_password ON matches:
+non-null room_id → match_rooms upsert + NEW.room_id/room_password NULL; NULL/'' → match_rooms
+delete. Isliye admin-inline-edit, admin-supabase-sync, RTDB-bridge, legacy releaseRoom — sab
+bina badle hi safe ho gaye. ⚠ Future me naya room-writer likhna ho to seedha match_rooms na
+likho — matches par likho (trigger sambhal lega) ya SECURITY DEFINER RPC banao.
+
+### RPC changes
+- `creator_set_room` v2: match_rooms me likhta hai + matches.room_status='saved' (host-screen
+  check ab room_status-based — user repo commit 5e5152f: creator-match-host select swap).
+- `get_room_credentials` v3: creds match_rooms se; **owner (creator_uid) / admin ko window se
+  pehle bhi creds**; players ko wahi joined+release-window rules.
+
+### Migration notes (live run order)
+backfill → matches NULL → defaults NULL → trigger install (trigger PEHLE install hota to
+null-out step match_rooms rows delete kar deta — order critical).
+
+### Verified
+set_room redirect / owner-bypass / not_released / trigger-redirect / clear-flow / release-loop /
+global creds-free (0 rows) / UI popup / E2E_POSTDEPLOY 8/8 / PUBLISH_GOLD FULL PASS /
+RTDB matches public-read already denied.
