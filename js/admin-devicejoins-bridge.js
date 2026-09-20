@@ -46,3 +46,10 @@
     if (node && typeof node === 'object') Object.keys(node).forEach(function (k) { fn(k, node[k]); });
   };
 })();
+
+/* ── Round-12: shared HTML-escape for admin renders ── */
+window.admEsc = function (s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+};

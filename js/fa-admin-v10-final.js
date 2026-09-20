@@ -1253,7 +1253,7 @@ window._v10ShowTab = function(tab) {
       h += '<div style="display:flex;flex-direction:column;gap:6px">';
       players.forEach(function(p) {
         h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:10px">';
-        h += '<span style="font-size:12px;font-weight:700">' + (p.ign||'?') + '</span>';
+        h += '<span style="font-size:12px;font-weight:700">' + (window.admEsc?window.admEsc(p.ign||'?'):(p.ign||'?')) + '</span>';
         h += '<span style="font-size:10px;color:#888;background:rgba(255,255,255,.06);padding:2px 7px;border-radius:6px">' + (p.rank||'') + '</span>';
         h += '<span style="margin-left:auto;font-size:10px;color:#555">' + (p.mode||'') + '</span>';
         h += '<button onclick="removeFromAutoQueueAdmin(\'' + mid + '\',\'' + p.uid + '\')" style="padding:3px 8px;border-radius:6px;background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.2);color:#ff6b6b;font-size:10px;cursor:pointer">✕</button>';
@@ -1281,7 +1281,7 @@ window._v10ShowTab = function(tab) {
         var t = ci.checkedAt ? new Date(ci.checkedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—';
         h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,255,156,.04);border:1px solid rgba(0,255,156,.1);border-radius:10px">';
         h += '<span style="color:#00ff9c;font-size:13px">✅</span>';
-        h += '<span style="font-size:12px;font-weight:700">' + (ci.ign||'?') + '</span>';
+        h += '<span style="font-size:12px;font-weight:700">' + (window.admEsc?window.admEsc(ci.ign||'?'):(ci.ign||'?')) + '</span>';
         h += '<span style="font-size:10px;color:#888;background:rgba(255,255,255,.06);padding:2px 7px;border-radius:6px">' + (ci.rank||'') + '</span>';
         h += '<span style="margin-left:auto;font-size:10px;color:#555">' + t + '</span>';
         h += '</div>';
