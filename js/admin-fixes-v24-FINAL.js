@@ -376,13 +376,12 @@ patchWhenReady('fa73_detectIPClusters', function () {
       else if (window.openModal) window.openModal('🌐 Device Cluster Report', h);
     }
 
-    /* Source: ONLY deviceJoins (confirmed joins with verified device IDs) */
-    db.ref('deviceJoins').limitToLast(2000).once('value', function (snap) {
-      if (snap.exists()) {
-        snap.forEach(function (deviceSnap) {
-          var deviceId = deviceSnap.key;
-          deviceSnap.forEach(function (matchSnap) {
-            var rec = matchSnap.val();
+    /* Source: ONLY deviceJoins — Round-9 (2026-09-20m): root-read rules-deny,
+       per-device reads via fa_readDeviceJoins (users.device_fp listing). */
+    (window.fa_readDeviceJoins || function (cb) { cb(null, 'bridge'); })(function (data) {
+      if (data) {
+        (window.fa_eachDevice || function () {})(data, function (deviceId, node) {
+          (window.fa_eachChild || function () {})(node, function (_mk, rec) {
             if (rec && rec.uid) addToMap(deviceId, rec.uid);
           });
         });
@@ -431,20 +430,23 @@ patchWhenReady('runFraudCheck', function () {
     if (window.showToast) window.showToast('🔍 Fraud check chal raha hai…', false);
 
     try {
-      /* Always use limitToLast — NEVER load full node */
-      var snap = await db.ref('deviceJoins').limitToLast(PAGE_SIZE).once('value');
-
-      if (!snap.exists()) {
+      /* Round-9 (2026-09-20m): root-read rules-deny — per-device reads via
+         fa_readDeviceJoins (users.device_fp listing), promise-wrapped. */
+      var data = await new Promise(function (res) {
+        (window.fa_readDeviceJoins || function (cb) { cb(null, 'bridge'); })(function (d) { res(d || {}); });
+      });
+      var deviceIdCount = Object.keys(data).length;
+      if (!deviceIdCount) {
         if (window.showToast) window.showToast('deviceJoins data nahi mila', false);
         return;
       }
 
       /* Build maps */
-      snap.forEach(function (deviceSnap) {
-        var deviceId = deviceSnap.key;
-        deviceSnap.forEach(function (matchSnap) {
-          var rec = matchSnap.val();
-          var uid = rec && rec.uid;
+      Object.keys(data).forEach(function (deviceId) {
+        var node = data[deviceId];
+        Object.keys(node || {}).forEach(function (_mk) {
+          var rec = node[_mk];
+          var uid = (rec && typeof rec === 'object') ? rec.uid : rec;
           if (!uid) return;
 
           /* uid → devices */
@@ -468,7 +470,7 @@ patchWhenReady('runFraudCheck', function () {
       });
 
       /* Build report HTML */
-      var totalEntries = snap.numChildren();
+      var totalEntries = deviceIdCount;
       var reportRows = '';
 
       if (flaggedDevices.length === 0 && flaggedUsers.length === 0) {

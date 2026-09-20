@@ -5275,3 +5275,14 @@ Delta: `2026-09-20k-ROUND8-DELTA.sql`; schema SECTION 23 **Part L**.
   do alag calls kabhi nahi (deduct fail → paisa kata, insert fail → free-ticket).
 - Clan-war feature dormant hai par uska client self-report score design launch se pehle
   server-side RPC se replace karna hoga (warna war-rewards cheatable).
+
+
+### Round-9 (same day) — REMAINING RPC AUDIT + FRAUD-TOOL RULES-FIX
+Delta: `2026-09-20m-ROUND9-DELTA.sql`; schema SECTION 23 **Part M**.
+- claim_ad_reward me bhi wahi race tha (×8 → 8/8 +80) — har count-based-capped claim me
+  FOR UPDATE mandatory (ab teeno: watch_earn, ad_reward, iomp).
+- increment_own_match_played v3: 50/day cap users.mpm_today/mpm_day se (rank-score farm band).
+  PL/pgSQL lesson: bare column-name sirf SELECT INTO ke andar — bahar variable use karo.
+- Firebase-rules tight hone ke baad admin-tools bhi migrate hone hote hain: fraud-tools ab
+  `admin-devicejoins-bridge.js` se per-device reads (users.device_fp listing) karte hain.
+  **Rule:** rule-tighten → poore codebase me us node ke ROOT reads grep karo (admin bhi).

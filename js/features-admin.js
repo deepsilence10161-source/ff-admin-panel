@@ -120,14 +120,17 @@
 
   /* ─── FEATURE 4: FRAUD DETECTION (Multi-Account) ─── */
   window.runFraudCheck = function () {
-    rtdb.ref('deviceJoins').once('value', function (s) {
+    /* Round-9 (2026-09-20m): deviceJoins ROOT read rules-deny hai (privacy) —
+       ab fa_readDeviceJoins: users.device_fp list → PER-DEVICE reads. */
+    (window.fa_readDeviceJoins || function (cb) { cb(null, 'devicejoins-bridge missing'); })(function (data, _err) {
       var deviceUsers = {};
-      if (s.exists()) {
-        s.forEach(function (deviceNode) {
-          deviceNode.forEach(function (matchNode) {
-            var uid = matchNode.val();
-            if (!deviceUsers[deviceNode.key]) deviceUsers[deviceNode.key] = [];
-            if (deviceUsers[deviceNode.key].indexOf(uid) < 0) deviceUsers[deviceNode.key].push(uid);
+      if (data) {
+        (window.fa_eachDevice || function () {})(data, function (deviceId, node) {
+          (window.fa_eachChild || function () {})(node, function (_mk, v) {
+            var uid = (v && typeof v === 'object') ? v.uid : v;
+            if (!uid) return;
+            if (!deviceUsers[deviceId]) deviceUsers[deviceId] = [];
+            if (deviceUsers[deviceId].indexOf(uid) < 0) deviceUsers[deviceId].push(uid);
           });
         });
       }

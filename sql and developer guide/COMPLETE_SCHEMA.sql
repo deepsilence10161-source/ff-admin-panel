@@ -10495,6 +10495,132 @@ END;
 $fn$;
 GRANT EXECUTE ON FUNCTION public.gift_match_entry(text, text) TO anon, authenticated;
 
+
+-- ──────────────── Part M (2026-09-20m ROUND-9 RPC-AUDIT) ────────────────
+-- claim_ad_reward ×8 parallel → 8/8 success (+80; cap toota) → FOR UPDATE fix.
+-- increment_own_match_played → 50/day cap (users.mpm_today/mpm_day).
+-- referral UNIQUE-safe; withdrawal/redeem/creator audit-clean.
+-- Fraud-tools: deviceJoins per-device bridge (admin repo JS fix).
+-- Context: 2026-09-20m-ROUND9-DELTA.sql
+
+CREATE OR REPLACE FUNCTION public.claim_ad_reward()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_cfg JSONB;
+  v_ad_coins INT;
+  v_daily_limit INT;
+  v_today_count INT;
+  v_last_claim TIMESTAMPTZ;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+
+  /* FIX (2026-09-20m Round-9): FOR UPDATE — ×8 parallel live-probe ne
+     8/8 success +80 coins diya tha (daily-cap bhi toota). Ab serialized. */
+  PERFORM 1 FROM users WHERE id = v_caller FOR UPDATE;
+
+  SELECT value INTO v_cfg FROM app_settings WHERE key = 'live_config';
+  v_ad_coins    := COALESCE((v_cfg->>'adCoinsPerWatch')::INT, 5);
+  v_daily_limit := COALESCE((v_cfg->>'adDailyLimit')::INT, 5);
+
+  -- Rate-limit rapid repeat calls (a real rewarded ad takes real time
+  -- to play — anything faster than ~15s between claims is not a
+  -- genuinely-watched ad).
+  SELECT max(created_at) INTO v_last_claim FROM ad_reward_log WHERE user_id = v_caller;
+  IF v_last_claim IS NOT NULL AND v_last_claim > (now() - interval '15 seconds') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Too soon — wait a moment');
+  END IF;
+
+  SELECT count(*) INTO v_today_count FROM ad_reward_log WHERE user_id = v_caller AND log_date = CURRENT_DATE;
+  IF v_today_count >= v_daily_limit THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Daily ad limit reached', 'todayCount', v_today_count);
+  END IF;
+
+  UPDATE users SET coins = COALESCE(coins, 0) + v_ad_coins WHERE id = v_caller;
+
+  INSERT INTO ad_reward_log (user_id, coins_earned) VALUES (v_caller, v_ad_coins);
+
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason)
+  VALUES (v_caller, 'coins', 'credit', v_ad_coins, 'ad_reward');
+
+  RETURN jsonb_build_object('success', true, 'coinsEarned', v_ad_coins, 'todayCount', v_today_count + 1);
+END;
+$function$
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 2026-09-20m ROUND-9 — REMAINING RPC AUDIT + FRAUD-TOOL RULES-FIX
+-- ═══════════════════════════════════════════════════════════════════
+-- LIVE-CONFIRMED + FIXED:
+--   R9-1 ★ claim_ad_reward ×8 parallel → 8/8 SUCCESS +80 coins
+--     (daily-cap 5 ka bhi ulangh — koi lock nahi tha; coin-printer).
+--     FIX: FOR UPDATE on users (watch_earn pattern). Re-probe ×8 →
+--     1 success (+10), baki 'Too soon' ✅
+--   R9-2 claim_referral_reward: race probe ×4 → UNIQUE(referred_id) ne
+--     bacha liya (0 double) — safe as-is ✅ (recommend: FOR UPDATE
+--     hygiene jab bhi touch ho).
+--   R9-3 increment_own_match_played: uncapped +1 (rank-score matches-
+--     component farm). FIX v3: users.mpm_today/mpm_day cols + 50/day cap.
+--     Re-probe ×55 → exactly 50 succeeded ✅  (v2 me PL/pgSQL bare-column
+--     bug tha — SELECT INTO me day-col bhi saath padha)
+--   R9-4 submit_gd_withdrawal / redeem_reward_item / creator_create_match:
+--     audit clean (jwt + FOR UPDATE + caps + balance-checks) ✅
+--   R9-5 increment_match_filled_slots: stub (koi mutation nahi) ✅
+--
+-- ADMIN-PANEL (code fixes, is repo me):
+--   R9-6 ★ Fraud tools deviceJoins ROOT-read karte the — Round-2 rules ne
+--     deny kiya (privacy) → permission_denied. FIX: naya
+--     js/admin-devicejoins-bridge.js — users.device_fp list (Supabase)
+--     → PER-DEVICE RTDB reads (allowed) → same data-shape walkers.
+--     Patched: features-admin.js runFraudCheck, v24 fa73_detectIPClusters,
+--     v24 runFraudCheck (paginated) + numChildren replacement.
+--   R9-7 Broadcast/PrizeCalc tools: koi real error nahi (slow-init
+--     warning harness-timing ki thi). Dashboard init 15s warning =
+--     bridge-wait budget — documented, feature intact.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- R9-1: claim_ad_reward v2 (FOR UPDATE) — poora body live se, diff sirf lock:
+--   (body COMPLETE_SCHEMA Part M me; anchor ke turant baad:)
+--   PERFORM 1 FROM users WHERE id = v_caller FOR UPDATE;
+
+-- R9-3: increment_own_match_played v3 + cols
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mpm_today INT DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mpm_day DATE;
+
+CREATE OR REPLACE FUNCTION public.increment_own_match_played()
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_today DATE := CURRENT_DATE;
+  v_cnt INT;
+  v_day DATE;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+  /* Round-9: 50/day cap (rank-score matches-component farm band) */
+  PERFORM 1 FROM users WHERE id = v_caller FOR UPDATE;
+  SELECT COALESCE(mpm_today, 0), mpm_day INTO v_cnt, v_day FROM users WHERE id = v_caller;
+  IF COALESCE(v_day, '1970-01-01') <> v_today THEN v_cnt := 0; END IF;
+  IF v_cnt >= 50 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Daily limit reached');
+  END IF;
+  UPDATE users
+     SET total_matches = COALESCE(total_matches, 0) + 1,
+         mpm_today = v_cnt + 1,
+         mpm_day = v_today
+   WHERE id = v_caller;
+  RETURN jsonb_build_object('success', true);
+END;
+$fn$;
+GRANT EXECUTE ON FUNCTION public.increment_own_match_played() TO anon, authenticated;
+
 -- ================================================================
 -- END SECTION 23
 -- ================================================================
