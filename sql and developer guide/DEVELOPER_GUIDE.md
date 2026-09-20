@@ -5075,10 +5075,24 @@ authenticated nahi hota). Iska matlab:
 - NOTE: `live_config` row aaj bhi NAHI hai — panel CFG defaults chala raha hai; admin Settings
   se live_config banaye to overrides apply honge (core/db.js config.load).
 
-### User-panel code fix (commit 6c97022)
-ROOM-LEAK (R3-2) client-half: `core/listeners.js _toMT` ab room_id/room_password strip karta
-hai (REST + realtime dono); `screens/room.js` showRP ab `get_room_credentials` RPC se creds
-leta hai (not_released_yet pe friendly toast); sw CACHE_VER me-v42-9-20a; index.html ?v bumps.
+### User-panel code fix (commits 6c97022 → 8f77908 → de2a2eb)
+ROOM-LEAK (R3-2) client-half — **4 surfaces** par creds-band:
+- `core/listeners.js _toMT`: room_id/room_password strip (REST + realtime dono paths);
+  room-notify ab room_status='released' par trigger.
+- `screens/room.js`: showRP entry-guard sirf `!t` (creds RPC se); `_fetchRoomAndShow` +
+  global `_showRoomViaRpc(mid, btn)` helper (not_released/not_joined/room_not_set toasts).
+- `screens/matches.js`: room-box readiness roomStatus se; creds hone par inline box, warna
+  '🔑 Room Details dekho' fetch-button; countdown creds-independent.
+- `screens/notifications.js` + `js/fixes-v29-all-bugs.js` showRP wrapper: released+no-creds →
+  pehle `get_room_credentials` fetch, phir render.
+- sw CACHE_VER me-v42-9-20b; index.html ?v bumps (room/matches/notifications/fixes-v29).
+
+### ⚠ Room-leak Phase-2 PENDING (server-side)
+Client-strip + RPC-gating se PANEL safe hai, par `matches` ke room columns raw REST/realtime
+WS par ab bhi anon ko dikh sakte hain (column-level privileges realtime par apply nahi hote).
+Phase-2 plan: room cols alag `match_rooms` table me (RLS: joined+released policy) ya matches
+view-swap — dono panels ke saare matches-selects audit karke hi karna (select('*') break hota
+hai column-grants se).
 
 ### Design decisions (bugs NAHI, as-is rakha)
 - `rate_creator_match` re-rate = upsert design (avg recompute, count sahi) — bug nahi.
