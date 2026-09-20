@@ -5018,3 +5018,9 @@ Full writeup: see `2026-08-26b-SESSION-DELTA.sql`.
 - Support chat E2E: user msg → RTDB `support/{uid}/messages` → admin thread render → admin reply → user ko realtime ✓
 - Security: fake wallet/result writes user se BLOCKED; legit deposit/join/log flows ALLOWED; admin flows ALLOWED ✓
 - Realtime: match-edit user ko 0s, coins 4s, naya match instant (Supabase channels — untouched) ✓
+
+### Same-day Part C — publish ka ASLI root cause + join-flow fix
+1. **match_results missing columns** — bridge `resultToSupa()` `rank`, `kill_prize`, `rank_prize`, `prize_earned` bhejta tha jo table me nahi the → har result-mirror 400 → publish me har player "failed" → **zero prizes** (yahi months-purana publish bug tha!). Fix: 4 columns add (idempotent, SECTION 23 Part C).
+2. **guard_users_self_update INVOKER fix** — purana SECURITY DEFINER guard SECURITY DEFINER RPCs ko bhi block kar raha tha (`validate_and_join_match` → "Column coins is not self-editable" → **JOIN FLOW poora dead**). Ab INVOKER + current_user check — RPCs (postgres context) allow, direct user tampering ab bhi blocked. **Live-verified:** joins ok:true; S1/S2/S3 blocked; bio self-edit OK; admin edit OK.
+3. **PUBLISH FULL E2E PASS (pehli baar!):** fresh match → 2 joins → checked_in → admin UI publish → 2 match_results rows (placement 1/2, kills, prize 110/55) → coins +110/+55 (increment_balance) → wallet `match_win` rows → join_requests completed+prize_earned → match completed+published. Phir poora revert.
+4. Firebase RTDB admin-token se direct REST writes denied (matches/status) — panel ke apne flows hi RTDB likhte hain; test-match status reset ke liye fresh match banao, published_at clear karna kaafi nahi (Firebase fallback check bhi hai).

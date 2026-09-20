@@ -8360,6 +8360,67 @@ CREATE POLICY mr_insert_admin ON public.match_results
 FOR INSERT TO public
 WITH CHECK (COALESCE(public.is_caller_admin(), false));
 
+
+-- ──────────────── Part C (2026-09-20, later same-day) ────────────────
+
+-- C.1) match_results: bridge-compatible columns — publish-flow ka ASLI
+--      root cause. supabase-rtdb-bridge.js ka resultToSupa() ye columns
+--      bhejta hai jo table me the hi nahi → har result-mirror 400 →
+--      player-loop "failed" → koi prize, koi increment_balance, kuch nahi.
+--      (rank reserved word hai — quoted.)
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS "rank" INTEGER;
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS kill_prize NUMERIC DEFAULT 0;
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS rank_prize NUMERIC DEFAULT 0;
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS prize_earned NUMERIC DEFAULT 0;
+
+-- C.2) guard_users_self_update(): SECURITY DEFINER → SECURITY INVOKER
+--      + current_user check. PURANA version saare SECURITY DEFINER RPCs
+--      bhi tod raha tha (validate_and_join_match → "Column coins is not
+--      self-editable" — JOIN FLOW poora dead!). INVOKER me current_user
+--      asli context dikhata hai: definer-RPC ke andar postgres (allow),
+--      direct user PATCH authenticated (whitelist rules), Mgmt/API
+--      postgres (allow). Protection level SAME — live-tested:
+--      S1 coins/S2 is_admin/S3 self-ban → BLOCKED ✓; bio self-edit ✓;
+--      admin edit ✓; joins ✓.
+CREATE OR REPLACE FUNCTION public.guard_users_self_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role')
+      OR (current_user IN ('postgres','supabase_admin','service_role'));
+  v_allowed TEXT[] := ARRAY[
+    'avatar_url','avatar_bg_color','banner_url','bio','city','phone',
+    'is_live','stream_link','stream_title','rival_uid','fcm_token',
+    'fcm_updated_at','device_fp','clan_id','referral_code',
+    'referral_popup_done','profile_status','pending_ign',
+    'profile_request_count','duo_team','squad_team','partner_uid',
+    'squad_uids','updated_at','last_seen'
+  ];
+  v_col TEXT;
+  v_old JSONB := to_jsonb(OLD);
+  v_new JSONB := to_jsonb(NEW);
+BEGIN
+  IF v_is_service OR (v_caller IS NOT NULL AND COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false)) THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NULL OR v_caller <> OLD.id THEN
+    RAISE EXCEPTION 'Not authorized to update this user row';
+  END IF;
+  FOR v_col IN SELECT jsonb_object_keys(v_new) LOOP
+    IF NOT (v_col = ANY(v_allowed)) THEN
+      IF v_old -> v_col IS DISTINCT FROM v_new -> v_col THEN
+        RAISE EXCEPTION 'Column % is not self-editable', v_col;
+      END IF;
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$function$;
+
 -- ================================================================
 -- END SECTION 23
 -- ================================================================

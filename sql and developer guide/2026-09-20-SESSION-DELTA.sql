@@ -74,3 +74,13 @@
 --   screen-switch nahi karti thi — button dead tha).
 -- Version bumps: admin-inline/live-dash ?v=20260920a, admin-badge ?v=20260920a.
 -- ============================================================
+
+-- ── LATER SAME-DAY (Part C) ──
+-- ALTER TABLE match_results ADD "rank"/kill_prize/rank_prize/prize_earned
+--   → publish-flow ka ASLI root cause fix (bridge resultToSupa inhe
+--     bhejta tha, table me nahi the → 400 → sab players "failed").
+-- guard_users_self_update(): DEFINER→INVOKER + current_user check
+--   → join-RPC (validate_and_join_match) jo guard ke baad se broken tha
+--     ("Column coins is not self-editable") wapas zinda.
+-- VERIFY (live): joins ok:true ×2 → publish E2E PASS (2 result rows,
+--   prizes 110/55 credit + wallet match_win + match completed) → full revert.
