@@ -5132,3 +5132,22 @@ null-out step match_rooms rows delete kar deta — order critical).
 set_room redirect / owner-bypass / not_released / trigger-redirect / clear-flow / release-loop /
 global creds-free (0 rows) / UI popup / E2E_POSTDEPLOY 8/8 / PUBLISH_GOLD FULL PASS /
 RTDB matches public-read already denied.
+
+
+## Session: 2026-09-20d — battle_passes seed + ad-reward revive + BP track-aware claims
+
+Delta: `2026-09-20d-SEEDS-ADREV-DELTA.sql`; schema SECTION 23 **Part F**.
+
+- **battle_passes ab seeded**: season_key `2026_09` (panel `getSeasonId()` = `YYYY_MM` format),
+  50 tiers, GD values panel `TIERS_DATA` se exact extract karke (badge/theme/emoji tiers par
+  GD 0). ⚠ Har naye month me admin ko naya season row banana hoga (season_key par UNIQUE
+  constraint nahi hai — upsert-idempotency ke liye pehle SELECT-check karo).
+- **claim_battle_pass_tier v3**: `freeGd`/`premGd` track-aware (panel free/prem rewards alag).
+  `p_gd_reward` ab bhi IGNORE (server-authoritative).
+- **live_config row ab exist karti hai** (pehle missing thi → panel CFG defaults chalate the):
+  sirf `{"adCoinsPerWatch":10,"adDailyLimit":5}` — deep-merge selective hai, baki CFG defaults
+  untouched. Admin isme aur keys daal sakta hai (Settings) — wo abhi se apply honge.
+- **claim_ad_reward revived** (grant-only; def pehle se hardened: 15s rate-limit,
+  ad_reward_log, wtxn, live_config amount/limit). Coin-Shop watch-ad + Bonus Ads dono live.
+  ⚠ ads.js local `UD.coins += coinReward` optimistic display — server value hi source of
+  truth (refresh par sync) — ab dono 10 par match.
