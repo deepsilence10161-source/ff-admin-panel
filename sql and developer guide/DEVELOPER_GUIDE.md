@@ -5190,3 +5190,24 @@ block ko is se replace karo:
 (phir Publish). Ye user-repo ke `firebase-security-rules.json` me bhi daal dena (file me abhi
 root .read nahi hai). NOTE: RTDB `matches` root-read deployed rules me ALREADY denied hai
 (repo-file se strict) — room-creds RTDB-leak ka koi risk nahi (enumeration impossible).
+
+
+## Session: 2026-09-20f — ROUND-4 sweep (3 aur money-printers + audit-sweep)
+
+Delta: `2026-09-20f-ROUND4-DELTA.sql`; schema SECTION 23 **Part H**.
+
+- **R4-1 process_daily_checkin**: caller-controlled tiers the — tampered call se 59,999 coins
+  ek call me (qa3 par live-exploit karke prove kiya). Ab server constants [5,7,10,12,15,20,30]
+  + 100@30-day-streak + wallet_transactions ledger. NOTE: panel CFG.checkinCoins(5) sirf display
+  — actual reward streak-day ka tier hai (day1=5, day2=7…).
+- **R4-2 award_mentor_reward**: student client-amount se mentor ko unlimited GD de sakta tha
+  (student ka kuch debit nahi hota). Ab reward = 20 × (naya_rank_tier − last_rewarded_tier),
+  tier server-computed (RP thresholds: 301/601/1001/1501/2001), mentor_requests.last_rewarded_tier
+  track karta hai. Client mentor.js ko change nahi padha (response-shape same).
+- **R4-3 claim_premium_monthly_bonus**: client ≤1000 bhej sakta tha; ab server-map 50/150/400
+  + tier==premium_level check + month-dedup.
+- **R4-4**: legacy 2-arg claim_battle_pass_tier DROP.
+- **Audit sweep**: 18 crediting RPCs — baaki sab server-derived ✓; admin_confirm/dismiss flags
+  me is_admin guards ✓; referral dono server-config ✓.
+- **Data-notes** (koi action nahi): 'Sponsor1' filled_slots 0 vs 1 join (purana sponsored path);
+  Hunter7 ledger-drift 54 historical (pre-ledger era). Dono real-user data — chhua nahi.
