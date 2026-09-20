@@ -5333,3 +5333,15 @@ Delta: `2026-09-20o-ROUND12-DELTA.sql`; schema SECTION 23 **Part O**.
   not_released_yet DENY ✓ (future-match+hidden)
 - Design-note: admin re-publish double-pay possible (guard client-side) — admin-trusted;
   correction-flow exists. Wallet-ledger rows: wt_insert_own admin-branch ✓.
+
+
+### Round-15 (same day) — EXECUTE-AUDIT: 5 silently-dead user-features FIXED
+Delta: `2026-09-20q-ROUND15-DELTA.sql`; schema SECTION 23 **Part P**.
+- ★ **Third-party-auth role-trap:** Firebase JWT → Postgres role = `anon` (no role-claim).
+  Naya RPC banaye to EXECUTE **anon ko bhi** do, sirf authenticated nahi — warna feature
+  chupchaap 42501 dega (UI error-toast bhi nahi dikhta agar catch-swallow ho).
+- 5 features is wajah se dead the: reward-store redeem, referral-claim, match-refund,
+  no-show-refund, GD-withdrawal — sab GRANT ke baad live-E2E verified.
+- Overload-grants per-signature hote hain — has_function_privilege single-oid par dekho,
+  regprocedure::text ke saath.
+- increment_poll_vote (unauthenticated vote-rigger) service-only rakha; cron-fn bhi.
