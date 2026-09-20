@@ -10765,6 +10765,46 @@ CREATE POLICY st_update_admin ON support_tickets FOR UPDATE TO anon, authenticat
 USING ((auth.jwt() ->> 'sub') IN (SELECT users.id FROM users WHERE users.is_admin = true))
 WITH CHECK ((auth.jwt() ->> 'sub') IN (SELECT users.id FROM users WHERE users.is_admin = true));
 
+
+-- ──────────────── Part Q (2026-09-20s ROUND-17 ULTIMATE-SWEEP) ────────────────
+-- cast_poll_vote invalid-option check; validate_and_join ACCOUNT_BANNED guard;
+-- gift_match_entry v4 friend auto-join; money-RPC final audits clean;
+-- users-INSERT/support-inject blocked; IMGBB_KEY = hash pada hai (owner fix).
+-- Context: 2026-09-20r-ROUND17-DELTA.sql
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 2026-09-20s ROUND-17 — ULTIMATE DEEP-SWEEP (minor features + attacks)
+-- ═══════════════════════════════════════════════════════════════════
+-- FIXED (live-verified):
+--   R17-1 ★ cast_poll_vote: INVALID OPTIONS accept ho rahe the — koi bhi
+--     arbitrary option-key ('hack') vote_counts me ban raha tha (results
+--     tamper + unbounded keys). FIX: options ? p_option check →
+--     invalid_option reject. Verify: hack-blocked / valid-ok / counts-sahi ✓
+--   R17-2 ★ BAN-ENFORCEMENT missing: is_banned ka koi server-check hi nahi
+--     tha — banned user match join kar sakta tha (fee bhi kharch). FIX:
+--     validate_and_join_match me ACCOUNT_BANNED guard (self-play block ke
+--     baad). Verify: banned→blocked / unban→join-ok ✓
+--   R17-3 gift_match_entry v4: friend AUTO-JOIN restore (purane flow jaisa)
+--     — ticket + notif + jr(pending, fee=0) + filled_slots+1. Guards:
+--     upcoming-match, not-already-joined, slot-available. Verify: jr+slot ✓
+--
+-- AUDITED-CLEAN (is round):
+--   claim_creator_payout (FOR UPDATE + zeroing; admin pays offline — design ✓)
+--   claim_match_commission_payout (status-flip only; admin pays — design ✓)
+--   users INSERT for arbitrary-uid → 401 blocked ✓
+--   support_messages outsider-inject → blocked ✓
+--   OneSignal: CDN-SDK worker only, koi API-key embedded nahi ✓
+--   User-panel UI breadth: 18/18 screens 0-console-errors ✓
+--
+-- DIAGNOSTIC (owner-action):
+--   ★ IMGBB_KEY secret me 64-char hex (SHA-256 HASH) pada hai — ImgBB key
+--     32-char hex hoti hai. Isi liye uploads 'forbidden' de rahe hain.
+--     FIX: api.imgbb.com se ASLI key copy karke
+--     `supabase secrets set IMGBB_KEY=<32-char-key>` — code path 100% OK hai.
+--   PayTM: admin-toggle OFF = manual payments (by-design) — jab PAYTM_*
+--     secrets + toggle ON hoga tab auto-flow live (code ready+tested).
+-- ═══════════════════════════════════════════════════════════════════
+
 -- ================================================================
 -- END SECTION 23
 -- ================================================================

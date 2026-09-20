@@ -5360,3 +5360,17 @@ Delta: `2026-09-20q-ROUND15-DELTA.sql`; schema SECTION 23 **Part P**.
   self, once-only ✓
 - OneSignal = CDN SDK worker (no keys embedded); Firebase web-config public-by-design.
 - FULL REGRESSION: E2E 8/8 + Admin Breadth PASS (fraud/health 0-errors post-bridge-fix).
+
+
+### Round-17 (same day) — ULTIMATE deep-sweep (minor features + attacks)
+Delta: `2026-09-20r-ROUND17-DELTA.sql`; schema SECTION 23 **Part Q**.
+- Ban-enforcement server-side hona hi chahiye (client-check bypassable): ab
+  validate_and_join me ACCOUNT_BANNED. Naya spend/earn RPC banate waqt socho
+  ki banned-user ka kya rule hai.
+- Poll/RPC me user-supplied keys (options) ko whitelist-validate karo — jsonb
+  arbitrary keys se results tamper ho sakte the.
+- ★ IMGBB_KEY trap: secret me key ka HASH (64-char) save ho gaya tha, key
+  (32-char) nahi — upstream 'forbidden'. Secret set karte waqt ASLI key paste ho,
+  hash nahi.
+- claim_creator_payout / claim_match_commission_payout = status-only (admin
+  manually pays) — ye design hai, credit-RPC nahi.
