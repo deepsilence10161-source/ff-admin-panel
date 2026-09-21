@@ -5589,8 +5589,22 @@ SDK 5.9.2 ✓ + dialog-string ✓ + OneSignalManager ✓।
   (अलग जाल)। **SWAP पूर्ण:** Supabase `ONESIGNAL_REST_KEY` → काम-करने वाली key
   (sha256-सत्यापित); `ONESIGNAL_APP_ID` = a65c45fc ✓; push-send edge-fn पहले से raw-Basic ✓
   (uid-f़िल्टर >10-अक्षर नोट)। **LIVE E2E:** `/functions/v1/push-send` → `{"ok":true,
-  "status":200, onesignal:"…not subscribed"}` — server-चेन पूर्ण-जीवित; शेष केवल उपकरण-पंजीकरण
-  (APK 1.0.4 install→login→dialog→allow)।
+  "status":200, onesignal:"…not subscribed"}` — server-चेन पूर्ण-जीवित।
+
+### 🏁 R23-COMPLETE: पहली असली पुश सफल-डिलिवर (2026-09-21 ~10:45)
+- उपयोगकर्ता अपने फोन (CPH2823, Android 16) पर APK 1.0.4 install → **Hunter7-अकाउंट से login** →
+  OneSignal-user बना (OneSignal-ID `02a59743-…`), **External ID = `TyHtzFOngg…` सेट दिखा** —
+  यानी WebView→`AndroidBridge.osLogin`→`OneSignalManager.login` **ब्रिज-चेन प्रमाणित** ✓।
+  (App-data clear करने पर भी सिस्टम सही चला — नया device-record बना, वैसे डैशबोर्ड-सफ़ाई हेतु
+  पुराना record कभी साफ़ करना हो तो Subscriptions-tab से होता है।)
+- **पहली लक्षित-पुश:** `include_aliases external_id=[TyHtz…]` → notification-id
+  `02566363-4975-43ca-bf8e-9b34eac89071` → **delivered:1 / failed:0** ✓✓
+- नोट: यह पुश-टेस्ट केवल सूचना-भेजना था — Hunter7 के wallet/SD-requests (owner-exclusives)
+  जैसा कुछ छुआ नहीं गया।
+- **सिस्टम की अब-की स्थिति:** APK→OneSignal→FCM→डिवाइस (native) ✓; Supabase-trigger→edge-fn→
+  OneSignal (server) ✓; REST-key swap sha256-सत्यापित ✓। शेष वैकल्पिक: browser-users के लिए
+  Web-push VAPID-कॉन्फ़िग (wizard), अनाथ device-records की सफ़ाई, notification-click→app
+  गहराई-रूटिंग ज़रूरत पड़े तो।
 - **🔴 सीख-3 (REST-keys, 4 प्रयासों का निष्कर्ष):** `os_v2_app_…` keys में **पहले 35 अक्षर
   app-व्युत्पन्न साझा prefix होता है** — दो अलग keys का prefix मिलना NORMAL है, इससे
   "paste-hybrid/copy-galti" का निष्कर्ष कभी न निकालें (एक key screenshot-से-सिद्ध authentic
