@@ -5468,3 +5468,23 @@ User repo only (`ffa315d` + rules-guard commit). 0 SQL.
   kisi doosre app ki hai. Purani key (…ngowcx…) hi send+read karti hai —
   wahi push-send me wired hai. Config (site URL/origins/VAPID) dashboard-wizard
   se hi hoga — REST se allowed nahi.
+
+### Round-22 (2026-09-21) — UI-level money-flow E2E (पहली बार UI से प्रमाणित)
+कोई SQL/code change नहीं — pure verification round; guide-only push.
+- **SD-approve (admin UI)**: Sky Diamond Buy section → row → Approve click →
+  `_guardedApprove` → resolve_sd_request RPC → status=approved + user SD +120 +
+  wallet ledger row. UI-level पहली बार सिद्ध (पहले सिर्फ RPC-level था) ✓
+- **Voucher redeem (user UI)**: Settings → Redeem Voucher → code → redeemVoucher()
+  → 297→347 + used_count=1 ✓। NOTE: qa-J users में state-verification (users.state)
+  set नहीं हो तो app State-gate modal पर अटक जाता है — new QA-user बनाते समय
+  set_user_location_once भी चलाना, वरना हर UI-test gate पर फँसेगा।
+- **Paid-join (user UI)**: home मैच-कार्ड (.mc-join → cJoin) → Join-modal
+  (#confirmJoinBtn) → validate_and_join_match → 297→292 + jr(pending,fee=5) +
+  filled_slots+1 ✓। Matches home-list पर ही render होते हैं (screens/matches.js
+  सिर्फ 'My Matches' mmList है — नाम से भ्रम मत खाना)।
+- OneSignal keys: '…6jr5…' key app 1f867c88 पर 401/403 (कोई काम नहीं) —
+  पुरानी '…ngowcx…' ही send+read करती है और push-send में wired है। नया app
+  बनाया हो तो उसका App-ID(uuid) चाहिए — key अकेली काफी नहीं। Web-push के लिए
+  REST-key से कुछ नहीं होता: dashboard Web-push wizard (Site URL + Allowed
+  origins + VAPID auto-generate) ज़रूरी — VAPID कोई भी 'key' नहीं, wizard ही
+  generate करता है।
