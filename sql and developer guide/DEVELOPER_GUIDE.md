@@ -5581,6 +5581,16 @@ SDK 5.9.2 ✓ + dialog-string ✓ + OneSignalManager ✓।
   (यथा "OneSignal calls") substring-asserts तोड़ते हैं।
 - **Git-branch:** prompt branch-प्रश्न कहता है — established 23-round main-direct प्रवाह के
   आधार पर main पर ही commits (assumption stated)।
+- **🟢 R23-FINAL (सबसे महत्वपूर्ण सीख — 6-key-कथानी का हल):** OneSignal **v2-app-keys**
+  (`os_v2_app_…`) के लिए header होना चाहिए **`Authorization: Basic <key-string>` (कच्चा)** —
+  Python-requests की `auth=(key,"")` `base64(key:)` भेजती है जिसे v2-keys **401** देती हैं
+  (legacy-keys base64 भी चला लेती हैं — इसी भ्रम में 5 keys गलत "मृत" घोषित हुईं)।
+  साथ ही: keys-table का 35-char साझा prefix सामान्य; IP-allowlist चेक+खाली = सर्वत्र-401
+  (अलग जाल)। **SWAP पूर्ण:** Supabase `ONESIGNAL_REST_KEY` → काम-करने वाली key
+  (sha256-सत्यापित); `ONESIGNAL_APP_ID` = a65c45fc ✓; push-send edge-fn पहले से raw-Basic ✓
+  (uid-f़िल्टर >10-अक्षर नोट)। **LIVE E2E:** `/functions/v1/push-send` → `{"ok":true,
+  "status":200, onesignal:"…not subscribed"}` — server-चेन पूर्ण-जीवित; शेष केवल उपकरण-पंजीकरण
+  (APK 1.0.4 install→login→dialog→allow)।
 - **🔴 सीख-3 (REST-keys, 4 प्रयासों का निष्कर्ष):** `os_v2_app_…` keys में **पहले 35 अक्षर
   app-व्युत्पन्न साझा prefix होता है** — दो अलग keys का prefix मिलना NORMAL है, इससे
   "paste-hybrid/copy-galti" का निष्कर्ष कभी न निकालें (एक key screenshot-से-सिद्ध authentic
