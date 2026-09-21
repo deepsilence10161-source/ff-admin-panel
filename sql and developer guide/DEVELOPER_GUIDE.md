@@ -5442,3 +5442,29 @@ Delta: `2026-09-21u-ROUND20-DELTA.sql`; schema SECTION 23 **Part S**.
   (REST-key se PATCH 401 tha). Binà VAPID web-push deliver nahi hota.
 - Purana appId f263d25f dead tha — isliye ab tak kabhi push possible hi
   nahi tha. Client ab 1f867c88 par.
+
+### Round-21 (2026-09-21) — cache-bust discipline enforced + dead-hook inventory + flow sweep
+User repo only (`ffa315d` + rules-guard commit). 0 SQL.
+- ★ **RELEASE-CHECKLIST (non-negotiable)**: user-panel me JS/CSS badlo to TEEN jagah
+  lockstep bump: (1) index.html ke sab `?v=` tags → naya version, (2) sw.js
+  `ASSET_VER` = wahi version, (3) sw.js `CACHE_VER` → naya cache-name. Ek bhi
+  chhoda to APK users purana JS chalate rahenge (R19/R20 fixes isi wajah se
+  APK tak nahi pahunch rahe the — ab me-v43-9-21a par sab sync).
+- **Dead-window-hooks inventory (guarded, crash nahi karte — legacy no-ops)**:
+  user: `_origShowPremium`, `renderPollCards`, `showLogin`, `showMyTitles`,
+  `releaseCreatorCommissionIfPending` (R13-creator-rework ke baad obsolete);
+  admin: `_updateNavBadge`, `calcRk`, `calcRkScore`, `calcSeasonReward`,
+  `serverNow`, `renderTournaments` hook. Sab `if (window.X)` guards ke saath
+  hain — fallback path chalta hai. Naya feature in names par banao to pehle
+  guard-wale call-sites update karo.
+- Scan-lesson: `window.FOO = _bar` (function-literal ke bina) assignment
+  definition bhi hoti hai — blind regex scan false-positive deta hai
+  (compImg/openAdminModal असल me defined the). Roundtrip-verify before concluding.
+- User-panel modal/flow sweep: 15/15 flows 0-console-errors (voucher, rules,
+  support, profile-edit, add-teammate, coin-history, summary, rank,
+  match-history, legal, streak…).
+- OneSignal keys: nahi mili hui 'web push api key' (os_v2_app_…6jr5…) app
+  1f867c88 ke liye kuch bhi nahi karti (403 read/401 patch/403 send) — shayad
+  kisi doosre app ki hai. Purani key (…ngowcx…) hi send+read karti hai —
+  wahi push-send me wired hai. Config (site URL/origins/VAPID) dashboard-wizard
+  se hi hoga — REST se allowed nahi.
