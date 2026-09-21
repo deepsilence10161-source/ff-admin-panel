@@ -901,43 +901,6 @@ patchWhenReady('refreshDashboard', function () {
 });
 
 /* ════════════════════════════════════════════════════════════════════════
-   BUG #93 — publishResults doesn't update totalWins / winStreak
-   FIX: After prize distribution, also update Supabase users.total_wins
-   ════════════════════════════════════════════════════════════════════════ */
-window._updateWinStats = async function (uid, rank, kills) {
-  var supa = getSupa(); var db = getDB();
-  if (!uid) return;
-  if (rank === 1) {
-    /* Update Firebase */
-    if (db) {
-      await db.ref((window.DB_USERS || 'users') + '/' + uid + '/stats/wins')
-        .transaction(function (v) { return (v || 0) + 1; }).catch(function () {});
-      await db.ref((window.DB_USERS || 'users') + '/' + uid + '/winStreak')
-        .transaction(function (v) { return (v || 0) + 1; }).catch(function () {});
-    }
-    /* Update Supabase */
-    if (supa) {
-      supa.from('users').select('total_wins,win_streak').eq('id', uid).single()
-        .then(function (r) {
-          if (!r.data) return;
-          return supa.from('users').update({
-            total_wins: (r.data.total_wins || 0) + 1,
-            win_streak: (r.data.win_streak || 0) + 1
-          }).eq('id', uid);
-        }).catch(function () {});
-    }
-  }
-  /* Update total kills in Supabase regardless of rank */
-  if (supa && kills > 0) {
-    supa.from('users').select('total_kills').eq('id', uid).single()
-      .then(function (r) {
-        if (!r.data) return;
-        return supa.from('users').update({ total_kills: (r.data.total_kills || 0) + kills }).eq('id', uid);
-      }).catch(function () {});
-  }
-};
-
-/* ════════════════════════════════════════════════════════════════════════
    BUG #95 — matchFeedback node written by user app but no admin UI to view it
    FIX: Expose showMatchFeedbacks and link it to the navigation
    ════════════════════════════════════════════════════════════════════════ */

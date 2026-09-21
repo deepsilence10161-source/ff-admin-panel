@@ -60,40 +60,10 @@ window._adminNotifyAll = function(title, body, type) {
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════════
-   MATCH RESULT SUPABASE CREDIT — Bug Critical #5
-   Called after Firebase result publish to atomically credit prizes,
-   record wallet_transactions, and mark match completed in Supabase.
-═══════════════════════════════════════════════════════════════════ */
-window._supaPublishResult = function(matchId, resultsArr, prizeType) {
-  var supa = window._supa;
-  if (!supa || !matchId || !resultsArr || !resultsArr.length) return;
-  var currency = prizeType === 'greenDiamond' ? 'green_diamonds'
-               : prizeType === 'skyDiamond'   ? 'sky_diamonds'
-               : 'coins';
-  // Mark match as completed in Supabase
-  supa.from('matches').update({ status: 'completed', completed_at: new Date().toISOString() })
-    .eq('firebase_id', matchId)
-    .then(null, function(e){ console.warn('[SupaResult] match update:', e.message); });
-  // Credit each winner + log wallet_transaction
-  resultsArr.forEach(function(r) {
-    if (!r.uid || !r.prize || r.prize <= 0) return;
-    supa.rpc('increment_balance', { p_uid: r.uid, p_col: currency, p_amount: r.prize })
-      .then(null, function(e){ console.warn('[SupaResult] increment_balance fail', r.uid, e.message); });
-    supa.from('wallet_transactions').insert({
-      user_id: r.uid, txn_type: 'match_win', currency: currency, amount: r.prize,
-      ref_id: matchId, description: 'Match result — Rank #' + r.rank + ' prize'
-    }).then(null, function(){});
-    // Update join_request with prize
-    supa.from('join_requests').update({ status: 'completed', placement: r.rank, prize_earned: r.prize })
-      .eq('user_id', r.uid).eq('match_id', matchId)
-      .then(null, function(){});
-  });
-  // Mark non-winners' join_requests as completed (no prize)
-  supa.from('join_requests').update({ status: 'completed', prize_earned: 0 })
-    .eq('match_id', matchId).is('prize_earned', null)
-    .then(null, function(){});
-};
+/* ✅ REMOVED (R24 dead-code): _supaPublishResult — zero callers (fa22's
+   mrPublishResults never called it, per its own comment); and it held the
+   OLD double-credit pattern (increment_balance per winner) that R24 already
+   eliminated from publishResults. Balance moves exactly once via the bridge. */
 (function() {
   function loadAdminCfg() {
     var db = window.rtdb || window.db;
