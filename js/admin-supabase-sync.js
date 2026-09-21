@@ -99,30 +99,18 @@
           snap.forEach(function(c) {
             var r = c.val();
             if (!r || !r.userId) return;
-            /* Determine currency */
-            var prizeType = r.currency || 'green_diamonds';
-            if (prizeType === 'greenDiamond') prizeType = 'green_diamonds';
-            else if (prizeType === 'skyDiamond') prizeType = 'sky_diamonds';
-            else if (prizeType === 'coin') prizeType = 'coins';
             var prize = Number(r.winnings || r.totalWinning || 0);
             if (prize <= 0) return;
-            /* Sync to Supabase */
-            window._supa.rpc('increment_balance', {
-              p_uid: r.userId, p_col: prizeType, p_amount: prize
-            }).catch(function(e) { console.error('Sync error:', e.message); });
-            window._supa.from('wallet_transactions').insert({
-              user_id: r.userId, currency: prizeType, txn_type: 'credit',
-              amount: prize, reason: 'match_win', ref_id: mid,
-              note: 'Rank #' + (r.rank||'?') + ', Kills: ' + (r.kills||0)
-            }).then(function(res) {
-              /* The balance itself is already credited via increment_balance
-                 above regardless of this insert — this is the ledger/audit-
-                 trail record. A failure here means the money moved but left
-                 no transaction-history entry, which matters for dispute
-                 resolution and TDS reporting, so it's worth knowing about
-                 even though it's not a live-money-loss issue on its own. */
-              if (res && res.error) console.error('[AdminSync] wallet_transactions ledger insert FAILED for', r.userId, ':', res.error.message);
-            });
+            /* ✅ R24 FIX (double-credit): publishResults() itself already credits
+               the prize to Supabase (increment_balance + wallet_transactions
+               'match_win' + join_requests placement update — see its inline
+               window._supa block). This wrapper's OWN increment_balance +
+               wallet_transactions insert below used to run ON TOP of that —
+               every published result paid every winner TWICE in Supabase
+               (live-proven R24 E2E: 450 → 478 instead of 464). The balance /
+               ledger credit here is REMOVED; only the idempotent bookkeeping
+               syncs (join_requests kills/placement/prize_earned, matches
+               status) remain. Never re-add a balance credit here. */
             /* Update match stats */
             window._supa.from('join_requests')
               .update({ kills: r.kills||0, placement: r.rank||0, prize_earned: prize })
