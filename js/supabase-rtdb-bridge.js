@@ -1435,7 +1435,14 @@
     if (p.root === 'seasonHistory' && p.id && p.field) {
       return { table: 'seasonal_league_history', insertPatch: { user_id: p.field } };
     }
-    if (p.root === 'joinRequests')     return { table: 'join_requests', filter: { col: 'id', val: p.id } };
+    if (p.root === 'joinRequests') {
+      /* ✅ R24 FIX: Live Attendance scalar set (joinRequests/{id}/attendanceStatus
+         → 'present'/'absent'/'pending') is a FIELD update, not an object upsert.
+         Without .field the generic upsert swallowed the scalar (live-proven:
+         set 'present' → readback null). Route to attendance_status column. */
+      if (p.field === 'attendanceStatus') return { table: 'join_requests', field: 'attendance_status', filter: { col: 'id', val: p.id } };
+      return { table: 'join_requests', filter: { col: 'id', val: p.id } };
+    }
     if (p.root === 'walletRequests')   return { table: 'sd_requests', filter: { col: 'id', val: p.id } };
     if (p.root === 'profileRequests')  return { table: 'profile_requests', filter: { col: 'id', val: p.id } };
     if (p.root === 'profileUpdates')   return { table: 'profile_updates', filter: { col: 'id', val: p.id } };
