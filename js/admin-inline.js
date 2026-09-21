@@ -3713,21 +3713,27 @@ async function publishResults(){
         status: 'completed',
         result_published_at: new Date().toISOString()
       }).eq('id', mid).then(null, function(){});
-    /* Update season stats for all players */
+    /* Update season stats for all players
+       ✅ R24 FIX: the RTDB seasonStats transaction was a silent no-op — the
+       bridge intercepts it, and its generic supa-transaction path has NO
+       insert fallback (live-proven: season_stats had 0 rows even after
+       multiple publishes). Write the real season_stats table directly
+       (read-modify-upsert on month_key+user_id). */
     rows.forEach(function(row){
-      var rUid=row.dataset.uid; if(!rUid) return;
+      var rUid=row.dataset.uid; if(!rUid || !window._supa) return;
       var rKills=Number(row.querySelector('.kills-input').value)||0;
       var rRank=Number(row.querySelector('.rank-input').value)||0;
       var now=new Date(); var monthKey=now.getFullYear()+'_'+String(now.getMonth()+1).padStart(2,'0');
-      var sRef=rtdb.ref('seasonStats/'+monthKey+'/'+rUid);
-      sRef.transaction(function(cur){
-        cur=cur||{ign:'',stats:{wins:0,kills:0,matches:0}};
-        if(!cur.stats) cur.stats={wins:0,kills:0,matches:0};
-        cur.stats.kills=(cur.stats.kills||0)+rKills;
-        cur.stats.matches=(cur.stats.matches||0)+1;
-        if(rRank===1) cur.stats.wins=(cur.stats.wins||0)+1;
-        return cur;
-      });
+      window._supa.from('season_stats').select('wins,kills,matches').eq('month_key',monthKey).eq('user_id',rUid).maybeSingle()
+        .then(function(r){
+          var cur=(r && r.data)||{wins:0,kills:0,matches:0};
+          return window._supa.from('season_stats').upsert({
+            month_key:monthKey, user_id:rUid,
+            kills:(cur.kills||0)+rKills,
+            matches:(cur.matches||0)+1,
+            wins:(cur.wins||0)+(rRank===1?1:0)
+          },{onConflict:'month_key,user_id'});
+        }).then(null, function(e){ console.warn('[publishResults] season_stats upsert fail', rUid, e && e.message); });
     });
     } else {
       await rtdb.ref(DB_MATCHES+'/'+mid).update({resultCorrectedAt:Date.now()});
