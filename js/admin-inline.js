@@ -3562,10 +3562,12 @@ async function publishResults(){
         
         // Apply delta to user wallet
         if(delta!==0){
+          /* ✅ R24 FIX: wallet/winningBalance (→green_diamonds, same column as
+             realMoney/winnings) and totalWinnings (→total_winnings, same column
+             as stats/earnings) were DOUBLE-applying every correction delta in
+             Supabase. One canonical path per column now. */
           await rtdb.ref(DB_USERS+'/'+uid+'/realMoney/winnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
-          await rtdb.ref(DB_USERS+'/'+uid+'/wallet/winningBalance').transaction(function(v){return Math.max(0,(v||0)+delta);});
           await rtdb.ref(DB_USERS+'/'+uid+'/stats/earnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
-          await rtdb.ref(DB_USERS+'/'+uid+'/totalWinnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
           
           // Transaction record with reason
           var deltaReason=delta>0
@@ -3584,7 +3586,9 @@ async function publishResults(){
         var oldKills=oldResult.kills||0;
         var killDelta=kills-oldKills;
         if(killDelta!==0){
-          await rtdb.ref(DB_USERS+'/'+uid+'/totalKills').transaction(function(v){return Math.max(0,(v||0)+killDelta);});
+          /* ✅ R24 FIX: totalKills txn removed — bridge maps it to the SAME
+             supa column (total_kills) as stats/kills below → killDelta was
+             applied twice. stats/kills is the single canonical path. */
           await rtdb.ref(DB_USERS+'/'+uid+'/stats/kills').transaction(function(v){return Math.max(0,(v||0)+killDelta);});
         }
         
@@ -3601,7 +3605,14 @@ async function publishResults(){
            authoritative result record is matches/{id}/results/{uid} (above)
            and the join_requests row; user_matches is not read by the user
            panel (verified) nor kept in sync, so dropping it loses nothing. */
-        await rtdb.ref(DB_USERS+'/'+uid+'/totalKills').transaction(function(v){return(v||0)+kills;});
+        /* ✅ R24 FIX (stats triple-count): the bridge maps BOTH users/{uid}/totalKills
+           AND users/{uid}/stats/kills to the SAME supa column total_kills
+           (USER_FIELD_MAP + NESTED_FIELD_MAP), and the supa-block below ALSO
+           incremented total_kills via RPC — live-proven +6 kills per +2-kill
+           publish. Same for totalWinnings/stats/earnings → total_winnings
+           (×2) and stats/wins + total_wins RPC (×2). Each metric now written
+           EXACTLY ONCE via its canonical stats/* path; only rank_points and
+           total_matches stay RPC (no RTDB path writes them). */
         await rtdb.ref(DB_USERS+'/'+uid+'/stats/kills').transaction(function(v){return(v||0)+kills;});
         if(tw>0){
           // Credit prize to correct currency based on prizeType
@@ -3614,7 +3625,9 @@ async function publishResults(){
           var _prizeSymbol = _prizeType==='greenDiamond' ? '<img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">' : _prizeType==='skyDiamond' ? '💎' : '🪙';
           await rtdb.ref(DB_USERS+'/'+uid+_pricePath).transaction(function(v){return(v||0)+tw;});
           await rtdb.ref(DB_USERS+'/'+uid+'/stats/earnings').transaction(function(v){return(v||0)+tw;});
-          await rtdb.ref(DB_USERS+'/'+uid+'/totalWinnings').transaction(function(v){return(v||0)+tw;});
+          /* ✅ R24 FIX: totalWinnings txn removed — bridge maps it to the SAME
+             supa column (total_winnings) as stats/earnings above → prizes were
+             counted twice in total_winnings. stats/earnings is canonical. */
           if(rank===1){
             await rtdb.ref(DB_USERS+'/'+uid+'/stats/wins').transaction(function(v){return(v||0)+1;});
             await rtdb.ref(DB_USERS+'/'+uid+'/stats/winStreak').transaction(function(v){return(v||0)+1;});
@@ -3645,16 +3658,12 @@ async function publishResults(){
             var _killRankPts = Math.min(kills, 3); /* cap kill bonus at 3 pts */
             var _totalRankPts = _rankPts + _killRankPts;
             window._supa.rpc('increment_balance',{p_uid:uid,p_col:'rank_points',p_amount:_totalRankPts}).then(null, function(){});
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_kills',p_amount:kills}).then(null, function(){});
+            /* ✅ R24 FIX (stats triple-count): total_kills/total_wins RPCs removed —
+               stats/kills and stats/wins RTDB txns above ALREADY reach these same
+               columns via the bridge (NESTED_FIELD_MAP). The win_streak read-modify
+               block also removed — stats/winStreak txn covers win_streak; the old
+               read+cur+1 raced the bridge txn and bumped it twice. */
             window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_matches',p_amount:1}).then(null, function(){});
-            if(rank===1){ window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_wins',p_amount:1}).then(null, function(){}); }
-            /* ✅ BUG 3 FIX: Win streak in Supabase */
-            if(rank===1){
-              window._supa.from('users').select('win_streak').eq('id',uid).single()
-                .then(function(r){ var cur=(r.data&&r.data.win_streak)||0; window._supa.from('users').update({win_streak:cur+1}).eq('id',uid).then(null, function(){}); }).then(null, function(){});
-            } else {
-              window._supa.from('users').update({win_streak:0}).eq('id',uid).then(null, function(){});
-            }
             /* ✅ Insert match_results row for Supabase analytics */
             window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:tw},{onConflict:'match_id,user_id'}).then(null, function(e){ console.error('[publishResults] match_results upsert FAIL uid='+uid+':', e && (e.message||e.code)); window._supaResultErrors=(window._supaResultErrors||0)+1; });
           }
@@ -3667,7 +3676,8 @@ async function publishResults(){
           if(window._supa){
             window._supa.from('join_requests').update({status:'completed',placement:rank,prize_earned:0,kills:kills}).eq('user_id',uid).eq('match_id',mid).then(null, function(){});
             window._supa.rpc('increment_balance',{p_uid:uid,p_col:'rank_points',p_amount:1}).then(null, function(){}); /* participation point */
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_kills',p_amount:kills}).then(null, function(){});
+            /* ✅ R24 FIX: total_kills RPC removed here too — the unconditional
+               stats/kills RTDB txn already covers total_kills via the bridge. */
             window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_matches',p_amount:1}).then(null, function(){});
             window._supa.from('users').update({win_streak:0}).eq('id',uid).then(null, function(){});
             window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:0},{onConflict:'match_id,user_id'}).then(null, function(e){ console.error('[publishResults] match_results upsert FAIL (non-winner) uid='+uid+':', e && (e.message||e.code)); window._supaResultErrors=(window._supaResultErrors||0)+1; });
@@ -5417,7 +5427,8 @@ window.submitResultCorrection = async function(matchId, userId, userNameEncoded)
     if(delta!==0){
       await rtdb.ref('users/'+userId+'/realMoney/winnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
       await rtdb.ref('users/'+userId+'/stats/earnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
-      await rtdb.ref('users/'+userId+'/totalWinnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
+      /* ✅ R24 FIX: totalWinnings txn removed — same supa column (total_winnings)
+         as stats/earnings above; delta was applied 2×. */
       await rtdb.ref('users/'+userId+'/transactions').push({type:delta>0?'correction_credit':'correction_debit',amount:Math.abs(delta),description:'Result correction – Rank #'+rank+', '+kills+' kills',timestamp:Date.now()});
     }
     var jrQ=await rtdb.ref('joinRequests').orderByChild('matchId').equalTo(matchId).once('value');
@@ -5634,10 +5645,11 @@ window.saveMhCorrections = async function() {
     else if(rank||kills) promises.push(rtdb.ref('results').push(Object.assign({userId:uid,matchId:mid,timestamp:Date.now()},upd)));
     promises.push(rtdb.ref('matches/'+mid+'/results/'+uid).update(upd));
     if(delta!==0){
+      /* ✅ R24 FIX: wallet/winningBalance (same supa column as realMoney/winnings)
+         and totalWinnings (same column as stats/earnings) removed — every MH
+         correction delta was applied 2× in Supabase. */
       promises.push(rtdb.ref('users/'+uid+'/realMoney/winnings').transaction(function(v){return Math.max(0,(v||0)+delta);}));
-      promises.push(rtdb.ref('users/'+uid+'/wallet/winningBalance').transaction(function(v){return Math.max(0,(v||0)+delta);}));
       promises.push(rtdb.ref('users/'+uid+'/stats/earnings').transaction(function(v){return Math.max(0,(v||0)+delta);}));
-      promises.push(rtdb.ref('users/'+uid+'/totalWinnings').transaction(function(v){return Math.max(0,(v||0)+delta);}));
       var deltaMsg = delta>0 ? '✅ ₹'+delta+' add kiya — result fix (Rank #'+rank+', '+kills+' kills)' : '⚠️ ₹'+Math.abs(delta)+' adjust kiya — result fix (pehle zyada tha)';
       promises.push(rtdb.ref('users/'+uid+'/transactions').push({type:delta>0?'correction_credit':'correction_debit',amount:Math.abs(delta),description:deltaMsg,timestamp:Date.now()}));
       promises.push(rtdb.ref('users/'+uid+'/notifications').push({title:'🔧 Result Updated',message:'Rank #'+rank+', '+kills+' kills → ₹'+prize+(delta>0?' (+₹'+delta+' credited)':' (-₹'+Math.abs(delta)+' adjusted)'),timestamp:Date.now(),read:false}));
