@@ -5427,3 +5427,18 @@ Code-only round (koi SQL change nahi). User-panel `33e16fe`, admin `aec6c59` (+`
   (notifications INSERT par call) — bina REST key testable nahi.
 - RTDB writes: matches/joinRequests par admin Firebase-token se bhi 401 —
   rules server-path-only hain (positive-finding; OCR E2E me DOM-mock lagana pada).
+
+
+### Round-20 (2026-09-21) — PUSH असल में LIVE (OneSignal end-to-end)
+Delta: `2026-09-21u-ROUND20-DELTA.sql`; schema SECTION 23 **Part S**.
+- ★ Push chain: notifications INSERT → trg_notifications_push → pg_net →
+  push-send fn (x-push-secret gate) → OneSignal include_aliases external_id.
+  Naya notification-type banaye to push apne-aap jayega — koi extra code nahi.
+- push-send direct-call secret-gated hai; secret `push_hook_config` me hai
+  (RLS-deny table) — rotate karna ho to wahan + Supabase secrets dono jagah.
+- "All included players are not subscribed" error NAHI hai — matlab sirf
+  user ne abhi subscribe nahi kiya.
+- OneSignal dashboard owner-steps: site URL + allowed origin + VAPID
+  (REST-key se PATCH 401 tha). Binà VAPID web-push deliver nahi hota.
+- Purana appId f263d25f dead tha — isliye ab tak kabhi push possible hi
+  nahi tha. Client ab 1f867c88 par.
