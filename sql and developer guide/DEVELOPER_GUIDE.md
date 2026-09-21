@@ -5545,6 +5545,20 @@ v2.2b का मूल: numeric-slots `[0-9A-Za-z]{1,2}` + बाद में f
    (OCR `#2 #2` या दोनों rows '1.' पढ़ ले) तो position-order से re-number — वरना
    prize-calc बिगड़ता। बिना-dup cases बिल्कुल नहीं छेड़े जाते (test-verified)।
 
+**🔴 CRITICAL CSP-FIX (commits `c7029eb`+) — OCR की असली जड़:**
+REAL-Tesseract E2E (बिना stub) करने पर पकड़ा गया: **Tesseract.js v5 अपना worker
+blob:-URL से बनाता है और admin CSP उसे block करती थी** → हर असली OCR 'Error: unknown'
+(CSP worker-block)। यानी असली engine production में कभी चला ही नहीं था — stub-टेस्ट
+worker-bypass करते थे इसलिए पास होते रहे। index.html CSP में additive:
+`worker-src 'self' blob:` + script-src में `'wasm-unsafe-eval'` (केवल wasm-compile,
+eval नहीं) + connect-src में `tessdata.projectnaptha.com` (lang-data) + `cdn.jsdelivr.net`।
+**सीख-1:** CSP content में कभी /*-comment मत डालना — CSP grammar comments नहीं जानता,
+bare-words (R23:, fetch आदि) गलत host-sources बन जाते हैं (security-hole)।
+**सीख-2:** stub-tests से engine-availability साबित नहीं होती — कम-से-कम एक REAL-engine
+E2E ज़रूरी है; CDN खुलने पर पहला काम यही करो।
+**REAL-E2E परिणाम (fix के बाद):** ✅ Done! 2/2 players auto-filled — kills 5/3, ranks
+1/2 सही, CSP-violations 0, ~5s।
+
 **बाकी (user-निर्भर):** OneSignal dashboard wizard → platform **Native Android** → FCM
 service-account JSON (Firebase fft-app-1e283 → Service accounts → Generate new private
 key) upload → **नए app की Legacy REST key fresh copy** (uzoel/6jr5 दोनों dead-प्रमाणित —
