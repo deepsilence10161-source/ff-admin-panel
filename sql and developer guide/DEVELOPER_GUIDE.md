@@ -5660,3 +5660,60 @@ key) upload → **नए app की Legacy REST key fresh copy** (uzoel/6jr5 द
 
 **Post-fix LIVE-regression:** user 5/5 खंड (0 error) · admin 6 में 5 (1 = ज्ञात boot-15s
 watchdog) · OCR v2.4 लाइव ✓ · sw me-v46/20260921g लाइव ✓।
+
+---
+
+## R24-दौर (जारी) — Money-chain E2E + दोहरा-भुगतान + State-gate fixes (2026-09-21w)
+
+**commits:** admin `888d0ae` (result-filter) → `6ccd184` (wrapper double-credit) → `7845a15` (inline RPC double-credit)।
+admin-boot trim: `01c6884` (25.0s→16.3s, 70-scripts defer, boot 6→3 loaders); user defer `f1cb8fb` (96 defer, me-v47-9-21)।
+
+### बग-1: Result-publish screen "No participants found" (ठीक — `888d0ae`)
+RPC-join (`validate_and_join_match`) rows `status='pending'` बनाता है (पैसा पहले ही कटा —
+"pending = room/attendance pending")। room-notification फ्लो ने 2026-08-22 में यही
+semantics अपनाई थी (`_NOT_JOINED` terminal-list), पर **matchResult participants-loader**
+का पुराना filter (`approved/joined/confirmed/no-status`) अपडेट नहीं हुआ — पेड-players
+result-screen पर ही नहीं दिखते थे → results publish ही नहीं हो सकते थे। ठीक: वही
+terminal-status list वहाँ भी। **Live:** qa1/qa3 rows दिखीं, publish पूरा।
+
+### बग-2: हर winner को दोगुना-से-ऊपर भुगतान (ठीक — `6ccd184` + `7845a15`)
+तीन जोड़ने-वाली परतें थीं; सभी live-proven (450→478 और 292→320, अपेक्षा 464/306):
+1. **`_wrapPublishResults`** (admin-supabase-sync.js) का अपना `increment_balance` +
+   wallet-'credit'-insert — publishResults के inline supa-block के ऊपर चलता था।
+   Balance/ledger हटाया; idempotent bookkeeping (join_requests kills/placement/prize_earned,
+   matches completed) रखा।
+2. **publishResults का inline `increment_balance`** — जबकि इसी फंक्शन की
+   `rtdb.ref(users/{uid}/coins).transaction()` को **supabase-rtdb-bridge का
+   `supaTransaction` nested-field handler** पहले ही atomic Supabase update में बदल देता है
+   (users/{uid}/coins ↔ users.coins exact-name मैप)। Balance-move अब केवल bridge से एक बार;
+   ledger (match_win insert) + join_requests + stats-RPCs block में बरकरार।
+3. qa-खाते सुधारे: qa1 478→464 (dup 'credit' ledger-row service-role से delete), qa2 320→306।
+
+**🔴 पैसा-नियम:** bridge RTDB-transactions को Supabase में translate करता है — users/{uid}/coins
+जैसे exact-mapped paths के लिए publishResults/किसी भी admin-flow में **कभी अलग से
+increment_balance मत जोड़ो**। Ledger-row अलग चीज़ है (balance नहीं बदलती)।
+
+### बग-3: State-gate पर हर नया user स्थायी-फँसाव (ठीक — SQL delta `2026-09-21w`)
+`mesStateOk` → `users.update({state})` → guard_users_self_update की v_allowed में 'state'
+नहीं → "Column state is not self-editable" → catch toast करके modal खुली रखता। qa3 live-proven।
+ठीक: guard array में 'state' (COMPLETE_SCHEMA C.2 + delta-file अद्यतन)। Banned-states path
+mesStateBan है — write तक पहुँचते ही नहीं, सुरक्षा-स्तर समान। जीत-प्रमाण: qa3 state→Haryana
+saved, age/terms gates पार, join+publish पूरा। नोट: user-panel supa-client Firebase-idToken
+को Bearer-JWT बनाकर भेजता है (core/db.js) — auth.jwt().sub = firebase-uid यहीं से।
+
+### खुले-मद (अगले दौर):
+- **stats 2× प्रकाशन-दोहराव**: प्रकाशन पर wins/winStreak/kills/earnings/totalKills/totalWinnings
+  2× (qa3: 1→2, 0→6, 0→28)। Instrumented-प्रोब: publishResults के RPCs और RTDB-TXNs सब
+  **एक-एक बार** चलते हैं — दूसरी परत bridge/sync प्रतिबिंब की है (coins इसी कारण ठीक हो चुका)।
+  जाँच-क्रम: bridge supa→RTDB users-प्रतिबिंब + admin-supabase-sync users-fingerprint overwrite।
+- **jr.entryFee=0**: `validate_and_join_match` join_requests.entry_fee नहीं भरता (live: 0)।
+  cancelTournament का `Number(j.entryFee)||entryFee` fallback coin-रिफंड बचा लेता है (qa3: +5
+  सही मिला), पर यह छिपा-निर्भरता है — RPC में entry_fee भरना उचित।
+- publishResults में correction-पथ RTDB-only है (supa-delta mirror नहीं) — correction के बाद
+  users-fingerprint sync मिलाती है या नहीं, जाँच बाकी।
+- seasonStats प्रकाशन पर नहीं लिखा गया (qa3 null) — छोटा, जाँच बाकी।
+
+**E2E-गणित (coin-मैच fee 5, rank1 10, perKill 2 — तीनों live):** qa1 455−5+14(×2-bug)=478→सुधार 464;
+qa2 297−5+14(×2-bug)=320→सुधार 306; qa3 105−5+14=**114/114 ✓** (fix-पश्चात शुद्ध-एक बार) +
+probe-पुनःप्रकाशन 109+14=123 ✓ + cancel-refund 123+5=128/128 ✓ (रिफंड fallback से शुद्ध)।
+अनुलग्न: admin में sw.js कभी था ही नहीं (git-हिस्ट्री रिक्त) — SW-staleness चिंता अप्रासंगिक।
