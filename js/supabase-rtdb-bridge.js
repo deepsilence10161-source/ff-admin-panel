@@ -86,7 +86,10 @@
     'coinRequests':          { table: 'coin_requests',       id: 'id'      },
     'premiumRequests':       { table: 'premium_requests',    id: 'id'      },
     'matchTemplates':        { table: 'match_templates',     id: 'id'      },
-    'vouchers':              { table: 'vouchers',            id: 'id'      },
+    /* ✅ R24 FIX: vouchers supa pkey is `code` (not id) — admin writes
+       rtdb `vouchers/{code}` and redeem_voucher() reads by `code`. Mapping
+       id to the real key fixes single-row read/upsert/delete for vouchers. */
+    'vouchers':              { table: 'vouchers',            id: 'code'    },
     'skyDiamondRequests':    { table: 'sd_requests',         id: 'id'      },
     'results':               { table: 'match_results',       id: 'id'      },
     'polls':                 { table: 'polls',               id: 'id'      },
@@ -964,26 +967,38 @@
     return s;
   }
 
-  /* ── VOUCHER conversions ── */
+  /* ── VOUCHER conversions ──
+     ✅ R24 FIX: admin Voucher Manager writes {rewardType, rewardAmount,
+     maxUses, usedCount, status, createdAt} — old converter mapped only
+     code/value/maxUses/usedCount (value column doesn't exist), so voucher
+     never carried its reward and redeem_voucher() credited 0. Map real
+     fields both ways; fall back to legacy `value` for safety. */
   function voucherFromSupa(row) {
     if (!row) return null;
     return {
-      id:        row.id,
-      code:      row.code      || '',
-      value:     row.value     || 0,
-      maxUses:   row.max_uses  || 100,
-      usedCount: row.used_count || 0,
-      createdAt: row.created_at ? new Date(row.created_at).getTime() : null
+      id:           row.id,
+      code:         row.code          || '',
+      rewardType:   row.reward_type   || 'coins',
+      rewardAmount: row.reward_amount || 0,
+      maxUses:      row.max_uses      || 0,
+      usedCount:    row.used_count    || 0,
+      status:       row.status        || 'active',
+      expiresAt:    row.expires_at ? new Date(row.expires_at).getTime() : null,
+      createdAt:    row.created_at ? new Date(row.created_at).getTime() : null
     };
   }
 
   function voucherToSupa(d) {
     if (!d) return {};
     var s = {};
-    if (d.code !== undefined)     s.code       = d.code;
-    if (d.value !== undefined)    s.value      = d.value;
-    if (d.maxUses !== undefined)  s.max_uses   = d.maxUses;
-    if (d.usedCount !== undefined) s.used_count = d.usedCount;
+    if (d.code !== undefined)           s.code          = d.code;
+    if (d.rewardType !== undefined)     s.reward_type   = d.rewardType;
+    if (d.rewardAmount !== undefined)   s.reward_amount = d.rewardAmount;
+    if (d.value !== undefined)          s.reward_amount = d.value;  /* legacy alias */
+    if (d.maxUses !== undefined)        s.max_uses      = d.maxUses;
+    if (d.usedCount !== undefined)      s.used_count    = d.usedCount;
+    if (d.status !== undefined)         s.status        = d.status;
+    if (d.createdAt !== undefined)      s.created_at    = new Date(d.createdAt).toISOString();
     return s;
   }
 
@@ -1428,7 +1443,7 @@
     if (p.root === 'coinRequests' && p.id)    return { table: 'coin_requests', filter: { col: 'id', val: p.id } };
     if (p.root === 'premiumRequests' && p.id) return { table: 'premium_requests', filter: { col: 'id', val: p.id } };
     if (p.root === 'matchTemplates' && p.id)  return { table: 'match_templates', filter: { col: 'id', val: p.id } };
-    if (p.root === 'vouchers' && p.id)        return { table: 'vouchers', filter: { col: 'id', val: p.id } };
+    if (p.root === 'vouchers' && p.id)        return { table: 'vouchers', filter: { col: 'code', val: p.id } };
     if (p.root === 'results' && p.id)         return { table: 'match_results', filter: { col: 'id', val: p.id } };
     if (p.root === 'ffUIDIndex' && p.id)      return { table: 'ff_uid_index', filter: { col: 'ff_uid', val: p.id } };
     if (p.root === 'creatorCodes' && p.id)    return { table: 'creator_codes', filter: { col: 'code', val: p.id } };
