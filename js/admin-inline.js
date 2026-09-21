@@ -3629,7 +3629,15 @@ async function publishResults(){
           /* Bug Critical #5 Fix: Credit prize in Supabase wallet_transactions */
           if(window._supa && tw > 0){
             var _supaCurrency = _prizeType==='greenDiamond'?'green_diamonds':_prizeType==='skyDiamond'?'sky_diamonds':'coins';
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:_supaCurrency,p_amount:tw}).then(null, function(){});
+            /* ✅ R24 FIX (double-credit #2): NO increment_balance here!
+               The rtdb.ref(DB_USERS+'/'+uid+_pricePath).transaction() above is
+               already translated by the supabase-rtdb-bridge into a single
+               atomic Supabase users.coins/sky_diamonds update (supaTransaction
+               nested-field handler). This block's own increment_balance ran ON
+               TOP of that — every winner got paid TWICE in Supabase (live-proven
+               E2E twice: 450→478 and 292→320 instead of 464/306). Keep the
+               ledger row + join_requests/stats bookkeeping below; the balance
+               move itself happens exactly once via the bridge. */
             window._supa.from('wallet_transactions').insert({user_id:uid,txn_type:'match_win',currency:_supaCurrency,amount:tw,ref_id:mid,description:(t?t.name:'Match')+' — Rank #'+rank+' prize'}).then(null, function(){});
             window._supa.from('join_requests').update({status:'completed',placement:rank,prize_earned:tw,kills:kills}).eq('user_id',uid).eq('match_id',mid).then(null, function(){});
             /* ✅ BUG 2 FIX: Update rank_points + stats in Supabase (leaderboard uses these) */
