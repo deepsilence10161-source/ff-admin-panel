@@ -94,7 +94,7 @@
 <link rel="stylesheet" href="admin-base.css?v=20260919d">
 <link rel="stylesheet" href="style.css?v=20260919d">
 <link rel="stylesheet" href="js/admin-ui-v10.css?v=20260919d">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- ✅ ADDED (2026-08-20): supabase-js v2 query builders are thenables
      with no real .catch()/.finally() — dozens of call sites across this
      panel use .catch() on them directly, which throws
@@ -104,7 +104,7 @@
      behavior change to successful requests). Must load immediately
      after the Supabase SDK and before every other panel script that
      might call .catch() on a query builder. -->
-<script src="js/supabase-compat-patch.js?v=20260919d"></script>
+<script defer src="js/supabase-compat-patch.js?v=20260919d"></script>
 <script>
   /* Admin panel constants */
   window.SUPABASE_URL = 'https://hddhkculuyrfoevxmlwy.supabase.co';
@@ -118,8 +118,8 @@
      SUPABASE EARLY INIT — Must load before Firebase scripts
      Initializes window._supa so the bridge can install quickly
 ═══════════════════════════════════════════════ -->
-<script src="js/supabase-init-early.js?v=20260919d"></script>
-<script src="js/security-hardening.js?v=20260919d"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
+<script defer src="js/supabase-init-early.js?v=20260919d"></script>
+<script defer src="js/security-hardening.js?v=20260919d"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
 <script>
   /* ✅ DIAGNOSTIC (2026-09-19): "App Settings tab pe jaate hi loading
      atak jaata hai, poora panel kaam nahi karta" — reported across
@@ -1508,17 +1508,17 @@
 <!-- ═══════════════════════════════════════════════
      FIREBASE SDK
 ═══════════════════════════════════════════════ -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <!-- firebase-storage-compat removed: screenshots use ImgBB (core/imgbb.js) -->
 <!-- firebase-firestore-compat removed: all data uses Supabase (core/db.js) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
 
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted)
 ═══════════════════════════════════════════════ -->
-<script src="js/admin-inline.js?v=20260921a"></script>
+<script defer src="js/admin-inline.js?v=20260921a"></script>
 
 <!-- ═══════════════════════════════════════════════
      SUPABASE RTDB BRIDGE — Firebase → Supabase migration
@@ -1526,86 +1526,86 @@
      appSettings/, admins/ which stay on real Firebase RTDB.
      Everything else (matches, users, joinRequests, wallet, etc.) → Supabase.
 ═══════════════════════════════════════════════ -->
-<script src="js/supabase-rtdb-bridge.js?v=20260919d"></script>
+<script defer src="js/supabase-rtdb-bridge.js?v=20260919d"></script>
 
 <!-- ═══════════════════════════════════════════════
      BASE FEATURES
 ═══════════════════════════════════════════════ -->
-<script src="js/fix8-lazy-loading.js?v=20260919d"></script>
-<script src="js/security-patches.js?v=20260919d"></script>
-<script src="js/admin-roster.js?v=20260919d"></script>
-<script src="js/admin-live-dash.js?v=20260920a"></script>
-<script src="js/admin-analytics.js?v=20260919d"></script>
-<script src="js/admin-scheduler.js?v=20260919d"></script>
-<script src="js/admin-player-lookup.js?v=20260919d"></script>
-<script src="js/admin-notif-templates.js?v=20260919d"></script>
-<script src="js/admin-chat-enhance.js?v=20260919d"></script>
-<script src="js/admin-activity-log.js?v=20260919d"></script>
-<script src="js/features-admin.js?v=20260919d"></script>
+<script defer src="js/fix8-lazy-loading.js?v=20260919d"></script>
+<script defer src="js/security-patches.js?v=20260919d"></script>
+<script defer src="js/admin-roster.js?v=20260919d"></script>
+<script defer src="js/admin-live-dash.js?v=20260920a"></script>
+<script defer src="js/admin-analytics.js?v=20260919d"></script>
+<script defer src="js/admin-scheduler.js?v=20260919d"></script>
+<script defer src="js/admin-player-lookup.js?v=20260919d"></script>
+<script defer src="js/admin-notif-templates.js?v=20260919d"></script>
+<script defer src="js/admin-chat-enhance.js?v=20260919d"></script>
+<script defer src="js/admin-activity-log.js?v=20260919d"></script>
+<script defer src="js/features-admin.js?v=20260919d"></script>
 
 <!-- ═══════════════════════════════════════════════
      FEATURE MODULES (fa02–fa80)
 ═══════════════════════════════════════════════ -->
-<script src="js/features/fa02-smart-search.js?v=20260919d"></script>
-<script src="js/features/fix7-server-side-search.js?v=20260919d"></script>
-<script src="js/features/fa03-quick-match-creator.js?v=20260919d"></script>
-<script src="js/features/fa04-bulk-notification.js?v=20260919d"></script>
-<script src="js/features/fa05-platform-health.js?v=20260919d"></script>
-<script src="js/features/fa06-duplicate-detector.js?v=20260919d"></script>
-<script src="js/features/fa08-match-autopublish.js?v=20260919d"></script>
-<script src="js/features/fa10-user-activity-heatmap.js?v=20260919d"></script>
-<script src="js/features/fa11-result-auto-calc.js?v=20260919d"></script>
-<script src="js/features/fa12-bulk-notify.js?v=20260919d"></script>
-<script src="js/features/fa13-match-clone.js?v=20260919d"></script>
-<script src="js/features/fa14-player-lookup.js?v=20260919d"></script>
-<script src="js/features/fa15-match-result-reminder.js?v=20260919d"></script>
-<script src="js/features/fa16-quick-ban.js?v=20260919d"></script>
-<script src="js/features/fa17-pending-profiles.js?v=20260919d"></script>
-<script src="js/features/fa18-match-stats.js?v=20260919d"></script>
-<script src="js/features/fa19-auto-status.js?v=20260919d"></script>
-<script src="js/features/fa21-match-history.js?v=20260919d"></script>
-<script src="js/features/fa22-match-result.js?v=20260919d"></script>
-<script src="js/features/fa24-admin-smart-tools.js?v=20260919d"></script>
-<script src="js/features/fa25-fraud-dashboard.js?v=20260919d"></script>
-<script src="js/features/fa26-poll-suggestion.js?v=20260919d"></script>
-<script src="js/features/fa27-anticheat-complete.js?v=20260919d"></script>
-<script src="js/features/fa28-fa43-fraud-control-center.js?v=20260919d"></script>
-<script src="js/features/fa44-fa52-final-admin-tools.js?v=20260919d"></script>
-<script src="js/features/fa53-ocr-autofill.js?v=20260921e"></script>
-<script src="js/features/fa-legal-kyc-dispute.js?v=20260919d"></script>
-<script src="js/features/fa56-fa62-automation-bundle.js?v=20260919d"></script>
-<script src="js/features/fa63-fa70-automation-bundle.js?v=20260919d"></script>
-<script src="js/features/fa71-fa80-automation-bundle.js?v=20260919d"></script>
+<script defer src="js/features/fa02-smart-search.js?v=20260919d"></script>
+<script defer src="js/features/fix7-server-side-search.js?v=20260919d"></script>
+<script defer src="js/features/fa03-quick-match-creator.js?v=20260919d"></script>
+<script defer src="js/features/fa04-bulk-notification.js?v=20260919d"></script>
+<script defer src="js/features/fa05-platform-health.js?v=20260919d"></script>
+<script defer src="js/features/fa06-duplicate-detector.js?v=20260919d"></script>
+<script defer src="js/features/fa08-match-autopublish.js?v=20260919d"></script>
+<script defer src="js/features/fa10-user-activity-heatmap.js?v=20260919d"></script>
+<script defer src="js/features/fa11-result-auto-calc.js?v=20260919d"></script>
+<script defer src="js/features/fa12-bulk-notify.js?v=20260919d"></script>
+<script defer src="js/features/fa13-match-clone.js?v=20260919d"></script>
+<script defer src="js/features/fa14-player-lookup.js?v=20260919d"></script>
+<script defer src="js/features/fa15-match-result-reminder.js?v=20260919d"></script>
+<script defer src="js/features/fa16-quick-ban.js?v=20260919d"></script>
+<script defer src="js/features/fa17-pending-profiles.js?v=20260919d"></script>
+<script defer src="js/features/fa18-match-stats.js?v=20260919d"></script>
+<script defer src="js/features/fa19-auto-status.js?v=20260919d"></script>
+<script defer src="js/features/fa21-match-history.js?v=20260919d"></script>
+<script defer src="js/features/fa22-match-result.js?v=20260919d"></script>
+<script defer src="js/features/fa24-admin-smart-tools.js?v=20260919d"></script>
+<script defer src="js/features/fa25-fraud-dashboard.js?v=20260919d"></script>
+<script defer src="js/features/fa26-poll-suggestion.js?v=20260919d"></script>
+<script defer src="js/features/fa27-anticheat-complete.js?v=20260919d"></script>
+<script defer src="js/features/fa28-fa43-fraud-control-center.js?v=20260919d"></script>
+<script defer src="js/features/fa44-fa52-final-admin-tools.js?v=20260919d"></script>
+<script defer src="js/features/fa53-ocr-autofill.js?v=20260921e"></script>
+<script defer src="js/features/fa-legal-kyc-dispute.js?v=20260919d"></script>
+<script defer src="js/features/fa56-fa62-automation-bundle.js?v=20260919d"></script>
+<script defer src="js/features/fa63-fa70-automation-bundle.js?v=20260919d"></script>
+<script defer src="js/features/fa71-fa80-automation-bundle.js?v=20260919d"></script>
 
 <!-- v17 NEW FEATURES -->
-<script src="js/features/fa-v17-features.js?v=20260919d"></script>
+<script defer src="js/features/fa-v17-features.js?v=20260919d"></script>
 
 <!-- ═══════════════════════════════════════════════
      PATCH & GROWTH LAYERS
      (load after features, order matters)
 ═══════════════════════════════════════════════ -->
-<script src="js/fix13-realtime-analytics.js?v=20260919d"></script>
-<script src="js/admin-fixes-v7.js?v=20260919d"></script>
-<script src="js/fixes-admin-v9.js?v=20260919d"></script>
-<script src="js/fa-admin-v10.js?v=20260919d"></script>
-<script src="js/fa-admin-v10-final.js?v=20260919d"></script>
-<script src="js/fa-sponsored-system.js?v=20260919d"></script>
-<script src="js/fa-growth-admin.js?v=20260919d"></script>
-<script src="js/fa-app-settings-v2.js?v=20260919d"></script>
+<script defer src="js/fix13-realtime-analytics.js?v=20260919d"></script>
+<script defer src="js/admin-fixes-v7.js?v=20260919d"></script>
+<script defer src="js/fixes-admin-v9.js?v=20260919d"></script>
+<script defer src="js/fa-admin-v10.js?v=20260919d"></script>
+<script defer src="js/fa-admin-v10-final.js?v=20260919d"></script>
+<script defer src="js/fa-sponsored-system.js?v=20260919d"></script>
+<script defer src="js/fa-growth-admin.js?v=20260919d"></script>
+<script defer src="js/fa-app-settings-v2.js?v=20260919d"></script>
 <!-- ✅ FIX (Audit H2): yeh file exist karti thi lekin kabhi load hi nahi hoti thi —
      poora Creator Video Review + Strike management feature is wajah se 100%
      unreachable tha (na sidebar mein link tha, na script tag tha). -->
-<script src="js/fa-creator-video-review.js?v=20260919d"></script>
+<script defer src="js/fa-creator-video-review.js?v=20260919d"></script>
 
-<script src="js/imgbb.js?v=20260919d"></script>
-<script src="js/admin-supabase-sync.js?v=20260919d"></script>
-<script src="js/admin-supabase-sponsored.js?v=20260919d"></script><!-- Bug#118 Fix: separated sponsored WD -->
+<script defer src="js/imgbb.js?v=20260919d"></script>
+<script defer src="js/admin-supabase-sync.js?v=20260919d"></script>
+<script defer src="js/admin-supabase-sponsored.js?v=20260919d"></script><!-- Bug#118 Fix: separated sponsored WD -->
 
 <!-- ═══════════════════════════════════════════════════════
      v21 BUG FIX PATCH — Loads LAST to patch all above scripts
      Fixes all 120 bugs from comprehensive analysis report
      ═══════════════════════════════════════════════════════ -->
-<script src="js/admin-fixes-v21.js?v=20260919d"></script>
+<script defer src="js/admin-fixes-v21.js?v=20260919d"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      v22 FINAL PATCH — Loads AFTER v21
@@ -1622,7 +1622,7 @@
      • Bug#111    Unified _calcPrize() across all functions
      • Bonus: Supabase channel leaks, avatar_bg column, clan_messages
      ═══════════════════════════════════════════════════════ -->
-<script src="js/admin-fixes-v22-FINAL.js?v=20260919d"></script>
+<script defer src="js/admin-fixes-v22-FINAL.js?v=20260919d"></script>
 
 <!-- ═══════════════════════════════════════════════════
      Admin Patch v23 FINAL — Applied after v22
@@ -1631,7 +1631,7 @@
      real-time joinRequests listener, approveTeam dup check,
      global Firebase→Supabase notification dual-write, heatmap pagination
      ═══════════════════════════════════════════════════ -->
-<script src="js/admin-fixes-v23-FINAL.js?v=20260919d"></script>
+<script defer src="js/admin-fixes-v23-FINAL.js?v=20260919d"></script>
 
 <!-- ═══════════════════════════════════════════════════
      Admin Patch v24 FINAL — Applied after v23
@@ -1652,15 +1652,15 @@
      #20 syncTournamentStatuses document.hidden guard
      #26 fa58_showBatchWithdrawals correct walletRequests ref
      ═══════════════════════════════════════════════════ -->
-<script src="js/admin-devicejoins-bridge.js?v=20260920m"></script>
-<script src="js/admin-fixes-v24-FINAL.js?v=20260919d"></script>
+<script defer src="js/admin-devicejoins-bridge.js?v=20260920m"></script>
+<script defer src="js/admin-fixes-v24-FINAL.js?v=20260919d"></script>
 
 <!-- ═══════════════════════════════════════════════
      v25 SUPABASE MIGRATION FINAL PATCH
      Loads ABSOLUTELY LAST — overrides listeners with Supabase versions
      Firebase sirf chat/deviceJoins/appSettings/auth ke liye raha
 ═══════════════════════════════════════════════ -->
-<script src="js/admin-fixes-v25-SUPABASE.js?v=20260919d"></script>
+<script defer src="js/admin-fixes-v25-SUPABASE.js?v=20260919d"></script>
 
 </body>
 </html>

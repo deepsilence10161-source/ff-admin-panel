@@ -594,14 +594,18 @@ async function initializeAdminPanel(){
      force-open ceiling on slow connections and flash the "INITIALIZING"
      spinner for 15s. With 3.5s caps the panel opens in ~6s worst case
      while every section still fills in live. */
+  /* R24 (2026-09-21) BOOT-SLIM: loadSettings/loadVouchers/loadSupportTickets
+     boot से हटाए — ये सिर्फ अपने खंड का UI भरते हैं और showSection() खंड-खुलने
+     पर पहले से फिर से बुला लेता है (settings→loadSettings+loadVouchers,
+     support→loadSupportChats+loadSupportTickets)। बूट पर वे केवल parallel-read
+     contention बढ़ाते थे। बरकरार: refreshDashboard (डिफ़ॉल्ट खंड), loadTournaments
+     (allTournaments/allJoinRequests globals — dashboard इन्हीं से खिलता है),
+     loadSupportChats (20s-interval अलर्ट-स्कैनर — खंड-अपेक्षित नहीं)। */
   await Promise.all([
     _withTimeout(function(){return refreshDashboard();}, 'refreshDashboard', 3500),
     _withTimeout(function(){return loadTournaments();}, 'loadTournaments', 3500),
     /* ✅ REMOVED (2026-08-21): loadTeamRequests() call — function deleted, Team Requests section removed. */
-    _withTimeout(function(){return loadSupportChats();}, 'loadSupportChats', 3500),
-    _withTimeout(function(){return loadSupportTickets('open');}, 'loadSupportTickets', 3500),
-    _withTimeout(function(){return loadSettings();}, 'loadSettings', 3500),
-    _withTimeout(function(){return loadVouchers();}, 'loadVouchers', 3500)
+    _withTimeout(function(){return loadSupportChats();}, 'loadSupportChats', 3500)
   ]);
   setInterval(syncTournamentStatuses,30000);
   setInterval(sendScheduledReminders,300000);
