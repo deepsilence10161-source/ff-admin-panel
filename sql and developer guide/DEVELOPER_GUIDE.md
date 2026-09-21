@@ -5488,3 +5488,42 @@ User repo only (`ffa315d` + rules-guard commit). 0 SQL.
   REST-key से कुछ नहीं होता: dashboard Web-push wizard (Site URL + Allowed
   origins + VAPID auto-generate) ज़रूरी — VAPID कोई भी 'key' नहीं, wizard ही
   generate करता है।
+
+### Round-23 (2026-09-21) — APK NATIVE PUSH पुनर्निर्माण + OCR v2.2b browser-E2E
+सबसे बड़ी खोज: user की बात सही थी — user-repo में workflow + पूरा android/ project मौजूद है
+(build-apk.yml, OneSignal SDK 5.1.6 gradle में)। पर **MyApplication.java में appId =
+f263d25f… (तीसरा मृत app)** और MainActivity में OneSignal का कोई ref नहीं — यानी APK-पुश
+आज तक कभी संभव ही नहीं था। WebView में web-push/service-worker काम नहीं करता, इसलिए
+native SDK ही APK-पुश का रास्ता।
+
+**Fixes (user-repo, 3 commits — build ✅ success):**
+1. `5457156` — MyApplication: appId → `a65c45fc-7579-4851-8f1f-225721a81668` + `osBindUser/
+   osUnbindUser` static wrappers (OneSignal.login/logout — v5 API); AndroidBridge में
+   `@JavascriptInterface osLogin(uid)/osLogout()`; auth.js login-path में `window.Android.
+   osLogin(user.uid)` (login-time `_saveOneSignalId` hook के बगल में) और doLogout में
+   `osLogout()` — external_id = firebase-uid binding।
+2. `553cdbd` — build-failure fix: OneSignal v5.1.6 में `OneSignal.requestPermission(boolean)
+   नहीं है` (compile error "cannot find symbol") → जगह native
+   `ActivityCompat.requestPermissions("android.permission.POST_NOTIFICATIONS")` API-33+
+   guard के साथ (string-literal = compileSdk-स्वतंत्र)। **सीख:** OneSignal v5 Android में
+   permission-helper हट चुका है — native POST_NOTIFICATIONS request ही लगाओ।
+3. `82510d8` — versionCode 3→4, versionName 1.0.3।
+
+**Artifact-verify (गहरा):** Actions से MiniEsports-APK download → बाहरी zip-in-zip ने
+धोखा दिया (raw-grep False) → अंदर classes.dex खोलकर grep: **classes2.dex में नया appId
+a65c45fc ✓, पुराना f263d25f कहीं नहीं ✓**। APK ~7.9 MB, run 82510d8 success।
+**सीख:** APK के अंदर string-verify के लिए पहले zip से .dex निकालो (Python zipfile खुद
+inflate करता है), फिर grep — versionName strings dex में नहीं मिलता (resources/manifest
+binary में होता है)।
+
+**OCR v2.2b browser-E2E ✅ 3/3** (हर test fresh page — same-page से stub दोहराता है):
+T1 digit-fix (OCR-'S'→5, 'l'→1), T2 rank-first m0 pattern, T3 अज्ञात-नाम skip (0 फेरबदल)।
+v2.2b का मूल: numeric-slots `[0-9A-Za-z]{1,2}` + बाद में fixNum — regex digits-only रखने
+पर OCR-अक्षरें match ही नहीं होतीं।
+
+**बाकी (user-निर्भर):** OneSignal dashboard wizard → platform **Native Android** → FCM
+service-account JSON (Firebase fft-app-1e283 → Service accounts → Generate new private
+key) upload → **नए app की Legacy REST key fresh copy** (uzoel/6jr5 दोनों dead-प्रमाणित —
+दोबारा मत आज़माओ)। जब key आए: Supabase ONESIGNAL_REST_KEY swap → send-test। **Pivot-विकल्प:**
+पुराना app 1f867c88 जीवित है (पुरानी key d6dhzc 200/200) — नया wizard अटके तो पुराने app
+में FCM-credential जोड़कर भी native-push संभव है (appId ही वापस बदलना होगा)।
