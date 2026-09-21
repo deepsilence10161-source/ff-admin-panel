@@ -20,3 +20,4 @@
 -- (2026-09-21 addendum) OCR v2.3 — commit 64813be, cache-tag 20260921d; कोई schema-बदलाव नहीं (सिर्फ admin JS)।
 -- (2026-09-21 addendum-2) OCR v2.4 — commit 1722319, cache-tag 20260921e; कोई schema-बदलाव नहीं (सिर्फ admin JS)।
 -- (2026-09-21 addendum-3) CRITICAL CSP-FIX: worker-src blob: + wasm-unsafe-eval + tessdata/jsdelivr — real Tesseract worker CSP-blocked था; REAL-E2E 2/2 PASS (c7029eb)। कोई schema-बदलाव नहीं।
+-- (2026-09-21 addendum-4) OneSignal AI-prompt integration: SDK 5.1.6->5.9.2 stable, OneSignalManager wrapper, verification-dialog, launch-prompt हटा; APK vc5/1.0.4 success+dex-verified (dd49685)। कोई schema-बदलाव नहीं।

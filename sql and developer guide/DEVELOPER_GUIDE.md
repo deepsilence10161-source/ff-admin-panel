@@ -5559,6 +5559,29 @@ E2E ज़रूरी है; CDN खुलने पर पहला काम
 **REAL-E2E परिणाम (fix के बाद):** ✅ Done! 2/2 players auto-filled — kills 5/3, ranks
 1/2 सही, CSP-violations 0, ~5s।
 
+### R23-UPGRADE: OneSignal आधिकारिक AI-prompt integration (user-repo commits `18925e0`→`dd49685`)
+User ने OneSignal का आधिकारिक android ai-prompt दिया (sdk-ai-prompts repo) — उसके अनुसार पूरा
+integration फिर से align किया। APK build ✅ success (vc5 / 1.0.4), dex-verify: appId ✓ +
+SDK 5.9.2 ✓ + dialog-string ✓ + OneSignalManager ✓।
+- **SDK-version:** आधिकारिक releases.json से stable **5.9.2** (5.1.6 पुराना था) — exact pin,
+  range नहीं।
+- **केंद्रीकृत wrapper (आवश्यक):** नया `OneSignalManager.java` — APP_ID + initialize + login/
+  logout + verification-dialog; **SDK का कोई direct call बाहर नहीं** (MyApplication सिर्फ
+  initialize; AndroidBridge सिर्फ login/logout; MainActivity सिर्फ observer)।
+- **Push Subscription Verification Dialog (आवश्यक):** `getUser().getPushSubscription()
+  .addObserver(...)` + attach-पर तुरंत current-id जाँच; real id = non-empty + **'local-'-prefix
+  नहीं**; dialog exactly-once (AtomicBoolean + strong observer-ref — SDK weak रखता है);
+  **permission सिर्फ dialog के "Got it" से** — launch-time POST_NOTIFICATIONS prompt हटाया।
+- **सीख-1 (SDK 5.9.2 Java):** आधिकारिक prompt का Java-sample
+  `requestPermission(true, result->{})` compile ही नहीं होता — callback Kotlin
+  **Continuation** है (functional-interface नहीं)। काम: native
+  `ActivityCompat.requestPermissions(POST_NOTIFICATIONS)` dialog-button से।
+- **सीख-2:** Java/Python से बड़े multi-file edits में assert-से-पहले write न करो (आधे-कटे
+  रेगेक्स ने दो builds खाएँ: `18925e0`/`bda3c7c` fail → `dd49685` success); comment-शब्द
+  (यथा "OneSignal calls") substring-asserts तोड़ते हैं।
+- **Git-branch:** prompt branch-प्रश्न कहता है — established 23-round main-direct प्रवाह के
+  आधार पर main पर ही commits (assumption stated)।
+
 **बाकी (user-निर्भर):** OneSignal dashboard wizard → platform **Native Android** → FCM
 service-account JSON (Firebase fft-app-1e283 → Service accounts → Generate new private
 key) upload → **नए app की Legacy REST key fresh copy** (uzoel/6jr5 दोनों dead-प्रमाणित —
