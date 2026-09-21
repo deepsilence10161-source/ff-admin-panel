@@ -285,7 +285,7 @@ async function runResult(files){
     var msg='✅ Done! <b>'+filled+'/'+rows.length+' players</b> auto-filled';
     if(skipped>0)msg+=' <span style="opacity:.6;font-weight:400">('+skipped+' unmatched)</span>';
     bar('mrSsPreview',msg,filled>0?'success':'warn');
-  }catch(e){bar('mrSsPreview','❌ Error: '+e.message,'error');}
+  }catch(e){bar('mrSsPreview','❌ Error: '+((e&&e.message)||e||'unknown'),'error');}
   _rBusy=false;
 }
 
