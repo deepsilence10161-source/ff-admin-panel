@@ -536,7 +536,12 @@
       slotNumber:    row.slot_number  || null,
       slot:          row.slot_number  || null,
       status:        row.status       || 'joined',
-      entryFee:      row.entry_fee    || 0,
+      /* ✅ R24 FIX: RPC joins (validate_and_join_match) write the charged fee
+         into entry_fee_paid — legacy/manual rows use entry_fee. Admin refund
+         (cancelTournament) and display read .entryFee, which showed 0 for
+         every RPC join (live-proven) → refunds fell back to match-fee guess.
+         Fall through to the paid column so the REAL charged fee is seen. */
+      entryFee:      row.entry_fee || row.entry_fee_paid || 0,
       entryFeePaid:  row.entry_fee_paid || 0,
       entryType:     row.entry_type   || 'paid',
       mode:          row.mode         || 'solo',
