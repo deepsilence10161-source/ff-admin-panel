@@ -9278,6 +9278,8 @@ DECLARE
   v_allowed BOOLEAN;
   v_is_owner BOOLEAN;
   v_is_admin BOOLEAN;
+  v_prem INT;
+  v_prem_exp TIMESTAMPTZ;
 BEGIN
   IF v_uid IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'not_authenticated');
@@ -9311,8 +9313,16 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'not_joined');
   END IF;
 
+  /* R28 (2026-09-22): Diamond (tier 3) Early Access — +10 min window */
+  SELECT COALESCE(premium_level, 0), premium_expires INTO v_prem, v_prem_exp
+    FROM users WHERE id = v_uid;
+
   v_allowed := (v_m.room_status = 'released' AND v_m.room_released_at IS NOT NULL AND v_m.room_released_at <= NOW())
-            OR (NOW() >= v_m.scheduled_at - COALESCE(v_m.room_release_minutes, 5) * INTERVAL '1 minute');
+            OR (NOW() >= v_m.scheduled_at - COALESCE(v_m.room_release_minutes, 5) * INTERVAL '1 minute')
+            OR (COALESCE(v_prem, 0) >= 3
+                AND (v_prem_exp IS NULL OR v_prem_exp > NOW())
+                AND v_m.status = 'upcoming'
+                AND NOW() >= v_m.scheduled_at - (COALESCE(v_m.room_release_minutes, 5) + 10) * INTERVAL '1 minute');
   IF NOT v_allowed THEN
     RETURN jsonb_build_object('success', false, 'error', 'not_released_yet');
   END IF;

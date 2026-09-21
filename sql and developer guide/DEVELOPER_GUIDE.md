@@ -1,5 +1,5 @@
 # 🎮 MINI eSPORTS — COMPLETE DEVELOPER GUIDE
-## User Panel v32.16 | Admin Panel v26.12 | Last Updated: 2026-08-24
+## User Panel v32.16 | Admin Panel v26.12 | Last Updated: 2026-09-22 (R28 premium/cosmetics)
 
 > ⚠️ **READ THIS FIRST**: this codebase went through a full security audit + fix pass in
 > July 2026 (v32.14 Security Overhaul). If you're touching ANY code that writes to the
@@ -45,6 +45,30 @@
 >    fail across several sessions even after the JS bug itself was genuinely fixed each
 >    time — the wrapped APK's WebView persists this cache far more durably than a normal
 >    browser does, so it is the easiest of the two to forget and the most costly to skip.
+
+---
+
+## 🗓️ 2026-09-22 SESSION SUMMARY (R28 premium + cosmetics, see 2026-09-22a-R28-PREMIUM-DELTA.sql)
+
+User-panel premium/cosmetics audit — perks ab sirf वही जो असल में लागू हैं:
+1. **Premium bonus currency ek** — ab har jagah **Coins** {50/150/400}/mo
+   (server `claim_premium_monthly_bonus`). Purani "+5/15/35 GD" copy hatai
+   (kabhi GD credit hota hi nahi tha). `features/premium.js` header+tier list.
+2. **Free trial 3 din** (server `start_free_trial()` grants 3 days tier 1) —
+   "7-din" + "5 GD bonus" + "Green Name" claims removed (`features/free-trial.js`).
+3. **Early Match Access ab ASLI** — `get_room_credentials` v4: unexpired
+   `premium_level>=3` wale JOINED user ko room_id standard release se +10 min
+   pehle. Join-check intact (koi access-bypass nahi). Copy: Diamond perk list.
+4. **Priority Support ab ASLI** — Diamond user ka support-ticket subject
+   `🔷 PRIORITY —` prefix se flag hota hai (`screens/profile.js submitSupport`,
+   `isPremiumActive(3)`); existing `support_tickets` table, koi schema change nahi.
+5. **Cosmetics equip/display wired** — `user_cosmetics.is_equipped` (pehle se
+   unleveraged) ab store me Apply/Remove button (`features/growth.js`
+   `toggleCosmeticEquip`), profile me equipped frame (avatar border color) +
+   tag (naam prefix) dikhta hai (`screens/profile.js`, helpers
+   `getEquippedCosmetic/getEquippedFrameColor/getEquippedTagText`).
+6. **Lobby chat** — `f22PlayerChat` kabhi defined nahi → chat mount hota hi nahi
+   tha (documented, code untouched per product decision).
 
 ---
 
@@ -1201,14 +1225,20 @@ Per kill:    +1 pt
 
 ## 13. PREMIUM TIERS
 
-**File:** `features/premium.js`
+**File:** `features/premium.js` (+ RPCs: `claim_premium_monthly_bonus`, `get_room_credentials` v4)
 
-| Tier | Price | Label | Key Benefits |
+> **R28 (2026-09-22) सुधार:** perks अब सिर्फ़ वही जो असल में लागू हैं।
+> बोनस-currency **Coins** है (server-authoritative
+> `claim_premium_monthly_bonus` {1:50, 2:150, 3:400}); पहले की "+5/15/35 GD"
+> और "Mentor/Private-match" copy हटाई (कभी implement नहीं थी)। Free-trial
+> अब **3 दिन** (server `start_free_trial()`), कोई GD-bonus नहीं।
+
+| Tier | Price | Label | Key Benefits (verified) |
 |------|-------|-------|-------------|
 | 0 | Free | Free | Ads shown |
-| 1 | ₹49/mo | 🥈 Silver | No ads, Silver badge, +5 GD |
-| 2 | ₹99/mo | 🥇 Gold | +Mentor access, private matches, +15 GD |
-| 3 | ₹199/mo | 💎 Diamond | +Early access, exclusive theme, +35 GD |
+| 1 | ₹49/mo | 🥈 Silver | No ads, Silver badge, photo/banner change, +50 Coins/mo |
+| 2 | ₹99/mo | 🥇 Gold | +Creator Program unlock, Live Stream slot, +150 Coins/mo |
+| 3 | ₹199/mo | 💎 Diamond | +Early Match Access (room +10 min pehle), Custom theme, Priority Support (🔷 ticket flag), +400 Coins/mo |
 
 **Check in code:**
 ```javascript
