@@ -5620,3 +5620,43 @@ key) upload → **नए app की Legacy REST key fresh copy** (uzoel/6jr5 द
 दोबारा मत आज़माओ)। जब key आए: Supabase ONESIGNAL_REST_KEY swap → send-test। **Pivot-विकल्प:**
 पुराना app 1f867c88 जीवित है (पुरानी key d6dhzc 200/200) — नया wizard अटके तो पुराने app
 में FCM-credential जोड़कर भी native-push संभव है (appId ही वापस बदलना होगा)।
+
+
+### R24 (2026-09-21) — पूरे-प्रोजेक्ट पुनः LIVE-टेस्टिंग + Dead-code + Perf
+**कार्यपद्धति (assumption-शून्य):** fresh-clones → inventory → orphan/dead-code शिकार →
+हर निष्कर्ष live-pramāṇ → fixes → post-fix live-regression।
+
+**Dead-code (user-repo):**
+1. `5c2b7af`: features/creator-video-feed.js DELETE — index से अगस्त-2026 में हटा feature,
+   पर sw.js precache में बचा था = हर visitor का बेकार 346-line download। lockstep
+   me-v45/20260921f।
+2. `d3614a3`: **139 zero-use window-functions हटे, 29 files, −3057 लाइनें** (features-user.js
+   में सबसे बड़ा मृत-झुंड)। **त्रि-सत्यापन पद्धति:** (a) corpus-गिनती (JS+HTML, ≤1 = केवल
+   परिभाषा), (b) partial-token खोज (dynamic string-build संदर्भ पकड़ने हेतु — 33 संदिग्ध
+   छोड़े), (c) **JAVA-protected-set** — MainActivity के evaluateJavascript window-calls
+   (`_onAuthDeepLink`, `onNativeGoogleError`, `onInterstitialDismissed`, `onAdRewarded`,
+   `onNativeGoogleToken`)। **🔴 लाल-सबक:** पहला दौर Java-स्कैन के बिना 104 हटा चुका था और
+   उसमें `_onAuthDeepLink`+`onNativeGoogleError` शामिल थे — Java guarded-if होने से crash
+   नहीं होता पर APK में deep-link-auth + Google-SignIn-error हैंडलिंग **चुपचाप मर** जाती!
+   git-checkout से पूर्ण-revert कर Java-protected-set से दोबारा किया। **हर dead-code-सफाई
+   से पहले android/*.java + assets का window.-स्कैन अनिवार्य।**
+3. `4d12930`/`c83fb08`: OneSignal web-SDK `autoRegister/autoResubscribe/autoPrompt: false`
+   — हर page-load पर बिना-इच्छा permission-प्रयास + 'Permission blocked' noise बंद
+   (permission अब केवल fix12 user-gesture / APK-native से)। नोट: headless-टेस्ट में यह
+   error फिर भी दिखेगा — SDK का deny-case-throw केवल `Notification.permission==='denied'`
+   पर चलता है = **टेस्ट-artifact, product-bug नहीं**। stale 9c00aa92-warn-text भी साफ़।
+
+**Perf-निष्कर्ष (निर्णय-लंबित, अनुमान नहीं — मापा हुआ):**
+- कोल्ड-लोड 2.3s / 133 अनुरोध / **~1.99 MB transfer** (mobile-heavy) — repo में build.js
+  (terser/minifier) मौजूद है पर pipeline में बंधा नहीं; minify-निर्णय owner का।
+- **CSS: style.css के 72/109 selectors styles.css में पुनर्परिभाषित** (cascade-विजय बाद
+  वाली की) → style.css का बड़ा हिस्सा प्रभावी-मृत; पर per-property override-जोखिम से
+  अंधा-कटाव नहीं — अलग विश्लेषण-राउंड चाहिए। दोनों ही files index से जुड़ी हैं (दो UI-
+  परतें)।
+- style.css का `@import` fonts + index का `<link>` fonts = दोहरा font-load (छोटा)।
+- **Admin बूट 15s+:** `initializeAdminPanel()` के आंतरिक 3500ms-टाइमआउट (refreshDashboard,
+  loadVouchers आदि) क्रमिक जुड़ते हैं — watchdog 'exceeded 15s — forcing open' दिखाता है;
+  समानांतर-करण अगला perf-लक्ष्य।
+
+**Post-fix LIVE-regression:** user 5/5 खंड (0 error) · admin 6 में 5 (1 = ज्ञात boot-15s
+watchdog) · OCR v2.4 लाइव ✓ · sw me-v46/20260921g लाइव ✓।

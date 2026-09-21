@@ -22,3 +22,4 @@
 -- (2026-09-21 addendum-3) CRITICAL CSP-FIX: worker-src blob: + wasm-unsafe-eval + tessdata/jsdelivr — real Tesseract worker CSP-blocked था; REAL-E2E 2/2 PASS (c7029eb)। कोई schema-बदलाव नहीं।
 -- (2026-09-21 addendum-4) OneSignal AI-prompt integration: SDK 5.1.6->5.9.2 stable, OneSignalManager wrapper, verification-dialog, launch-prompt हटा; APK vc5/1.0.4 success+dex-verified (dd49685)। कोई schema-बदलाव नहीं।
 -- (2026-09-21 FINAL) REST-key SWAP पूर्ण + LIVE-chain 200 (raw-Basic v2-key सीख) — कोई schema-बदलाव नहीं।
+-- (2026-09-21 R24) dead-code −3200+ लाइनें (creator-video-feed + 139 fns) + Java-protected-set सीख + OneSignal autoRegister-off + perf-माप (2MB cold, CSS-72-dup, admin-boot-15s) — कोई schema-बदलाव नहीं।
