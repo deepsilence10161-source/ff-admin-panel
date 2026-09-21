@@ -1,6 +1,13 @@
 /* ================================================================
-   FA53: FREE FIRE OCR ENGINE v2.1
+   FA53: FREE FIRE OCR ENGINE v2.2
    Technology : Tesseract.js (Apache License 2.0) — FREE, Unlimited
+   FIXES v2.2 (2026-09-21):
+   - Confidence-picking: normal+inverted variants me se JO BEHTAR padha usi se
+     parser priority (pehle naive normal-first tha)
+   - fixNum(): OCR digit-confusions (O->0, l->1, S->5, B->8...) sirf numeric
+     captures par auto-correct
+   - Naye result-patterns: "1. Name K" (rank-first) + "Name K kills"
+   - fuzzyScore me Levenshtein (chhote IGN matches behtar)
    FIXES v2.1:
    - Double-trigger removed (hook auto-runs once; button does manual re-run)
    - console.log removed from production paths
@@ -127,7 +134,8 @@ async function recognize(blob, onPct) {
     var worker = await _getOCRWorker(onPct);
     var result = await worker.recognize(blob);
     _ocrWorkerBusy = false;
-    return result.data.text || '';
+    /* v2.2: confidence bhi lauto — runOCR ab dono variants me se BETTER wala primary banata hai */
+    return { text: result.data.text || '', conf: Number(result.data.confidence) || 0 };
   } catch(e) {
     _ocrWorkerBusy = false;
     /* Worker error — terminate and recreate on next call */
@@ -140,8 +148,13 @@ async function recognize(blob, onPct) {
 async function runOCR(file,onPct){
   var ps=await Promise.all([preprocessImage(file,false),preprocessImage(file,true)]);
   var ts=await Promise.all([recognize(ps[0],onPct),recognize(ps[1])]);
+  /* v2.2: pehle dono variants ka confidence compare karo — jo behtar padha
+     uski lines PEHLE (order = parser priority), doosre ki missing lines aage
+     merge (pehle naively normal-first tha — inverted-variant kabhi behtar hota). */
+  var A = (ts[0] && ts[1]) ? (ts[0].conf >= ts[1].conf ? ts[0] : ts[1]) : (ts[0]||ts[1]) || {text:''};
+  var B = (A === ts[0]) ? (ts[1]||{text:''}) : (ts[0]||{text:''});
   var seen={},lines=[];
-  (ts[0]+'\n'+ts[1]).split('\n').forEach(function(l){
+  (A.text+'\n'+B.text).split('\n').forEach(function(l){
     l=l.trim();var k=l.toLowerCase().replace(/\s+/g,'');
     if(k.length>1&&!seen[k]){seen[k]=true;lines.push(l);}
   });
@@ -150,6 +163,13 @@ async function runOCR(file,onPct){
 
 /* ── 4. FUZZY MATCH ── */
 function norm(s){return(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+/* v2.2: OCR digit-confusion fix — sirf NUMERIC captures par (names par kabhi nahi):
+   O/Q->0, l/I/|/i->1, Z->2, S->5, b/G->6, T->7, B->8, g/q->9 */
+function fixNum(t){
+  return String(t||'').replace(/[OoQ]/g,'0').replace(/[lI|i]/g,'1').replace(/Z/g,'2')
+    .replace(/S/g,'5').replace(/b/g,'6').replace(/G/g,'6').replace(/T/g,'7')
+    .replace(/B/g,'8').replace(/[gq]/g,'9');
+}
 function fuzzyScore(a,b){
   var na=norm(a),nb=norm(b);
   if(!na||!nb)return 0;
@@ -161,7 +181,19 @@ function fuzzyScore(a,b){
   var bg1=bigrams(na),bg2=bigrams(nb),shared=0,total=Object.keys(bg1).length+Object.keys(bg2).length;
   Object.keys(bg1).forEach(function(k){if(bg2[k])shared++;});
   var biSc=total?Math.round(2*shared/total*65):0;
-  return Math.max(pfxSc,biSc);
+  /* v2.2: Levenshtein bhi — chhote IGNs me bigrams kamzor hota hai */
+  function lev(x,y){
+    var m=x.length,n=y.length,d=[],i,j;
+    if(!m)return n; if(!n)return m;
+    for(i=0;i<=m;i++)d[i]=[i];
+    for(j=0;j<=n;j++)d[0][j]=j;
+    for(i=1;i<=m;i++)for(j=1;j<=n;j++)
+      d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(x[i-1]===y[j-1]?0:1));
+    return d[m][n];
+  }
+  var lv=lev(na,nb);
+  var lvSc=Math.round((1-lv/Math.max(na.length,nb.length))*85);
+  return Math.max(pfxSc,biSc,lvSc);
 }
 function bestMatch(name,list,minSc){
   var best=null,bestSc=0;
@@ -178,15 +210,21 @@ function parseResult(text){
   var lines=text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
   var players=[];
   lines.forEach(function(line){
+    // v2.2 rank-first: "1. Name K" / "1) Name K [DMG]"
+    var m0=line.match(/^(\d{1,2})[.)°]\s+(.{2,22}?)\s+(\d{1,2})(?:\s+(\d+))?\s*$/);
+    if(m0&&parseInt(fixNum(m0[1]))<=48){var nm0=m0[2].replace(/[|[\]{}\\/]/g,'').trim();if(nm0.length>=2){players.push({name:nm0,kills:parseInt(fixNum(m0[3]))||0,rank:parseInt(fixNum(m0[1]))});return;}}
     // "Name  K  D  A  DMG" — FIX: \d+ not \d{3,6}
     var m1=line.match(/^(.{2,22}?)\s+(\d{1,2})\s+\d+\s+(\d+)/);
-    if(m1){var nm=m1[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm.length>=2){players.push({name:nm,kills:parseInt(m1[2])||0,rank:0});return;}}
+    if(m1){var nm=m1[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm.length>=2){players.push({name:nm,kills:parseInt(fixNum(m1[2]))||0,rank:0});return;}}
     // "Name K/D/A DMG"
     var m2=line.match(/^(.{2,22}?)\s+(\d{1,2})\s*\/\s*\d+\s*\/\s*\d+\s+(\d+)/);
-    if(m2){var nm2=m2[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm2.length>=2){players.push({name:nm2,kills:parseInt(m2[2])||0,rank:0});return;}}
+    if(m2){var nm2=m2[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm2.length>=2){players.push({name:nm2,kills:parseInt(fixNum(m2[2]))||0,rank:0});return;}}
     // "Name  Kills  DMG" — simple 2-col
     var m3=line.match(/^(.{2,22}?)\s+(\d{1,2})\s+(\d{2,6})\s*$/);
-    if(m3&&parseInt(m3[2])<=48){var nm3=m3[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm3.length>=2){players.push({name:nm3,kills:parseInt(m3[2])||0,rank:0});return;}}
+    if(m3&&parseInt(fixNum(m3[2]))<=48){var nm3=m3[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm3.length>=2){players.push({name:nm3,kills:parseInt(fixNum(m3[2]))||0,rank:0});return;}}
+    // v2.2: "Name 3 kills" (word wala)
+    var m4=line.match(/^(.{2,22}?)\s+(\d{1,2})\s+kills?\b/i);
+    if(m4){var nm4=m4[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm4.length>=2){players.push({name:nm4,kills:parseInt(fixNum(m4[2]))||0,rank:0});return;}}
   });
 
   // Try #N rank pattern first
