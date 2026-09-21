@@ -1938,18 +1938,23 @@
     }
 
     /* Initial load */
+    /* ✅ R24 FIX: nested sub-table listeners (users/{uid}/transactions etc.)
+       must snapshot with the SUB-TABLE converter — table var here is the
+       ROOT table (users) and fed wallet rows through userFromSupa. */
+    var _nestedRt = getNestedTableHandler(p);
+    var _convTableRt = (_nestedRt && _nestedRt.table && !_nestedRt.field) ? _nestedRt.table : table;
     var doRead = function() {
       supaRead(p, query).then(function(data) {
         var snap;
         var isScalar = (data !== null && !Array.isArray(data) && typeof data !== 'object');
         if (data === null || data === undefined) {
-          snap = makeSnapshot([], p.root, table, false);
+          snap = makeSnapshot([], p.root, _convTableRt, false);
         } else if (Array.isArray(data)) {
-          snap = makeSnapshot(data, p.root, table, false);
+          snap = makeSnapshot(data, p.root, _convTableRt, false);
         } else if (isScalar) {
           snap = makeSnapshot(data, p.id || p.root, table, true);
         } else {
-          snap = makeSnapshot([data], p.id || p.root, table, false);
+          snap = makeSnapshot([data], p.id || p.root, _convTableRt, false);
         }
         callback(snap);
       }).catch(function(e) {
@@ -2031,16 +2036,27 @@
      called directly on the object) is used instead. */
   SupaRef.prototype.once = function(event, callbackFn) {
     var self = this;
+    /* ✅ R24 FIX (nested read converter): users/{uid}/transactions and
+       users/{uid}/notifications are sub-tables (wallet_transactions /
+       notifications). supaRead returns their RAW rows, but the converter
+       was resolved from TABLE_MAP[root] = 'users' → userFromSupa ran on
+       every wallet_transactions row, producing garbage full-user objects
+       (uuid id, zero wallets, 'pending') wherever admin read a user's
+       transactions (live-proven: 11 ghosts in the transactions viewer).
+       Sub-table reads must convert with the SUB-TABLE's converter. */
+    var _convTable = TABLE_MAP[self._p.root] ? TABLE_MAP[self._p.root].table : null;
+    var _nestedP = getNestedTableHandler(self._p);
+    if (_nestedP && _nestedP.table && !_nestedP.field) _convTable = _nestedP.table;
     var promise = supaRead(self._p, self._query).then(function(data) {
       var snap;
       if (data === null || data === undefined) {
-        snap = makeSnapshot([], self._p.root, null, false);
+        snap = makeSnapshot([], self._p.root, _convTable, false);
       } else if (Array.isArray(data)) {
-        snap = makeSnapshot(data, self._p.root, TABLE_MAP[self._p.root] ? TABLE_MAP[self._p.root].table : null, false);
+        snap = makeSnapshot(data, self._p.root, _convTable, false);
       } else if (typeof data !== 'object') {
         snap = makeSnapshot(data, self._p.id || self._p.root, null, true);
       } else {
-        snap = makeSnapshot(data, self._p.id || self._p.root, TABLE_MAP[self._p.root] ? TABLE_MAP[self._p.root].table : null, false);
+        snap = makeSnapshot(data, self._p.id || self._p.root, _convTable, false);
       }
       if (typeof callbackFn === 'function') callbackFn(snap);
       return snap;
@@ -2057,7 +2073,11 @@
     if (!mapping || !supa) { return callback; }
     var table = mapping.table;
     var idCol  = mapping.id || 'id';
-    var conv   = getConverter(table);
+    /* ✅ R24 FIX: child-event converters must come from the SUB-TABLE when
+       the path is nested (users/{uid}/transactions → walletTxnFromSupa),
+       not from the root table (userFromSupa). */
+    var _nestedOn = getNestedTableHandler(self._p);
+    var conv = getConverter((_nestedOn && _nestedOn.table && !_nestedOn.field) ? _nestedOn.table : table);
 
     /* ── 'value' — full table listener (unchanged) ── */
     if (event === 'value') {
