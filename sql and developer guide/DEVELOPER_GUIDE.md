@@ -5717,3 +5717,40 @@ saved, age/terms gates पार, join+publish पूरा। नोट: user-p
 qa2 297−5+14(×2-bug)=320→सुधार 306; qa3 105−5+14=**114/114 ✓** (fix-पश्चात शुद्ध-एक बार) +
 probe-पुनःप्रकाशन 109+14=123 ✓ + cancel-refund 123+5=128/128 ✓ (रिफंड fallback से शुद्ध)।
 अनुलग्न: admin में sw.js कभी था ही नहीं (git-हिस्ट्री रिक्त) — SW-staleness चिंता अप्रासंगिक।
+
+### R24-निरंतर (2026-09-21x) — stats multi-count + seasonStats + jr-fee + bridge read-converter
+**commits:** `9ce7f4d` (stats multi-count) → `fde485f` (seasonStats) → `c673a0f` (jr fee) → `dba969f` (bridge read converter)।
+
+**बग-4 (stats multi-count, `9ce7f4d`):** bridge के दो मानचित्र एक ही supa-column में जाते
+हैं — `users/{uid}/totalKills` **और** `users/{uid}/stats/kills` दोनों → `total_kills`
+(USER_FIELD_MAP + NESTED_FIELD_MAP); `totalWinnings`+`stats/earnings` → `total_winnings`।
+publishResults तीनों रास्तों से लिखता था (RTDB-दोनों + RPC) → +2-kill publish पर
+**+6 kills** (3×), earnings **×2**, wins **×2**, win_streak read-modify-रेस से +2।
+टीक: हर metric केवल एक canonical रास्ता (`stats/*`); RPCs में केवल `rank_points`+
+`total_matches` (जिनका कोई RTDB-रास्ता नहीं)। वही dedup दोनों correction-flows में
+(publishResults-correction + match-history save: wallet/winningBalance व totalWinnings
+हटे)। **🔴 नियम:** bridge का exact-name मैप देखो (USER_FIELD_MAP/NESTED_FIELD_MAP) —
+एक ही column पहुँचने वाले दूसरा लेखन/कभी न जोड़ो।
+
+**बग-5 (seasonStats, `fde485f`):** bridge `seasonStats/` RTDB-transactions को निग जाता
+था — generic supa-transaction path में insert-फॉलबैक नहीं → `season_stats` table
+हर publish के बाद भी **खाली** (live-proven: 0 rows)। अब publishResults सीधे
+`season_stats` upsert करता है (read-modify-upsert month_key+user_id पर)।
+**live:** qa3 के publish से row बनी (2026_09, w1/k2/m1) ✓
+
+**बग-6 (jr fee, `c673a0f`):** `validate_and_join_match` कटौती `entry_fee_paid` column
+में लिखता है, पर jrFromSupa `.entryFee` केवल `entry_fee` से भरता था → हर RPC-join
+admin को 0 दिखता था, cancelTournament-रिफंड match-fee-अनुमान पर गिरता था (छिपा-
+निर्भरता)। अब `entry_fee || entry_fee_paid || 0` — वास्तविक कटौती सब-जगह दिखती है।
+
+**बग-7 (bridge read converter, `dba969f`):** `once()/on()/realtime` — nested sub-table
+पढ़ाई (users/{uid}/transactions, /notifications) में कन्वर्टर ROOT-table से चुनता था →
+हर wallet_transactions-पंक्ति userFromSupa से गुजरती थी → admin transaction-views में
+**ghost पूरे user-objects** (uuid-id, zero-wallets, 11 live गिने)। अब nested-path पर
+sub-table का कन्वर्टर (walletTxnFromSupa/notifications)। **live:** वही पढ़ाई 0 ghosts,
+असली camelCase-tx दिखीं ✓
+
+**अंतिम-सत्यापन E2E (सारे fixes लाइव, qa3):** 128−5+14=**137/137**; kills 2→**4** (+2),
+wins 1→**2**, earnings 14→**28**, winStreak +1, total_matches +1, rank_points +27,
+season_stats-row ✓, jr.entryFee **5** ✓, ghosts **0** ✓, status completed +
+resultPublishedAt ✓, 0 page-errors। **Money-chain अब पूर्णतः संतुलित।**
