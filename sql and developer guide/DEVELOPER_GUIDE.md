@@ -5754,3 +5754,28 @@ sub-table का कन्वर्टर (walletTxnFromSupa/notifications)। *
 wins 1→**2**, earnings 14→**28**, winStreak +1, total_matches +1, rank_points +27,
 season_stats-row ✓, jr.entryFee **5** ✓, ghosts **0** ✓, status completed +
 resultPublishedAt ✓, 0 page-errors। **Money-chain अब पूर्णतः संतुलित।**
+
+### R24-निरंतर-2 (2026-09-21y/z) — Voucher + Live Attendance sync खाई
+**commits:** `9386f89/56cbb5b` (voucher-delta) + `176c49f` (bridge id→code+converters) +
+`a652cbb` (attendance scalar) ; `013c33c/c75b50e/312274a` (attendance delta+конвертер)।
+
+**बग-8 (vouchers start-to-finish टूटा):** admin Voucher Manager `vouchers/{code}`.set()
+करता था, redeem_voucher() `code`-PK से पढ़ता था, पर bridge का TABLE_MAP जोड़ता `id` स्तंभ
+(मौजूद ही नहीं) — .set/.once/.update सब चुपचाप no-op; + कनवर्टर rewardType/rewardAmount
+मैप नहीं करता था → admin-voucher का reward सुपा तक कभी नहीं पहुंचा (redeem 0-क्रेडिट);
++ status व Disable no-op (कॉलम नहीं); + redeem 'Voucher disabled' अवरोध नहीं। ठीक:
+(1) टकराने-वाला-द_update/delete/read filter को `code`-PK पर; (2) कनवर्टर rewardType/
+rewardAmount/status/expiresAt दोनों-दिशा; (3) SQL vouchers में status + updated_at जोड़ा;
+(4) redeem_voucher में status-check (और ELSE 'coins' — पुराना 'money'-विकल्प गलत sky_diamonds
+डालता था)। **live-E2E:** create→supa-row पूर्ण; redeem+10 (qa1 464→474); दूसरी बार
+unique-block; maxUses=1 'limit'; disabled→'Voucher disabled'; missing→'Invalid';
+wallet_transactions reason='voucher' ✓।
+
+**बग-9 (Live Attendance सिंक-खाई):** admin toggle `joinRequests/{id}/attendanceStatus`
+scalar-सेट करता था; jr-कनवर्टर उसे मैप नहीं करता था + generic-upsert String को निगता था →
+status कभी Supabase तक नहीं पहुंचता (live: set 'present' → readback null दोनों बार)।
+ठीक: (1) join_requests.attendance_status स्तंभ; (2) getNestedTableHandler में
+`p.field==='attendanceStatus'` → field-राउटिंग से scalar-update; (3) jrTo/jrFrom दोनों
+दिशा। **live:** set 'present' → readback 'present' → supa 'present' ✓।
+**🔴 नियम:** scalar-सेट के लिए बिना .field-के nested-handler String डेटा चुपचाप खो देता
+है — ऐसे हर पथ को field-राउटिंग दो।
