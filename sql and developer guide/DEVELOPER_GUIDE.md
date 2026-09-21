@@ -5521,6 +5521,20 @@ T1 digit-fix (OCR-'S'→5, 'l'→1), T2 rank-first m0 pattern, T3 अज्ञ�
 v2.2b का मूल: numeric-slots `[0-9A-Za-z]{1,2}` + बाद में fixNum — regex digits-only रखने
 पर OCR-अक्षरें match ही नहीं होतीं।
 
+**OCR v2.3 (commit `64813be`, cache-tag `20260921d`) — node 20/20 + live browser-E2E 5/5:**
+1. `normLine()`: पूरी line unicode-fold होती है (full-width ０-９→0-9, Devanagari ०-९→0-9,
+   zero-width strip, •·●| → space, space-collapse) — parseResult/parseLobby अब normalized
+   lines पर। #N-rank scan भी normalized text पर।
+2. `fixNum()` v2: z→2, s→5, t→7, A→4, !→1 जोड़े (सिर्फ numeric-slot पर)। **सीख:** G-group
+   `[Gg]` मत बनाना — lowercase g का मतलब 9 है (G→6 अकेला), node-test ने पकड़ा।
+3. `slotKills()`: 2-char slot में ≥1 digit ज़रूरी — pure-alpha ('Bo','SS') = name-fragment
+   → REJECT; >99 भी reject। यही v2.2b का सबसे बड़ा wrong-fill source था।
+4. **Ambiguity-guard** (bestMatch): best और second-best का gap <8 → SKIP — दो समान नामों
+   में गलत player भरने से बेहतर manual। result(min55)+lobby(min58) दोनों में।
+5. parseLobby slots भी अब fixNum ('l2'→12 जैसे) + full-width digits।
+**टेस्ट-टेक्नीक:** IIFE के internals node में चाहिए तो file-text के `})();` को
+`window.__exp={…};})();` से बदलकर fake window/document stubs के साथ eval करो।
+
 **बाकी (user-निर्भर):** OneSignal dashboard wizard → platform **Native Android** → FCM
 service-account JSON (Firebase fft-app-1e283 → Service accounts → Generate new private
 key) upload → **नए app की Legacy REST key fresh copy** (uzoel/6jr5 दोनों dead-प्रमाणित —

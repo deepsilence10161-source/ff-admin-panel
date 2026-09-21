@@ -16,3 +16,5 @@
 --       select vault_update_secret('ONESIGNAL_REST_KEY', '<नई-कुंजी>');  -- या Mgmt secrets API
 --   • उसके बाद send-test (include_aliases external_id = firebase-uid)
 -- NOTE: पुराना app 1f867c88 जीवित (पुरानी key से 200/200) — pivot-विकल्प।
+
+-- (2026-09-21 addendum) OCR v2.3 — commit 64813be, cache-tag 20260921d; कोई schema-बदलाव नहीं (सिर्फ admin JS)।
