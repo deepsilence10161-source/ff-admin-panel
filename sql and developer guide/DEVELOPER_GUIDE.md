@@ -5581,6 +5581,14 @@ SDK 5.9.2 ✓ + dialog-string ✓ + OneSignalManager ✓।
   (यथा "OneSignal calls") substring-asserts तोड़ते हैं।
 - **Git-branch:** prompt branch-प्रश्न कहता है — established 23-round main-direct प्रवाह के
   आधार पर main पर ही commits (assumption stated)।
+- **🔴 सीख-3 (REST-keys, 4 प्रयासों का निष्कर्ष):** `os_v2_app_…` keys में **पहले 35 अक्षर
+  app-व्युत्पन्न साझा prefix होता है** — दो अलग keys का prefix मिलना NORMAL है, इससे
+  "paste-hybrid/copy-galti" का निष्कर्ष कभी न निकालें (एक key screenshot-से-सिद्ध authentic
+  थी और तब भी 401 थी)। **असली कारण:** "Create API Authentication Key" dialog में
+  **IP allowlist checkbox डिफ़ॉल्ट-चेक + खाली CIDR** = key हर-IP-पर-प्रतिबंधित = हर call 401
+  (Basic/Bearer, send+read सब)। इलाज: checkbox uncheck, या CIDR `0.0.0.0/0`, या
+  **Legacy API Key** (बंदिश-रहित)। scoped-key से GET /apps जैसे app-level read फिर भी
+  न मिले तो send-probe ही सच्चा परीक्षण है।
 
 **बाकी (user-निर्भर):** OneSignal dashboard wizard → platform **Native Android** → FCM
 service-account JSON (Firebase fft-app-1e283 → Service accounts → Generate new private
