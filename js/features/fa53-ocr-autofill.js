@@ -210,20 +210,20 @@ function parseResult(text){
   var lines=text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
   var players=[];
   lines.forEach(function(line){
-    // v2.2 rank-first: "1. Name K" / "1) Name K [DMG]"
-    var m0=line.match(/^(\d{1,2})[.)°]\s+(.{2,22}?)\s+(\d{1,2})(?:\s+(\d+))?\s*$/);
+    // v2.2 rank-first: "1. Name K" / "1) Name K [DMG]"  (kill-slot letters bhi — fixNum संभालता है)
+    var m0=line.match(/^(\d{1,2})[.)°]\s+(.{2,22}?)\s+([0-9A-Za-z]{1,2})(?:\s+(\d+))?\s*$/);
     if(m0&&parseInt(fixNum(m0[1]))<=48){var nm0=m0[2].replace(/[|[\]{}\\/]/g,'').trim();if(nm0.length>=2){players.push({name:nm0,kills:parseInt(fixNum(m0[3]))||0,rank:parseInt(fixNum(m0[1]))});return;}}
     // "Name  K  D  A  DMG" — FIX: \d+ not \d{3,6}
-    var m1=line.match(/^(.{2,22}?)\s+(\d{1,2})\s+\d+\s+(\d+)/);
+    var m1=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s+\d+\s+(\d+)/);
     if(m1){var nm=m1[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm.length>=2){players.push({name:nm,kills:parseInt(fixNum(m1[2]))||0,rank:0});return;}}
     // "Name K/D/A DMG"
-    var m2=line.match(/^(.{2,22}?)\s+(\d{1,2})\s*\/\s*\d+\s*\/\s*\d+\s+(\d+)/);
+    var m2=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s*\/\s*\d+\s*\/\s*\d+\s+(\d+)/);
     if(m2){var nm2=m2[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm2.length>=2){players.push({name:nm2,kills:parseInt(fixNum(m2[2]))||0,rank:0});return;}}
     // "Name  Kills  DMG" — simple 2-col
-    var m3=line.match(/^(.{2,22}?)\s+(\d{1,2})\s+(\d{2,6})\s*$/);
+    var m3=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s+(\d{2,6})\s*$/);
     if(m3&&parseInt(fixNum(m3[2]))<=48){var nm3=m3[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm3.length>=2){players.push({name:nm3,kills:parseInt(fixNum(m3[2]))||0,rank:0});return;}}
     // v2.2: "Name 3 kills" (word wala)
-    var m4=line.match(/^(.{2,22}?)\s+(\d{1,2})\s+kills?\b/i);
+    var m4=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s+kills?\b/i);
     if(m4){var nm4=m4[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm4.length>=2){players.push({name:nm4,kills:parseInt(fixNum(m4[2]))||0,rank:0});return;}}
   });
 
