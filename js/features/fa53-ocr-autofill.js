@@ -1,6 +1,15 @@
 /* ================================================================
-   FA53: FREE FIRE OCR ENGINE v2.2
+   FA53: FREE FIRE OCR ENGINE v2.3
    Technology : Tesseract.js (Apache License 2.0) — FREE, Unlimited
+   FIXES v2.3 (2026-09-21):
+   - normLine(): unicode-fold (full-width 0-9, Devanagari 0-9 -> ASCII),
+     zero-width strip, bullet/pipe separators -> space, space-collapse —
+     parseResult/parseLobby ab normalized lines par chalte hain
+   - fixNum() v2: z->2, s->5, t->7, A->4, !->1 bhi (sirf numeric-slot par)
+   - slotKills(): 2-char slot me KOI DIGIT nahi -> name-fragment maan ke
+     REJECT (v2.2b ka sabse bada wrong-fill source); kills >99 bhi reject
+   - Ambiguity-guard: best aur second-best match lagbhag barabar (gap<8)
+     -> SKIP — galat player bharne se behtar manual
    FIXES v2.2 (2026-09-21):
    - Confidence-picking: normal+inverted variants me se JO BEHTAR padha usi se
      parser priority (pehle naive normal-first tha)
@@ -163,12 +172,32 @@ async function runOCR(file,onPct){
 
 /* ── 4. FUZZY MATCH ── */
 function norm(s){return(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+/* v2.3: line-normalizer — OCR text ke unicode/divider variants ek shape me */
+function normLine(s){
+  return String(s||'')
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g,'')
+    .replace(/[\uFF10-\uFF19]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);})
+    .replace(/[\u0966-\u096F]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0x966+48);})
+    .replace(/[\u00B7\u2022\u25CF\u25C6|]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
 /* v2.2: OCR digit-confusion fix — sirf NUMERIC captures par (names par kabhi nahi):
    O/Q->0, l/I/|/i->1, Z->2, S->5, b/G->6, T->7, B->8, g/q->9 */
 function fixNum(t){
-  return String(t||'').replace(/[OoQ]/g,'0').replace(/[lI|i]/g,'1').replace(/Z/g,'2')
-    .replace(/S/g,'5').replace(/b/g,'6').replace(/G/g,'6').replace(/T/g,'7')
+  return String(t||'').replace(/[OoQ]/g,'0').replace(/[lI|i!]/g,'1').replace(/[Zz]/g,'2')
+    .replace(/A/g,'4').replace(/[Ss]/g,'5').replace(/b/g,'6').replace(/G/g,'6').replace(/[Tt]/g,'7')
     .replace(/B/g,'8').replace(/[gq]/g,'9');
+}
+/* v2.3: numeric-slot validator — 2-char slot me >=1 digit zaroori
+   (pure-alpha = name-fragment, REJECT); valid range 0-99 */
+function slotKills(raw){
+  var t=String(raw||'').trim();
+  if(!t)return -1;
+  if(t.length>=2&&!/\d/.test(t))return -1;
+  var n=parseInt(fixNum(t),10);
+  if(isNaN(n)||n<0||n>99)return -1;
+  return n;
 }
 function fuzzyScore(a,b){
   var na=norm(a),nb=norm(b);
@@ -196,9 +225,13 @@ function fuzzyScore(a,b){
   return Math.max(pfxSc,biSc,lvSc);
 }
 function bestMatch(name,list,minSc){
-  var best=null,bestSc=0;
-  list.forEach(function(item){var sc=fuzzyScore(name,item.name);if(sc>bestSc){bestSc=sc;best=item;}});
-  return bestSc>=(minSc||55)?{item:best,score:bestSc}:null;
+  var scored=list.map(function(item){return{item:item,score:fuzzyScore(name,item.name)};});
+  scored.sort(function(a,b){return b.score-a.score;});
+  var top=scored[0];
+  if(!top||top.score<(minSc||55))return null;
+  /* v2.3: ambiguity-guard — second-best bahut kareeb hai to SKIP */
+  if(scored[1]&&(top.score-scored[1].score)<8)return null;
+  return top;
 }
 
 /* ── 5. PARSERS ── */
@@ -207,29 +240,30 @@ function bestMatch(name,list,minSc){
    FIX v2.1: \d+ for damage (was \d{3,6} — missed damage < 100)
    FIX v2.1: positional rank fallback when no #N found */
 function parseResult(text){
-  var lines=text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  var lines=text.split('\n').map(function(l){return normLine(l);}).filter(Boolean);
   var players=[];
   lines.forEach(function(line){
     // v2.2 rank-first: "1. Name K" / "1) Name K [DMG]"  (kill-slot letters bhi — fixNum संभालता है)
-    var m0=line.match(/^(\d{1,2})[.)°]\s+(.{2,22}?)\s+([0-9A-Za-z]{1,2})(?:\s+(\d+))?\s*$/);
-    if(m0&&parseInt(fixNum(m0[1]))<=48){var nm0=m0[2].replace(/[|[\]{}\\/]/g,'').trim();if(nm0.length>=2){players.push({name:nm0,kills:parseInt(fixNum(m0[3]))||0,rank:parseInt(fixNum(m0[1]))});return;}}
+    var m0=line.match(/^(\d{1,2})[.)°]\s+(.{2,22}?)\s+([0-9A-Za-z!]{1,2})(?:\s+(\d+))?\s*$/);
+    if(m0){var rk0=parseInt(fixNum(m0[1]),10),kl0=slotKills(m0[3]);
+      if(rk0>=1&&rk0<=48&&kl0>=0){var nm0=m0[2].replace(/[|[\]{}\\/]/g,'').trim();if(nm0.length>=2){players.push({name:nm0,kills:kl0,rank:rk0});return;}}}
     // "Name  K  D  A  DMG" — FIX: \d+ not \d{3,6}
-    var m1=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s+\d+\s+(\d+)/);
-    if(m1){var nm=m1[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm.length>=2){players.push({name:nm,kills:parseInt(fixNum(m1[2]))||0,rank:0});return;}}
+    var m1=line.match(/^(.{2,22}?)\s+([0-9A-Za-z!]{1,2})\s+\d+\s+(\d+)/);
+    if(m1){var kl1=slotKills(m1[2]);if(kl1>=0){var nm=m1[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm.length>=2){players.push({name:nm,kills:kl1,rank:0});return;}}}
     // "Name K/D/A DMG"
-    var m2=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s*\/\s*\d+\s*\/\s*\d+\s+(\d+)/);
-    if(m2){var nm2=m2[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm2.length>=2){players.push({name:nm2,kills:parseInt(fixNum(m2[2]))||0,rank:0});return;}}
+    var m2=line.match(/^(.{2,22}?)\s+([0-9A-Za-z!]{1,2})\s*\/\s*\d+\s*\/\s*\d+\s+(\d+)/);
+    if(m2){var kl2=slotKills(m2[2]);if(kl2>=0){var nm2=m2[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm2.length>=2){players.push({name:nm2,kills:kl2,rank:0});return;}}}
     // "Name  Kills  DMG" — simple 2-col
-    var m3=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s+(\d{2,6})\s*$/);
-    if(m3&&parseInt(fixNum(m3[2]))<=48){var nm3=m3[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm3.length>=2){players.push({name:nm3,kills:parseInt(fixNum(m3[2]))||0,rank:0});return;}}
+    var m3=line.match(/^(.{2,22}?)\s+([0-9A-Za-z!]{1,2})\s+(\d{2,6})\s*$/);
+    if(m3){var kl3=slotKills(m3[2]);if(kl3>=0){var nm3=m3[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm3.length>=2){players.push({name:nm3,kills:kl3,rank:0});return;}}}
     // v2.2: "Name 3 kills" (word wala)
-    var m4=line.match(/^(.{2,22}?)\s+([0-9A-Za-z]{1,2})\s+kills?\b/i);
-    if(m4){var nm4=m4[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm4.length>=2){players.push({name:nm4,kills:parseInt(fixNum(m4[2]))||0,rank:0});return;}}
+    var m4=line.match(/^(.{2,22}?)\s+([0-9A-Za-z!]{1,2})\s+kills?\b/i);
+    if(m4){var kl4=slotKills(m4[2]);if(kl4>=0){var nm4=m4[1].replace(/[|[\]{}\\/]/g,'').trim();if(nm4.length>=2){players.push({name:nm4,kills:kl4,rank:0});return;}}}
   });
 
   // Try #N rank pattern first
   var rPat=/#\s*(\d{1,2})\b/g,rm,ri=0;
-  while((rm=rPat.exec(text))!==null){
+  while((rm=rPat.exec(normLine(text)))!==null){
     var pos=parseInt(rm[1]);
     if(pos>=1&&pos<=48&&ri<players.length){if(!players[ri].rank){players[ri].rank=pos;ri++;}}
   }
@@ -250,7 +284,7 @@ function parseResult(text){
    FIX v2.1: SKIP list expanded with common admin UI strings */
 function parseLobby(text){
   var SKIP=/^(booyah|free fire|bermuda|kalahari|purgatory|squad|duo|solo|room|lobby|waiting|start|ready|status|in room|verify|joined|pending|slot|player|match|mode|entry|refresh|all matches|export|fraud|health|broadcast|not enough|spectator|team|info|invite|tournament|result|prize|fee|rank|kills|phone|ffuid|action|joined at|done|cancel|ban|warn|dismiss|approved|admin|settings|support|analytics|activity|select a match|loading|error|search)/i;
-  var lines=text.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  var lines=text.split('\n').map(function(l){return normLine(l);}).filter(Boolean);
   var players=[];
   lines.forEach(function(line){
     // FIX: max 16 chars (was 28)
@@ -258,11 +292,11 @@ function parseLobby(text){
     if(/^\d+$/.test(line))return;
     if(/^[^a-zA-Z]+$/.test(line))return;
     // "N Name"
-    var m1=line.match(/^(\d{1,2})\s+(.{2,14})$/);
-    if(m1&&parseInt(m1[1])>=1&&parseInt(m1[1])<=48){players.push({name:m1[2].trim(),slot:parseInt(m1[1])});return;}
+    var m1=line.match(/^([0-9A-Za-z!]{1,2})\s+(.{2,14})$/);
+    if(m1){var sl1=parseInt(fixNum(m1[1]),10);if(sl1>=1&&sl1<=48){players.push({name:m1[2].trim(),slot:sl1});return;}}
     // "Name  N"
-    var m2=line.match(/^(.{2,14}?)\s+(\d{1,2})$/);
-    if(m2&&parseInt(m2[2])>=1&&parseInt(m2[2])<=48){players.push({name:m2[1].trim(),slot:parseInt(m2[2])});return;}
+    var m2=line.match(/^(.{2,14}?)\s+([0-9A-Za-z!]{1,2})$/);
+    if(m2){var sl2=parseInt(fixNum(m2[2]),10);if(sl2>=1&&sl2<=48){players.push({name:m2[1].trim(),slot:sl2});return;}}
     // Plain name
     if(line.length>=3&&line.length<=14&&/[a-zA-Z]/.test(line)){players.push({name:line,slot:0});}
   });
