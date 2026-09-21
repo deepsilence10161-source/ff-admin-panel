@@ -255,7 +255,7 @@ function bar(anchorId,msg,type){
 var _rBusy=false;
 async function runResult(files){
   if(_rBusy){bar('mrSsPreview','⏳ OCR chal raha hai...','warn');return;}
-  var rows=document.querySelectorAll('#mrPlayerTable tr[data-uid]');
+  var rows=document.querySelectorAll('#mrPlayerTable tr[data-uid], #participantsList tr[data-uid]');
   if(!rows.length){bar('mrSsPreview','⚠️ Pehle match select karo aur players load karo','warn');return;}
   if(!TSR.ready){bar('mrSsPreview','⏳ OCR engine load ho raha hai...','info');await new Promise(function(r){TSR.load(r);});}
   _rBusy=true;
@@ -290,7 +290,10 @@ async function runResult(files){
 }
 
 function _fillRow(row,op){
-  var ri=row.querySelector('.mr-rank-input'),ki=row.querySelector('.mr-kills-input');
+  /* R19: active result-table (participantsList) के inputs .rank-input/.kills-input
+     हैं — पुराना mrPlayerTable (.mr-*-input) कभी populate होता ही नहीं था, इसलिए
+     OCR auto-fill मरा हुआ था। दोनों selectors पकड़ो, जो मिले भर दो। */
+  var ri=row.querySelector('.mr-rank-input,.rank-input'),ki=row.querySelector('.mr-kills-input,.kills-input');
   if(ri&&op.rank>0){ri.value=op.rank;ri.dispatchEvent(new Event('input',{bubbles:true}));_flash(ri,'rgba(255,215,0,.08)');}
   if(ki&&op.kills>=0){ki.value=op.kills;ki.dispatchEvent(new Event('input',{bubbles:true}));_flash(ki,'rgba(255,107,107,.08)');}
 }

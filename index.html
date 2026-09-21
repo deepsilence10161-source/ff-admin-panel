@@ -460,7 +460,7 @@
   <div class="section-title"><i class="fas fa-trophy" style="color:#ffd700"></i> Match Result <span class="count" id="mrPlayerCount">0</span></div>
   <div class="section-actions">
     <button class="btn btn-ghost btn-sm" onclick="loadMatchResultSection()"><i class="fas fa-sync-alt"></i> Refresh</button>
-    <select id="mrMatchFilter" class="form-input" style="max-width:220px;padding:6px 10px" onchange="loadMatchResultSection()">
+    <select id="mrMatchFilter" class="form-input" style="max-width:220px;padding:6px 10px" onchange="var s=document.getElementById('resultTournamentSelect');if(s){s.value=this.value;s.dispatchEvent(new Event('change'))}if(window.loadParticipants)loadParticipants()">
       <option value="">-- Select Match --</option>
     </select>
   </div>

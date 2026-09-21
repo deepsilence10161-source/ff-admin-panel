@@ -5266,6 +5266,19 @@ window.loadMatchResultSection = function() {
       });
       sel.innerHTML = opts;
     }
+    /* ✅ R19 (2026-09-21): mrMatchFilter (पुराना dead dropdown) को असली
+       result-dropdown से sync रखो — वरना वहाँ से match चुनने पर कुछ नहीं
+       होता था (mrPlayerTable को भरने वाला कोई code ही नहीं था)। */
+    var _mf = document.getElementById('mrMatchFilter');
+    if (_mf) {
+      var _mo = '<option value="">-- Select Match --</option>';
+      Object.keys(allTournaments || {}).forEach(function(id) {
+        var t = allTournaments[id];
+        _mo += '<option value="' + id + '">' + (t.name || t.title || id) + '</option>';
+      });
+      _mf.innerHTML = _mo;
+      if (sel && sel.value) _mf.value = sel.value;
+    }
   }, 100);
 };
 
