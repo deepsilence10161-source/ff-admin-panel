@@ -1,6 +1,12 @@
 /* ================================================================
-   FA53: FREE FIRE OCR ENGINE v2.3
+   FA53: FREE FIRE OCR ENGINE v2.4
    Technology : Tesseract.js (Apache License 2.0) — FREE, Unlimited
+   FIXES v2.4 (2026-09-21):
+   - 3-variant consensus: normal + invert + SOFT (upscale+contrast, no hard
+     threshold) — glossy/dark screenshots me binarize text kha jata hai,
+     soft variant wahan bhi dekhta hai; teeno confidence-order me merge
+   - Duplicate-rank repair: OCR same rank do baar padh le to position-order
+     se re-number (result-screen ka CRAM hi sach hai)
    FIXES v2.3 (2026-09-21):
    - normLine(): unicode-fold (full-width 0-9, Devanagari 0-9 -> ASCII),
      zero-width strip, bullet/pipe separators -> space, space-collapse —
@@ -70,7 +76,9 @@ function preprocessImage(file,invert){
         var gray=0.299*r+0.587*g+0.114*b;
         var boosted=Math.max(0,Math.min(255,((gray-128)*2.0)+128));
         var bright=(isGold||isWhite||isCyan||isGreen)?255:boosted;
-        var out=invert?(bright>145?0:255):(bright>145?255:0);
+        /* v2.4 'soft' variant: koi hard threshold nahi — sirf upscale+contrast;
+           glossy/dark screenshots par binarize patla text kha jata hai */
+        var out=invert==='soft'?bright:(invert?(bright>145?0:255):(bright>145?255:0));
         px[i]=px[i+1]=px[i+2]=out;px[i+3]=255;
       }
       ctx.putImageData(id,0,0);
@@ -155,18 +163,17 @@ async function recognize(blob, onPct) {
 }
 
 async function runOCR(file,onPct){
-  var ps=await Promise.all([preprocessImage(file,false),preprocessImage(file,true)]);
-  var ts=await Promise.all([recognize(ps[0],onPct),recognize(ps[1])]);
-  /* v2.2: pehle dono variants ka confidence compare karo — jo behtar padha
-     uski lines PEHLE (order = parser priority), doosre ki missing lines aage
-     merge (pehle naively normal-first tha — inverted-variant kabhi behtar hota). */
-  var A = (ts[0] && ts[1]) ? (ts[0].conf >= ts[1].conf ? ts[0] : ts[1]) : (ts[0]||ts[1]) || {text:''};
-  var B = (A === ts[0]) ? (ts[1]||{text:''}) : (ts[0]||{text:''});
+  /* v2.4: 3-variant consensus — sab variants parallel, confidence-order me
+     merge (best pehle = parser priority), dedupe case-insensitive */
+  var ps=await Promise.all([preprocessImage(file,false),preprocessImage(file,true),preprocessImage(file,'soft')]);
+  var ts=await Promise.all([recognize(ps[0],onPct),recognize(ps[1]),recognize(ps[2])]);
+  ts=ts.filter(Boolean).sort(function(a,b){return (b.conf||0)-(a.conf||0);});
+  if(!ts.length)ts=[{text:''}];
   var seen={},lines=[];
-  (A.text+'\n'+B.text).split('\n').forEach(function(l){
+  ts.forEach(function(t){(t.text||'').split('\n').forEach(function(l){
     l=l.trim();var k=l.toLowerCase().replace(/\s+/g,'');
     if(k.length>1&&!seen[k]){seen[k]=true;lines.push(l);}
-  });
+  });});
   return lines.join('\n');
 }
 
@@ -269,6 +276,12 @@ function parseResult(text){
   }
   // FIX v2.1: if no #N found, use positional order (FF results screen IS ordered 1..N)
   if(ri===0&&players.length>0){players.forEach(function(p,i){if(!p.rank)p.rank=i+1;});}
+  /* v2.4: duplicate-rank repair — OCR same rank do baar padh le (#2 #2 jaisa)
+     to position-order se re-number; galat duplicate ranks prize-calc ko
+     bigaad sakte the */
+  var _rc={},_dup=false;
+  players.forEach(function(p){if(p.rank){_rc[p.rank]=(_rc[p.rank]||0)+1;if(_rc[p.rank]>1)_dup=true;}});
+  if(_dup)players.forEach(function(p,i){p.rank=i+1;});
 
   // Single player fallback
   if(!players.length){
