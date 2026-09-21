@@ -5396,3 +5396,34 @@ Delta: `2026-09-20t-ROUND18-DELTA.sql`; schema SECTION 23 **Part R**.
   self-only + 2000/day capped (design); dynamic-SQL sab %I+USING; storage
   buckets khali (sab images ImgBB); realtime anon ko 0 row-events; RTDB
   anon deny-all; Firebase generic login-error (no enum).
+
+### Round-19 (2026-09-21) — UX-depth: wallet-labels, dead-OCR revive, PTR, OneSignal truth
+Code-only round (koi SQL change nahi). User-panel `33e16fe`, admin `aec6c59` (+`9c7cb96`).
+- ★ **DEAD-UI LESSON (fa53 OCR)**: Match Result section me DO parallel UI the —
+  dead `mrPlayerTable` (jo koi populate hi nahi karta tha) aur active
+  `participantsList` (resultTournamentSelect + loadParticipants). fa53 OCR aur
+  mrPublishResults dono dead-table par bandhe the = OCR auto-fill kabhi ka hi
+  nahi kar sakta tha ("Pehle match select karo" hamesha). Fix: fa53 dual-selectors
+  (`#mrPlayerTable,#participantsList` rows; `.mr-rank-input,.rank-input` inputs);
+  mrMatchFilter ab resultTournamentSelect se synced + loadParticipants trigger.
+  Naya result-UI banate waqt OCR selectors yaad rakhna.
+- ★ **Cache-bust discipline**: admin JS patch ke baad index.html ka `?v=` param
+  bump karna HI hoga — warna patched file kabhi load nahi hoti (ghar me hi
+  pakda gaya: patched fa53 ke baad bhi browser purana hi chala raha tha).
+- Wallet history: typeMap sab debits ko "Entry Fee" dikhata tha — ab
+  `reason==='cosmetic_purchase'` → "🛍️ Store Purchase", `reward_redemption` →
+  "🎁 Reward Redemption" (listeners.js mapping me `reason` pass hota hai).
+  Naya debit-reason add karo to wallet.js label-map bhi update karo.
+- Failed/rejected sd_request history me green "+💎N" misleading tha — ab
+  `wha-m/whi-m` muted-grey classes (status==='rejected' par).
+- Pull-to-refresh: `html,body{overscroll-behavior-y:contain}` + settings-sheet
+  scroll-container `overscroll-behavior:contain` — halka pull ab app refresh
+  nahi karta (Chrome/TWA). APK agar native SwipeRefreshLayout use karta hai to
+  wo APK-side disable hoga (web-CSS us par lagu nahi).
+- OneSignal sachai: project me SDK-subscribe tak hi hai — **send-path (REST
+  create-notification) kahin nahi hai**. Matlab APK/app band hone par push
+  aayega hi nahi; sirf in-app notifications (table + realtime/poll) hain.
+  Push chahiye to: OneSignal REST key secret + chhota edge-fn `push-send`
+  (notifications INSERT par call) — bina REST key testable nahi.
+- RTDB writes: matches/joinRequests par admin Firebase-token se bhi 401 —
+  rules server-path-only hain (positive-finding; OCR E2E me DOM-mock lagana pada).
