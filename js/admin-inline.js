@@ -3279,9 +3279,15 @@ async function loadParticipants(){
     }
     
     var jS=await rtdb.ref(DB_JOIN).once('value');var html='',pc=0;
+    /* ✅ R24 FIX: RPC-join (validate_and_join_match) rows are status='pending'
+       (money already deducted — pending = room/attendance pending, NOT membership
+       pending, same semantics as sendRoomNotificationToMatch's _NOT_JOINED list).
+       Old filter (approved/joined/confirmed only) hid PAID players from the
+       result-publish screen ("No participants found") — live-proven R24 E2E. */
+    var _RJ_NOT_JOINED=['cancelled','refunded','rejected','no_show'];
     jS.forEach(function(c){
       var j=c.val(),tid=j.tournamentId||j.matchId;
-      if(tid===mid&&(j.status==='approved'||j.status==='joined'||j.status==='confirmed'||!j.status)){pc++;
+      if(tid===mid&&_RJ_NOT_JOINED.indexOf(j.status)===-1){pc++;
         var uid=getUid(j);
         var nm=j.playerName||j.ign||j.userName||getUserName(uid)||'Unknown';
         var ff=j.ffUid||j.userFFUID||j.gameUid||j.playerFfUid||'-';
