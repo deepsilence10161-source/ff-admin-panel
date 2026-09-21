@@ -360,6 +360,7 @@ CREATE TABLE IF NOT EXISTS join_requests (
   in_room_at      TIMESTAMPTZ,
   ad_watched      BOOL        DEFAULT false,
   rejection_note  TEXT,
+  attendance_status TEXT,  -- R24 (2026-09-21z): admin Live Attendance toggle
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(match_id, user_id)
 );
