@@ -36,9 +36,13 @@
      https://*.firebaseio.com to script-src to fix.
 ════════════════════════════════════════════════════════════ -->
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<!-- R23: worker-src 'self' blob: = Tesseract.js v5 अपना OCR-worker blob:-URL से बनाता है
+     (इसके बिना हर OCR 'Error: unknown' CSP-worker-block था)। 'wasm-unsafe-eval' = worker के
+     भीतर wasm-engine compile (eval नहीं खोलता, केवल WebAssembly-compile)। tessdata+jsdelivr
+     connect = OCR भाषा-डेटा (eng.traineddata) fetch। -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
-  script-src  'self' 'unsafe-inline'
+  script-src  'self' 'unsafe-inline' 'wasm-unsafe-eval'
               https://www.gstatic.com
               https://apis.google.com
               https://cdn.jsdelivr.net
@@ -47,6 +51,7 @@
               https://cdn.onesignal.com
               https://onesignal.com
               https://*.firebaseio.com;
+  worker-src  'self' blob:;
   style-src   'self' 'unsafe-inline'
               https://fonts.googleapis.com
               https://cdnjs.cloudflare.com;
@@ -66,7 +71,9 @@
               https://apis.google.com
               https://onesignal.com
               https://api.imgbb.com
-              https://cdnjs.cloudflare.com;
+              https://cdnjs.cloudflare.com
+              https://tessdata.projectnaptha.com
+              https://cdn.jsdelivr.net;
   frame-src   https://onesignal.com
               https://accounts.google.com
               https://*.firebaseapp.com
