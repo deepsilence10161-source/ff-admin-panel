@@ -6,6 +6,9 @@
 -- 1) vouchers.used tabular-safe status स्तंभ (admin Disable पहले no-op)
 --    redeem_voucher अब disabled voucher रिजेक्ट करता है।
 ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active';
+-- (updated_at भी आवश्यक — bridge का supaSet-क्रम हर तालिका के upsert में
+--  updated_at stamp करता है); बिना-इस-स्तंभ उसका upsert चुपचाप असफल रहता है।
+ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
 -- 2) redeem_voucher: status-check + reward_type-उपलब्धिदायक (admin 'money'
 --    विकल्प अब coins-पथ पर गिरता है; old ELSE sky_diamonds था — cash-voucher

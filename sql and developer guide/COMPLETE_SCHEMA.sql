@@ -1301,7 +1301,8 @@ CREATE TABLE IF NOT EXISTS vouchers (
   used_count    INT   DEFAULT 0,
   expires_at    TIMESTAMPTZ,
   status        TEXT  NOT NULL DEFAULT 'active',  -- R24 (2026-09-21y): admin Disable के लिए
-  created_at    TIMESTAMPTZ DEFAULT NOW()
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()  -- R24 (2026-09-21y): bridge supaSet upsert stamp
 );
 ALTER TABLE vouchers ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "v_select_all" ON vouchers;
