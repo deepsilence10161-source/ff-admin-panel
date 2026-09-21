@@ -509,6 +509,7 @@
     if (d.inRoom   !== undefined) s.in_room     = d.inRoom;
     if (d.captainUid !== undefined) s.captain_uid = d.captainUid;
     if (d.checkedIn !== undefined) s.checked_in = d.checkedIn;
+    if (d.attendanceStatus !== undefined) s.attendance_status = d.attendanceStatus; /* ✅ R24: admin Live Attendance toggle */
     if (d.feeType  !== undefined) s.fee_type    = d.feeType;
     if (d.entryFeePaid !== undefined) s.entry_fee_paid = d.entryFeePaid;
     /* ✅ FIX (2026-08-18): map teamMembers → squad_members (real column,
@@ -554,6 +555,7 @@
       prize_earned:  row.prize_earned || 0,
       resultStatus:  row.status       === 'completed' ? 'completed' : '',
       adminVerified: row.checked_in   || false,
+      attendanceStatus: row.attendance_status || null, /* ✅ R24: admin Live Attendance */
       inRoom:        row.in_room      || false,
       checkedIn:     row.checked_in   || false,
       captainUid:    row.captain_uid  || null,
