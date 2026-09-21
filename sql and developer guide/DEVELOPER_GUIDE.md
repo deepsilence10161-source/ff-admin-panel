@@ -5535,6 +5535,16 @@ v2.2b का मूल: numeric-slots `[0-9A-Za-z]{1,2}` + बाद में f
 **टेस्ट-टेक्नीक:** IIFE के internals node में चाहिए तो file-text के `})();` को
 `window.__exp={…};})();` से बदलकर fake window/document stubs के साथ eval करो।
 
+**OCR v2.4 (commit `1722319`, cache-tag `20260921e`) — node 12/12 + live browser-E2E 3/3
+(variant-call-count=3 भी प्रमाणित):**
+1. **3-variant consensus:** runOCR अब normal + invert + `'soft'` (upscale+contrast,
+   कोई hard threshold नहीं) तीनों parallel चलाता है; सब variants confidence-order में
+   merge — glossy/dark screenshots पर binarize पतला text निगल जाता है, soft वहाँ भी
+   देखता है। लागत ~1.5x समय, ज़रूरत से कम accuracy-loss।
+2. **Duplicate-rank repair:** parseResult में अगर कोई rank एक से ज़्यादा बार परा
+   (OCR `#2 #2` या दोनों rows '1.' पढ़ ले) तो position-order से re-number — वरना
+   prize-calc बिगड़ता। बिना-dup cases बिल्कुल नहीं छेड़े जाते (test-verified)।
+
 **बाकी (user-निर्भर):** OneSignal dashboard wizard → platform **Native Android** → FCM
 service-account JSON (Firebase fft-app-1e283 → Service accounts → Generate new private
 key) upload → **नए app की Legacy REST key fresh copy** (uzoel/6jr5 दोनों dead-प्रमाणित —
