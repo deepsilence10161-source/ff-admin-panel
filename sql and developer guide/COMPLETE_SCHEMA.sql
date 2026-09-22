@@ -5789,12 +5789,20 @@ ALTER POLICY users_update_own ON public.users
 -- already do .eq('phone',...) / .eq('referral_code',...) lookups) but are not selected
 -- as output at any audited call site, so this adds no new exposure beyond what those
 -- two features already assumed (searcher already knows the value being matched).
+-- ══ R29 (2026-09-22) PRIVACY FIX ══  उपरोक्त धारणा गलत निकली —
+-- live-proof: anon दोनों columns का SELECT-output भी ले सकता था
+-- (referral_code की असली values leak हुईं, e.g. Hunter7 TYHTZFON).
+-- phone + referral_code अब view से हटाए गए हैं। phone-dup-check ke liye
+-- dedicated SECURITY DEFINER RPC user_has_phone() hai (sirf authenticated,
+-- sirf existence-check) — view की capacity नहीं चाहिए. referral_leaderboard
+-- (नीचे) अब join pe depend karta hai, drop/first-recreate-order note karte
+-- हुए recreate किया गया. देखें DELTA 2026-09-22b-R29-PRIVACY-REALTIME.
 CREATE OR REPLACE VIEW public.user_public_profiles
 WITH (security_invoker = false) AS
 SELECT id, ign, ff_uid, avatar_url, avatar_bg_color, city, bio, rank_tier, rank_points,
        total_wins, total_kills, total_matches, win_streak, has_clean_badge, is_banned,
        is_live, stream_link, stream_title, clan_id, profile_status, level, exp, is_vip,
-       is_creator, created_at, phone, referral_code
+       is_creator, created_at
 FROM public.users;
 
 GRANT SELECT ON public.user_public_profiles TO anon, authenticated;

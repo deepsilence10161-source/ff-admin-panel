@@ -5809,3 +5809,48 @@ status कभी Supabase तक नहीं पहुंचता (live: set '
 दिशा। **live:** set 'present' → readback 'present' → supa 'present' ✓।
 **🔴 नियम:** scalar-सेट के लिए बिना .field-के nested-handler String डेटा चुपचाप खो देता
 है — ऐसे हर पथ को field-राउटिंग दो।
+
+---
+
+## R29 (2026-09-22b) — Privacy-leak fix + Maintenance/Preview realtime (admin-side)
+**commit:** (यह commit) | **SQL delta:** `2026-09-22b-R29-PRIVACY-REALTIME-DELTA.sql`
+
+### बग-10 (user_public_profiles से phone + referral_code leak)
+**live-proof:** anon (बिना login) view से किसी भी user का `phone` + `referral_code`
+पढ़ सकता था — referral_code असली values leak हुईं (Hunter7 `TYHTZFON` वगैरह)।
+Root: `security_invoker=false` (definer, RLS-bypass) + GRANT TO anon + दोनों columns
+कभी-सो output-list में थे। User-panel client कभी select/output नहीं करता था —
+view-level leak था, direct PostgREST query से, "filter-only" की धारणा गलत सिद्ध हुई
+(PostgREST select= में filter-equal column भी readable होता है)। Fix:
+(1) view re-create बिना phone/referral_code (referral_leaderboard dependency →
+   drop-first/re-create order); (2) phone-dup-check को SECURITY DEFINER RPC
+   `user_has_phone(text)` में move (सिर्फ authenticated, सिर्फ existence-check
+   {found:true/false}, कोई uid/phone/ign output नहीं) — refs user-repo `core/utils.js`
+   `_findUserByPhone`। **live-verify:** anon→phone-select=42703; anon→ign-select=200;
+   anon→RPC=42501; referral_leaderboard=200।
+
+### फिक्स-11 (Maintenance/Preview realtime — admin-panel)
+User-panel 2026-09-17 से ही realtime है (live E2E re-verified 2026-09-22: SQL से
+`app_settings` UPDATE करने पर 6s में no-refresh overlay/ticker flip — PageError 0)।
+असली खाई admin-panel में थी:
+- preview_mode का कोई realtime channel था ही नहीं → toggle दूसरे admin-session से नहीं
+  झलकता था (हर बार secPat फिर से खोलना पड़ता था);
+- maintenance का `app_settings_maintenance` channel हर `syncFirebaseToken()` (login +
+  ~hourly) पर ORPHAN (band-to-stale _supa client) हो जाता था — "refresh करने पर ही दिखता";
+- features-admin.js का "App Settings" modal maintenance को मृत-RTDB
+  `appSettings/maintenance` में लिखता था (कोई reader नहीं)।
+Fix (admin-inline.js + features-admin.js):
+- shared self-healing helper `_ensureAppSettingsRealtime()` — एक channel
+  (`app-settings-live-admin`) दोनों keys संभालता है, payload `row.value` seedha
+  idempotent `_refreshMaintUI`/`_refreshPreviewUI` को देता है; `joined`-guard
+  duplicate रोकता है; `supabase:authenticated`/`supabase:ready` पर re-bind होता है;
+- `loadMaintenanceState`/`loadPreviewState` अब उन helpers + shared channel से;
+- features-admin modal: maintenance को Supabase app_settings (key='maintenance') से
+  read/write (RTDB pointer dead हटाया)।
+
+### 🔴 वास्तु-नियम (R29)
+- **View = output-boundary:** security_invoker=false view में "filter-only" columns मत
+  रखो — PostgREST select= से वे भी readable हैं। ऐसी lookup के लिए SECURITY DEFINER RPC
+  जो सिर्फ boolean/existence लौटाए।
+- **Admin-realtime चैनल token-refresh-resistant बनाओ:** channel बनाने-से-पहले stale
+  client-orphan का ख्याल रखो; `supabase:authenticated` event पर re-bind।

@@ -1652,19 +1652,41 @@
       var cfg = s.val() || {};
       var h = '<div>';
       h += '<div class="form-group"><label>Support Online Status</label><select id="asSupport" class="form-input"><option value="1"' + (cfg.supportOnline ? ' selected' : '') + '>Online 🟢</option><option value="0"' + (!cfg.supportOnline ? ' selected' : '') + '>Offline 🔴</option></select></div>';
-      h += '<div class="form-group"><label>Maintenance Mode</label><select id="asMaintenance" class="form-input"><option value="0">Off</option><option value="1"' + (cfg.maintenance ? ' selected' : '') + '>On ⚠️</option></select></div>';
+      h += '<div class="form-group"><label>Maintenance Mode</label><select id="asMaintenance" class="form-input"><option value="0">Off</option><option value="1">On ⚠️</option></select></div>';
       h += '<div class="form-group"><label>Min App Version</label><input type="text" id="asVersion" class="form-input" value="' + (cfg.minVersion || '') + '" placeholder="e.g. 1.0"></div>';
       h += '<button class="btn btn-primary w-full" onclick="window._saveAppSettings()"><i class="fas fa-save"></i> Save Settings</button>';
       h += '</div>';
       _modal('⚙️ App Settings', h);
+      /* R29 FIX: maintenance अब Supabase app_settings (key='maintenance') से
+         load होता है — RTDB appSettings/maintenance dead tha. */
+      if (window._supa) {
+        window._supa.from('app_settings').select('value').eq('key','maintenance').maybeSingle()
+          .then(function(r) {
+            var el = _$('asMaintenance');
+            if (el) el.value = (r && r.data && r.data.value && r.data.value.active === true) ? '1' : '0';
+          })
+          .catch(function() {});
+      }
     });
   };
   window._saveAppSettings = function () {
+    var supportOnlineVal = (_$('asSupport') || {}).value === '1';
+    var maintOn = (_$('asMaintenance') || {}).value === '1';
+    var minVer = (_$('asVersion') || {}).value;
     rtdb.ref('appSettings').update({
-      supportOnline: (_$('asSupport') || {}).value === '1',
-      maintenance: (_$('asMaintenance') || {}).value === '1',
-      minVersion: (_$('asVersion') || {}).value
+      supportOnline: supportOnlineVal,
+      minVersion: minVer
     });
+    /* R29 FIX: maintenance ko Supabase app_settings (key='maintenance') mein
+       likho — yahi wahi jagah hai jahan user-panel + settings-card पढ़ते हैं.
+       RTDB appSettings/maintenance silenly dead tha (koi reader nahi). */
+    if (window._supa) {
+      window._supa.from('app_settings').update(
+        { value: { active: maintOn, message: '' }, updated_at: new Date().toISOString() }
+      ).eq('key', 'maintenance')
+        .then(function(r) { if (r.error) console.warn('[AppSettings] maintenance save:', r.error.message); })
+        .catch(function() {});
+    }
     _logAction('update_app_settings');
     _toast('✅ App settings saved!');
     _close();

@@ -4429,23 +4429,74 @@ async function loadSettings(){try{var arr=await Promise.all([rtdb.ref('appSettin
    deployment, which could never be confirmed/fixed from code (see
    DEVELOPER_GUIDE.md Section 34.11). Uses app_settings' existing RLS:
    anyone can read, only real admins (checked server-side) can write. */
+
+/* ── R29 FIX: shared self-healing app_settings realtime ──
+   Pehle preview_mode ka realtime channel tha hi nahi (admin ko toggle
+   dekhne ke liye firse section kholna padta tha), aur maintenance ka
+   channel har syncFirebaseToken() (login + ~hourly) par ORPHAN ho jaata
+   tha — matlab "रिफ्रेश करने पर ही नया state दिखता था". Ab:
+   - ek hi channel dono keys (maintenance + preview_mode) sambhalta hai
+   - payload row.value ko seedha idempotent _refresh*UI() ko deta hai
+   - guard (`_astChannelState==='joined'`) duplicate-channel rokte hain.
+   (User-panel 2026-09-17 me hi realtime ho chuka hai; ye admin-side
+   counterpart hai.) */
+window._refreshMaintUI = function(cfg) {
+  var on = !!(cfg && cfg.active === true);
+  var tog = document.getElementById('maintToggle');
+  if (tog) tog.checked = on;
+  var b = document.getElementById('maintBanner');
+  if (b) { if (on) b.classList.add('show'); else b.classList.remove('show'); }
+};
+window._refreshPreviewUI = function(cfg, force) {
+  cfg = cfg || {};
+  var on = cfg.active === true;
+  var tog = document.getElementById('previewToggle');
+  if (tog) tog.checked = on;
+  var ab = document.getElementById('previewActiveBanner');
+  var ob = document.getElementById('previewOffBanner');
+  if (ab) ab.style.display = on ? 'block' : 'none';
+  if (ob) ob.style.display = on ? 'none' : 'block';
+  var msgEl = document.getElementById('previewMessage');
+  var dtEl  = document.getElementById('previewLaunchDate');
+  if (msgEl && cfg.message && (force || !msgEl.value)) msgEl.value = cfg.message;
+  if (dtEl  && cfg.launchDate && (force || !dtEl.value)) dtEl.value = cfg.launchDate;
+};
+window._ensureAppSettingsRealtime = function() {
+  if (!window._supa) return;
+  if (window._astChannel && window._astChannelState === 'joined') return;
+  try {
+    window._astChannel = window._supa.channel('app-settings-live-admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, function(payload) {
+        var row = payload.new || {};
+        var key = row.key;
+        if (!key) return;
+        if (key === 'maintenance')       window._refreshMaintUI(row.value);
+        else if (key === 'preview_mode') window._refreshPreviewUI(row.value);
+      })
+      .subscribe(function(st) {
+        window._astChannelState = st;
+        if (st === 'SUBSCRIBED') console.log('[Settings RT] admin app_settings realtime live ✅');
+      });
+  } catch(e) {
+    console.warn('[Settings RT] subscribe error:', e && e.message);
+  }
+};
+/* token-refresh / re-auth par re-bind (orpohan नहीं) */
+['supabase:authenticated', 'supabase:ready'].forEach(function(ev) {
+  document.addEventListener(ev, function() {
+    window._astChannel = null; window._astChannelState = null;
+    setTimeout(function() { window._ensureAppSettingsRealtime(); }, 400);
+  });
+});
+
 function loadMaintenanceState(){
-  if(!window._supa) return;
+  if(!window._supa) { setTimeout(loadMaintenanceState, 500); return; }
   window._supa.from('app_settings').select('value').eq('key','maintenance').maybeSingle()
     .then(function(res){
-      var on = !!(res.data && res.data.value && res.data.value.active === true);
-      document.getElementById('maintToggle').checked = on;
-      var b = document.getElementById('maintBanner');
-      if(on) b.classList.add('show'); else b.classList.remove('show');
+      window._refreshMaintUI(res.data && res.data.value);
     });
-  /* Keep live in sync if changed from elsewhere (e.g. another admin session) */
-  window._supa.channel('app_settings_maintenance')
-    .on('postgres_changes', {event:'UPDATE', schema:'public', table:'app_settings', filter:'key=eq.maintenance'}, function(payload){
-      var on = !!(payload.new && payload.new.value && payload.new.value.active === true);
-      document.getElementById('maintToggle').checked = on;
-      var b = document.getElementById('maintBanner');
-      if(on) b.classList.add('show'); else b.classList.remove('show');
-    }).subscribe();
+  /* R29: shared self-healing realtime (maintenance + preview dono) */
+  window._ensureAppSettingsRealtime();
 }
 async function saveSettings(){try{
   var rr=document.getElementById('settReferralReward');
@@ -4597,19 +4648,9 @@ function loadPreviewState() {
   if (!window._supa) { setTimeout(loadPreviewState, 500); return; }
   window._supa.from('app_settings').select('value').eq('key', 'preview_mode').single()
     .then(function(r) {
-      var cfg = (r.data && r.data.value) || {};
-      var on = cfg.active === true;
-      var tog = document.getElementById('previewToggle');
-      if (tog) tog.checked = on;
-      var ab = document.getElementById('previewActiveBanner');
-      var ob = document.getElementById('previewOffBanner');
-      if (ab) ab.style.display = on ? 'block' : 'none';
-      if (ob) ob.style.display = on ? 'none' : 'block';
-      /* Fill message & date */
-      var msgEl = document.getElementById('previewMessage');
-      var dtEl  = document.getElementById('previewLaunchDate');
-      if (msgEl && cfg.message) msgEl.value = cfg.message;
-      if (dtEl  && cfg.launchDate) dtEl.value = cfg.launchDate;
+      /* R29 FIX: UI-refresh idempotent helper se (realtime chalta hua bhi
+         wahi helper use karta hai — single source of truth). */
+      window._refreshPreviewUI((r.data && r.data.value) || {}, true);
     });
   /* Early user counts */
   window._supa.from('early_access_users').select('joined_at')
@@ -4625,6 +4666,9 @@ function loadPreviewState() {
       if (te) te.textContent = total;
       if (td) td.textContent = today;
     });
+  /* R29 FIX: preview_mode ka realtime channel ab shared helper se
+     (maintenance wale ke saath ek hi channel). */
+  window._ensureAppSettingsRealtime();
 }
 
 async function togglePreviewMode() {
