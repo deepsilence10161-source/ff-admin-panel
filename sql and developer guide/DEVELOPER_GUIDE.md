@@ -6223,3 +6223,33 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
   trust नहीं** — हर financial RPC server-value use करे।
 - Business rules (commission 10/15%, hold 7d, prices, rewards) **न बदलें**।
 - SQL/DB हर बदलाव: delta-file + COMPLETE_SCHEMA + यह guide तीनों sync।
+
+## R3-HARDEN (cont.) — win_streak broken-feature restore (2026-09-23b)
+- **लक्षण (live-proven):** `features/streak.js` ("Hot Streak" badge) `win_streak`
+  self-update karta hai, par `guard_users_self_update()` allowlist me `win_streak`
+  NAHI tha → हर write 400 "Column win_streak is not self-editable" → feature
+  silently broken.
+- **Fix:** allowlist me `win_streak` add (`2026-09-23b-R3HARDEN-WINSTREAK-FIX-DELTA.sql`)।
+  Safe proof: win_streak display-only stat hai (कोई reward RPC isse money नहीं देता;
+  `claim_streak_milestone` → `streak_days` padhta hai, alag concept)। Financial
+  columns ab bhi blocked (`coins=999999` self-PATCH → 400)।
+- **Verify:** qa1 win_streak=7 → 204; win_streak=0 → 204; coins self-mint → 400।
+
+## R3-HARDEN (cont.) — SECURITY DEFINER classification (82, live 2026-09-23)
+- TRIGGER-run (5): block_creator_self_play, notifications_push_hook,
+  redirect_match_room_secrets, sync_admin_tables, sync_leaderboard।
+- SERVICE/CRON (1): internal_process_no_show_refunds (sirf service_role EXECUTE,
+  pg_cron `process-no-show-refunds` every minute चलाता है)।
+- ADMIN-gated (12, body me `is_caller_admin()`): admin_approve/reject_profile,
+  admin_confirm_creator_cheat, admin_create_sponsored_match, admin_dismiss_creator_flag,
+  admin_roll_battle_pass_season, admin_send_broadcast_notification, admin_send_notification,
+  admin_set_coins, admin_set_fraud_score, admin_sync_user_balance, set_user_ban_status।
+- AUTH-USER (54): baaki सब — caller==p_uid / admin / service / server-config तीनों
+  patterns में से एक gate मौजूद; amounts server-computed।
+- UNUSED-BY-APP (11): block_creator_self_play_check, claim_no_show_refund
+  (per-row, UI नहीं), finalize_creator_commission (internal via creator_publish/
+  release), increment_season_stats, is_caller_admin, lock/release_creator_commission
+  (legacy auto-release path), redeem_reward_item, review_creator_video,
+  submit_gd_withdrawal (GD refuse-only), etc。
+- **नियम:** role-matter live-proven — app Firebase JWT `anon` role से चलता है;
+  इसलिए EXECUTE-revoke से नहीं, body-guards से सुरक्षा मिलती है (जो मौजूद हैं)।

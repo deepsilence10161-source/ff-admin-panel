@@ -8576,7 +8576,7 @@ DECLARE
     'fcm_updated_at','device_fp','clan_id','referral_code',
     'referral_popup_done','profile_status','pending_ign',
     'profile_request_count','duo_team','squad_team','partner_uid',
-    'squad_uids','updated_at','last_seen',
+    'squad_uids','updated_at','last_seen','win_streak',   -- R3-HARDEN (2026-09-23): Hot-Streak feature restore
     'state'  -- R24 (2026-09-21): mesStateOk() IT-Rules state-gate har naye
              -- user par 'Column state is not self-editable' throw karke
              -- PERMANENT stuck karta tha (live-proven qauser3). Only the
