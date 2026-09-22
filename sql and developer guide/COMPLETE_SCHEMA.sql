@@ -11636,6 +11636,10 @@ SET value = value::jsonb ||
       'vip_slot',     jsonb_build_object('name','VIP Slot Pass','price',200,'icon','⭐','type','slot')))
 WHERE key = 'live_config';
 
+
+-- lock_creator_commission: anon REVOKE (orphan; admin/service-guard body ke saath)
+REVOKE EXECUTE ON FUNCTION public.lock_creator_commission(text,numeric) FROM anon;
+
 -- =====================================================================
 -- END 2026-09-22e — R29E AUDIT FIXES
 -- =====================================================================
