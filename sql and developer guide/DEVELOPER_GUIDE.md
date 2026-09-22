@@ -5999,3 +5999,60 @@ caller nahi tha, unka anon remove + refuse/stub kiya.
   artifact upload removed.
 - **user-repo** `.github/workflows/deploy-imgbb-upload.yml`: push-send
   deploy + OneSignal secret sync + anon-key health-check.
+
+# SECTION 36 — R29F Battle Pass collectibles (badges/themes/emojis/titles) — 2026-09-22
+**Problem (live-proven):** Battle Pass sales-copy: "50 Tiers ke exclusive
+rewards (Badges, Titles, Themes, Emojis)" + Tier-50 = "Season Legend Title
++ 50 GD". Live DB me badge/theme/emoji/title tiers par `premGd=0` tha aur
+`claim_battle_pass_tier` sirf GD credit karta tha — cosmetic rewards kabhi
+grant nahi hote the; Tier-50 ke 50 GD bhi 0 milte the (paid buyer gap).
+
+**Fix (applied + live-verified):**
+1. **battle_passes.tiers** — har cosmetic tier par
+   `{freeCos|premCos:{type,key,name,icon}}` + tier-50 `premGd=50`
+   (live UPDATE, season `2026_09`). Cosmetic `type`: badge/title → tag
+   prefix, theme → frame prefix, emoji → emoji prefix.
+   Key naming: `tag_bp_<track>_<tier>`, `frame_bp_<track>_<tier>`,
+   `emoji_bp_<track>_<tier>`.
+2. **claim_battle_pass_tier v4** — GD server-authoritative
+   (`freeGd`/`premGd` from tiers JSONB, `p_gd_reward` IGNORE) + cosmetic
+   collectible **grant** (`user_cosmetics` upsert, ON CONFLICT DO NOTHING).
+   Free track = tier-reached only; prem track = has_premium bhi.
+3. **User panel**: growth.js `_getCosmetics()` ab Battle Pass collectibles
+   bhi dikhata hai (catalog, source:'bp', price:0 — buy-button nahi,
+   "Season Pass reward" hint); store me "Season" tab; `_COS_FRAME_COLORS`
+   me BP theme-frame colors; battle-pass.js Tier-50 label ab sach ka
+   (title + 50 GD, extraGD removed); claim ke baad `_loadExtras()` re-sync
+   → naya collectible turant "Owned" dikhta + pehle se existing
+   apply/remove (equip) flow se lagta hai (profile avatar ring + tag chip).
+
+**Equip mechanism (existing, reused):** `toggleCosmeticEquip` →
+`user_cosmetics.is_equipped`; `growth.js getEquippedCosmetic()` profile,
+`frame_bp_*` → avatar ring color (`_COS_FRAME_COLORS`), `tag_bp_*` →
+profile tag chip (`getEquippedTagText()`).
+
+**Live QA (2026-09-22, qauser1):**
+- free tier-1 claim → GD 14→19, duplicate → "Already claimed" (200).
+- prem tier-1 bina pass → "Season Pass nahi khareeda" (200, rejected).
+- has_premium=true ke baad prem tier-1 → `user_cosmetics` me
+  `tag_bp_prem_1` row grant, progress `claimed_prem={1:true}` (200).
+- live ACL: `claim_battle_pass_tier(text,integer,text,numeric)` =
+  anon+authenticated+service_role (browser anon-role, body-guards).
+
+**Next-month obligation:** naya season (`2026_10`) seed karte waqt tiers
+me `{freeCos|premCos}` metadata + `premGd`/`freeGd` values same shape me
+rakho (dekho delta file header). `battle_passes.season_key` UNIQUE nahi —
+upsert se pehle count-check karo. User-panel `battle-pass.js TIERS_DATA`
+cosmetic tiers (badge/theme/emoji/title) ke GD values 0 hain — unse
+client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
+
+# SECTION 37 — R29F Bundle sales-copy false-claims removed — 2026-09-22
+- `bundle-offers.js` includes se **"5/15 GD bonus"** (GD-credit R29E me
+  hat chuka) aur **"Private Match Host"** (aisa feature exist hi nahi —
+  full repo grep + live search negative) **remove** ho gaye. Ab copy =
+  Premium + Season Battle Pass + No Ads (sab real).
+- premium.js tiers perks (No Ads, Silver Badge, Photo/Banner, Creator
+  Unlock, Live Stream Slot, Custom Profile Theme, Coins bonus) — sab
+  LIVE-VERIFIED real (ads.js premium-skip; profile.js badge; creator/
+  stream Gold gate; premium.js tier-3 `.prof-ava` purple glow; claim RPC).
+- free-trial.js copy already clean (Green Name/chat claims pehle removed).
