@@ -6251,7 +6251,41 @@ window.rejectSeasonPass = async function(reqId) {
 window.loadSeasonPassSection = async function() {
   var el = document.getElementById('section-seasonPass');
   if (!el) return;
-  el.innerHTML = '<div class="section-title"><i class="fas fa-ticket-alt" style="color:#b964ff"></i> Season Pass Requests <span class="count" id="spCount">0</span></div><div id="spReqList"><div class="empty-state">Loading...</div></div>';
+  /* ✅ R29F (2026-09-22): Season Manager card — mahina khatam hone par
+     admin one-click se naya season roll karta hai (admin_roll_battle_pass_season
+     RPC: purane season ko inactive + naya season_key 'YYYY_MM' + SAME tiers
+     shape jisme freeCos/premCos + freeGd/premGd). Pehle ye fully manual tha
+     (SQL seed) — bhoolne par users ki BP screen naye season par "Season not
+     found" maarti thi. */
+  var _mg = '<div style="background:linear-gradient(135deg,rgba(185,100,255,.08),rgba(255,215,0,.05));border:1.5px solid rgba(185,100,255,.35);border-radius:14px;padding:14px;margin-bottom:16px">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:16px">📅</span><span style="font-size:13px;font-weight:800;color:#b964ff">Season Manager</span></div>'
+    + '<div id="bpSeasonInfo" style="font-size:11px;color:#aaa;margin-bottom:10px">Loading…</div>'
+    + '<button id="bpRollBtn" onclick="window.rollBattlePassSeason()" style="padding:10px 16px;border-radius:11px;border:none;background:linear-gradient(135deg,#b964ff,#7b2ff7);color:#fff;font-size:12px;font-weight:800;cursor:pointer">🔄 Naya Month Season Roll Karo</button>'
+    + '</div>';
+  el.innerHTML = '<div class="section-title"><i class="fas fa-ticket-alt" style="color:#b964ff"></i> Season Pass Requests <span class="count" id="spCount">0</span></div>' + _mg + '<div id="spReqList"><div class="empty-state">Loading...</div></div>';
+  /* season info + roll button ka उपलब्ध-state refresh */
+  if (window._supa) {
+    window._supa.from('battle_passes').select('season_key,season_num,name,is_active,start_date,end_date')
+      .order('start_date', { ascending: false }).limit(3)
+      .then(function(r) {
+        var rows = (r && r.data) || [];
+        var infoEl = document.getElementById('bpSeasonInfo');
+        var btnEl = document.getElementById('bpRollBtn');
+        if (!infoEl) return;
+        var active = null, nextKey = null;
+        rows.forEach(function(s) { if (s.is_active && !active) active = s; });
+        if (rows.length) nextKey = rows[0].season_key;
+        if (active) {
+          var _sd = new Date(parseInt(active.season_key.slice(0,4),10), parseInt(active.season_key.slice(5,7),10)-1, 1);
+          _sd.setMonth(_sd.getMonth()+1);
+          var _nxt = _sd.getFullYear()+'_'+String(_sd.getMonth()+1).padStart(2,'0');
+          infoEl.innerHTML = 'Active: <b style="color:#b964ff">' + (active.name||active.season_key) + '</b> (' + active.season_key + ') · ends <b>' + ((active.end_date||'').substring(0,10)) + '</b>'
+            + '<br><span style="color:#888">Roll karne par agla season auto-banega: ' + _nxt + ' (same tiers: cosmetics + GD)</span>';
+        } else {
+          infoEl.innerHTML = '<span style="color:#ff9f1c">⚠️ Koi active season nahi!</span>';
+        }
+      }, function(){});
+  }
   var snap = await rtdb.ref('seasonPassRequests').orderByChild('status').equalTo('pending').once('value');
   var list = document.getElementById('spReqList');
   if (!list) return;
@@ -6278,6 +6312,31 @@ window.loadSeasonPassSection = async function() {
   });
   h += '</tbody></table></div>';
   list.innerHTML = h;
+};
+
+/* ✅ R29F (2026-09-22): Season roll action — admin-only RPC
+   admin_roll_battle_pass_season() server-side verify karta hai ki caller
+   is_admin hai + current season khatam ho chuka hai, phir sab ko inactive
+   karke naya 'YYYY_MM' season banata hai (SAME tiers — cosmetic + GD
+   values preserve). Double-run / mid-month roll server hi rokta hai. */
+window.rollBattlePassSeason = async function() {
+  if (!window._supa) { showToast('❌ Supabase connected nahi', true); return; }
+  var btn = document.getElementById('bpRollBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Rolling...'; }
+  if (!confirm('Naya month ka Battle Pass season roll karna hai?\nCurrent season inactive ho jayega aur agla season (is month + 1) active ho jayega — same tiers (cosmetics + GD).')) {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Naya Month Season Roll Karo'; }
+    return;
+  }
+  try {
+    var r = await window._supa.rpc('admin_roll_battle_pass_season', {});
+    if (r.error) { showToast('❌ ' + (r.error.message || 'Roll failed'), true); if (btn) { btn.disabled = false; btn.textContent = '🔄 Naya Month Season Roll Karo'; } return; }
+    var d = r.data || {};
+    if (d.ok === false) { showToast('⚠️ ' + (d.error || 'Roll nahi hua'), true); }
+    else { showToast('✅ Season ' + d.season + ' roll ho gaya (' + d.tiers + ' tiers)!', false); }
+  } catch(e) { showToast('❌ Roll error: ' + e.message, true); }
+  if (btn && !btn.disabled) btn.disabled = false;
+  if (btn) { btn.textContent = '🔄 Naya Month Season Roll Karo'; }
+  loadSeasonPassSection();
 };
 
 /* ══════════════════════════════════════════════════════

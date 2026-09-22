@@ -6056,3 +6056,23 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
   LIVE-VERIFIED real (ads.js premium-skip; profile.js badge; creator/
   stream Gold gate; premium.js tier-3 `.prof-ava` purple glow; claim RPC).
 - free-trial.js copy already clean (Green Name/chat claims pehle removed).
+
+# SECTION 38 — R29F (cont.) Season roll + ign_at_join backfill — 2026-09-22
+- **`admin_roll_battle_pass_season()`** (new, admin-only, SECURITY DEFINER):
+  active season ko inactive + naya `YYYY_MM` season (same `tiers` — cosmetic
+  `{freeCos|premCos}` + `freeGd`/`premGd` preserve) banata hai. Guard:
+  caller `is_admin` + current season ka `end_date` CURRENT_DATE se pehle ho
+  (mid-month roll blocked) + dup season_key blocked. Live QA: admin →
+  "Current season abhi chal raha hai (ends 2026-09-30)"; qauser1 →
+  "Admin only"; anon → "Not authenticated".
+- **Admin Season Manager card** (admin-inline.js `loadSeasonPassSection`):
+  active-season info + "Naya Month Season Roll Karo" button (RPC call) —
+  pehle season seed पूरी तरह manual SQL tha (bhoolna = users ki BP screen
+  "Season not found"). Tiers editor abhi nahi — roll SAME tiers copy karta
+  hai; alag rewards chahiye to roll ke baad `battle_passes.tiers` seed/edit
+  karo (shape contract §36/delta file header me hai).
+- **`ign_at_join` backfill** (one-time): purane 6 rows (R24 fix se pehle ke,
+  khali) `user_ign` else `users.ign` se bhare — display-name only. Naye joins
+  pehle se `ign_at_join` bhar rahe hain (screens/join.js R28m + RPC
+  `COALESCE(p_join_data->>'ign','')`).
+- Repo: admin-inline.js + index.html `admin-inline.js?v=20260922d`.
