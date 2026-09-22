@@ -11051,6 +11051,7 @@ FOR EACH ROW EXECUTE FUNCTION notifications_push_hook();
 -- ================================================================
 
 -- ═════════════════════════════════════════════════════════════════
+-- ═════════════════════════════════════════════════════════════════
 -- SECTION: R29E AUDIT FIXES (report.txt 2026-09-22) — merged from
 -- 2026-09-22e-R29E-AUDIT-FIXES-DELTA.sql (ALL APPLIED + LIVE-VERIFIED)
 -- ═════════════════════════════════════════════════════════════════
@@ -11638,3 +11639,43 @@ WHERE key = 'live_config';
 -- =====================================================================
 -- END 2026-09-22e — R29E AUDIT FIXES
 -- =====================================================================
+
+
+-- ═══ P0-6 ext: claim_premium_monthly_bonus config-aware (live_config.premium.bonuses) ═══
+CREATE OR REPLACE FUNCTION public.claim_premium_monthly_bonus(p_tier integer, p_bonus_coins integer DEFAULT NULL::integer)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid TEXT := auth.jwt() ->> 'sub';
+  v_prem INT;
+  v_month TEXT := TO_CHAR(NOW(), 'YYYY-MM');
+  v_bonus INT;
+  v_cfg JSONB;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+  IF p_tier NOT IN (1,2,3) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invalid tier');
+  END IF;
+  SELECT value INTO v_cfg FROM app_settings WHERE key = 'live_config';
+  v_bonus := COALESCE(
+    (v_cfg->'premium'->'bonuses'->p_tier::text)::INT,
+    CASE p_tier WHEN 1 THEN 50 WHEN 2 THEN 150 ELSE 400 END);
+  SELECT COALESCE(premium_level, 0) INTO v_prem FROM users WHERE id = v_uid FOR UPDATE;
+  IF COALESCE(v_prem, 0) <> p_tier THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Is tier ka premium active nahi hai');
+  END IF;
+  INSERT INTO premium_monthly_bonus_claims(user_id, month_key, tier, bonus_coins)
+  VALUES (v_uid, v_month, p_tier, v_bonus);
+  UPDATE users SET coins = COALESCE(coins,0) + v_bonus WHERE id = v_uid;
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, note)
+  VALUES (v_uid, 'coins', 'credit', v_bonus, 'premium_bonus', 'Monthly Premium Bonus Tier ' || p_tier);
+  RETURN jsonb_build_object('ok', true, 'bonus', v_bonus, 'month', v_month);
+EXCEPTION WHEN unique_violation THEN
+  RETURN jsonb_build_object('ok', false, 'error', 'Is month ka bonus le liya');
+END;
+$function$;
+
+
