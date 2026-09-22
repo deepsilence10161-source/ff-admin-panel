@@ -214,7 +214,7 @@ function loadSponsoredTournaments(loadMore) {
       html += '<div>';
       html += '<div style="font-size:15px;font-weight:800;color:#ffd700">' + escHtml(d.name) + '</div>';
       html += '<div style="font-size:11px;color:#888;margin-top:3px">Sponsor: <strong style="color:#aaa">' + escHtml(d.sponsor) + '</strong></div>';
-      if (d.matchId) html += '<div style="font-size:10px;color:#555;margin-top:2px">Match ID: ' + escHtml(d.matchId) + ' <a onclick="navTo&&navTo(\'matches\')" style="color:#00d4ff;cursor:pointer">(match ka live/upcoming status Matches tab me dekho)</a></div>';
+      if (d.matchId) html += '<div style="font-size:10px;color:#555;margin-top:2px">Match ID: ' + escHtml(d.matchId) + ' <a onclick="showSection(\'tournaments\',this)" style="color:#00d4ff;cursor:pointer">(match ka live/upcoming status Matches tab me dekho)</a></div>';
       html += '</div>';
       html += '<span style="font-size:11px;color:' + statusColor + ';font-weight:700">' + statusLabel + '</span>';
       html += '</div>';
