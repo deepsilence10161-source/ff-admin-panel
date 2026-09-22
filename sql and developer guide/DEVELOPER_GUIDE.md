@@ -6311,3 +6311,48 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
   PAYTM_MID + PAYTM_MERCHANT_KEY (+ PAYTM_WEBSITE/PAYTM_CALLBACK_URL/PAYTM_ENV)
   set करें, या (b) paytmEnabled OFF करें जब तक creds न हों। यह money-path
   है इसलिए मैंने reporting-only रखा, कोई अनुमानित value inject नहीं की।
+
+## R3-HARDEN (cont. 2) — Phases 5/6/7/8 audit + SSOT fixes — 2026-09-23
+
+### Phase-5 Config SSOT — live-verified + FIXED
+- **Authoritative source = `app_settings.live_config`** (admin panel "App Settings"
+  editor yahi load/save karta hai — `js/fa-app-settings-v2.js` only `live_config`/
+  `creator_system`/`video_moderation`)। Client pattern सही: server > Firebase
+  RTDB fallback > permissive defaults (कोई silent client override नहीं)।
+- **Divergence found + fixed (silent, no value change):** server RPCs कुछ rewards
+  sibling legacy keys से पढ़ते थे जो admin panel cache/value से अलग थे:
+  - `purchase_cosmetic` ← `cosmetic_prices` (panel saves `live_config.cosmetics`)
+  - `claim_streak_milestone` ← `streak_config` (panel saves `live_config.streakMilestones`)
+  - `claim_mission_reward` ← `mission_config` (panel saves `live_config.missions`)
+  - **FIX (2026-09-23c delta):** सब अब `live_config.*` पहले, legacy key fallback।
+    Live parity proven (cosmetics ₹ same 8 items; streak 20/100/200/500/1000/2000;
+    missions 10/5/50/30) → कोई user-visible price/reward नहीं बदला। 5/5 live-
+    applied, JSON-path resolve + negative-path smoke 200 OK।
+- `ad_rewards` (coinsPerAd=5/dailyCoinAdLimit=20) + `squad_bank_items` + `cosmetic_prices`
+  ab **legacy/fallback** हैं — admin panel नहीं लिखता; server `purchase_cosmetic`/
+  `unlock_squad_bank_cosmetic` इन्हें fallback रखते हैं (by-design backstop, DELETE नहीं)।
+
+### Phase-6 Paytm (documented above) — state machine PASS; GAP: secrets not set
+### Phase-7 Match — LIVE PASS (audit-JSON से ज़्यादा, live pg_get_functiondef):
+- `validate_and_join_match` R3-P0 FIX (2026-09-23) live: p_entry_fee/p_currency
+  IGNORE; server DB से entry_type/fee/slots FOR UPDATE; caller=player; ban; self-play
+  block; ALREADY_JOINED; MATCH_FULL (team-slot aware v_slots 1/2/4); atomic debit;
+  currency canonical `coins`/`sky_diamonds`; creator 15% (creator_system) होल्ड 7d INR।
+- `get_room_credentials` — joined/owner/admin gating + premium-tier-3 early window;
+  `cancel_match_with_refunds` admin-only refund-from-row; `claim_match_refund`
+  refund-from-join_requests-row (client नहीं)।
+- `creator_publish_result` — kill/winner/payout-cap flags; `admin_confirm_creator_cheat`
+  void+refund+strikes; `finalize_creator_commission` admin-checked overload; payout
+  single-path claim (eligible→pending_payout→creator_payouts) once-guard।
+- **currency-canonical FIX:** matches.entry_type `'sky_diamond'` → ledger `'sky_diamonds'`
+  (plural) — `creator_publish_result` + `admin_confirm_creator_cheat` में; amount UNCHANGED।
+
+### Phase-8 Reward abuse — LIVE PASS (15 RPC live-def verified):
+- server-authoritative amounts + FOR UPDATE serialization + unique claim-log:
+  ad (15s throttle+5/day), streak (LEAST-cap+claimed-map), mission (reward_claimed+
+  stale-period), BP tier (claimed map+track check), checkin (once/day+conflict),
+  referral (referred_id UNIQUE), premium-monthly (unique month-key), voucher
+  (unique redemption+max_uses), mentor (tier-delta), BP XP (2000/day), rank
+  (500/call+2000/day), own-match (50/day), squad-bank (catalog), poll (unique+option),
+  cosmetic (owned-idempotent)。 रेफरल/duel जैसे mutual-claim vectors है लेकिन
+  कोई ledger असर नहीं (duel_records sirf storage, reward=0)।

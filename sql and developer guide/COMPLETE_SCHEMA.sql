@@ -7122,9 +7122,11 @@ BEGIN
 END;
 $function$;
 
-CREATE OR REPLACE FUNCTION public.admin_confirm_creator_cheat(p_flag_id UUID)
+CREATE OR REPLACE FUNCTION public.admin_confirm_creator_cheat(p_flag_id uuid)
  RETURNS jsonb
- LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
 AS $function$
 DECLARE
   v_caller TEXT := auth.jwt() ->> 'sub';
@@ -7146,8 +7148,9 @@ BEGIN
   FROM join_requests jr, matches m
   WHERE jr.match_id = v_match_id AND jr.user_id = u.id AND m.id = v_match_id AND m.entry_type = 'coins' AND jr.entry_fee_paid > 0;
 
+  /* SSOT (2026-09-23c): canonical ledger currency (plural). Amount UNCHANGED. */
   INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id)
-  SELECT jr.user_id, m.entry_type, 'credit', jr.entry_fee_paid, 'creator_match_voided_refund', v_match_id
+  SELECT jr.user_id, CASE WHEN m.entry_type = 'sky_diamond' THEN 'sky_diamonds' ELSE m.entry_type END, 'credit', jr.entry_fee_paid, 'creator_match_voided_refund', v_match_id
   FROM join_requests jr JOIN matches m ON m.id = jr.match_id WHERE jr.match_id = v_match_id AND jr.entry_fee_paid > 0;
 
   UPDATE matches SET status = 'cancelled' WHERE id = v_match_id;
@@ -7159,6 +7162,8 @@ BEGIN
     UPDATE users SET creator_suspended_permanently = true, is_creator = false WHERE id = v_owner;
   ELSIF v_new_strikes >= 3 THEN
     UPDATE users SET creator_suspended_until = NOW() + INTERVAL '30 days' WHERE id = v_owner;
+    -- FIX: correct column names (premium_level/premium_expires, not
+    -- premium_tier/premium_expires_at which don't exist on this table).
     UPDATE users SET premium_level = 0, premium_expires = NULL WHERE id = v_owner;
   END IF;
 
@@ -7174,6 +7179,7 @@ BEGIN
   RETURN jsonb_build_object('success', true, 'strikes', v_new_strikes);
 END;
 $function$;
+
 
 GRANT EXECUTE ON FUNCTION public.admin_dismiss_creator_flag(uuid) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.admin_confirm_creator_cheat(uuid) TO authenticated, anon;
@@ -8707,29 +8713,39 @@ REVOKE EXECUTE ON FUNCTION public.increment_poll_vote(uuid, text) FROM authentic
 --    unknown mission reject; double-claim FOR UPDATE lock.
 -- ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.claim_mission_reward(p_mission_key text, p_period text, p_coins integer)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   v_uid TEXT := auth.jwt() ->> 'sub';
   v_row RECORD;
   v_cfg JSONB;
-  v_reward INT;
+  v_reward INT := 0;
+  v_txt TEXT;
   v_period_ok BOOLEAN;
 BEGIN
   IF v_uid IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'not_authenticated');
   END IF;
 
-  /* FIX (2026-09-20 R3): reward server-side se — p_coins IGNORE.
-     Sirf mission_config me registered missions claim kar sakte hain. */
-  SELECT value->p_mission_key INTO v_cfg FROM app_settings WHERE key = 'mission_config';
-  IF v_cfg IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'unknown_mission');
+  /* FIX (2026-09-23c SSOT): mission reward authority = live_config.missions
+     (admin panel editor, flat {key: coins}). mission_config (legacy,
+     {key:{coins,target}} shape) sirf fallback. p_coins IGNORE (pehle se). */
+  SELECT value -> 'missions' ->> p_mission_key INTO v_txt
+    FROM app_settings WHERE key = 'live_config';
+  IF v_txt IS NOT NULL AND v_txt ~ '^[0-9]+(\.[0-9]+)?$' THEN
+    v_reward := (v_txt::NUMERIC)::INT;
   END IF;
-  v_reward := COALESCE((v_cfg->>'coins')::INT, 0);
+
+  IF v_reward <= 0 THEN
+    SELECT value -> p_mission_key INTO v_cfg FROM app_settings WHERE key = 'mission_config';
+    IF v_cfg IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error', 'unknown_mission');
+    END IF;
+    v_reward := COALESCE((v_cfg->>'coins')::INT, 0);
+  END IF;
   IF v_reward <= 0 THEN
     RETURN jsonb_build_object('success', false, 'error', 'mission_reward_not_configured');
   END IF;
@@ -8770,7 +8786,8 @@ BEGIN
 
   RETURN jsonb_build_object('success', true, 'coins', v_reward);
 END;
-$fn$;
+$function$;
+
 
 -- ─────────────────────────────────────────────────────────────
 -- 4. track_mission_progress — unknown-key kabhi complete nahi (R3-3)
@@ -8814,12 +8831,12 @@ $fn$;
 -- 5. claim_streak_milestone — server-cap + day-whitelist (R3-4)
 --    401-dead tha; ab anon+authenticated granted.
 -- ─────────────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION public.claim_streak_milestone(p_day integer, p_coins integer, p_badge text DEFAULT NULL)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
+CREATE OR REPLACE FUNCTION public.claim_streak_milestone(p_day integer, p_coins integer, p_badge text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   v_uid TEXT := auth.jwt() ->> 'sub';
   v_streak INTEGER;
@@ -8835,7 +8852,15 @@ BEGIN
   IF p_day NOT IN (3,7,14,30,60,100) OR p_coins IS NULL OR p_coins <= 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_params');
   END IF;
-  SELECT value->p_day::text INTO v_cfg FROM app_settings WHERE key='streak_config';
+
+  /* FIX (2026-09-23c SSOT): reward authority = live_config.streakMilestones
+     (admin panel editor). streak_config legacy fallback. LEAST(p_coins, …)
+     cap pehle se — client amount kabhi exceed nahi kar sakta. */
+  SELECT value -> 'streakMilestones' -> p_day::text ->> 'coins' INTO v_cfg
+    FROM app_settings WHERE key = 'live_config';
+  IF v_cfg IS NULL THEN
+    SELECT value -> p_day::text INTO v_cfg FROM app_settings WHERE key = 'streak_config';
+  END IF;
   v_reward := LEAST(p_coins::NUMERIC, COALESCE((v_cfg)::NUMERIC, 50));
   IF v_reward <= 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_params');
@@ -8866,7 +8891,8 @@ BEGIN
 
   RETURN jsonb_build_object('ok', true, 'coins', v_reward, 'new_balance', v_new_balance);
 END;
-$fn$;
+$function$;
+
 
 -- ─────────────────────────────────────────────────────────────
 -- 6. battle_pass_progress daily-XP columns (R3-6 cap ke liye)
@@ -8998,11 +9024,11 @@ $fn$;
 --    unknown cosmetic reject; already-owned idempotent.
 -- ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.purchase_cosmetic(p_cosmetic_key text, p_price integer, p_display_name text)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   v_uid TEXT := auth.jwt() ->> 'sub';
   v_balance NUMERIC;
@@ -9016,13 +9042,27 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'invalid_params');
   END IF;
 
+  -- Already owned? Idempotent.
   IF EXISTS (SELECT 1 FROM user_cosmetics WHERE user_id = v_uid AND cosmetic_key = p_cosmetic_key) THEN
     RETURN jsonb_build_object('ok', true, 'already_owned', true);
   END IF;
 
-  SELECT value->p_cosmetic_key->>'price', COALESCE(value->p_cosmetic_key->>'name', p_display_name)
+  /* FIX (2026-09-23c SSOT): price authority = live_config.cosmetics
+     (admin panel App Settings editor). cosmetic_prices sirf legacy
+     fallback — client p_price ignore (pehle se). */
+  SELECT value -> 'cosmetics' -> p_cosmetic_key ->> 'price',
+         value -> 'cosmetics' -> p_cosmetic_key ->> 'name'
     INTO v_price, v_name
-    FROM app_settings WHERE key = 'cosmetic_prices';
+    FROM app_settings WHERE key = 'live_config';
+
+  IF v_price IS NULL THEN
+    SELECT value -> p_cosmetic_key ->> 'price',
+           COALESCE(value -> p_cosmetic_key ->> 'name', p_display_name)
+      INTO v_price, v_name
+      FROM app_settings WHERE key = 'cosmetic_prices';
+  END IF;
+  v_name := COALESCE(v_name, p_display_name);
+
   IF v_price IS NULL OR v_price <= 0 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'unknown_cosmetic');
   END IF;
@@ -9035,11 +9075,12 @@ BEGIN
   UPDATE users SET sky_diamonds = sky_diamonds - v_price WHERE id = v_uid;
   INSERT INTO user_cosmetics(user_id, cosmetic_key, purchased_at) VALUES (v_uid, p_cosmetic_key, NOW());
   INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, note)
-  VALUES (v_uid, 'sky_diamonds', 'debit', v_price, 'cosmetic_purchase', COALESCE(v_name, p_cosmetic_key));
+  VALUES (v_uid, 'sky_diamonds', 'debit', v_price, 'cosmetic_purchase', v_name);
 
   RETURN jsonb_build_object('ok', true, 'new_balance', v_balance - v_price);
 END;
-$fn$;
+$function$;
+
 
 -- ─────────────────────────────────────────────────────────────
 -- 10. finalize_creator_commission — admin/internal guard (R3-10)
@@ -9118,11 +9159,11 @@ $fn$;
 --     internal (p_internal=true) call karta hai.
 -- ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.creator_publish_result(p_match_id text, p_results jsonb)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   v_uid TEXT := auth.jwt() ->> 'sub';
   v_owner TEXT;
@@ -9135,6 +9176,7 @@ DECLARE
   v_recent_wins INT;
   v_total_payout NUMERIC := 0;
   v_flag_reason TEXT;
+  v_ledger_currency TEXT;
   v_max_payout_cap CONSTANT NUMERIC := 500;
 BEGIN
   IF v_uid IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'not_authenticated'); END IF;
@@ -9149,6 +9191,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'creator_suspended');
   END IF;
 
+  /* FIX (R3): 'r' variable vs alias ambiguity — alias ab 'res'.
+     Exception-handler bhi: fail par match 'live' atka na rahe. */
   UPDATE join_requests jr
   SET kills = COALESCE((res->>'kills')::INT, 0),
       placement = COALESCE((res->>'placement')::INT, 0)
@@ -9186,6 +9230,10 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'status', 'pending_review', 'flagged', true);
   END IF;
 
+  /* SSOT (2026-09-23c): canonical ledger currency — 'sky_diamond' →
+     'sky_diamonds' (plural), system-wide canonical. Amount UNCHANGED. */
+  v_ledger_currency := CASE WHEN v_entry_type = 'sky_diamond' THEN 'sky_diamonds' ELSE v_entry_type END;
+
   IF v_per_kill > 0 THEN
     IF v_entry_type = 'coins' THEN
       UPDATE users u SET coins = coins + (jr.kills * v_per_kill)
@@ -9195,7 +9243,7 @@ BEGIN
       FROM join_requests jr WHERE jr.match_id = p_match_id AND jr.user_id = u.id AND jr.kills > 0;
     END IF;
     INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id)
-    SELECT user_id, v_entry_type, 'credit', kills * v_per_kill, 'creator_match_prize', p_match_id
+    SELECT user_id, v_ledger_currency, 'credit', kills * v_per_kill, 'creator_match_prize', p_match_id
     FROM join_requests WHERE match_id = p_match_id AND kills > 0;
   END IF;
 
@@ -9206,7 +9254,8 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RETURN jsonb_build_object('success', false, 'error', 'publish_failed', 'detail', SQLERRM);
 END;
-$fn$;
+$function$;
+
 
 -- ─────────────────────────────────────────────────────────────
 -- 12. get_room_credentials — NAYA RPC (R3-2 room-leak fix ka
