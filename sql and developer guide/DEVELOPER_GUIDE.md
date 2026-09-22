@@ -6174,3 +6174,52 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
 - admin-repo: split (`2728868`), monolith removal (`ced14fd`), dedup (`76f01d3`),
   tests (`93ebd0f`), monitor+guide (यह वाला)।
 - user-repo: features-user split (`b1825fc`), dedup (`374a18a`), tests (`2fccdd5`)।
+
+# SECTION 41 — R3 PRODUCTION-HARDENING (Phase 0 audit + P0 join-fee fix) — 2026-09-23
+
+## क्या किया (सब live-verified, कोई assumption नहीं)
+
+### Phase 0 — read-only live audit (निष्कर्ष)
+- **Role matter:** app (user + admin) Firebase JWT → PostgREST `anon` role से
+  चलता है (`_probe()` live-prove: `{"role":"anon","authed_uid":"<firebase uid>"}`)।
+  `authenticated`/`service_role` sirf background/cron use करते हैं। इसलिए
+  EXECUTE-grant revoke (authenticated से) **सुरक्षा नहीं** देता — असली सुरक्षा
+  हर SECURITY DEFINER function के BODY के guards से है (जो 82 में से लगभग सभी
+  में मौजूद हैं)।
+- **82 SECURITY DEFINER functions** (owner=postgres): body-guard review किया —
+  ज़्यादातर solid (self-compare / admin / service gate / server-config amount)।
+- **Existing defense-in-depth** जो पहले से मौजूद है (और काम करता है):
+  - `guard_users_self_update` trigger → users self-UPDATE sirf allowlist columns
+    (live-prove: `coins=999999` self-PATCH → 400 "Column coins is not self-editable";
+    `is_admin=true` → block; `premium_level=3` → block)।
+  - `clamp_join_requests_client_update` trigger → client join_requests UPDATE पर
+    status/kills/placement/prize_earned/entry_fee_paid clamp।
+  - `join_requests` INSERT policy `jr_insert_free_only` → free/ad + fee=0 + status
+    joined ONLY (paid match का direct-insert route block)।
+  - `match_rooms` admin-only RLS + `get_room_credentials()` joined/released gate।
+  - `internal_process_no_show_refunds` + `increment_poll_vote` → sirf
+    postgres/service_role EXECUTE (cron/poll bridge safe)।
+- **जो गलत था (previously-documented "P0" बंद):** `users_update_own` self full-row
+  UPDATE grant की चिंता — asal में trigger उसे block करता है (आज़माया गया)।
+
+### P0 (real, live-proven) — JOIN-FEE BYPASS — FIXED
+- `validate_and_join_match` client-supplied `p_entry_fee` seedha charge karta tha,
+  `matches.entry_fee` se compare NAHI karta tha। Live-prove (2026-09-23):
+  `QA_JoinFlow_Test2` (fee=1 coin) पर qa2 ने `p_entry_fee=0` → `{"ok":true}`,
+  `entry_fee_paid=0` row, coins unchanged, filled_slots 0→1 → **FREE paid-match join**।
+- Fix (`2026-09-23a-R3HARDEN-P0-JOINFEE-DELTA.sql`): fee/currency/slot-cap/banned/
+  self-play/duplicate ab SAB server-authoritative (matches row `FOR UPDATE` lock,
+  `matches.entry_type`+`entry_fee` canonical)। `p_entry_fee`/`p_currency` = legacy
+  signature ONLY (IGNORED)। Team packing (`captain_pays`=fee×slots, `each_pays`=fee)
+  server compute। `SET search_path TO 'public'` (mutable search_path fix)।
+- **Re-probe (PASS):** वही p_entry_fee=0 → server ने 1 coin काटा (306→305),
+  `entry_fee_paid=1`। कोई free bypass नहीं। (Probe artifacts service_role से clean
+  कर दिए गए; qa2 coins restored 306, filled_slots 0।)
+- **Bonus fix:** `active_matches` view से `room_id`/`room_password` हटा (DROP+CREATE,
+  explicit column list, `security_invoker=true`)। View ab creds leak नहीं करता।
+
+## नियम (R3)
+- Client से money/reward/currency/payout/commission/premium/BP/ownership-UID **कभी
+  trust नहीं** — हर financial RPC server-value use करे।
+- Business rules (commission 10/15%, hold 7d, prices, rewards) **न बदलें**।
+- SQL/DB हर बदलाव: delta-file + COMPLETE_SCHEMA + यह guide तीनों sync।
