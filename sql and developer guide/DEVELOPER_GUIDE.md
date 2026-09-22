@@ -6253,3 +6253,61 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
   submit_gd_withdrawal (GD refuse-only), etc。
 - **नियम:** role-matter live-proven — app Firebase JWT `anon` role से चलता है;
   इसलिए EXECUTE-revoke से नहीं, body-guards से सुरक्षा मिलती है (जो मौजूद हैं)।
+
+## R3-HARDEN (cont.) — user-repo broken helper fix (2026-09-23)
+- `user-repo/core/db.js` `DB.matches.getUpcoming()` pehle non-existent columns
+  maangta tha (`game/team_size/max_players/current_players/perspective/match_type`)
+  → har call 42703 `column active_matches.game does not exist` (live-proven) →
+  helper broken (unused, but अगर बुलाया जाए तो fail)। Ab real view columns
+  (`name/max_slots/filled_slots/match_sub_type`) से map; live 200 + 2 rows।
+- Commit: user-repo `530d90e` (admin-repo guide sync — user-side edit ka
+  reference यहाँ macro रिकॉर्ड)।
+
+## R3-HARDEN (cont.) — Phases 5 (Config SSOT) + 6 (Paytm) audit — 2026-09-23
+
+### Phase 5 — Config SSOT (live-verified)
+- `app_settings.live_config` **complete** है: premium.prices {1:49,2:99,3:199},
+  premium.bonuses {1:50,2:150,3:400}, sdPackages (49→50 / 99→120 / 199→260 /
+  399→600), adCoinsPerWatch=10, adDailyLimit=5, checkinCoins=5,
+  battlePassPrice=49, creatorMinPayout=100, coinMatchCommissionPct=10,
+  sdMatchCommissionPct=15, commissionHoldDays=7, streakMilestones, missions,
+  cosmetics, paytmEnabled=true।
+- किनारे के keys भी: creator_system, streak_config, ad_rewards, mission_config,
+  currentSeason, squad_bank_items सब मौजूद।
+- Client (`features/app-config.js`) pattern **सही**: server config > Firebase
+  RTDB fallback > safe permissive defaults (कोई silent client-side override नहीं;
+  hardcodes सिर्फ़ display-fallback हैं, window.CFG.premium fresh-read हर modal
+  open पर होता है)।
+- कोई negative price / malformed % live में नहीं मिला।
+
+### Phase 6 — Paytm (live-verified, edge functions real)
+- Edge Functions live ACTIVE: `paytm-create-order` v14, `paytm-callback` v12
+  (साथ `imgbb-upload`, `push-send`)। Source eszip से reconstruct किया।
+- state-machine (सही + retry-safe):
+  1. create-order: identity fail-closed (Firebase RS256 vs Google JWKS, iss/aud/
+     exp/sub checks; anon/service keys skip) → live probes: no-token/garbage
+     token → 401; fb_token in body (CORS-safe)।
+  2. server-authoritative: amount caps **MIN_INR=10 / MAX_INR=50000** live-सिद्ध
+     (5/0/50001 → 400 "Amount ₹10 se ₹50000 ke beech…"); package-aware diamond
+     mapping (live_config.sdPackages price→diamonds), sd_requests row 'pending'
+     बनाकर फिर Paytm initiateTransaction (signature merchant key से)।
+  3. callback: server-to-server Paytm order-status verify (receivePayment not
+     trusted; अपनी signature se status API पूछता है) → TXN_SUCCESS →
+     `creditIfFirstTime` FLIP-FIRST `.eq(status,'pending')` (at-most-once) →
+     increment_balance (service grid) → fail पर status वापस 'pending' (re-attempt,
+     no double, no stuck-lost)। TXN_FAILURE → markFailedIfPending।
+  4. negative/duplicate live-tests: no-orderId → "Order reference missing";
+     fake/random orderId → सिर्फ़ HTML, कोई credit नहीं।
+- RLS: sd_requests insert policy `sd_insert_pending` (self + status=pending),
+  select own, update admin-only — polish।
+
+### 🔴 Phase-6 GAP (यूज़र-फ़ेसिंग broken path — REPORT, merchant key मैं नहीं छूता)
+- live `paytmEnabled=true` (admin toggle ON) पर **PAYTM_MID / PAYTM_MERCHANT_KEY
+  secrets live function में SET नहीं हैं** (create-order valid amount पर भी
+  500 "Paytm secrets missing (PAYTM_MID / PAYTM_MERCHANT_KEY)")।
+- असर: user wallet में "⚡ Pay Instantly via Paytm — Auto Credit" button दिखेगा
+  पर payment order कभी नहीं बनेगा।
+- **अगला action (admin/owner decide करे):** (a) Supabase function secrets में
+  PAYTM_MID + PAYTM_MERCHANT_KEY (+ PAYTM_WEBSITE/PAYTM_CALLBACK_URL/PAYTM_ENV)
+  set करें, या (b) paytmEnabled OFF करें जब तक creds न हों। यह money-path
+  है इसलिए मैंने reporting-only रखा, कोई अनुमानित value inject नहीं की।
