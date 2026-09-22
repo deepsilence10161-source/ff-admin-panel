@@ -5884,3 +5884,45 @@ COUNT से decrement (GREATEST-गार्ड, negative नहीं)।
   वही status भी लिखे (single атомic step). Client को 'pending' मत छोड़ो।
 - Status-flip हर path में वही vocabulary use करो, else check-in/refund/no-show
   downstream चुपचाप टूटता है।
+
+## R29C (2026-09-22d) — user_has_phone() anon-grant fix (42501 live root-cause)
+**commit:** (यह commit) | **SQL delta:** `2026-09-22d-R29C-PHONE-RPC-FIX-DELTA.sql`
+
+### समस्या (live-proven)
+`user_has_phone()` secure RPC (R29) सिर्फ `authenticated` को grant था। Real signed-in
+user के साथ भी browser से `permission denied for function user_has_phone` (42501)।
+
+### मूल कारण (live-proven, assumption नहीं)
+- App का auth = **Supabase Third-Party Auth (Firebase)**: client Firebase ID token
+  को `Authorization: Bearer <firebase-jwt>` के रूप में भेजता है (`core/db.js`
+  `syncFirebaseToken`).
+- Firebase JWT में `role` claim **नहीं** होता → PostgREST request को हमेशा `anon`
+  role देता है, चाहे user signed-in हो।
+- Proof: temporary SECURITY DEFINER debug RPC ने live echo किया
+  `db_role='anon', jwt_role=null, jwt_iss=https://securetoken.google.com/fft-app-1e283`
+  signed-in request पर भी।
+- इसीलिए `validate_and_join_match` / `cancel_match_with_refunds` काम करते थे (उनके
+  ACL में `anon` पहले से था) और `user_has_phone` नहीं करता था (ACL सिर्फ authenticated)।
+
+### Fix
+`GRANT EXECUTE ... TO authenticated, anon`। **SAFE** क्योंकि function SECURITY DEFINER
+है, सिर्फ `{found:true/false}` देता है, और `v_uid NULL` होने पर हमेशा `false` (कोई
+data-leak नहीं)।
+
+### Live verification (browser E2E, 2026-09-22)
+- pure-anon pristine client → दूसरे का phone → `found:false` ✓ (leak नहीं)
+- signed-in → self phone → `found:false` ✓
+- signed-in → दूसरे का phone → `found:true` ✓
+- signed-in → nonexistent → `found:false` ✓
+
+### 🔴 नियम (R29C)
+- इस app में **हर client-visible RPC को `anon` grant भी देना ज़रूरी है** — क्योंकि
+  Third-Party Auth (Firebase JWT) में role-claim नहीं होता, डेटाबेस-role हमेशा `anon`
+  ही रहता है। `authenticated`-only grant = live 42501।
+- Sensitive RPC को anon से बचाना हो तो grant हटाकर नहीं, बल्कि SECURITY DEFINER +
+  अंदर `auth.jwt()->>'sub'` guard से बचाओ (जैसे यह function करता है)।
+- **यही नियम `increment_match_filled_slots()` पर भी लागू हुआ** — उसका ACL भी सिर्फ़
+  `authenticated` था (COMPLETE_SCHEMA में पुराने comment ने गलती से "service-only stub"
+  कहा था); live def असल में +1 mutation करती थी और `joinedSlots` bridge-path से
+  user-face थी। अब `anon` grant + stale comments सुधारे गए।
+

@@ -5801,10 +5801,16 @@ ALTER POLICY users_update_own ON public.users
 -- live-proof: anon दोनों columns का SELECT-output भी ले सकता था
 -- (referral_code की असली values leak हुईं, e.g. Hunter7 TYHTZFON).
 -- phone + referral_code अब view से हटाए गए हैं। phone-dup-check ke liye
--- dedicated SECURITY DEFINER RPC user_has_phone() hai (sirf authenticated,
--- sirf existence-check) — view की capacity नहीं चाहिए. referral_leaderboard
--- (नीचे) अब join pe depend karta hai, drop/first-recreate-order note karte
--- हुए recreate किया गया. देखें DELTA 2026-09-22b-R29-PRIVACY-REALTIME.
+-- dedicated SECURITY DEFINER RPC user_has_phone() hai (existence-check only) —
+-- view की capacity नहीं चाहिए. ⚠️ R29C (2026-09-22): grant ab authenticated + anon
+-- dono को है (app के Third-Party Auth Firebase-JWT me 'role' claim न होने से
+-- PostgREST सभी users को `anon` role देता है — live-proven; sirf-authenticated
+-- grant live में 42501 देता था). anon grant SAFE: function SECURITY DEFINER +
+-- v_uid guard से बिना JWT हमेशा found:false देता है, दूसरे का phone sirf
+-- signed-in caller को found:true दिखता है (phone value कभी output नहीं होता).
+-- referral_leaderboard (नीचे) अब join pe depend karta hai. full function def इसी
+-- file में GRANT SELECT user_public_profiles के बाद है. देखें DELTA
+-- 2026-09-22b-R29-PRIVACY-REALTIME + 2026-09-22d-R29C-PHONE-RPC-FIX.
 CREATE OR REPLACE VIEW public.user_public_profiles
 WITH (security_invoker = false) AS
 SELECT id, ign, ff_uid, avatar_url, avatar_bg_color, city, bio, rank_tier, rank_points,
@@ -5814,6 +5820,48 @@ SELECT id, ign, ff_uid, avatar_url, avatar_bg_color, city, bio, rank_tier, rank_
 FROM public.users;
 
 GRANT SELECT ON public.user_public_profiles TO anon, authenticated;
+-- ══ R29C (2026-09-22) user_has_phone() — secure phone dup-check RPC ══
+-- SECURITY DEFINER: caller ko sirf {found:true/false} milta hai (koi uid/phone/ign
+-- output nahi). GRANT me anon bhi hai — SAFE क्योंकि: (a) function koi data
+-- expose nahi karta, (b) bina JWT (anon) me v_uid NULL rahta hai → hamesha
+-- found:false return hota hai, (c) caller ka apna phone → found:false (self),
+-- sirf KISI AUR ke phone pe found:true hota hai (profile dup-check ke liye).
+-- ROOT-CAUSE (R29C, live-proven): app ka auth Supabase Third-Party Auth (Firebase
+-- JWT via Authorization Bearer) hai; auth.jwt() me 'role' claim hota hi nahi,
+-- isliye PostgREST request ko hamesha `anon` role deta hai — chahe user signed-in
+-- ho. Isliye ye RPC (jo sirf authenticated ko grant tha) live me 42501 deta tha.
+-- validate_and_join_match/cancel_match_with_refunds isliye chalte the kyunki unke
+-- ACL me `anon` pehle se tha. Fix: anon ko EXECUTE grant (function khud SECURITY
+-- DEFINER + v_uid guard se safe hai).
+CREATE OR REPLACE FUNCTION public.user_has_phone(p_phone text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $function$
+DECLARE
+  v_uid TEXT := auth.jwt() ->> 'sub';
+  v_owner TEXT;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('found', false);
+  END IF;
+  IF p_phone IS NULL OR length(regexp_replace(p_phone, '[^0-9]', '', 'g')) < 10 THEN
+    RETURN jsonb_build_object('found', false);
+  END IF;
+  SELECT id INTO v_owner FROM users
+   WHERE regexp_replace(phone, '[^0-9]', '', 'g') = regexp_replace(p_phone, '[^0-9]', '', 'g')
+   LIMIT 1;
+  IF v_owner IS NULL OR v_owner = v_uid THEN
+    RETURN jsonb_build_object('found', false);
+  END IF;
+  RETURN jsonb_build_object('found', true);
+END;
+$function$;
+
+REVOKE EXECUTE ON FUNCTION public.user_has_phone(text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.user_has_phone(text) TO authenticated, anon;
+
 
 -- =====================================================================================
 -- v32.18 — BUG #40 FIX: is_banned/ban_reason writable by ANY logged-in user, not just admins
@@ -10613,7 +10661,9 @@ $function$
 --     bug tha — SELECT INTO me day-col bhi saath padha)
 --   R9-4 submit_gd_withdrawal / redeem_reward_item / creator_create_match:
 --     audit clean (jwt + FOR UPDATE + caps + balance-checks) ✅
---   R9-5 increment_match_filled_slots: stub (koi mutation nahi) ✅
+--   R9-5 increment_match_filled_slots: [R29C UPDATE] live me REAL +1 mutation
+--     thi (stub-notion stale tha); anon-grant bhi add hua — def + grant neeche
+--     R29C block me hai.
 --
 -- ADMIN-PANEL (code fixes, is repo me):
 --   R9-6 ★ Fraud tools deviceJoins ROOT-read karte the — Round-2 rules ne
@@ -10789,8 +10839,40 @@ ALTER TABLE users ADD CONSTRAINT ffuid_no_html
 --   • support_tickets: st_update_admin policy ADD (admin status/reply
 --     writes; user-edit blocked — verified)
 --
--- INTENTIONALLY service-only (verified blocked): increment_match_filled_slots
--- (stub), increment_poll_vote, internal_process_no_show_refunds
+
+-- ══ R29C (2026-09-22) increment_match_filled_slots — anon-grant fix ══
+-- ROOT-CAUSE: Third-Party Auth (Firebase JWT) me 'role' claim nahi hota →
+-- PostgREST browser request ko hamesha `anon` role deta hai. Is function ka
+-- ACL sirf authenticated tha → browser (signed-in bhi) se call = 42501.
+-- Live def (SECURITY DEFINER + v_caller guard, strictly +1, no client-
+-- controlled target/amount) ke saath anon grant SAFE hai.
+CREATE OR REPLACE FUNCTION public.increment_match_filled_slots(p_match_id text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+  -- Deliberately narrow: always exactly +1, to a non-money column,
+  -- no client-controlled amount or target.
+  UPDATE matches SET filled_slots = COALESCE(filled_slots, 0) + 1 WHERE id = p_match_id;
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+
+REVOKE EXECUTE ON FUNCTION public.increment_match_filled_slots(text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.increment_match_filled_slots(text) TO authenticated, anon;
+
+-- INTENTIONALLY service-only (verified blocked): increment_poll_vote,
+-- internal_process_no_show_refunds
+-- (increment_match_filled_slots ab user-callable hai — R29C me anon grant:
+-- Third-Party-Auth Firebase-JWT = anon db-role, SECURITY DEFINER + v_caller
+-- guard se safe. Ye line R29C me list se REMOVE ki gayi.)
 --
 -- LESSON: EXECUTE-audit dono roles par karo (anon + authenticated).
 --   "authenticated me hai" ≠ "client chala payega" (Firebase-JWT=anon).
