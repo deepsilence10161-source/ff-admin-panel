@@ -6076,3 +6076,53 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
   pehle se `ign_at_join` bhar rahe hain (screens/join.js R28m + RPC
   `COALESCE(p_join_data->>'ign','')`).
 - Repo: admin-inline.js + index.html `admin-inline.js?v=20260922d`.
+
+# SECTION 39 — P2 REFACTOR: admin-inline.js SPLIT (mechanical, 0-behavior-change) — 2026-09-22
+
+## क्या किया
+`js/admin-inline.js` (6402 lines / 373255 bytes) को AST statement-boundaries पर
+**byte-सटीक** 4 भागों में बाँटा — कोई line बदली नहीं गई, कोई function नहीं
+कटा। Concatenation == original (sha-बराबर, byte-identical साबित)। यह split
+का पहला (सबसे mechanical) कदम है; consolidation (dedup) और monitoring अलग
+इसी work-stream में आगे हैं।
+
+### parts (load order = B < C < D < E, सब `defer` — same as पहले)
+| File | Range | विषय |
+|---|---|---|
+| `admin-inline-b.js` | 1–1642 | CORE: config, firebase init, auth/login, users, dashboard |
+| `admin-inline-c.js` | 1643–3755 | MATCH MGMT: match status, tournaments, joined players, publish results, reject modal |
+| `admin-inline-d.js` | 3756–4976 | OPERATIONS: join-requests listener, partners, chat, notifications, settings, maintenance, vouchers, sidebar/sections, disputes, templates, verify, fixMissingTeammateJRs, result-correction, match-result, match-history |
+| `admin-inline-e.js` | 4977–6402 | PERIPHERAL: exportCSV, roster status, activity log, sky-diamond, premium, season pass |
+
+`index.html` अब चारों load करता है (`20260922e`), monolith हटाया।
+
+## safety proof (verify के साथ)
+- **Concatenation byte-identical** साबित (node script, 4× confirm).
+- **top-level `let`/`const`/`class`**: सिर्फ़ part B में (firebaseConfig,
+  DB_MATCHES…, currentFilter, usersCache आदि 19)। parts C/D/E में ZERO ——
+  मतलब script-scope split में कुछ नहीं टूटता।
+- **Load-time (immediate) exec** अपने-अपने part में और अपने part से पहले
+  वाले ही reference करता है: IIFE (cfg loader) B में, `firebase.initializeApp`
+  B में, `auth.onAuthStateChanged` B में (initializeAdminPanel B में, वह B–D
+  के functions को load-क्रम में सही बुलाता है), `onIdTokenChanged` B में,
+  click-listener + generic-modal IIFE D में, `_ensureAppSettingsRealtime`
+  event-bind D में, `watchPendingBadges` + `showSecurityRules` E में।
+- **VM shared-realm smoke test** (stub DOM/auth/rtdb/supabase): चारों parts
+  order में load → कोई SyntaxError/ReferenceError नहीं; window surface
+  (initializeAdminPanel, loadTournaments, getMatchStatus, publishResults,
+  loadDisputes, loadSettings, showSection, exportCSV, rollBattlePassSeason,
+  loadSeasonPassSection) सब intact; onAuthStateChanged(logout) भी बिना throw।
+- **`node --check`** चारों parts पर OK।
+- एकमात्र SHA-relevant merge नहीं — हर part पर एक-line header comment आगे
+  जोड़ा (XOR-inverse नहीं, purely additive outside original bytes)।
+
+## notes
+- बाकी 13 `.js` files में "admin-inline.js" के ज़िक्र **comments** हैं (code
+  path documentation), कोई live import नहीं — कोई बदलाव ज़रूरी नहीं।
+- `build.js` minify पर cross-file mangle names के लिए `reserved` list है
+  (showToast आदि); भविष्य में अगर कोई नया cross-file global निकले तो वहाँ
+  जोड़ें।
+- अगर कभी non-defer + order-sensitive refactor हो तो Script-load order का
+  यह दस्तावेज़ update करें।
+- Source of truth: `/home/user/refactor-backup/admin-inline.js.orig` (workspace
+  backup) — git history में भी pre-split commit मौजूद है।
