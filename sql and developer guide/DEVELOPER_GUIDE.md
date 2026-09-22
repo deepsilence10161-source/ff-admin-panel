@@ -5854,3 +5854,33 @@ Fix (admin-inline.js + features-admin.js):
   जो सिर्फ boolean/existence लौटाए।
 - **Admin-realtime चैनल token-refresh-resistant बनाओ:** channel बनाने-से-पहले stale
   client-orphan का ख्याल रखो; `supabase:authenticated` event पर re-bind।
+
+---
+
+## R29B (2026-09-22c) — Paid join AUTO-APPROVE + filled_slots decrement
+**commit:** (यह commit) | **SQL delta:** `2026-09-22c-R29B-AUTO-APPROVE-DELTA.sql`
+
+### फिक्स-12 (Paid join अब seedha 'joined' — approval हटाया)
+**सवाल (user):** "paid match join approval request क्यों जाती है, ये अपने-आप हो
+जाना चाहिए।" — **सही**। Deep-research से पता चला:
+- `validate_and_join_match` paid join का पैसा तुरंत काटता, slot लेता, room-access
+  देता (get_room_credentials 'pending' allowed) — यानी **कोई असली approval-gate
+  था ही नहीं**, sirf row का status label 'pending' रह जाता था।
+- असली नुकसान: `get_room_credentials` का check-in सिर्फ़ `status='joined'` को
+  'checked_in' flip करता था → paid players kabhi checked-in नहीं होते थे।
+- vocabulary भी असंगत: free='joined', paid='pending', Firebase-echo से कभी
+  'approved'।
+**Fix:** server RPC की INSERT ab `'joined'` डालती है — यही असली auto-approve है।
+live-verify: pg_get_functiondef में 'pending' गया, 'joined' आया; नया join → 'joined'.
+
+### फिक्स-13 (filled_slots decrement on cancel — drift)
+R28m की report (code-proven) अब ठीक: `cancel_match_with_refunds` join rows को
+'refunded'/'cancelled' करता था पर `matches.filled_slots` कभी नहीं घटाता था →
+cancelled matches के बाद भी slots भरे रहते थे। Ab cancel-path पर dropped-rows की
+COUNT से decrement (GREATEST-गार्ड, negative नहीं)।
+
+### 🔴 नियम (R29B)
+- Paid joins **server-authoritative होते हैं** — जिस RPC ने पैसा काटा+slot लिया,
+  वही status भी लिखे (single атомic step). Client को 'pending' मत छोड़ो।
+- Status-flip हर path में वही vocabulary use करो, else check-in/refund/no-show
+  downstream चुपचाप टूटता है।

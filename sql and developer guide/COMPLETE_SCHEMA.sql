@@ -2406,7 +2406,7 @@ BEGIN
   VALUES(
     p_uid, p_match_id, p_entry_fee,
     CASE WHEN p_currency='coins' THEN 'coin' ELSE 'sky_diamond' END,
-    'pending',
+    'joined',
     COALESCE(p_join_data->>'ign', ''),
     COALESCE(p_join_data->>'mode', 'solo')
   ) RETURNING id INTO v_jr_id;
@@ -2495,6 +2495,14 @@ BEGIN
   UPDATE join_requests
   SET status = 'cancelled'
   WHERE match_id = p_match_id AND status NOT IN ('cancelled', 'refunded', 'rejected');
+
+  /* R29B FILLED_SLOTS DECREMENT: cancel/refund-pe rows ki ginti ghato — drift fix. */
+  UPDATE matches SET filled_slots = GREATEST(
+    filled_slots - (
+      SELECT COUNT(*) FROM join_requests
+      WHERE match_id = p_match_id AND status IN ('cancelled','refunded')
+    ), 0)
+  WHERE id = p_match_id;
 
   UPDATE matches SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = p_admin_uid WHERE id = p_match_id;
 
@@ -6456,7 +6464,7 @@ BEGIN
   VALUES(
     p_uid, p_match_id, p_entry_fee,
     CASE WHEN p_currency='coins' THEN 'coin' ELSE 'sky_diamond' END,
-    'pending',
+    'joined',
     COALESCE(p_join_data->>'ign', ''),
     COALESCE(p_join_data->>'mode', 'solo')
   ) RETURNING id INTO v_jr_id;
@@ -9962,6 +9970,14 @@ BEGIN
   UPDATE join_requests
   SET status = 'cancelled'
   WHERE match_id = p_match_id AND status NOT IN ('cancelled', 'refunded', 'rejected');
+
+  /* R29B FILLED_SLOTS DECREMENT: cancel/refund-pe rows ki ginti ghato — drift fix. */
+  UPDATE matches SET filled_slots = GREATEST(
+    filled_slots - (
+      SELECT COUNT(*) FROM join_requests
+      WHERE match_id = p_match_id AND status IN ('cancelled','refunded')
+    ), 0)
+  WHERE id = p_match_id;
 
   UPDATE matches SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = p_admin_uid WHERE id = p_match_id;
 
