@@ -6159,16 +6159,20 @@ window.loadPremiumReqSection = async function() {
       var price = r.price || 49;
       var col = tierColors[tier] || '#ffd700';
       var ss = r.screenshotBase64 || '';
+      var planType = r.planType || r.plan_type || 'monthly';
+      var bundleId = r.bundleId || r.bundle_id || null;
       var ssHtml = ss ? '<img src="'+ss+'" style="width:40px;height:40px;border-radius:6px;cursor:pointer;object-fit:cover;border:1px solid rgba(255,215,0,.3)" onclick="viewScreenshot(this.src)">' : '<span class="text-muted text-xxs">No photo</span>';
       var time = r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN') : '—';
       h += '<tr>';
       h += '<td><span style="font-weight:700;color:var(--primary)">' + ign + '</span><div style="font-size:9px;color:#666;font-family:monospace">' + uid.substring(0,10) + '</div></td>';
       h += '<td><span style="font-family:monospace;font-size:10px;color:var(--info);background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">' + ffUid + '</span></td>';
-      h += '<td><span style="padding:3px 10px;border-radius:8px;background:' + col + '22;border:1px solid ' + col + '55;color:' + col + ';font-weight:800;font-size:12px">👑 Premium ' + (tierNames[tier] || 'Tier '+tier) + '</span></td>';
+      h += '<td><span style="padding:3px 10px;border-radius:8px;background:' + col + '22;border:1px solid ' + col + '55;color:' + col + ';font-weight:800;font-size:12px">👑 Premium ' + (tierNames[tier] || 'Tier '+tier) + '</span>' +
+           (planType === 'bundle' ? '<div style="margin-top:4px;font-size:10px;font-weight:700;color:#b964ff">🎫 + Battle Pass bundle</div>' : '') +
+           (planType === 'annual' ? '<div style="margin-top:4px;font-size:10px;font-weight:700;color:#00ff9c">📅 Annual plan</div>' : '') + '</td>';
       h += '<td><span style="font-weight:700;color:#00ff9c">₹' + price + '</span></td>';
       h += '<td>' + ssHtml + '</td>';
       h += '<td style="font-size:11px;color:#666">' + time + '</td>';
-      h += '<td><button class="btn btn-primary btn-xs" style="background:linear-gradient(135deg,' + col + ',#ff8c00);border:none;color:#000" onclick="approvePremiumReq(\'' + id + '\',\'' + uid + '\',' + tier + ')"><i class="fas fa-crown"></i> Approve 30d</button> <button class="btn btn-danger btn-xs" onclick="rejectPremiumReq(\'' + id + '\')"><i class="fas fa-times"></i></button></td>';
+      h += '<td><button class="btn btn-primary btn-xs" style="background:linear-gradient(135deg,' + col + ',#ff8c00);border:none;color:#000" onclick="approvePremiumReq(\'' + id + '\',\'' + uid + '\',' + tier + (planType === 'bundle' ? ',true' : ',false') + ')"><i class="fas fa-crown"></i> Approve 30d</button> <button class="btn btn-danger btn-xs" onclick="rejectPremiumReq(\'' + id + '\')"><i class="fas fa-times"></i></button></td>';
       h += '</tr>';
     });
     h += '</tbody></table></div>';
@@ -6178,11 +6182,15 @@ window.loadPremiumReqSection = async function() {
   }
 };
 
-window.approvePremiumReq = async function(reqId, uid, tier) {
+window.approvePremiumReq = async function(reqId, uid, tier, grantBp) {
   if (!uid) return;
   try {
     var tierNames  = { 1: 'Silver', 2: 'Gold', 3: 'Diamond' };
-    var gdBonus    = { 1: 5, 2: 15, 3: 35 }[tier] || 0;
+    /* R29E P0-FIX (2026-09-22): approve ke waqt Green Diamonds credit
+       (5/15/35) NAHI karna — user-facing premium model ab COINS bonus
+       hai {50/150/400}/mahina, jo server-authoritative
+       claim_premium_monthly_bonus() se claim hota hai. Purana GD-credit
+       = old-model double-bonus leakage (GD + monthly coins dono). */
     /* BUG #4/#5/#29 FIX (2026-07): the old multi-key rtdb.ref(...).update({...}) call was
        silently dropped entirely by the Supabase bridge's converter (didn't recognize any of
        these slash-keys or camelCase field names), AND separately mapped to columns
@@ -6190,24 +6198,24 @@ window.approvePremiumReq = async function(reqId, uid, tier) {
        actually activated for anyone, ever, regardless of how many times admin approved a
        request. Also, premium_level/premium_expires are now locked from direct client writes
        (Category A security fix), so this must go through an admin-checked RPC regardless. */
-    var r = await window._supa.rpc('approve_premium', { p_uid: uid, p_tier: tier, p_days: 30 });
+    var r = await window._supa.rpc('approve_premium', { p_uid: uid, p_tier: tier, p_days: 30, p_grant_bp: (grantBp === true) });
     if (r.error || (r.data && r.data.success === false)) {
       var msg = (r.data && r.data.error) || (r.error && r.error.message) || 'Unknown error';
       showToast('❌ ' + msg, true);
       return;
     }
-    /* Credit Green Diamonds monthly bonus — also fixed to use the real increment_balance RPC
-       instead of a Firebase-only write the user panel's balance display never reads. */
-    if (gdBonus > 0) {
-      await window._supa.rpc('increment_balance', { p_uid: uid, p_col: 'green_diamonds', p_amount: gdBonus });
-    }
+    /* R29E: GD credit removed — bonus ab sirf monthly Coins claim hai
+       (claim_premium_monthly_bonus, server-authoritative, user panel se
+       har mahine claim hota hai). Bundle ke liye Battle Pass bhi
+       approve_premium RPC ke andar ATOMIC grant hua hai (battlePass flag
+       response me). */
     await rtdb.ref('premiumRequests/' + reqId).update({ status: 'approved', approvedAt: Date.now(), approvedBy: auth.currentUser ? _adminUid() : 'admin' });
     await rtdb.ref('users/' + uid + '/notifications').push({
       title: '👑 Premium ' + (tierNames[tier]||('Tier '+tier)) + ' Activated!',
-      message: 'Premium ' + (tierNames[tier]||'Tier '+tier) + ' 30 din ke liye activate ho gaya! ' + gdBonus + ' Green Diamonds bhi credit kiye gaye hain.',
+      message: 'Premium ' + (tierNames[tier]||'Tier '+tier) + ' 30 din ke liye activate ho gaya! Monthly Coins bonus ab Premium screen se claim kar sakte ho.' + (grantBp ? ' Battle Pass bhi unlock ho gaya!' : ''),
       type: 'premium_activated', read: false, timestamp: Date.now(), createdAt: Date.now()
     });
-    showToast('✅ Premium ' + (tierNames[tier]||('Tier '+tier)) + ' activated! ' + gdBonus + ' GD credited.');
+    showToast('✅ Premium ' + (tierNames[tier]||('Tier '+tier)) + ' activated!' + (grantBp ? ' + Battle Pass unlocked!' : '') + ' Monthly Coins bonus claim-ready.');
     loadPremiumReqSection();
   } catch(e) { showToast('Error: ' + e.message, true); }
 };

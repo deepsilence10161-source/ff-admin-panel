@@ -5926,3 +5926,76 @@ data-leak नहीं)।
   कहा था); live def असल में +1 mutation करती थी और `joinedSlots` bridge-path से
   user-face थी। अब `anon` grant + stale comments सुधारे गए।
 
+
+────────────────────────────────────────────────────────────────────────────
+# SECTION 35 — R29E AUDIT FIXES (report.txt 2026-09-22, P0 + P1)
+Last updated: 2026-09-22
+────────────────────────────────────────────────────────────────────────────
+
+User ka 2026-09-22 audit report (28 findings, P0/P1/P2) fix hua. Har change
+**live Supabase par apply + verify** kiya gaya (SQL-Mgmt API). Delta file:
+`2026-09-22e-R29E-AUDIT-FIXES-DELTA.sql` (COMPLETE_SCHEMA me bhi merged).
+
+## P0 (launch-blockers) — SAB FIXED + LIVE-VERIFIED
+
+| # | Fix | Live-proof |
+|---|-----|-----------|
+| 1 | `reward_store_items` RLS ON + `rsi_read_all` (SELECT-only public) | anon SELECT 200; INSERT/UPDATE/DELETE 42501 |
+| 2 | `release_creator_commission` authorization flaw | service/admin/self-only guard; anon REVOKE → 42501 |
+| 3 | hosted commission hardcoded 25% | `creator_create_match` ab `creator_system.coinMatchCommissionPct`(10)/`sdMatchCommissionPct`(15) |
+| 4 | SD hosted commission wrong currency | `finalize_creator_commission(text,boolean)` SD-branch → `'inr'`/`'hold'` |
+| 5 | GD withdrawal RPC contradiction | `submit_gd_withdrawal` refuse-stub; anon REVOKE |
+| 6 | premium approval old GD credit | admin `approvePremiumReq` GD-credit REMOVED; monthly Coins claim hi bonus |
+| 7 | live_config incomplete | seed: `sdPackages`/`premium`/{battlePassPrice}/`missions`/`streakMilestones`/`cosmetics` |
+| 8 | DB grants drift | orphan financial RPCs (`increment_season_stats`, `lock_creator_commission`) guarded; `release_creator_commission`/`submit_gd_withdrawal`/`claim_creator_payout` anon-revoked/dropped |
+| 9 | SECURITY DEFINER views | documented-intent COMMENT ON VIEW markers (referral_leaderboard, active_matches) |
+| 10 | keystore artifact export | build-apk.yml: silent-gen → hard-fail; keystore artifact upload REMOVED |
+
+## P1 — FIXED + LIVE-VERIFIED
+
+- **Bundle atomic grant**: `approve_premium(p_uid,p_tier,p_days,p_grant_bp)`
+  — bundle approval ab ek hi transaction me Premium + Battle Pass
+  (`battle_pass_progress.has_premium=true` active season). 3-arg overload
+  DROP (PGRST203 ambiguity root cause). Admin `approvePremiumReq(reqId,uid,tier,grantBp)`
+  bundle rows pe `p_grant_bp=true`.
+- **Unify creator ledger**: referral commission (`validate_and_join_match`)
+  currency `sky_diamonds`→`inr`; `claim_match_commission_payout` ab
+  server-authoritative `creator_payouts` pending row banata hai (RTDB mirror
+  push hata diya — user bridge me kabhi map hi nahi tha).
+- **remove `claim_creator_payout()`**: DROP (orphan, unsafe self-claim).
+- **restrict `release_eligible_commissions()`**: admin/service guard; anon
+  EXECUTE rakha (fa71 button browser-caller ke liye) lekin body-guard hi
+  real security hai.
+- **eliminate RTDB commission mirror**: `showCreatorEarnings` ab seedha
+  `creator_commissions` (Supabase single ledger) padhta hai.
+- **seed complete live_config**: missions/streak/cosmetics + core keys.
+- **SD package mapping identical**: Admin (fa-app-settings-v2 50/49,
+  120/99, 260/199, 600/399), User (quick-deposit same), Paytm edge
+  (paytm-create-order reads live_config.sdPackages), Server (live_config
+  seed) — sab ek hi source.
+- **push-send auto-deploy**: `deploy-imgbb-upload.yml` me push-send deploy
+  step + OneSignal secrets sync added.
+- **ImgBB verified**: real round-trip upload (admin Firebase ID token) →
+  HTTP 200 + real URL. Gateway verify_jwt ON hai; health-check ab anon-key
+  ke saath robust (function-level Firebase auth hi gate).
+
+## ⚠️ Architectural note (re-confirmed this session)
+Is app me browser ka DB-role **hamesha `anon`** hota hai (Supabase
+Third-Party Auth, Firebase JWT me role-claim nahi). Isliye:
+- client-visible RPC ko `anon` EXECUTE grant DENA ZAROORI hai (nhi to 42501),
+- financial/privilege RPC ki asli security **andar ke `auth.jwt()->>'sub'`
+  guard** se hoti hai, grant-deny se nahi.
+Isi rule pe: `claim_match_commission_payout`, `release_eligible_commissions`
+ka anon grant rakha (browser callers), body-guards tightened. Sirf ORPHAN
+RPCs (`release_creator_commission`, `submit_gd_withdrawal`) jinka koi client
+caller nahi tha, unka anon remove + refuse/stub kiya.
+
+## JS/Repo file changes (R29E)
+- **admin-repo** `js/admin-inline.js`: approvePremiumReq 4-arg + bundle
+  badge + GD-credit removed.
+- **user-repo** `features/premium-creator.js`: showCreatorEarnings → Supabase
+  ledger; requestMatchCommissionPayout → RPC-only.
+- **user-repo** `.github/workflows/build-apk.yml`: keystore hard-fail +
+  artifact upload removed.
+- **user-repo** `.github/workflows/deploy-imgbb-upload.yml`: push-send
+  deploy + OneSignal secret sync + anon-key health-check.
