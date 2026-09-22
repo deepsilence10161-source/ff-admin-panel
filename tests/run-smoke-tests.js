@@ -134,8 +134,18 @@ console.log('\n── TEST 2: fa21-match-history.js dedup (single money-path cop
   ok(e.includes('window.submitResultCorrection ='), 'single submitResultCorrection lives in admin-inline-e');
 }
 
-/* ── TEST 3: split byte-equivalence मॉनोलिथ से (यदि backup हो) ── */
-console.log('\n── TEST 3: no monolith residue in index.html; parts referenced ──');
+/* ── TEST 3: monitor layer loads ───────────────────────────── */
+console.log('\n── TEST 3: admin-monitor.js loads (non-invasive) ──');
+{
+  const ctx = makeCtx();
+  try { loadFile(ctx, 'js/admin-monitor.js'); ok(true, 'admin-monitor loads'); }
+  catch (e) { ok(false, 'admin-monitor → ' + e.message); }
+  ok(ctx.__adminMonitorInstalled === true, 'single-install guard set');
+  ok(Array.isArray(ctx.__monLog), 'window.__monLog ring exposed');
+}
+
+/* ── TEST 4: no monolith residue in index.html ─────────────── */
+console.log('\n── TEST 4: no monolith residue in index.html; parts referenced ──');
 {
   const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
   ok(['b', 'c', 'd', 'e'].every(p => html.includes('admin-inline-' + p + '.js')), 'index loads all 4 parts');

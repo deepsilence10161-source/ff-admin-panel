@@ -6126,3 +6126,51 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
   यह दस्तावेज़ update करें।
 - Source of truth: `/home/user/refactor-backup/admin-inline.js.orig` (workspace
   backup) — git history में भी pre-split commit मौजूद है।
+
+# SECTION 40 — P2 REFACTOR (cont): Consolidation + Automated tests + Monitoring — 2026-09-22
+
+## Consolidation (dedup)
+- **Survey (AST-based, दोनों repos)**: top-level `function`/`var`/`const`/`window.X`
+  names जो **एक से ज़्यादा files** में define हैं — बाद में window.X (any depth)
+  भी। Result: monolith split के बाद admin-repo में सिर्फ़ **2 असली dups**, user-repo
+  में **1** बचे। (Split की files से निकले "×2" सब ghost थे — monolith अब नहीं load होता।)
+- **ADMIN (fa21-match-history.js) — money-path fix (ज़रूरी)**:
+  `window.openResultCorrection` + `window.submitResultCorrection` की fa21 में **stale
+  pre-R24 copies** थीं जिनमें दोहरा-credit बाकी था (`realMoney/winnings` + `stats/earnings`
+  + `totalWinnings` तीन जगह), जबकि admin-inline-e.js वाला R24-fixed है (सिर्फ़
+  `realMoney/winnings` + `stats/earnings`; `totalWinnings` txn comment के साथ हटाया)।
+  Load order admin-inline (#4) < fa21 (#34) → **fa21 का पुराना version R24-fix को
+  overwrite कर देता था** → correction पर user का `stats/earnings` दोहरा बढ़ने का
+  असली रिस्क। fa21 की copies हटाईं (सिर्फ़ stale copies — deviceJoins etc. untouched);
+  `rcAutoCalc` / `rcToggleManual` fa21 में ही रखे (admin-inline-e के correction modal के
+  inline handlers इन्हीं को बुलाते हैं), `loadMatchHistory`/`filterMatchHistory` IIFE में
+  बरकरार। Fix का साइड-इफेक्ट: ab admin-inline-e का openResultCorrection भी सही
+  `rcAutoCalc` पाता है (पहले fa21-modal उसके बाद load होकर UI overwrite करता था)।
+- **USER (screens/notifications.js)**: bare `function clearAllNotifs()` (line 105) की copy
+  inert/shadowed थी — `core/listeners.js` (load बाद: 672 < 767) `window.clearAllNotifs`
+  assign करता है, फिर `fixes-v29-all-bugs.js` उसे Supabase bulk-mark-read wrap करता है।
+  Button `onclick="clearAllNotifs()"` भी global resolve करता है → listeners.js version ही
+  live था। निष्क्रिय copy को pointer-comment से बदला (delete नहीं; live logic untouched)।
+
+## Automated tests (Node, browser/network नहीं)
+- `tests/run-smoke-tests.js` दोनों repos में — shared VM realm में core split files load →
+  syntax/ReferenceError सतह + window-surface + load-order verify; `exit 0/1`।
+- admin: 23 checks (4-part load, surface, onAuthStateChanged logout branch, fa21 dedup,
+  monitor install, monolith-residue).
+- user: 15 checks (features-user IIFE+tail, notifications dedup, tail-load-order)।
+- Run: `node tests/run-smoke-tests.js` (कोई npm install नहीं चाहिए)।
+
+## Monitoring (admin-only, non-invasive)
+- नया `js/admin-monitor.js` (index.html में admin-fixes-v25 के बाद, v=20260922e):
+  `error` + `unhandledrejection` listeners — **कोई preventDefault नहीं** (existing
+  behavior अछूता), बस `window.__monLog` (50-entry ring) + 30s पर localStorage
+  `_adminMonRing` snapshot (last 20) + console.warn। कोई DB/network call नहीं →
+  कोई schema/permission risk नहीं। Single-install guard (`__adminMonitorInstalled`)।
+  Debugging के लिए: console में `__monLog` देखो।
+- यूज़र panel में पहले से वैसा shield है (`fixes-v8.js` error/unhandledrejection
+  listener) — वहाँ duplicate नहीं जोड़ा (dedup policy के अनुसार)।
+
+## Repos/commits (P2)
+- admin-repo: split (`2728868`), monolith removal (`ced14fd`), dedup (`76f01d3`),
+  tests (`93ebd0f`), monitor+guide (यह वाला)।
+- user-repo: features-user split (`b1825fc`), dedup (`374a18a`), tests (`2fccdd5`)।
