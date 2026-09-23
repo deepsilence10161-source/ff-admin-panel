@@ -672,6 +672,52 @@ CREATE POLICY "wal_admin_all" ON wallet_audit_log FOR ALL
   USING ((auth.jwt() ->> 'sub') IN (SELECT id FROM users WHERE is_admin = true));
 CREATE INDEX IF NOT EXISTS idx_wal_user ON wallet_audit_log(user_id);
 
+-- 🔒 R3 Phase-15 (2026-09-23): wallet_audit_log ab tak UNWIRED tha (0 rows —
+--    koi function/trigger INSERT nahi karta tha = silent empty audit table).
+--    Ab users ke money-columns ki har UPDATE ka before/after snapshot yahan
+--    AFTER-UPDATE trigger se darta hai. Pure-observability — कोई business
+--    rule/amount/path नहीं बदला। SECDEF + search_path fixed।
+CREATE OR REPLACE FUNCTION public.audit_wallet_balance_changes()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF COALESCE(NEW.coins,0)        IS DISTINCT FROM COALESCE(OLD.coins,0) THEN
+    INSERT INTO wallet_audit_log(user_id, action, amount, currency, before_balance, after_balance, performed_by, created_at)
+    VALUES (NEW.id, 'balance_change', COALESCE(NEW.coins,0) - COALESCE(OLD.coins,0), 'coins',
+            COALESCE(OLD.coins,0), COALESCE(NEW.coins,0),
+            COALESCE(auth.jwt() ->> 'sub', 'system'), NOW());
+  END IF;
+  IF COALESCE(NEW.sky_diamonds,0) IS DISTINCT FROM COALESCE(OLD.sky_diamonds,0) THEN
+    INSERT INTO wallet_audit_log(user_id, action, amount, currency, before_balance, after_balance, performed_by, created_at)
+    VALUES (NEW.id, 'balance_change', COALESCE(NEW.sky_diamonds,0) - COALESCE(OLD.sky_diamonds,0), 'sky_diamonds',
+            COALESCE(OLD.sky_diamonds,0), COALESCE(NEW.sky_diamonds,0),
+            COALESCE(auth.jwt() ->> 'sub', 'system'), NOW());
+  END IF;
+  IF COALESCE(NEW.green_diamonds,0) IS DISTINCT FROM COALESCE(OLD.green_diamonds,0) THEN
+    INSERT INTO wallet_audit_log(user_id, action, amount, currency, before_balance, after_balance, performed_by, created_at)
+    VALUES (NEW.id, 'balance_change', COALESCE(NEW.green_diamonds,0) - COALESCE(OLD.green_diamonds,0), 'green_diamonds',
+            COALESCE(OLD.green_diamonds,0), COALESCE(NEW.green_diamonds,0),
+            COALESCE(auth.jwt() ->> 'sub', 'system'), NOW());
+  END IF;
+  IF COALESCE(NEW.sponsored_winnings,0) IS DISTINCT FROM COALESCE(OLD.sponsored_winnings,0) THEN
+    INSERT INTO wallet_audit_log(user_id, action, amount, currency, before_balance, after_balance, performed_by, created_at)
+    VALUES (NEW.id, 'balance_change', COALESCE(NEW.sponsored_winnings,0) - COALESCE(OLD.sponsored_winnings,0), 'sponsored',
+            COALESCE(OLD.sponsored_winnings,0), COALESCE(NEW.sponsored_winnings,0),
+            COALESCE(auth.jwt() ->> 'sub', 'system'), NOW());
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_audit_wallet_balance ON public.users;
+CREATE TRIGGER trg_audit_wallet_balance
+AFTER UPDATE ON public.users
+FOR EACH ROW
+EXECUTE FUNCTION public.audit_wallet_balance_changes();
+
 -- ─────────────────────────────────────────────────────────────────
 -- 3.2  COIN REQUESTS
 -- ─────────────────────────────────────────────────────────────────
@@ -2588,7 +2634,16 @@ DECLARE
   v_jr RECORD;
   v_refund_count INT := 0;
   v_currency TEXT;
+  v_caller TEXT := auth.jwt() ->> 'sub';
 BEGIN
+  /* FIX (2026-09-20 Round-4): YE RPC BINA GUARD KE THA — koi bhi user
+     kisi bhi match ko cancel karke sabko refunds dilwa sakta tha
+     (match-sabotage). Ab sirf admin. p_admin_uid ab caller se hi. */
+  IF v_caller IS NULL OR NOT COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'NOT_AUTHORIZED');
+  END IF;
+  p_admin_uid := COALESCE(p_admin_uid, v_caller);
+
   SELECT * INTO v_match FROM matches WHERE id = p_match_id;
   IF v_match IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'error', 'MATCH_NOT_FOUND');
@@ -2601,6 +2656,9 @@ BEGIN
       AND COALESCE(entry_fee_paid, 0) > 0
     FOR UPDATE
   LOOP
+    -- ✅ R3 Phase-14 (2026-09-23): duplicate `v_currency := ...` line hatai —
+    --    same value twice assign ho rahi thi (harmless redundancy, single
+    --    refund/ledger/notification insert tha — koi double-refund nahi).
     v_currency := CASE WHEN v_jr.entry_type = 'coin' THEN 'coins' ELSE 'sky_diamonds' END;
 
     IF v_currency = 'coins' THEN
@@ -2648,6 +2706,8 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(TEXT, TEXT) TO authenticated, anon;
 -- Called from Admin Panel: js/security-patches.js patchDeleteTournament()
+-- 🔒 R3 PLATFORM FACT (2026-09-23): anon grant ज़रूरी (Firebase JWT → PostgREST
+--    anon role); security = body guard (is_admin caller check), grant नहीं।
 -- Requires: matches.cancelled_at, matches.cancelled_by columns (see
 -- 2026-08-22 session delta if not already present on your instance).
 

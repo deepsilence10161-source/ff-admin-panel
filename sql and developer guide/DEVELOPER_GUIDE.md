@@ -6636,3 +6636,46 @@ contribute 2 GD → `{"ok": true, "amount": 2}`; `users.green_diamonds` 16→14;
 - `sql_verify_script.py` में नया check #28: `contribute_to_squad_bank` body में
   `squad_bank_contribution` string मौजूद (ledger-insert live)। **28/28 PASS**।
 - `financial_security_suite.py` 43/43 PASS (clan P0/P1 negatives बरकरार)।
+
+# SECTION 44 — R3 Phase-15 Final Production Check: wallet_audit_log wired + dedup + 25% sweep — 2026-09-23h
+
+## क्या मिला / क्या ठीक हुआ
+1. **wallet_audit_log WIRED (P1 observability):** table मौजूद थी पर 0 rows और कोई
+   function/trigger INSERT नहीं करता था (= silent empty audit table; admin_activity_log
+   तो client-JS से live लिखा जाता है, wallet_audit_log का कोई writer ही नहीं था)।
+   अब `audit_wallet_balance_changes()` SECDEF trigger users के 4 money-columns
+   (coins/sky_diamonds/green_diamonds/sponsored_winnings) की हर UPDATE का
+   before/after snapshot wallet_audit_log में दर्ज करता है। Pure-observability —
+   कोई business rule/amount/path बदला नहीं।
+   **Live proof (qa1 → cleanup):** claim_ad_reward → coins 495→505; wallet_audit_log
+   row `coins/balance_change/+10/495/505/performed_by=caller` ✅
+2. **cancel_match_with_refunds dedup (P3):** `v_currency := CASE...` दो बार था (harmless
+   redundancy, refund सिंगल)। एक copy हटाई; साथ ही COMPLETE_SCHEMA की stale copy को
+   live-exact sync किया (2026-09-20 Round-4 admin-guard + v_caller जो COMPLETE_SCHEMA
+   में नहीं थे)।
+3. **fa22-match-result.js 25% cashback false-claim हटाया:** orphaned `mrPublishResults`
+   path (कोई sidebar nav नहीं) में "Top 50% finishers ko 25% entry fee cashback" coin
+   credit + false नोटिफ़िकेशन था — canonical `publishResults` (inline-c) cashback
+   पहले से by-design हटा चुका है। Align किया (no cashback); live behaviour change = 0
+   (path orphaned)।
+4. **premium-creator.js 25% cleanup (user-repo, पिछले क़दम):** 4 copies → server-canonical
+   SD 15% / coin 10%।
+
+## Verification (सब green)
+- sql_verify_script.py → **30/30** (नए check #29/#30: audit trigger wired + users trigger)।
+- financial_security_suite.py 43/43 · smoke user 15/15 + admin 23/23।
+- SECDEF total **83** (82 + audit_wallet_balance_changes)।
+- **Final scans:** 82→83 SECDEF functions में fail-open (`IS NOT NULL AND <>`) = 0,
+  search_path-missing = 0। user-repo में कोई 25% business-copy नहीं; admin-repo में
+  25% सिर्फ़ explanatory comments।
+
+## सीख (स्थायी पैटर्न)
+- **Empty audit table ≠ ठीक।** Table-exists और insert-path दोनों verify करो; audit-log का
+  असली writer trigger/SECDEF-function होना चाहिए जो SECURITY DEFINER से RLS bypass करे।
+- **COMPLETE_SCHEMA stale हो सकता है** — live `pg_get_functiondef` को source-of-truth रखो;
+  हर delta के बाद COMPLETE_SCHEMA की उसी function की copy को live-exact sync करो (guard
+  गायब stale copy = फिर से vuln claim का ख़तरा)।
+
+## Repos/commits
+- admin-repo: delta `2026-09-23h-R3-PHASE15-FINAL-OBSERVABILITY.sql` + COMPLETE_SCHEMA sync
+  (cancel_match guard+dedup, audit trigger §3.1) + SECTION 44 + fa22 cashback-alignment।

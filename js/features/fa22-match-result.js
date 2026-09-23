@@ -571,17 +571,15 @@ window.mrPublishResults = async function() {
         } else {
           await rtdb.ref(DB_U + '/' + uid + '/notifications').push({ title: '📋 Match Result', message: (t ? t.name : 'Match') + ' — Tumhara rank: ' + (rank ? '#' + rank : 'Unranked') + ', Kills: ' + kills + '. Better luck next time! 💪', timestamp: Date.now(), read: false, type: 'result', uid: uid, matchId: mid });
         }
-        // Cashback for top 50%
-        var entryF = t ? t.entryFee || 0 : 0;
-        var cbThreshold = Math.ceil(totalPlayers / 2);
-        if (rank > 0 && rank <= cbThreshold && entryF > 0 && tw === 0) {
-          var cb = Math.floor(entryF * 0.25);
-          if (cb > 0) {
-            await rtdb.ref(DB_U + '/' + uid + '/coins').transaction(function(v){ return (v||0) + cb; });
-            await rtdb.ref(DB_U + '/' + uid + '/coinHistory').push({ amount: cb, reason: '25% cashback — ' + (t ? t.name : '') + ' (Rank #' + rank + ')', timestamp: Date.now(), type: 'cashback' });
-            await rtdb.ref(DB_U + '/' + uid + '/notifications').push({ title: '🎁 Cashback!', message: cb + ' coins cashback mila! ' + (t ? t.name : '') + ', Rank #' + rank + '. Top 50% finishers ko 25% entry fee cashback milta hai.', timestamp: Date.now(), read: false, type: 'cashback', uid: uid });
-          }
-        }
+        // ✅ R3 Phase-14 (2026-09-23): Cashback removed — no real money refund.
+        //    Canonical publishResults (js/admin-inline-c.js) already dropped the
+        //    "Top 50% finishers -> 25% entry-fee coins cashback" long ago
+        //    (`// Cashback removed — no real money refund`). This orphaned
+        //    mrPublishResults path still credited 25% cashback and sent a false
+        //    "🎁 Cashback mila!" notification — inconsistent with the active
+        //    path and a user-facing false claim. Aligned to the canonical rule
+        //    (no cashback). This path itself is orphaned (no sidebar nav-item
+        //    calls showSection('matchResult')), so live behaviour change = zero.
         // Platform earnings
         await rtdb.ref('platformEarnings').push({ matchId: mid, entryFee: entryF, prizeGiven: tw, profit: entryF - tw, userId: uid, timestamp: Date.now() });
         // lastResult for recap
