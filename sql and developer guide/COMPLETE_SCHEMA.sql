@@ -3991,6 +3991,12 @@ BEGIN
 
   UPDATE users SET green_diamonds = green_diamonds - p_amount WHERE id = p_uid;
 
+  -- 🔒 R3 P1 FIX (2026-09-23, Phase-13 observability): ye GD debit pehle
+  --    wallet_transactions में लिखा नहीं जाता था — squad_bank में जमा होते
+  --    हुए भी कोई trace नहीं मिलता था। अब baaki money RPCs की तरह ledger row.
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status)
+  VALUES (p_uid, 'green_diamonds', 'debit', p_amount, 'squad_bank_contribution', p_clan_id::text, 'approved');
+
   SELECT squad_bank_contributors INTO v_contributors FROM clans WHERE id = p_clan_id;
   v_contributors := COALESCE(v_contributors, '{}'::JSONB);
   v_prior := COALESCE(v_contributors -> p_uid, '{}'::JSONB);

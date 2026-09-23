@@ -6585,3 +6585,54 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
 ## Repos/commits
 - admin-repo: delta `2026-09-23f-R3-PHASE9-CLAN-NULLCALLER.sql` + COMPLETE_SCHEMA sync +
   यह guide section (§42) — push `ff-admin-panel` main को।
+
+# SECTION 43 — R3 Phase-13 Observability: contribute_to_squad_bank ledger gap close — 2026-09-23g
+
+## क्या मिला
+Live-DB scan (2026-09-23):
+- 30 money-mutating SECURITY DEFINER functions में से **5** का कोई `wallet_transactions`
+  INSERT नहीं: `admin_sync_user_balance`, `contribute_to_squad_bank`, `decrement_balance`,
+  `finalize_creator_commission`, `increment_balance`।
+- `wallet_audit_log` table मौजूद पर **0 rows** और कोई function उसे INSERT नहीं करता;
+  `admin_activity_log` में 6 rows पर कोई function उसे reference नहीं करता।
+- इनमें **सचमुच user-GD ले जाने वाला** सिर्फ़ `contribute_to_squad_bank` है — उसका debit
+  पहले `wallet_transactions` में लिखा ही नहीं जाता था ⇒ GD घटता/जमता दोनों दिखता, पर
+  ledger में कोई trace नहीं (audit-blind debit)।
+
+## क्या ठीक हुआ (delta `2026-09-23g-R3-PHASE13-OBSERVABILITY.sql`)
+`contribute_to_squad_bank` में debit के बाद wallet_transactions row जोड़ी:
+`currency='green_diamonds', txn_type='debit', reason='squad_bank_contribution',
+ref_id=clan_id, status='approved'` — ठीक वैसे ही जैसे `gift_match_entry` /
+`purchase_cosmetic` / `claim_ad_reward` करते हैं। बाक़ी behaviour (caller check,
+clan-exist, membership, row locks, return shape) अपरिवर्तित — यह pure observability
+add है, business rule नहीं बदला।
+
+## Live proof (qa1, test clan बनाकर, cleanup पूरा)
+contribute 2 GD → `{"ok": true, "amount": 2}`; `users.green_diamonds` 16→14;
+`clans.squad_bank_gd` 0→2; `wallet_transactions` में row:
+`green_diamonds / debit / 2 / squad_bank_contribution / approved` ✅
+(test clan + member + ledger row हटा कर qa1 GD restore कर दिया — कोई residue नहीं।)
+
+## बाक़ी 4 no-ledger functions का फ़ैसला
+- `decrement_balance` / `increment_balance` — generic admin/service helpers; caller
+  ख़ुद reason देकर लिखता है (bridge wallet_fetch/wallet_apply सिर्फ़ coin-fetch +
+  decrement-debit-सेट देता है जो balance_credit/debit caller पहले ही log करते हैं) —
+  इन दोनों को ख़ुद audit-log करना अगले planner में: `wallet_audit_log` का असली INSERT
+  path बनाना (Phase-12/13 planner), उसके बाद golden rows evidence के साथ बंद होगा।
+- `admin_sync_user_balance` / `finalize_creator_commission` — admin/derived updaters;
+  creator-commission का असली ledger `creator_commissions` में पहले से है, sync का
+  नहीं। ये भी उसी planner में cover होंगे।
+
+## Lessons (स्थायी पैटर्न)
+- **हर money-mutating RPC में अपने debit/credit के साथ wallet_transactions row ज़रूरी**
+  (reason एक-सा canonical रखो; ref_id हो सके तो entity id डालो; status सिर्फ़ वहीं
+  'approved' जो तुरंत settle हो — pending वाले 'pending' रखें)। बिना ledger का debit =
+  audit-blind = P1 observability bug।
+- `wallet_audit_log` / `admin_activity_log` **empty table** का मतलब "ठीक है" नहीं —
+  table होना और insert होना अलग बातें हैं। Verification script में हमेशा
+  "INSERT करने वाला function मौजूद है?" check करो, सिर्फ़ table-exists नहीं।
+
+## Verify
+- `sql_verify_script.py` में नया check #28: `contribute_to_squad_bank` body में
+  `squad_bank_contribution` string मौजूद (ledger-insert live)। **28/28 PASS**।
+- `financial_security_suite.py` 43/43 PASS (clan P0/P1 negatives बरकरार)।
