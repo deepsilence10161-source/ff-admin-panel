@@ -153,6 +153,20 @@ console.log('\n── TEST 4: no monolith residue in index.html; parts reference
   ok(!monoRef, 'index no longer references monolith admin-inline.js');
 }
 
+/* ── TEST 5: ROUND-4 — fa22 entryF defined (no ReferenceError) ── */
+console.log('\n── TEST 5: R4 fa22-match-result.js entryF restore (cashback NOT reintroduced) ──');
+{
+  const src = fs.readFileSync(path.join(REPO, 'js/features/fa22-match-result.js'), 'utf8');
+  ok(/var\s+entryF\s*=\s*t\s*\?\s*\(?t\.entryFee/, src,
+     'entryF defined (authoritative t.entryFee)');
+  ok(src.includes('platformEarnings'), 'platformEarnings push intact');
+  ok(!src.includes('cashback no real money refund से अलग 25% cashback'), 'cashback reintroduce NAHI');
+  // orphan-path hai — still safe: entryF use hone se pehle define
+  const defIdx = src.indexOf('var entryF');
+  const useIdx = src.indexOf('entryFee: entryF');
+  ok(defIdx !== -1 && useIdx > defIdx, 'entryF define use-se-pehle (order safe)');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }
