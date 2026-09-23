@@ -6844,8 +6844,41 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 28–31. **Notif/Clan/Referral/Creator self-play** — ownership guards + server derivation; self-referral/circular blocked; creator self-play DB+trigger+RPC तीन-स्तर।
 32. **Constraints** — जुड़े नहीं गए new CHECK/UNIQUE जहाँ table-wide safe नहीं → आवश्यकता से app-layer idempotency ही (avoid over-constraint on valid business)।
 33. **Advisor** — कोई unavailable endpoint (404); identifiable warnings (mutable search_path=0, views documented) सब बंद (§E report)।
-34. **Test suite** — Admin 27/27 · User 28/28 · SQL verify अब 44/44 (R4+R5 checks)।
+34. **Test suite** — Admin 32/32 · User 32/32 · SQL verify 44/44 (R4+R5 checks); Section 49 में बढ़कर SQL verify 53/53 · User smoke 40/40।
 
 **Business rules preserved (unchanged):** Premium 49/99/199 · bonuses 50/150/400 · BP ₹49 · creator coin 10% / SD 15% / hold 7d · coins/SD/GD non-withdrawable · sponsored-withdrawable · no cashback · no undocumented fees · Paytm intentionally not-configured (future deploy-step, not-a-bug)।
+
+---
+
+## Section 49 — R6 TEAM AUTHORIZATION + LEDGER LOCK (2026-09-23k/m) 🔒
+
+**क्या (R5 FINAL LAST PASS के 23 blockers का database-side enforcement):**
+
+1. **`team_invitations` table (NEW)** — PK uuid; FKs match_id→matches, captain_uid/member_uid→users (ON DELETE CASCADE); CHECK mode duo/squad, fee_type captain_pays/each_pays, status pending/accepted/declined; UNIQUE(match_id,member_uid); RLS `ti_select_related`/`ti_insert_own`/`ti_update_own`; grants anon/authenticated (select/insert/update) + service_role (all)।
+2. **`invite_team_members(text,text,text,text[])` (NEW SECDEF)** — captain-only (jwt sub = match captain's team? no — captain = caller); match FOR UPDATE; capacity/mode/fee server-check; member existence; `ON CONFLICT(match_id,member_uid) DO UPDATE status='pending'`; notification team_invite; grants anon/auth/service_role।
+3. **`respond_team_invite(uuid,boolean)` (NEW SECDEF)** — member-only (member_uid = auth sub); pending-only; accepted/declined + notification; grants anon/auth/service_role।
+4. **`join_match_team` (REWRITE → v2)** — team[0]==caller (captain); teammates idx≥1 ab **consent-verified**: accepted `team_invitations` या shared matched `auto_squad_queue` row — कोई अन्य UID = `TEAM_NOT_AUTHORIZED` (0 debits/joins/slots). Fee/currency server-derived; per-member wallet FOR UPDATE; insufficient→full rollback; debits+ledger+join rows+filled_slots+commission atomic; EXCEPTION returns `{ok:false, code:SQLERRM, error:msg}` (machine-readable code)।
+5. **`increment_match_filled_slots` (RESTRICT)** — participant-guard (join_requests user_id=called status∈joined/checked_in/pending/approved) + match FOR UPDATE + max-check + `REVOKE ... FROM anon, authenticated` (सिर्फ़ postgres/service_role live; intended 42501 PostgREST पर, body guard defense-in-depth)।
+6. **`fft_guard_wallet_insert` (TIGHTEN)** — NULL caller raise fail-closed; regular user सिर्फ़ अपनी pending_deposit/pending_withdraw; bypass = postgres/supabase_admin/service_role/admin.
+7. **`gift_match_entry`** — matches FOR UPDATE (capacity race lock)।
+8. **DB constraints (NEW, DO-guarded)** — `users_wallet_nonnegative` (coins/SD/GD/sponsored ≥0), `matches_slots_bounds` (0 ≤ filled ≤ max), `wallet_transactions_amount_nonnegative` (amount ≥0)।
+
+**Live-verified (synthetic role-sim, pure-rollback):**
+- Unauthorized each_pays victims → `{ok:false, code:'TEAM_NOT_AUTHORIZED'}` + 0 debits/joins/slots/ledger।
+- Authorized invite→accept→join → 4 debits (each-pays) + 4 join rows + slots 4 + 4 ledger rows; invitations सब accepted।
+- Insufficient teammate → full rollback (0 everywhere)।
+- Fake UID duo · non-participant increment (42501) · cross-user ledger fabrication (P0001) · negative coins (23514) · slots>max (23514) · sponsored over-withdraw · non-admin admin-RPC · cross-user ledger read · room creds · unpaid/double refund · gift self/insufficient/invalid · voucher double · fake tier — सब REJECT।
+- **Concurrency:** 2-thread last-2-slots duo race → 1 win + 1 `Match full ho gaya`; final filled=2/max=2/join_rows=2 (no oversubscription)।
+- Residue 0 (sab `r6%` rows rollback/sec-deleted)।
+
+**Client integration (user-repo):**
+- `screens/join.js`: `TEAM_NOT_AUTHORIZED` → `invite_team_members` RPC + toast (consent flow, auto-bypass नहीं); join ab सिर्फ़ server accept के बाद।
+- `screens/notifications.js`: `team_invite` notif → Accept/Decline (`respond_team_invite` via `_respondTeamInvite`); `n.matchId` = ref_id।
+- `screens/rank.js`: ad-join direct `join_requests.insert` HATA → `validate_and_join_match` RPC (capacity/filled_slots server-authoritative; `ad_watched` = own-row non-financial update)।
+- `core/db-bridge.js` + `core/db.js` + `js/bugfixes-v29-final.js`: client `wallet_transactions`/ledger INSERT attempts BLOCKED/loud-fail (server RPC ही ledger authority)।
+
+**Round-6 numbers:** SECDEF 86 → 88 (invite + respond) · SQL verify 44 → 53 · User smoke 32 → 40 · Admin smoke 32/32 · live↔delta byte-identity proven (16 functions, normalized) · `COMPLETE_SCHEMA.sql` ab reconcile-append (fresh-rebuild complete)।
+
+> **सीख (स्थायी पैटर्न):** हर नए SQL delta के बाद — (1) delta file repo में, (2) COMPLETE_SCHEMA.sql में DEFINITION-level merge (comment नहीं), (3) DEVELOPER_GUIDE section, (4) sql_verify check, (5) live↔file byte-identity prove। Team/multi-user financial flows में "wallet डेबिट से पहले consent" server-side ही valid होती है — client list kabhi trusted नहीं।
 
 ---

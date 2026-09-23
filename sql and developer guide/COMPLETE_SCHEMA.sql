@@ -12674,3 +12674,1809 @@ $function$;
 --   6. cancel_match_with_refunds — hold commissions void (status='cancelled')
 --      on whole-match cancel = commission-on-refunded-match band
 -- ═══════════════════════════════════════════════════════════════════
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- R5/R6 — RECONCILE APPEND (2026-09-23m)
+-- R5 FINAL LAST PASS की सारी SECURITY DEFINER functions + team consent
+-- table + constraints अब COMPLETE_SCHEMA में DEFINITION-LEVEL भी मौजूद।
+-- (पहले सिर्फ़ comments/GRANT residue थे; fresh rebuild पर functions ही
+--  नहीं बनती थीं — अब live↔file byte-identical proven।)
+-- ORDER: पहले R5/R6 functions+grants (reconcile), फिर team_invitations
+--        table + policies + constraints (R6 delta)। दोनों idempotent।
+-- ═══════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════════
+-- R5/R6 — COMPLETE_SCHEMA RECONCILE (2026-09-23m)
+-- Source-of-truth: LIVE Supabase (pg_get_functiondef + role_routine_grants)
+-- क्यों: COMPLETE_SCHEMA.sql में इन SECURITY DEFINER functions की
+--       definitions missing/stale थीं (सिर्फ़ comments/GRANT residue)।
+--       हर function की live↔delta byte-identity (normalized) proven है।
+-- IDEMPOTENT: CREATE OR REPLACE + REVOKE/PUBLIC + GRANT (live parity)।
+-- ═══════════════════════════════════════════════════════════════════
+
+-- ── validate_and_join_match ──
+CREATE OR REPLACE FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_m              RECORD;
+  v_balance        NUMERIC;
+  v_joined         BOOLEAN := false;
+  v_jr_id          UUID;
+  v_fee_mode       TEXT;
+  v_server_fee     NUMERIC;
+  v_slots          INT;
+  v_charge_fee     NUMERIC;
+  v_available      INT;
+  v_caller         TEXT := auth.jwt() ->> 'sub';
+  v_creator_code   TEXT;
+  v_creator_uid    TEXT;
+  v_commission     NUMERIC;
+  v_commission_pct NUMERIC;
+BEGIN
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+
+  SELECT id, title, status, entry_type, entry_fee, max_slots, filled_slots, creator_uid
+    INTO v_m
+    FROM matches
+   WHERE id = p_match_id
+     FOR UPDATE;
+  IF v_m.id IS NULL THEN
+    RAISE EXCEPTION 'MATCH_NOT_FOUND';
+  END IF;
+
+  IF v_m.status IS DISTINCT FROM 'upcoming' AND v_m.status IS DISTINCT FROM 'live' THEN
+    RAISE EXCEPTION 'MATCH_NOT_JOINABLE';
+  END IF;
+
+  IF v_m.creator_uid IS NOT NULL AND v_m.creator_uid = p_uid THEN
+    RAISE EXCEPTION 'SELF_PLAY_BLOCKED';
+  END IF;
+
+  IF COALESCE((SELECT is_banned FROM users WHERE id = p_uid), false) THEN
+    RAISE EXCEPTION 'ACCOUNT_BANNED';
+  END IF;
+
+  CASE COALESCE(lower(regexp_replace(v_m.entry_type, '[_ -]', '', 'g')), 'free')
+    WHEN 'coin' THEN
+      v_server_fee := COALESCE(v_m.entry_fee, 0);
+      v_fee_mode   := 'coins';
+    WHEN 'paid' THEN
+      v_server_fee := COALESCE(v_m.entry_fee, 0);
+      v_fee_mode   := 'sky_diamonds';
+    WHEN 'free' THEN
+      v_server_fee := 0; v_fee_mode := 'free';
+    WHEN 'ad' THEN
+      v_server_fee := 0; v_fee_mode := 'ad';
+    ELSE
+      IF COALESCE(v_m.entry_fee, 0) > 0 THEN
+        v_server_fee := v_m.entry_fee; v_fee_mode := 'sky_diamonds';
+      ELSE
+        v_server_fee := 0; v_fee_mode := 'free';
+      END IF;
+  END CASE;
+
+  v_slots := 1;
+  IF p_join_data IS NOT NULL AND p_join_data ? 'mode' THEN
+    IF p_join_data->>'mode' = 'duo'  THEN v_slots := 2; END IF;
+    IF p_join_data->>'mode' = 'squad' THEN v_slots := 4; END IF;
+  END IF;
+
+  v_charge_fee :=
+    CASE
+      WHEN v_slots = 1 THEN v_server_fee
+      WHEN (p_join_data->>'feeType') = 'each_pays' THEN v_server_fee
+      ELSE v_server_fee * v_slots
+    END;
+
+  /* R5 FIX: team या नहीं भी — अब एक ही servant पर सभी team-users FOR UPDATE
+     lock किए जाते हैं; balance-check atomic। */
+  IF v_server_fee > 0 THEN
+    IF v_fee_mode = 'coins' THEN
+      SELECT coins INTO v_balance FROM users WHERE id = p_uid FOR UPDATE;
+    ELSE
+      SELECT sky_diamonds INTO v_balance FROM users WHERE id = p_uid FOR UPDATE;
+    END IF;
+    IF v_balance IS NULL THEN RAISE EXCEPTION 'USER_NOT_FOUND'; END IF;
+    IF v_balance < v_charge_fee THEN RAISE EXCEPTION 'INSUFFICIENT_BALANCE'; END IF;
+  END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM join_requests
+    WHERE user_id = p_uid AND match_id = p_match_id
+      AND status NOT IN ('cancelled','refunded','no_show')
+  ) INTO v_joined;
+  IF v_joined THEN RAISE EXCEPTION 'ALREADY_JOINED'; END IF;
+
+  v_available := COALESCE(v_m.max_slots, 999) - COALESCE(v_m.filled_slots, 0);
+  IF v_available < v_slots THEN RAISE EXCEPTION 'MATCH_FULL'; END IF;
+
+  IF v_server_fee > 0 THEN
+    IF v_fee_mode = 'coins' THEN
+      UPDATE users SET coins = coins - v_charge_fee WHERE id = p_uid;
+    ELSE
+      UPDATE users SET sky_diamonds = sky_diamonds - v_charge_fee WHERE id = p_uid;
+    END IF;
+    INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id)
+    VALUES(p_uid, v_fee_mode, 'debit', v_charge_fee, 'match_entry', p_match_id);
+  END IF;
+
+  INSERT INTO join_requests(user_id, match_id, entry_fee_paid, entry_type, status, mode, ign_at_join, fee_type)
+  VALUES(
+    p_uid, p_match_id, v_charge_fee,
+    CASE WHEN v_fee_mode='coins' THEN 'coin'
+         WHEN v_fee_mode='sky_diamonds' THEN 'sky_diamond'
+         ELSE COALESCE(v_m.entry_type, 'free') END,
+    'joined',
+    COALESCE(p_join_data->>'mode', 'solo'),
+    COALESCE(p_join_data->>'ign', ''),
+    COALESCE(p_join_data->>'feeType', 'solo')
+  ) RETURNING id INTO v_jr_id;
+
+  UPDATE matches SET filled_slots = COALESCE(filled_slots, 0) + v_slots WHERE id = p_match_id;
+
+  IF v_fee_mode = 'sky_diamonds' AND v_charge_fee > 0 THEN
+    SELECT creator_code INTO v_creator_code FROM users WHERE id = p_uid;
+    IF v_creator_code IS NOT NULL THEN
+      SELECT user_id INTO v_creator_uid FROM creator_codes WHERE code = v_creator_code;
+      IF v_creator_uid IS NOT NULL AND v_creator_uid <> p_uid
+         AND EXISTS(SELECT 1 FROM users WHERE id = v_creator_uid AND is_creator = true) THEN
+        SELECT COALESCE((value->>'sdMatchCommissionPct')::numeric, 15)
+          INTO v_commission_pct
+          FROM app_settings WHERE key = 'creator_system';
+        v_commission_pct := COALESCE(v_commission_pct, 15);
+        v_commission := ROUND(v_charge_fee * v_commission_pct / 100, 2);
+        INSERT INTO creator_stats(user_id, total_matches, total_earnings)
+        VALUES (v_creator_uid, 1, v_commission)
+        ON CONFLICT (user_id) DO UPDATE SET
+          total_matches = creator_stats.total_matches + 1,
+          total_earnings = creator_stats.total_earnings + v_commission,
+          updated_at = NOW();
+        INSERT INTO creator_commissions(creator_uid, match_id, amount, currency, status, eligible_at)
+        VALUES (v_creator_uid, p_match_id, v_commission, 'inr', 'hold', NOW() + INTERVAL '7 days');
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'jr_id', v_jr_id::TEXT);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error',
+      CASE SQLERRM
+        WHEN 'NOT_AUTHORIZED'       THEN 'Not authorized'
+        WHEN 'MATCH_NOT_FOUND'      THEN 'Match not found'
+        WHEN 'MATCH_NOT_JOINABLE'   THEN 'Match ab join nahi ho sakta'
+        WHEN 'USER_NOT_FOUND'       THEN 'User not found'
+        WHEN 'INSUFFICIENT_BALANCE' THEN 'Balance kam hai'
+        WHEN 'ALREADY_JOINED'       THEN 'Aap already join ho chuke ho'
+        WHEN 'MATCH_FULL'           THEN 'Match full ho gaya'
+        WHEN 'SELF_PLAY_BLOCKED'    THEN 'Apne khud ke hosted match mein join nahi kar sakte'
+        WHEN 'ACCOUNT_BANNED'       THEN 'Aapka account ban hai'
+        ELSE SQLERRM
+      END
+    );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO anon;
+GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO postgres;
+GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO service_role;
+
+-- ── join_match_team ──
+CREATE OR REPLACE FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller       TEXT := auth.jwt() ->> 'sub';
+  v_m            RECORD;
+  v_fee_mode     TEXT;
+  v_server_fee   NUMERIC;
+  v_slots        INT;
+  v_captain_fee  NUMERIC;
+  v_member_fee   NUMERIC;
+  v_total_collected NUMERIC := 0;
+  v_available    INT;
+  v_mem          JSONB;
+  v_mem_uid      TEXT;
+  v_mem_ign      TEXT;
+  v_bal          NUMERIC;
+  v_col          TEXT;
+  v_jr_id        UUID;
+  v_idx          INT := 0;
+  v_unique_uids  TEXT[] := ARRAY[]::TEXT[];
+  v_creator_code TEXT;
+  v_creator_uid  TEXT;
+  v_commission_pct NUMERIC;
+  v_commission   NUMERIC;
+  v_first_row_id UUID;
+  v_authorized   BOOLEAN;
+BEGIN
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+
+  IF p_mode IS NULL THEN p_mode := 'solo'; END IF;
+  p_mode := lower(p_mode);
+  v_slots := CASE WHEN p_mode = 'duo' THEN 2 WHEN p_mode = 'squad' THEN 4 ELSE 1 END;
+
+  IF p_team IS NULL OR jsonb_typeof(p_team) <> 'array' OR jsonb_array_length(p_team) = 0 THEN
+    RAISE EXCEPTION 'INVALID_TEAM';
+  END IF;
+
+  /* captain = team[0]; server identifies from jwt — client team[0].uid sirf hint */
+  v_mem := p_team -> 0;
+  IF (v_mem->>'uid') IS NULL OR (v_mem->>'uid') <> v_caller THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+
+  /* team size must match mode */
+  IF (v_slots = 2 AND jsonb_array_length(p_team) <> 2) OR
+     (v_slots = 4 AND jsonb_array_length(p_team) <> 4) OR
+     (v_slots = 1 AND jsonb_array_length(p_team) <> 1) THEN
+    RAISE EXCEPTION 'TEAM_SIZE_MISMATCH';
+  END IF;
+
+  SELECT id, status, entry_type, entry_fee, max_slots, filled_slots, creator_uid
+    INTO v_m
+    FROM matches
+   WHERE id = p_match_id
+     FOR UPDATE;
+  IF v_m.id IS NULL THEN RAISE EXCEPTION 'MATCH_NOT_FOUND'; END IF;
+  IF v_m.status IS DISTINCT FROM 'upcoming' AND v_m.status IS DISTINCT FROM 'live' THEN
+    RAISE EXCEPTION 'MATCH_NOT_JOINABLE';
+  END IF;
+  IF v_m.creator_uid IS NOT NULL AND v_m.creator_uid = v_caller THEN
+    RAISE EXCEPTION 'SELF_PLAY_BLOCKED';
+  END IF;
+
+  /* fee/currency server-derived (client never) */
+  CASE COALESCE(lower(regexp_replace(v_m.entry_type, '[_ -]', '', 'g')), 'free')
+    WHEN 'coin'  THEN v_server_fee := COALESCE(v_m.entry_fee,0); v_fee_mode := 'coins';
+    WHEN 'paid'  THEN v_server_fee := COALESCE(v_m.entry_fee,0); v_fee_mode := 'sky_diamonds';
+    WHEN 'free'  THEN v_server_fee := 0; v_fee_mode := 'free';
+    WHEN 'ad'    THEN v_server_fee := 0; v_fee_mode := 'ad';
+    ELSE
+      IF COALESCE(v_m.entry_fee,0) > 0 THEN v_server_fee := v_m.entry_fee; v_fee_mode := 'sky_diamonds';
+      ELSE v_server_fee := 0; v_fee_mode := 'free'; END IF;
+  END CASE;
+
+  v_col := CASE WHEN v_fee_mode = 'coins' THEN 'coins' ELSE 'sky_diamonds' END;
+
+  IF p_fee_type IS NULL THEN p_fee_type := 'captain_pays'; END IF;
+  p_fee_type := lower(p_fee_type);
+  IF p_fee_type NOT IN ('captain_pays','each_pays','solo') THEN p_fee_type := 'captain_pays'; END IF;
+  IF v_slots = 1 THEN p_fee_type := 'solo'; END IF;
+
+  v_captain_fee := CASE WHEN p_fee_type = 'each_pays' THEN v_server_fee
+                        ELSE v_server_fee * v_slots END;
+  v_member_fee := CASE WHEN p_fee_type = 'each_pays' THEN v_server_fee ELSE 0 END;
+
+  /* capacity (player slots) */
+  v_available := COALESCE(v_m.max_slots, 999) - COALESCE(v_m.filled_slots, 0);
+  IF v_available < v_slots THEN RAISE EXCEPTION 'MATCH_FULL'; END IF;
+
+  /* validate members, duplicate-active-join, banned + AUTHORIZATION */
+  FOR v_idx IN 0 .. jsonb_array_length(p_team) - 1 LOOP
+    v_mem := p_team -> v_idx;
+    v_mem_uid := v_mem->>'uid';
+    IF v_mem_uid IS NULL OR v_mem_uid = ANY(v_unique_uids) THEN
+      RAISE EXCEPTION 'INVALID_TEAM';
+    END IF;
+    v_unique_uids := v_unique_uids || v_mem_uid;
+    IF COALESCE((SELECT is_banned FROM users WHERE id = v_mem_uid), false) THEN
+      RAISE EXCEPTION 'ACCOUNT_BANNED';
+    END IF;
+    IF EXISTS(SELECT 1 FROM join_requests
+              WHERE user_id = v_mem_uid AND match_id = p_match_id
+                AND status NOT IN ('cancelled','refunded','no_show')) THEN
+      RAISE EXCEPTION 'ALREADY_JOINED';
+    END IF;
+
+    /* ── R6 AUTHORIZATION (FINAL BLOCKER #1/#3) ──
+       captain (idx 0) = jwt caller = self.
+       teammates (idx>=1) = explicit consent आवश्यक:
+       (a) accepted team invitation  (b) ya auto-squad matched team. */
+    IF v_idx >= 1 THEN
+      v_authorized := EXISTS(
+        SELECT 1 FROM team_invitations ti
+        WHERE ti.match_id = p_match_id
+          AND ti.captain_uid = v_caller
+          AND ti.member_uid = v_mem_uid
+          AND ti.status = 'accepted'
+      );
+      IF NOT v_authorized THEN
+        v_authorized := EXISTS(
+          SELECT 1 FROM auto_squad_queue aq
+          WHERE aq.match_id = p_match_id
+            AND aq.user_id = v_mem_uid
+            AND aq.status = 'matched'
+            AND aq.team_id IN (
+              SELECT aq2.team_id FROM auto_squad_queue aq2
+              WHERE aq2.match_id = p_match_id
+                AND aq2.user_id = v_caller
+                AND aq2.status = 'matched'
+            )
+        );
+      END IF;
+      IF NOT v_authorized THEN
+        RAISE EXCEPTION 'TEAM_NOT_AUTHORIZED';
+      END IF;
+    END IF;
+  END LOOP;
+
+  /* lock every member row + validate balance (atomic; koi bhi fail = full rollback) */
+  IF v_server_fee > 0 THEN
+    FOR v_idx IN 0 .. jsonb_array_length(p_team) - 1 LOOP
+      v_mem := p_team -> v_idx;
+      v_mem_uid := v_mem->>'uid';
+      IF v_col = 'coins' THEN
+        SELECT coins INTO v_bal FROM users WHERE id = v_mem_uid FOR UPDATE;
+      ELSE
+        SELECT sky_diamonds INTO v_bal FROM users WHERE id = v_mem_uid FOR UPDATE;
+      END IF;
+      IF v_bal IS NULL THEN RAISE EXCEPTION 'USER_NOT_FOUND'; END IF;
+      IF v_idx = 0 THEN
+        IF v_bal < v_captain_fee THEN RAISE EXCEPTION 'INSUFFICIENT_BALANCE'; END IF;
+      ELSE
+        IF v_bal < v_member_fee THEN RAISE EXCEPTION 'INSUFFICIENT_BALANCE'; END IF;
+      END IF;
+    END LOOP;
+  END IF;
+
+  /* debit + join row per member (single transaction; debit only authorized members) */
+  FOR v_idx IN 0 .. jsonb_array_length(p_team) - 1 LOOP
+    v_mem := p_team -> v_idx;
+    v_mem_uid := v_mem->>'uid';
+    v_mem_ign := COALESCE(v_mem->>'ign', '');
+
+    IF v_idx = 0 THEN v_bal := v_captain_fee; ELSE v_bal := v_member_fee; END IF;
+
+    IF v_server_fee > 0 AND v_bal > 0 THEN
+      IF v_col = 'coins' THEN
+        UPDATE users SET coins = coins - v_bal WHERE id = v_mem_uid;
+      ELSE
+        UPDATE users SET sky_diamonds = sky_diamonds - v_bal WHERE id = v_mem_uid;
+      END IF;
+      INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id)
+      VALUES (v_mem_uid, v_fee_mode, 'debit', v_bal, 'match_entry', p_match_id);
+      v_total_collected := v_total_collected + v_bal;
+    END IF;
+
+    INSERT INTO join_requests(user_id, match_id, entry_fee_paid, entry_type, status, mode, ign_at_join, fee_type, captain_uid)
+    VALUES(
+      v_mem_uid, p_match_id, v_bal,
+      CASE WHEN v_fee_mode='coins' THEN 'coin'
+           WHEN v_fee_mode='sky_diamonds' THEN 'sky_diamond'
+           ELSE COALESCE(v_m.entry_type,'free') END,
+      'joined', p_mode, v_mem_ign, p_fee_type,
+      CASE WHEN v_idx = 0 THEN NULL ELSE v_caller END
+    ) RETURNING id INTO v_jr_id;
+    IF v_idx = 0 THEN v_first_row_id := v_jr_id; END IF;
+  END LOOP;
+
+  UPDATE matches SET filled_slots = COALESCE(filled_slots, 0) + v_slots WHERE id = p_match_id;
+
+  /* creator commission (spend-triggered, sky-only, same rule as validate_and_join_match) */
+  IF v_fee_mode = 'sky_diamonds' AND v_total_collected > 0 THEN
+    SELECT creator_code INTO v_creator_code FROM users WHERE id = v_caller;
+    IF v_creator_code IS NOT NULL THEN
+      SELECT user_id INTO v_creator_uid FROM creator_codes WHERE code = v_creator_code;
+      IF v_creator_uid IS NOT NULL AND v_creator_uid <> v_caller
+         AND EXISTS(SELECT 1 FROM users WHERE id = v_creator_uid AND is_creator = true) THEN
+        SELECT COALESCE((value->>'sdMatchCommissionPct')::numeric, 15)
+          INTO v_commission_pct FROM app_settings WHERE key = 'creator_system';
+        v_commission_pct := COALESCE(v_commission_pct, 15);
+        v_commission := ROUND(v_total_collected * v_commission_pct / 100, 2);
+        INSERT INTO creator_stats(user_id, total_matches, total_earnings)
+        VALUES (v_creator_uid, 1, v_commission)
+        ON CONFLICT (user_id) DO UPDATE SET
+          total_matches = creator_stats.total_matches + 1,
+          total_earnings = creator_stats.total_earnings + v_commission, updated_at = NOW();
+        INSERT INTO creator_commissions(creator_uid, match_id, amount, currency, status, eligible_at)
+        VALUES (v_creator_uid, p_match_id, v_commission, 'inr', 'hold', NOW() + INTERVAL '7 days');
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'captain_row_id', v_first_row_id, 'slots', v_slots);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'code', SQLERRM, 'error',
+      CASE SQLERRM
+        WHEN 'NOT_AUTHORIZED'        THEN 'Not authorized'
+        WHEN 'TEAM_NOT_AUTHORIZED'   THEN 'Teammates ne join authorize nahi kiya — pehle team invite accept karwao'
+        WHEN 'MATCH_NOT_FOUND'       THEN 'Match not found'
+        WHEN 'MATCH_NOT_JOINABLE'    THEN 'Match ab join nahi ho sakta'
+        WHEN 'SELF_PLAY_BLOCKED'     THEN 'Apne khud ke hosted match mein join nahi kar sakte'
+        WHEN 'ACCOUNT_BANNED'        THEN 'Kisi teammate ka account ban hai'
+        WHEN 'ALREADY_JOINED'        THEN 'Koi teammate already is match mein join hai'
+        WHEN 'MATCH_FULL'            THEN 'Match full ho gaya'
+        WHEN 'INSUFFICIENT_BALANCE'  THEN 'Kisi teammate ke paas balance kam hai'
+        WHEN 'USER_NOT_FOUND'        THEN 'Player not found'
+        WHEN 'TEAM_SIZE_MISMATCH'    THEN 'Team size galat hai'
+        WHEN 'INVALID_TEAM'          THEN 'Team invalid hai'
+        ELSE SQLERRM
+      END);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO anon;
+GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO postgres;
+GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO service_role;
+
+-- ── submit_sponsored_withdrawal ──
+CREATE OR REPLACE FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_bal NUMERIC;
+  v_pending NUMERIC;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_authenticated');
+  END IF;
+  IF p_amount IS NULL OR p_amount < 1 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_amount');
+  END IF;
+  IF p_upi IS NULL OR p_upi !~ '^[^@\s]+@[^@\s]+$' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_upi');
+  END IF;
+
+  SELECT COALESCE(sponsored_winnings, 0) INTO v_bal FROM users WHERE id = v_caller FOR UPDATE;
+  IF v_bal IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'user_not_found');
+  END IF;
+  IF p_amount > v_bal THEN
+    RETURN jsonb_build_object('success', false, 'error', 'amount_exceeds_balance', 'balance', v_bal);
+  END IF;
+
+  /* Duplicate-guard: ek pending withdrawal active hai to naya block. */
+  SELECT COALESCE(SUM(amount), 0) INTO v_pending
+  FROM wallet_transactions
+  WHERE user_id = v_caller AND txn_type = 'pending_withdraw' AND status = 'pending';
+  IF COALESCE(v_pending, 0) + p_amount > v_bal THEN
+    RETURN jsonb_build_object('success', false, 'error', 'pending_requests_exceed_balance');
+  END IF;
+
+  INSERT INTO wallet_transactions (user_id, txn_type, amount, currency, reason, note, status)
+  VALUES (v_caller, 'pending_withdraw', p_amount, 'sponsored', 'sponsored_withdrawal', 'UPI: ' || p_upi, 'pending');
+
+  RETURN jsonb_build_object('success', true, 'amount', p_amount, 'status', 'pending');
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) TO anon;
+GRANT EXECUTE ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) TO postgres;
+GRANT EXECUTE ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) TO service_role;
+
+-- ── decrement_balance ──
+CREATE OR REPLACE FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  allowed_cols TEXT[] := ARRAY['coins','green_diamonds','sky_diamonds'];
+  v_balance    NUMERIC;
+  v_caller     TEXT := auth.jwt() ->> 'sub';
+  v_is_admin   BOOLEAN;
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL OR v_caller <> p_uid THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Not authorized — own UID only');
+    END IF;
+  END IF;
+
+  IF p_amount < 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount must be non-negative');
+  END IF;
+  IF NOT (p_col = ANY(allowed_cols)) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Column not allowed: ' || p_col);
+  END IF;
+  EXECUTE format('SELECT COALESCE(%I, 0) FROM users WHERE id = $1', p_col)
+    USING p_uid INTO v_balance;
+  IF v_balance IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'User not found');
+  END IF;
+  IF v_balance < p_amount THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Insufficient balance',
+      'balance', v_balance, 'required', p_amount);
+  END IF;
+  EXECUTE format(
+    'UPDATE users SET %I = GREATEST(COALESCE(%I, 0) - $1, 0) WHERE id = $2',
+    p_col, p_col
+  ) USING p_amount, p_uid;
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO anon;
+GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO postgres;
+GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO service_role;
+
+-- ── increment_match_filled_slots ──
+CREATE OR REPLACE FUNCTION public.increment_match_filled_slots(p_match_id text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_m RECORD;
+BEGIN
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  /* R6: caller must have his own active join row on this match — occupancy
+     सिर्फ़ उसी participant ke अपने join के लिए, कभी दूसरे match के लिए नहीं। */
+  IF NOT EXISTS (SELECT 1 FROM join_requests
+                 WHERE match_id = p_match_id
+                   AND user_id = v_caller
+                   AND status IN ('joined','checked_in','pending','approved')) THEN
+    RAISE EXCEPTION 'not_a_participant';
+  END IF;
+
+  SELECT mode, status, max_slots, filled_slots
+    INTO v_m
+    FROM matches
+   WHERE id = p_match_id
+     FOR UPDATE;
+  IF v_m.status IS NULL THEN
+    RAISE EXCEPTION 'match_not_found';
+  END IF;
+  IF v_m.status NOT IN ('upcoming','live') THEN
+    RAISE EXCEPTION 'match_not_joinable';
+  END IF;
+  IF COALESCE(v_m.filled_slots, 0) >= COALESCE(v_m.max_slots, 0) THEN
+    RAISE EXCEPTION 'match_full';
+  END IF;
+
+  UPDATE matches SET filled_slots = filled_slots + 1 WHERE id = p_match_id;
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.increment_match_filled_slots(p_match_id text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_match_filled_slots(p_match_id text) TO postgres;
+GRANT EXECUTE ON FUNCTION public.increment_match_filled_slots(p_match_id text) TO service_role;
+
+-- ── cancel_match_with_refunds ──
+CREATE OR REPLACE FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_match RECORD;
+  v_jr RECORD;
+  v_refund_count INT := 0;
+  v_currency TEXT;
+  v_caller TEXT := auth.jwt() ->> 'sub';
+BEGIN
+  IF v_caller IS NULL OR NOT COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'NOT_AUTHORIZED');
+  END IF;
+  p_admin_uid := COALESCE(p_admin_uid, v_caller);
+
+  SELECT * INTO v_match FROM matches WHERE id = p_match_id;
+  IF v_match IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'MATCH_NOT_FOUND');
+  END IF;
+  FOR v_jr IN
+  SELECT * FROM join_requests
+  WHERE match_id = p_match_id
+  AND status NOT IN ('cancelled', 'refunded', 'rejected')
+  AND COALESCE(entry_fee_paid, 0) > 0
+  FOR UPDATE
+  LOOP
+    v_currency := CASE WHEN v_jr.entry_type = 'coin' THEN 'coins' ELSE 'sky_diamonds' END;
+
+    IF v_currency = 'coins' THEN
+      UPDATE users SET coins = COALESCE(coins,0) + v_jr.entry_fee_paid WHERE id = v_jr.user_id;
+    ELSE
+      UPDATE users SET sky_diamonds = COALESCE(sky_diamonds,0) + v_jr.entry_fee_paid WHERE id = v_jr.user_id;
+    END IF;
+
+    INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status)
+    VALUES (v_jr.user_id, v_currency, 'credit', v_jr.entry_fee_paid, 'match_cancelled_refund', p_match_id, 'approved');
+
+    UPDATE join_requests SET status = 'refunded' WHERE id = v_jr.id;
+
+    INSERT INTO notifications(user_id, title, body, type, is_read, created_at, ref_id)
+    VALUES (
+      v_jr.user_id,
+      '💰 Match Cancelled — Refund',
+      '"' || COALESCE(v_match.name, v_match.title, p_match_id) || '" cancel ho gaya. Aapka entry fee wapas kar diya gaya hai.',
+      'refund', false, NOW(), p_match_id
+    );
+
+    v_refund_count := v_refund_count + 1;
+  END LOOP;
+
+  UPDATE join_requests
+  SET status = 'cancelled'
+  WHERE match_id = p_match_id AND status NOT IN ('cancelled', 'refunded', 'rejected');
+
+  /* R5 FIX: refunded-match commission void — hold commissions is match par
+     (referral spend-triggered + hosted) ab 'cancelled'. Pehle ye rows hold
+     reh kar 7-din baad eligible ban jati thin = "commission on refunded
+     match" leak. hosted commission (creator_matches) finalize already
+     excludes refunded rows; ye referral-path hold rows bhi ab void. */
+  UPDATE creator_commissions
+  SET status = 'cancelled', updated_at = NOW()
+  WHERE match_id = p_match_id AND status = 'hold';
+
+  UPDATE matches SET filled_slots = GREATEST(
+    filled_slots - COALESCE((
+      SELECT SUM(CASE
+        WHEN mode IN ('duo','squad') AND COALESCE(captain_uid, user_id) <> user_id THEN 0
+        WHEN mode = 'duo' THEN 2
+        WHEN mode = 'squad' THEN 4
+        ELSE 1 END)
+      FROM join_requests
+      WHERE match_id = p_match_id AND status IN ('cancelled','refunded')
+    ), 0), 0)
+  WHERE id = p_match_id;
+
+  UPDATE matches SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = p_admin_uid WHERE id = p_match_id;
+
+  RETURN jsonb_build_object('ok', true, 'refund_count', v_refund_count);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO anon;
+GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO postgres;
+
+-- ── gift_match_entry ──
+CREATE OR REPLACE FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_me TEXT := auth.jwt() ->> 'sub';
+  v_m RECORD; v_friend RECORD; v_my_name TEXT; v_col TEXT; v_bal NUMERIC; v_gift_id UUID;
+BEGIN
+  IF v_me IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'Not authorized'); END IF;
+  IF p_to_uid IS NULL OR p_to_uid = v_me THEN RETURN jsonb_build_object('ok', false, 'error', 'Apne aap ko gift nahi kar sakte'); END IF;
+  /* R6: FOR UPDATE — concurrent gifts same match par capacity race नहीं करते */
+  SELECT id, entry_fee, entry_type, name, status, max_slots, filled_slots
+    INTO v_m FROM matches WHERE id::text = p_match_id FOR UPDATE;
+  IF v_m.id IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'Match not found'); END IF;
+  IF COALESCE(v_m.entry_fee, 0) <= 0 THEN RETURN jsonb_build_object('ok', false, 'error', 'Gift sirf paid matches par'); END IF;
+  SELECT id, COALESCE(ff_uid, '') AS ff_uid INTO v_friend FROM users WHERE id = p_to_uid;
+  IF v_friend.id IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'Player not found'); END IF;
+  SELECT COALESCE(ign, 'Player') INTO v_my_name FROM users WHERE id = v_me;
+  v_col := CASE WHEN lower(COALESCE(v_m.entry_type, 'coin')) = 'coin' THEN 'coins' ELSE 'sky_diamonds' END;
+
+  EXECUTE format('SELECT COALESCE(%I, 0) FROM users WHERE id = $1 FOR UPDATE', v_col) INTO v_bal USING v_me;
+  IF v_bal IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'User not found'); END IF;
+  IF v_bal < v_m.entry_fee THEN RETURN jsonb_build_object('ok', false, 'error', 'Insufficient balance'); END IF;
+  EXECUTE format('UPDATE users SET %I = COALESCE(%I, 0) - $1 WHERE id = $2', v_col, v_col) USING v_m.entry_fee, v_me;
+
+  INSERT INTO gift_tickets (from_uid, from_name, to_uid, to_ff_uid, match_id, match_name, fee, entry_type, status)
+  VALUES (v_me, v_my_name, p_to_uid, v_friend.ff_uid, v_m.id, v_m.name, v_m.entry_fee, v_m.entry_type, 'pending')
+  RETURNING id INTO v_gift_id;
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason)
+  VALUES (v_me, v_col, 'debit', v_m.entry_fee, 'gift_entry');
+
+  IF v_m.status = 'upcoming' THEN
+    IF NOT EXISTS (SELECT 1 FROM join_requests WHERE user_id = p_to_uid AND match_id = v_m.id AND status NOT IN ('cancelled','refunded','no_show')) THEN
+      IF COALESCE(v_m.filled_slots, 0) < COALESCE(v_m.max_slots, 999) THEN
+        INSERT INTO join_requests (match_id, user_id, status, entry_type, entry_fee_paid, user_ign, ign_at_join, user_ff_uid)
+        VALUES (v_m.id, p_to_uid, 'pending', v_m.entry_type, 0,
+                (SELECT COALESCE(ign,'Player') FROM users WHERE id = p_to_uid),
+                (SELECT COALESCE(ign,'Player') FROM users WHERE id = p_to_uid),
+                v_friend.ff_uid);
+        UPDATE matches SET filled_slots = COALESCE(filled_slots,0) + 1 WHERE id = v_m.id;
+      END IF;
+    END IF;
+  END IF;
+  INSERT INTO notifications (user_id, type, title, body)
+  VALUES (p_to_uid, 'gift_ticket', '🎁 Match Ticket Gift!', v_my_name || ' ne tumhe "' || v_m.name || '" ka entry ticket gift kiya!');
+  RETURN jsonb_build_object('ok', true, 'gift_id', v_gift_id, 'fee', v_m.entry_fee);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) TO anon;
+GRANT EXECUTE ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) TO postgres;
+
+-- ── fft_guard_wallet_insert ──
+CREATE OR REPLACE FUNCTION public.fft_guard_wallet_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+BEGIN
+  /* system roles + admin + service bypass (server-side authority) */
+  IF current_user IN ('postgres','supabase_admin','service_role') THEN
+    RETURN NEW;
+  END IF;
+
+  /* R6: nested-call detection — server RPC (SECDEF) chalta hai to
+     request.jwt.claims caller hi rehta hai; system writes tabhi allow
+     जब caller admin हो या current_user सेवा-भूमिका में हो। */
+  IF v_caller IS NOT NULL AND COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false) THEN
+    RETURN NEW;
+  END IF;
+
+  /* R6: no caller (anon, no identity) — कभी कोई ledger write नहीं */
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'Wallet entries sirf authenticated system path se banti hain';
+  END IF;
+
+  /* R6: regular authenticated user — sirf अपनी pending request records */
+  IF NEW.user_id = v_caller AND NEW.txn_type IN ('pending_deposit','pending_withdraw') THEN
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'Wallet entries (%) sirf system create kar sakta hai', NEW.txn_type;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.fft_guard_wallet_insert() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fft_guard_wallet_insert() TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fft_guard_wallet_insert() TO postgres;
+
+-- ── invite_team_members ──
+CREATE OR REPLACE FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[])
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_slots  INT;
+  v_m      RECORD;
+  v_u      TEXT;
+  v_count  INT := 0;
+  v_feety  TEXT;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+
+  p_mode := lower(COALESCE(p_mode, 'duo'));
+  v_slots := CASE WHEN p_mode = 'duo' THEN 2 WHEN p_mode = 'squad' THEN 4 ELSE 1 END;
+  IF v_slots = 1 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invalid team mode');
+  END IF;
+  IF p_member_uids IS NULL OR array_length(p_member_uids, 1) <> (v_slots - 1) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Team size galat hai');
+  END IF;
+
+  v_feety := lower(COALESCE(p_fee_type, 'captain_pays'));
+  IF v_feety NOT IN ('captain_pays','each_pays') THEN v_feety := 'captain_pays'; END IF;
+
+  SELECT id, status, max_slots, filled_slots, creator_uid
+    INTO v_m
+    FROM matches
+   WHERE id = p_match_id
+     FOR UPDATE;
+  IF v_m.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Match not found');
+  END IF;
+  IF v_m.status IS DISTINCT FROM 'upcoming' AND v_m.status IS DISTINCT FROM 'live' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Match ab join nahi ho sakta');
+  END IF;
+  IF v_m.creator_uid IS NOT NULL AND v_m.creator_uid = v_caller THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apne khud ke hosted match mein join nahi kar sakte');
+  END IF;
+  IF COALESCE(v_m.filled_slots, 0) + v_slots > COALESCE(v_m.max_slots, 999) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Match full ho gaya');
+  END IF;
+
+  FOREACH v_u IN ARRAY p_member_uids LOOP
+    IF v_u IS NULL OR v_u = v_caller THEN
+      CONTINUE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_u) THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'Player not found');
+    END IF;
+    INSERT INTO team_invitations (match_id, captain_uid, member_uid, mode, fee_type)
+    VALUES (p_match_id, v_caller, v_u, p_mode, v_feety)
+    ON CONFLICT (match_id, member_uid) DO UPDATE
+      SET captain_uid = EXCLUDED.captain_uid,
+          mode        = EXCLUDED.mode,
+          fee_type    = EXCLUDED.fee_type,
+          status      = 'pending',
+          created_at  = NOW(),
+          accepted_at = NULL;
+    v_count := v_count + 1;
+    INSERT INTO notifications (user_id, type, title, body, ref_id)
+    VALUES (v_u, 'team_invite', '👥 Team Invitation',
+            (SELECT COALESCE(ign,'Player') FROM users WHERE id = v_caller)
+            || ' ne tumhe ' || upper(p_mode) || ' match ke liye invite kiya hai — accept/decline karo.',
+            p_match_id);
+  END LOOP;
+
+  IF v_count = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Koi valid member nahi mila');
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'invited', v_count, 'mode', p_mode, 'fee_type', v_feety);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) TO anon;
+GRANT EXECUTE ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) TO postgres;
+GRANT EXECUTE ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) TO service_role;
+
+-- ── respond_team_invite ──
+CREATE OR REPLACE FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_inv    RECORD;
+  v_action TEXT;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+
+  SELECT * INTO v_inv FROM team_invitations WHERE id = p_invite_id FOR UPDATE;
+  IF v_inv.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invitation not found');
+  END IF;
+  IF v_inv.member_uid <> v_caller THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Ye invitation tumhare liye nahi hai');
+  END IF;
+  IF v_inv.status <> 'pending' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invitation pehle se respond ho chuki hai');
+  END IF;
+
+  v_action := CASE WHEN p_accept THEN 'accepted' ELSE 'declined' END;
+  UPDATE team_invitations
+     SET status = v_action,
+         accepted_at = CASE WHEN p_accept THEN NOW() ELSE accepted_at END
+   WHERE id = p_invite_id;
+
+  INSERT INTO notifications (user_id, type, title, body, ref_id)
+  VALUES (v_inv.captain_uid, 'team_invite_response', '👥 Team Response',
+          (SELECT COALESCE(ign,'Player') FROM users WHERE id = v_caller)
+          || ' ne team invite ' || v_action || ' kar di.',
+          v_inv.match_id);
+
+  RETURN jsonb_build_object('ok', true, 'action', v_action);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) TO anon;
+GRANT EXECUTE ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) TO postgres;
+GRANT EXECUTE ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) TO service_role;
+
+-- ── admin_distribute_sponsored_prize ──
+CREATE OR REPLACE FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text DEFAULT NULL::text, p_rank text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_uname TEXT;
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL OR NOT COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+  IF p_amount IS NULL OR p_amount <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_amount');
+  END IF;
+  SELECT ign INTO v_uname FROM users WHERE id = p_uid;
+  IF v_uname IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'user_not_found');
+  END IF;
+  UPDATE users SET sponsored_winnings = COALESCE(sponsored_winnings, 0) + p_amount WHERE id = p_uid;
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status)
+  VALUES (p_uid, 'sponsored', 'credit', p_amount, 'sponsored_prize', COALESCE(p_tour_id, NULL), 'approved');
+  RETURN jsonb_build_object('success', true, 'amount', p_amount);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) TO anon;
+GRANT EXECUTE ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) TO postgres;
+GRANT EXECUTE ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) TO service_role;
+
+-- ── claim_referral_reward ──
+CREATE OR REPLACE FUNCTION public.claim_referral_reward(p_code text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_referrer_id TEXT;
+  v_cfg JSONB;
+  v_reward_coins INT;
+  v_already_count INT;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+
+  -- Already used a referral code once? A user can only ever be
+  -- referred once — this row is unique per referred_id.
+  -- (✅ FIXED live during testing: "SELECT * INTO record_var" +
+  -- "record_var IS NOT NULL" does NOT reliably detect "no row found"
+  -- in PL/pgSQL — a record variable can be non-NULL even when the
+  -- SELECT matched nothing. count(*) is the reliable check.)
+  SELECT count(*) INTO v_already_count FROM referrals WHERE referred_id = v_caller;
+  IF v_already_count > 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Already used a referral code');
+  END IF;
+
+  SELECT id INTO v_referrer_id FROM users WHERE referral_code = upper(p_code);
+  IF v_referrer_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid code');
+  END IF;
+  IF v_referrer_id = v_caller THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Cannot use your own code');
+  END IF;
+
+  SELECT value INTO v_cfg FROM app_settings WHERE key = 'live_config';
+  v_reward_coins := COALESCE((v_cfg->>'referralJoinCoins')::INT, 50);
+
+  INSERT INTO referrals (referrer_id, referred_id, join_bonus_paid, reward)
+  VALUES (v_referrer_id, v_caller, true, v_reward_coins);
+
+  UPDATE users SET coins = COALESCE(coins, 0) + v_reward_coins WHERE id = v_referrer_id;
+  UPDATE users SET coins = COALESCE(coins, 0) + v_reward_coins, referred_by = v_referrer_id WHERE id = v_caller;
+
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason)
+  VALUES (v_referrer_id, 'coins', 'credit', v_reward_coins, 'referral_reward');
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason)
+  VALUES (v_caller, 'coins', 'credit', v_reward_coins, 'referral_reward');
+
+  INSERT INTO notifications (user_id, type, title, body)
+  SELECT v_referrer_id, 'referral', '🎁 Referral Reward!',
+         COALESCE(ign, 'Koi') || ' join hua! +' || v_reward_coins || ' coins!'
+  FROM users WHERE id = v_caller;
+
+  RETURN jsonb_build_object('success', true, 'coinsEarned', v_reward_coins);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.claim_referral_reward(p_code text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_referral_reward(p_code text) TO anon;
+GRANT EXECUTE ON FUNCTION public.claim_referral_reward(p_code text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_referral_reward(p_code text) TO postgres;
+
+-- ── redeem_reward_item ──
+CREATE OR REPLACE FUNCTION public.redeem_reward_item(p_name text, p_address text, p_phone text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_item RECORD;
+  v_balance INT;
+  v_req_id UUID;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+  IF length(trim(COALESCE(p_address,''))) < 10 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Address sahi se bharo');
+  END IF;
+  IF length(trim(COALESCE(p_phone,''))) < 10 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Phone number 10 digits');
+  END IF;
+
+  -- The real cost is read from this table, never from the client —
+  -- this is the actual fix: the old flow trusted a cost argument the
+  -- client could set to anything when calling confirmRewardRedeem
+  -- directly (e.g. requesting a real physical item for 1 coin).
+  SELECT * INTO v_item FROM reward_store_items WHERE name = p_name AND active = true;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Item not found');
+  END IF;
+
+  SELECT COALESCE(coins, 0) INTO v_balance FROM users WHERE id = v_caller FOR UPDATE;
+  IF v_balance < v_item.coins_cost THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Coins kam hain!', 'balance', v_balance);
+  END IF;
+
+  UPDATE users SET coins = coins - v_item.coins_cost WHERE id = v_caller;
+
+  INSERT INTO reward_redemptions (uid, name, item, cost, address, phone, status)
+  VALUES (v_caller, (SELECT ign FROM users WHERE id = v_caller), p_name, v_item.coins_cost, p_address, p_phone, 'pending')
+  RETURNING id INTO v_req_id;
+
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason, ref_id)
+  VALUES (v_caller, 'coins', 'debit', v_item.coins_cost, 'reward_redemption', v_req_id::text);
+
+  RETURN jsonb_build_object('success', true, 'requestId', v_req_id, 'cost', v_item.coins_cost, 'newBalance', v_balance - v_item.coins_cost);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.redeem_reward_item(p_name text, p_address text, p_phone text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.redeem_reward_item(p_name text, p_address text, p_phone text) TO anon;
+GRANT EXECUTE ON FUNCTION public.redeem_reward_item(p_name text, p_address text, p_phone text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.redeem_reward_item(p_name text, p_address text, p_phone text) TO postgres;
+
+-- ── redeem_voucher ──
+CREATE OR REPLACE FUNCTION public.redeem_voucher(p_code text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_voucher RECORD;
+  v_col TEXT;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+
+  SELECT * INTO v_voucher FROM vouchers WHERE code = upper(p_code) FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid voucher code');
+  END IF;
+
+  IF COALESCE(v_voucher.status, 'active') <> 'active' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Voucher disabled');
+  END IF;
+
+  IF v_voucher.expires_at IS NOT NULL AND v_voucher.expires_at < now() THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Voucher expired');
+  END IF;
+
+  IF COALESCE(v_voucher.used_count, 0) >= COALESCE(v_voucher.max_uses, 1) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Voucher limit reach ho gaya');
+  END IF;
+
+  BEGIN
+    INSERT INTO voucher_redemptions (voucher_code, user_id) VALUES (upper(p_code), v_caller);
+  EXCEPTION WHEN unique_violation THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Aap already yeh voucher redeem kar chuke ho');
+  END;
+
+  v_col := CASE COALESCE(v_voucher.reward_type, 'coins')
+    WHEN 'coins' THEN 'coins'
+    WHEN 'green_diamonds' THEN 'green_diamonds'
+    WHEN 'sky_diamonds' THEN 'sky_diamonds'
+    ELSE 'coins'
+  END;
+
+  EXECUTE format('UPDATE users SET %I = COALESCE(%I, 0) + $1 WHERE id = $2', v_col, v_col)
+    USING v_voucher.reward_amount, v_caller;
+
+  UPDATE vouchers SET used_count = COALESCE(used_count, 0) + 1 WHERE code = upper(p_code);
+
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason, ref_id)
+  VALUES (v_caller, v_col, 'credit', v_voucher.reward_amount, 'voucher', upper(p_code));
+
+  RETURN jsonb_build_object('success', true, 'currency', v_col, 'amount', v_voucher.reward_amount);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.redeem_voucher(p_code text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.redeem_voucher(p_code text) TO anon;
+GRANT EXECUTE ON FUNCTION public.redeem_voucher(p_code text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.redeem_voucher(p_code text) TO postgres;
+
+-- ── reject_creator_application ──
+CREATE OR REPLACE FUNCTION public.reject_creator_application(p_uid text, p_note text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := (auth.jwt() ->> 'sub');
+  v_is_admin BOOLEAN;
+BEGIN
+  SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+  IF NOT COALESCE(v_is_admin, false) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+  UPDATE creator_applications SET status = 'rejected', reviewed_by = v_caller, review_note = p_note, updated_at = now()
+    WHERE user_id = p_uid;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No creator application found for this user');
+  END IF;
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.reject_creator_application(p_uid text, p_note text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reject_creator_application(p_uid text, p_note text) TO anon;
+GRANT EXECUTE ON FUNCTION public.reject_creator_application(p_uid text, p_note text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.reject_creator_application(p_uid text, p_note text) TO postgres;
+GRANT EXECUTE ON FUNCTION public.reject_creator_application(p_uid text, p_note text) TO service_role;
+
+-- ── block_creator_self_play_check ──
+CREATE OR REPLACE FUNCTION public.block_creator_self_play_check(p_uid text, p_match_id text)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE v_owner TEXT;
+BEGIN
+  SELECT creator_uid INTO v_owner FROM matches WHERE id = p_match_id;
+  RETURN v_owner IS NOT NULL AND v_owner = p_uid;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.block_creator_self_play_check(p_uid text, p_match_id text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.block_creator_self_play_check(p_uid text, p_match_id text) TO PUBLIC;
+GRANT EXECUTE ON FUNCTION public.block_creator_self_play_check(p_uid text, p_match_id text) TO postgres;
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- R6 — TEAM CONSENT TABLE + POLICIES + CONSTRAINTS (2026-09-23k)
+-- (functions इस file में ऊपर reconcile से आ चुकी हैं; यहाँ सिर्फ़ table,
+--  RLS policies, grants और 3 CHECK constraints — idempotent/DO-guarded।)
+-- ═══════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════════════
+-- R6 — FINAL LAST PASS — PRODUCTION SECURITY + FINANCIAL LOCK
+-- 1. TEAM JOIN AUTHORIZATION  — team_invitations (server-authoritative consent)
+-- 2. ATOMIC TEAM PAYMENT      — join_match_team ab sirf authorized members debit
+-- 3. EACH_PAYS PAYER IDENTITY — member debit उसी member की locked row से (consent के bad)
+-- 4. INCREMENT FILLED SLOTS   — normal-user access हटाया; internal-only guard
+-- 5. WALLET LEDGER INTEGRITY  — fft_guard: no-caller → raise; self-only pending_*
+-- 7. GIFT CAPACITY            — gift_match_entry match FOR UPDATE (race-safe capacity)
+-- 22. DB CONSTRAINTS          — non-negative balances / slots / amounts
+-- ═══════════════════════════════════════════════════════════════════════
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 1. TEAM INVITATIONS TABLE (minimal server-authoritative consent)
+--    captain invites → member explicitly accepts → join_match_team verifies
+-- ─────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.team_invitations (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    match_id    TEXT NOT NULL REFERENCES public.matches(id) ON DELETE CASCADE,
+    captain_uid TEXT NOT NULL REFERENCES public.users(id)  ON DELETE CASCADE,
+    member_uid  TEXT NOT NULL REFERENCES public.users(id)  ON DELETE CASCADE,
+    mode        TEXT NOT NULL DEFAULT 'duo',
+    fee_type    TEXT NOT NULL DEFAULT 'captain_pays',
+    status      TEXT NOT NULL DEFAULT 'pending',   -- pending | accepted | declined
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    accepted_at TIMESTAMPTZ,
+    CONSTRAINT team_invitations_mode_chk CHECK (mode IN ('duo','squad')),
+    CONSTRAINT team_invitations_fee_chk   CHECK (fee_type IN ('captain_pays','each_pays')),
+    CONSTRAINT team_invitations_status_chk CHECK (status IN ('pending','accepted','declined')),
+    CONSTRAINT team_invitations_unique_member UNIQUE (match_id, member_uid)
+);
+CREATE INDEX IF NOT EXISTS idx_team_invitations_captain ON public.team_invitations(captain_uid, match_id);
+CREATE INDEX IF NOT EXISTS idx_team_invitations_member  ON public.team_invitations(member_uid, status);
+
+ALTER TABLE public.team_invitations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "ti_select_related" ON public.team_invitations;
+CREATE POLICY "ti_select_related" ON public.team_invitations FOR SELECT
+  USING ((auth.jwt() ->> 'sub') = member_uid
+      OR (auth.jwt() ->> 'sub') = captain_uid
+      OR (auth.jwt() ->> 'sub') IN (SELECT id FROM public.users WHERE is_admin = true));
+DROP POLICY IF EXISTS "ti_insert_own" ON public.team_invitations;
+CREATE POLICY "ti_insert_own" ON public.team_invitations FOR INSERT
+  WITH CHECK ((auth.jwt() ->> 'sub') = captain_uid AND status = 'pending');
+DROP POLICY IF EXISTS "ti_update_own" ON public.team_invitations;
+CREATE POLICY "ti_update_own" ON public.team_invitations FOR UPDATE
+  USING ((auth.jwt() ->> 'sub') = member_uid OR (auth.jwt() ->> 'sub') = captain_uid)
+  WITH CHECK ((auth.jwt() ->> 'sub') = member_uid OR (auth.jwt() ->> 'sub') = captain_uid);
+
+GRANT SELECT, INSERT, UPDATE ON public.team_invitations TO anon, authenticated;
+GRANT ALL ON public.team_invitations TO service_role;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- invite_team_members — captain ही अपने match ke liye invitations बनाता है
+-- (server match/capacity/mode/fee verify; members client-array hone par bhi
+--  सिर्फ़ INVITATION बनती है — कोई wallet/join/slot write नहीं)
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[])
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_slots  INT;
+  v_m      RECORD;
+  v_u      TEXT;
+  v_count  INT := 0;
+  v_feety  TEXT;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+
+  p_mode := lower(COALESCE(p_mode, 'duo'));
+  v_slots := CASE WHEN p_mode = 'duo' THEN 2 WHEN p_mode = 'squad' THEN 4 ELSE 1 END;
+  IF v_slots = 1 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invalid team mode');
+  END IF;
+  IF p_member_uids IS NULL OR array_length(p_member_uids, 1) <> (v_slots - 1) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Team size galat hai');
+  END IF;
+
+  v_feety := lower(COALESCE(p_fee_type, 'captain_pays'));
+  IF v_feety NOT IN ('captain_pays','each_pays') THEN v_feety := 'captain_pays'; END IF;
+
+  SELECT id, status, max_slots, filled_slots, creator_uid
+    INTO v_m
+    FROM matches
+   WHERE id = p_match_id
+     FOR UPDATE;
+  IF v_m.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Match not found');
+  END IF;
+  IF v_m.status IS DISTINCT FROM 'upcoming' AND v_m.status IS DISTINCT FROM 'live' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Match ab join nahi ho sakta');
+  END IF;
+  IF v_m.creator_uid IS NOT NULL AND v_m.creator_uid = v_caller THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apne khud ke hosted match mein join nahi kar sakte');
+  END IF;
+  IF COALESCE(v_m.filled_slots, 0) + v_slots > COALESCE(v_m.max_slots, 999) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Match full ho gaya');
+  END IF;
+
+  FOREACH v_u IN ARRAY p_member_uids LOOP
+    IF v_u IS NULL OR v_u = v_caller THEN
+      CONTINUE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_u) THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'Player not found');
+    END IF;
+    INSERT INTO team_invitations (match_id, captain_uid, member_uid, mode, fee_type)
+    VALUES (p_match_id, v_caller, v_u, p_mode, v_feety)
+    ON CONFLICT (match_id, member_uid) DO UPDATE
+      SET captain_uid = EXCLUDED.captain_uid,
+          mode        = EXCLUDED.mode,
+          fee_type    = EXCLUDED.fee_type,
+          status      = 'pending',
+          created_at  = NOW(),
+          accepted_at = NULL;
+    v_count := v_count + 1;
+    INSERT INTO notifications (user_id, type, title, body, ref_id)
+    VALUES (v_u, 'team_invite', '👥 Team Invitation',
+            (SELECT COALESCE(ign,'Player') FROM users WHERE id = v_caller)
+            || ' ne tumhe ' || upper(p_mode) || ' match ke liye invite kiya hai — accept/decline karo.',
+            p_match_id);
+  END LOOP;
+
+  IF v_count = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Koi valid member nahi mila');
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'invited', v_count, 'mode', p_mode, 'fee_type', v_feety);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.invite_team_members(text, text, text, text[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.invite_team_members(text, text, text, text[]) TO anon, authenticated, service_role;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- respond_team_invite — सिर्फ़ invited member ही accept/decline
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_inv    RECORD;
+  v_action TEXT;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+
+  SELECT * INTO v_inv FROM team_invitations WHERE id = p_invite_id FOR UPDATE;
+  IF v_inv.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invitation not found');
+  END IF;
+  IF v_inv.member_uid <> v_caller THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Ye invitation tumhare liye nahi hai');
+  END IF;
+  IF v_inv.status <> 'pending' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invitation pehle se respond ho chuki hai');
+  END IF;
+
+  v_action := CASE WHEN p_accept THEN 'accepted' ELSE 'declined' END;
+  UPDATE team_invitations
+     SET status = v_action,
+         accepted_at = CASE WHEN p_accept THEN NOW() ELSE accepted_at END
+   WHERE id = p_invite_id;
+
+  INSERT INTO notifications (user_id, type, title, body, ref_id)
+  VALUES (v_inv.captain_uid, 'team_invite_response', '👥 Team Response',
+          (SELECT COALESCE(ign,'Player') FROM users WHERE id = v_caller)
+          || ' ne team invite ' || v_action || ' kar di.',
+          v_inv.match_id);
+
+  RETURN jsonb_build_object('ok', true, 'action', v_action);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.respond_team_invite(uuid, boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.respond_team_invite(uuid, boolean) TO anon, authenticated, service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- 2/3. join_match_team REWRITE — server-authoritative team authorization.
+--   Team[0] = caller. Har teammate (team[1..]) ko:
+--     (a) accepted team_invitations (captain_uid=caller, member_uid=mate, match)
+--     (b) ya auto-squad consent (auto_squad_queue.status='matched' + shared team_id)
+--   verify karke TABHI wallet/fee/slot mutate hota hai. Any fail = full rollback.
+-- ═══════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller       TEXT := auth.jwt() ->> 'sub';
+  v_m            RECORD;
+  v_fee_mode     TEXT;
+  v_server_fee   NUMERIC;
+  v_slots        INT;
+  v_captain_fee  NUMERIC;
+  v_member_fee   NUMERIC;
+  v_total_collected NUMERIC := 0;
+  v_available    INT;
+  v_mem          JSONB;
+  v_mem_uid      TEXT;
+  v_mem_ign      TEXT;
+  v_bal          NUMERIC;
+  v_col          TEXT;
+  v_jr_id        UUID;
+  v_idx          INT := 0;
+  v_unique_uids  TEXT[] := ARRAY[]::TEXT[];
+  v_creator_code TEXT;
+  v_creator_uid  TEXT;
+  v_commission_pct NUMERIC;
+  v_commission   NUMERIC;
+  v_first_row_id UUID;
+  v_authorized   BOOLEAN;
+BEGIN
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+
+  IF p_mode IS NULL THEN p_mode := 'solo'; END IF;
+  p_mode := lower(p_mode);
+  v_slots := CASE WHEN p_mode = 'duo' THEN 2 WHEN p_mode = 'squad' THEN 4 ELSE 1 END;
+
+  IF p_team IS NULL OR jsonb_typeof(p_team) <> 'array' OR jsonb_array_length(p_team) = 0 THEN
+    RAISE EXCEPTION 'INVALID_TEAM';
+  END IF;
+
+  /* captain = team[0]; server identifies from jwt — client team[0].uid sirf hint */
+  v_mem := p_team -> 0;
+  IF (v_mem->>'uid') IS NULL OR (v_mem->>'uid') <> v_caller THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+
+  /* team size must match mode */
+  IF (v_slots = 2 AND jsonb_array_length(p_team) <> 2) OR
+     (v_slots = 4 AND jsonb_array_length(p_team) <> 4) OR
+     (v_slots = 1 AND jsonb_array_length(p_team) <> 1) THEN
+    RAISE EXCEPTION 'TEAM_SIZE_MISMATCH';
+  END IF;
+
+  SELECT id, status, entry_type, entry_fee, max_slots, filled_slots, creator_uid
+    INTO v_m
+    FROM matches
+   WHERE id = p_match_id
+     FOR UPDATE;
+  IF v_m.id IS NULL THEN RAISE EXCEPTION 'MATCH_NOT_FOUND'; END IF;
+  IF v_m.status IS DISTINCT FROM 'upcoming' AND v_m.status IS DISTINCT FROM 'live' THEN
+    RAISE EXCEPTION 'MATCH_NOT_JOINABLE';
+  END IF;
+  IF v_m.creator_uid IS NOT NULL AND v_m.creator_uid = v_caller THEN
+    RAISE EXCEPTION 'SELF_PLAY_BLOCKED';
+  END IF;
+
+  /* fee/currency server-derived (client never) */
+  CASE COALESCE(lower(regexp_replace(v_m.entry_type, '[_ -]', '', 'g')), 'free')
+    WHEN 'coin'  THEN v_server_fee := COALESCE(v_m.entry_fee,0); v_fee_mode := 'coins';
+    WHEN 'paid'  THEN v_server_fee := COALESCE(v_m.entry_fee,0); v_fee_mode := 'sky_diamonds';
+    WHEN 'free'  THEN v_server_fee := 0; v_fee_mode := 'free';
+    WHEN 'ad'    THEN v_server_fee := 0; v_fee_mode := 'ad';
+    ELSE
+      IF COALESCE(v_m.entry_fee,0) > 0 THEN v_server_fee := v_m.entry_fee; v_fee_mode := 'sky_diamonds';
+      ELSE v_server_fee := 0; v_fee_mode := 'free'; END IF;
+  END CASE;
+
+  v_col := CASE WHEN v_fee_mode = 'coins' THEN 'coins' ELSE 'sky_diamonds' END;
+
+  IF p_fee_type IS NULL THEN p_fee_type := 'captain_pays'; END IF;
+  p_fee_type := lower(p_fee_type);
+  IF p_fee_type NOT IN ('captain_pays','each_pays','solo') THEN p_fee_type := 'captain_pays'; END IF;
+  IF v_slots = 1 THEN p_fee_type := 'solo'; END IF;
+
+  v_captain_fee := CASE WHEN p_fee_type = 'each_pays' THEN v_server_fee
+                        ELSE v_server_fee * v_slots END;
+  v_member_fee := CASE WHEN p_fee_type = 'each_pays' THEN v_server_fee ELSE 0 END;
+
+  /* capacity (player slots) */
+  v_available := COALESCE(v_m.max_slots, 999) - COALESCE(v_m.filled_slots, 0);
+  IF v_available < v_slots THEN RAISE EXCEPTION 'MATCH_FULL'; END IF;
+
+  /* validate members, duplicate-active-join, banned + AUTHORIZATION */
+  FOR v_idx IN 0 .. jsonb_array_length(p_team) - 1 LOOP
+    v_mem := p_team -> v_idx;
+    v_mem_uid := v_mem->>'uid';
+    IF v_mem_uid IS NULL OR v_mem_uid = ANY(v_unique_uids) THEN
+      RAISE EXCEPTION 'INVALID_TEAM';
+    END IF;
+    v_unique_uids := v_unique_uids || v_mem_uid;
+    IF COALESCE((SELECT is_banned FROM users WHERE id = v_mem_uid), false) THEN
+      RAISE EXCEPTION 'ACCOUNT_BANNED';
+    END IF;
+    IF EXISTS(SELECT 1 FROM join_requests
+              WHERE user_id = v_mem_uid AND match_id = p_match_id
+                AND status NOT IN ('cancelled','refunded','no_show')) THEN
+      RAISE EXCEPTION 'ALREADY_JOINED';
+    END IF;
+
+    /* ── R6 AUTHORIZATION (FINAL BLOCKER #1/#3) ──
+       captain (idx 0) = jwt caller = self.
+       teammates (idx>=1) = explicit consent आवश्यक:
+       (a) accepted team invitation  (b) ya auto-squad matched team. */
+    IF v_idx >= 1 THEN
+      v_authorized := EXISTS(
+        SELECT 1 FROM team_invitations ti
+        WHERE ti.match_id = p_match_id
+          AND ti.captain_uid = v_caller
+          AND ti.member_uid = v_mem_uid
+          AND ti.status = 'accepted'
+      );
+      IF NOT v_authorized THEN
+        v_authorized := EXISTS(
+          SELECT 1 FROM auto_squad_queue aq
+          WHERE aq.match_id = p_match_id
+            AND aq.user_id = v_mem_uid
+            AND aq.status = 'matched'
+            AND aq.team_id IN (
+              SELECT aq2.team_id FROM auto_squad_queue aq2
+              WHERE aq2.match_id = p_match_id
+                AND aq2.user_id = v_caller
+                AND aq2.status = 'matched'
+            )
+        );
+      END IF;
+      IF NOT v_authorized THEN
+        RAISE EXCEPTION 'TEAM_NOT_AUTHORIZED';
+      END IF;
+    END IF;
+  END LOOP;
+
+  /* lock every member row + validate balance (atomic; koi bhi fail = full rollback) */
+  IF v_server_fee > 0 THEN
+    FOR v_idx IN 0 .. jsonb_array_length(p_team) - 1 LOOP
+      v_mem := p_team -> v_idx;
+      v_mem_uid := v_mem->>'uid';
+      IF v_col = 'coins' THEN
+        SELECT coins INTO v_bal FROM users WHERE id = v_mem_uid FOR UPDATE;
+      ELSE
+        SELECT sky_diamonds INTO v_bal FROM users WHERE id = v_mem_uid FOR UPDATE;
+      END IF;
+      IF v_bal IS NULL THEN RAISE EXCEPTION 'USER_NOT_FOUND'; END IF;
+      IF v_idx = 0 THEN
+        IF v_bal < v_captain_fee THEN RAISE EXCEPTION 'INSUFFICIENT_BALANCE'; END IF;
+      ELSE
+        IF v_bal < v_member_fee THEN RAISE EXCEPTION 'INSUFFICIENT_BALANCE'; END IF;
+      END IF;
+    END LOOP;
+  END IF;
+
+  /* debit + join row per member (single transaction; debit only authorized members) */
+  FOR v_idx IN 0 .. jsonb_array_length(p_team) - 1 LOOP
+    v_mem := p_team -> v_idx;
+    v_mem_uid := v_mem->>'uid';
+    v_mem_ign := COALESCE(v_mem->>'ign', '');
+
+    IF v_idx = 0 THEN v_bal := v_captain_fee; ELSE v_bal := v_member_fee; END IF;
+
+    IF v_server_fee > 0 AND v_bal > 0 THEN
+      IF v_col = 'coins' THEN
+        UPDATE users SET coins = coins - v_bal WHERE id = v_mem_uid;
+      ELSE
+        UPDATE users SET sky_diamonds = sky_diamonds - v_bal WHERE id = v_mem_uid;
+      END IF;
+      INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id)
+      VALUES (v_mem_uid, v_fee_mode, 'debit', v_bal, 'match_entry', p_match_id);
+      v_total_collected := v_total_collected + v_bal;
+    END IF;
+
+    INSERT INTO join_requests(user_id, match_id, entry_fee_paid, entry_type, status, mode, ign_at_join, fee_type, captain_uid)
+    VALUES(
+      v_mem_uid, p_match_id, v_bal,
+      CASE WHEN v_fee_mode='coins' THEN 'coin'
+           WHEN v_fee_mode='sky_diamonds' THEN 'sky_diamond'
+           ELSE COALESCE(v_m.entry_type,'free') END,
+      'joined', p_mode, v_mem_ign, p_fee_type,
+      CASE WHEN v_idx = 0 THEN NULL ELSE v_caller END
+    ) RETURNING id INTO v_jr_id;
+    IF v_idx = 0 THEN v_first_row_id := v_jr_id; END IF;
+  END LOOP;
+
+  UPDATE matches SET filled_slots = COALESCE(filled_slots, 0) + v_slots WHERE id = p_match_id;
+
+  /* creator commission (spend-triggered, sky-only, same rule as validate_and_join_match) */
+  IF v_fee_mode = 'sky_diamonds' AND v_total_collected > 0 THEN
+    SELECT creator_code INTO v_creator_code FROM users WHERE id = v_caller;
+    IF v_creator_code IS NOT NULL THEN
+      SELECT user_id INTO v_creator_uid FROM creator_codes WHERE code = v_creator_code;
+      IF v_creator_uid IS NOT NULL AND v_creator_uid <> v_caller
+         AND EXISTS(SELECT 1 FROM users WHERE id = v_creator_uid AND is_creator = true) THEN
+        SELECT COALESCE((value->>'sdMatchCommissionPct')::numeric, 15)
+          INTO v_commission_pct FROM app_settings WHERE key = 'creator_system';
+        v_commission_pct := COALESCE(v_commission_pct, 15);
+        v_commission := ROUND(v_total_collected * v_commission_pct / 100, 2);
+        INSERT INTO creator_stats(user_id, total_matches, total_earnings)
+        VALUES (v_creator_uid, 1, v_commission)
+        ON CONFLICT (user_id) DO UPDATE SET
+          total_matches = creator_stats.total_matches + 1,
+          total_earnings = creator_stats.total_earnings + v_commission, updated_at = NOW();
+        INSERT INTO creator_commissions(creator_uid, match_id, amount, currency, status, eligible_at)
+        VALUES (v_creator_uid, p_match_id, v_commission, 'inr', 'hold', NOW() + INTERVAL '7 days');
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object('ok', true, 'captain_row_id', v_first_row_id, 'slots', v_slots);
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error',
+      CASE SQLERRM
+        WHEN 'NOT_AUTHORIZED'        THEN 'Not authorized'
+        WHEN 'TEAM_NOT_AUTHORIZED'   THEN 'Teammates ne join authorize nahi kiya — pehle team invite accept karwao'
+        WHEN 'MATCH_NOT_FOUND'       THEN 'Match not found'
+        WHEN 'MATCH_NOT_JOINABLE'    THEN 'Match ab join nahi ho sakta'
+        WHEN 'SELF_PLAY_BLOCKED'     THEN 'Apne khud ke hosted match mein join nahi kar sakte'
+        WHEN 'ACCOUNT_BANNED'        THEN 'Kisi teammate ka account ban hai'
+        WHEN 'ALREADY_JOINED'        THEN 'Koi teammate already is match mein join hai'
+        WHEN 'MATCH_FULL'            THEN 'Match full ho gaya'
+        WHEN 'INSUFFICIENT_BALANCE'  THEN 'Kisi teammate ke paas balance kam hai'
+        WHEN 'USER_NOT_FOUND'        THEN 'Player not found'
+        WHEN 'TEAM_SIZE_MISMATCH'    THEN 'Team size galat hai'
+        WHEN 'INVALID_TEAM'          THEN 'Team invalid hai'
+        ELSE SQLERRM
+      END);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.join_match_team(text, text, text, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.join_match_team(text, text, text, jsonb) TO anon, authenticated, service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- 4. increment_match_filled_slots — normal-user access HATAO.
+--    अब sirf वही caller increment kar sakta hai jiska is match में active
+--    join_requests row ho (own joined entry) — occupancy manipulation band.
+--    PostgREST grant REVOKE (normal-user route drop) + body guard (defense-in-depth).
+-- ═══════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.increment_match_filled_slots(p_match_id text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_m RECORD;
+BEGIN
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  /* R6: caller must have his own active join row on this match — occupancy
+     सिर्फ़ उसी participant ke अपने join के लिए, कभी दूसरे match के लिए नहीं। */
+  IF NOT EXISTS (SELECT 1 FROM join_requests
+                 WHERE match_id = p_match_id
+                   AND user_id = v_caller
+                   AND status IN ('joined','checked_in','pending','approved')) THEN
+    RAISE EXCEPTION 'not_a_participant';
+  END IF;
+
+  SELECT mode, status, max_slots, filled_slots
+    INTO v_m
+    FROM matches
+   WHERE id = p_match_id
+     FOR UPDATE;
+  IF v_m.status IS NULL THEN
+    RAISE EXCEPTION 'match_not_found';
+  END IF;
+  IF v_m.status NOT IN ('upcoming','live') THEN
+    RAISE EXCEPTION 'match_not_joinable';
+  END IF;
+  IF COALESCE(v_m.filled_slots, 0) >= COALESCE(v_m.max_slots, 0) THEN
+    RAISE EXCEPTION 'match_full';
+  END IF;
+
+  UPDATE matches SET filled_slots = filled_slots + 1 WHERE id = p_match_id;
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.increment_match_filled_slots(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_match_filled_slots(text) TO service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- 5. fft_guard_wallet_insert TIGHTEN — no-caller → raise; self-only pending_*
+--    Ledger केवल system/admin/server RPC बना सकते हैं; regular user सिर्फ़
+--    अपनी pending_deposit/pending_withdraw row (request-record) — fake
+--    ledger history, cross-user debit fabrication अब असंभव।
+-- ═══════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.fft_guard_wallet_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+BEGIN
+  /* system roles + admin + service bypass (server-side authority) */
+  IF current_user IN ('postgres','supabase_admin','service_role') THEN
+    RETURN NEW;
+  END IF;
+
+  /* R6: nested-call detection — server RPC (SECDEF) chalta hai to
+     request.jwt.claims caller hi rehta hai; system writes tabhi allow
+     जब caller admin हो या current_user सेवा-भूमिका में हो। */
+  IF v_caller IS NOT NULL AND COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false) THEN
+    RETURN NEW;
+  END IF;
+
+  /* R6: no caller (anon, no identity) — कभी कोई ledger write नहीं */
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'Wallet entries sirf authenticated system path se banti hain';
+  END IF;
+
+  /* R6: regular authenticated user — sirf अपनी pending request records */
+  IF NEW.user_id = v_caller AND NEW.txn_type IN ('pending_deposit','pending_withdraw') THEN
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'Wallet entries (%) sirf system create kar sakta hai', NEW.txn_type;
+END;
+$function$;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- 7. gift_match_entry — match row FOR UPDATE (concurrent gift capacity race band)
+-- ═══════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_me TEXT := auth.jwt() ->> 'sub';
+  v_m RECORD; v_friend RECORD; v_my_name TEXT; v_col TEXT; v_bal NUMERIC; v_gift_id UUID;
+BEGIN
+  IF v_me IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'Not authorized'); END IF;
+  IF p_to_uid IS NULL OR p_to_uid = v_me THEN RETURN jsonb_build_object('ok', false, 'error', 'Apne aap ko gift nahi kar sakte'); END IF;
+  /* R6: FOR UPDATE — concurrent gifts same match par capacity race नहीं करते */
+  SELECT id, entry_fee, entry_type, name, status, max_slots, filled_slots
+    INTO v_m FROM matches WHERE id::text = p_match_id FOR UPDATE;
+  IF v_m.id IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'Match not found'); END IF;
+  IF COALESCE(v_m.entry_fee, 0) <= 0 THEN RETURN jsonb_build_object('ok', false, 'error', 'Gift sirf paid matches par'); END IF;
+  SELECT id, COALESCE(ff_uid, '') AS ff_uid INTO v_friend FROM users WHERE id = p_to_uid;
+  IF v_friend.id IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'Player not found'); END IF;
+  SELECT COALESCE(ign, 'Player') INTO v_my_name FROM users WHERE id = v_me;
+  v_col := CASE WHEN lower(COALESCE(v_m.entry_type, 'coin')) = 'coin' THEN 'coins' ELSE 'sky_diamonds' END;
+
+  EXECUTE format('SELECT COALESCE(%I, 0) FROM users WHERE id = $1 FOR UPDATE', v_col) INTO v_bal USING v_me;
+  IF v_bal IS NULL THEN RETURN jsonb_build_object('ok', false, 'error', 'User not found'); END IF;
+  IF v_bal < v_m.entry_fee THEN RETURN jsonb_build_object('ok', false, 'error', 'Insufficient balance'); END IF;
+  EXECUTE format('UPDATE users SET %I = COALESCE(%I, 0) - $1 WHERE id = $2', v_col, v_col) USING v_m.entry_fee, v_me;
+
+  INSERT INTO gift_tickets (from_uid, from_name, to_uid, to_ff_uid, match_id, match_name, fee, entry_type, status)
+  VALUES (v_me, v_my_name, p_to_uid, v_friend.ff_uid, v_m.id, v_m.name, v_m.entry_fee, v_m.entry_type, 'pending')
+  RETURNING id INTO v_gift_id;
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason)
+  VALUES (v_me, v_col, 'debit', v_m.entry_fee, 'gift_entry');
+
+  IF v_m.status = 'upcoming' THEN
+    IF NOT EXISTS (SELECT 1 FROM join_requests WHERE user_id = p_to_uid AND match_id = v_m.id AND status NOT IN ('cancelled','refunded','no_show')) THEN
+      IF COALESCE(v_m.filled_slots, 0) < COALESCE(v_m.max_slots, 999) THEN
+        INSERT INTO join_requests (match_id, user_id, status, entry_type, entry_fee_paid, user_ign, ign_at_join, user_ff_uid)
+        VALUES (v_m.id, p_to_uid, 'pending', v_m.entry_type, 0,
+                (SELECT COALESCE(ign,'Player') FROM users WHERE id = p_to_uid),
+                (SELECT COALESCE(ign,'Player') FROM users WHERE id = p_to_uid),
+                v_friend.ff_uid);
+        UPDATE matches SET filled_slots = COALESCE(filled_slots,0) + 1 WHERE id = v_m.id;
+      END IF;
+    END IF;
+  END IF;
+  INSERT INTO notifications (user_id, type, title, body)
+  VALUES (p_to_uid, 'gift_ticket', '🎁 Match Ticket Gift!', v_my_name || ' ne tumhe "' || v_m.name || '" ka entry ticket gift kiya!');
+  RETURN jsonb_build_object('ok', true, 'gift_id', v_gift_id, 'fee', v_m.entry_fee);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.gift_match_entry(text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.gift_match_entry(text, text) TO anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- 22. DB-LEVEL CONSTRAINTS (बिना किसी working flow को तोड़े — 0 violations live)
+-- ═══════════════════════════════════════════════════════════════════════
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_wallet_nonnegative') THEN
+    ALTER TABLE public.users ADD CONSTRAINT users_wallet_nonnegative CHECK (
+      COALESCE(coins, 0) >= 0
+      AND COALESCE(sky_diamonds, 0) >= 0
+      AND COALESCE(green_diamonds, 0) >= 0
+      AND COALESCE(sponsored_winnings, 0) >= 0
+    );
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'matches_slots_bounds') THEN
+    ALTER TABLE public.matches ADD CONSTRAINT matches_slots_bounds CHECK (
+      COALESCE(filled_slots, 0) >= 0
+      AND COALESCE(max_slots, 0) >= 0
+      AND COALESCE(filled_slots, 0) <= COALESCE(max_slots, 0)
+    );
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallet_transactions_amount_nonnegative') THEN
+    ALTER TABLE public.wallet_transactions ADD CONSTRAINT wallet_transactions_amount_nonnegative CHECK (
+      COALESCE(amount, 0) >= 0
+    );
+  END IF;
+END $$;
