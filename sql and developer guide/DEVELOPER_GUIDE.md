@@ -1,5 +1,5 @@
 # 🎮 MINI eSPORTS — COMPLETE DEVELOPER GUIDE
-## User Panel v32.16 | Admin Panel v26.12 | Last Updated: 2026-09-22 (R28 premium/cosmetics)
+## User Panel v32.16 | Admin Panel v26.12 | Last Updated: 2026-09-23 (R3 hardening P0–P9 + security conventions)
 
 > ⚠️ **READ THIS FIRST**: this codebase went through a full security audit + fix pass in
 > July 2026 (v32.14 Security Overhaul). If you're touching ANY code that writes to the
@@ -9,6 +9,13 @@
 > now goes through an admin-checked or self-checked RPC. If your write silently fails with
 > a permission-denied error, this is why — check Section 24's RPC reference for the
 > correct function to call instead of writing to the table directly.
+>
+> ⚠️ **नया (R3 Phase-9, 2026-09-23) — SERVER-SIDE SECURITY CONVENTIONS**: सारे live-
+> proven security-sabak (SECDEF `current_user` trap, null-caller bypass, canonical
+> currency, RLS-for-catalog-tables, 6-स्तंभ wallet rules) अब एक जगह — **इस file के
+> शुरुआत में "🔒 SERVER-SIDE SECURITY CONVENTIONS" section** में (header warnings के
+> ठीक बाद)। नया RPC लिखने/ठीक करने से पहले वह section + Section 24 + Section 34.1
+> तीनों पढ़ो।
 >
 > ⚠️ **ALSO READ Section 34.1** (2026-08-18): a CRITICAL security fix to 13 of those
 > admin-checked RPCs — they had an anon-bypass hole that let any unauthenticated caller
@@ -45,6 +52,113 @@
 >    fail across several sessions even after the JS bug itself was genuinely fixed each
 >    time — the wrapped APK's WebView persists this cache far more durably than a normal
 >    browser does, so it is the easiest of the two to forget and the most costly to skip.
+
+---
+
+## 🔒 SERVER-SIDE SECURITY CONVENTIONS (स्थायी — हर DB fix/feature से पहले पढ़ो)
+
+> यह section एक **checklist** है जो अब तक के सारे live-proven security-sabak को एक
+> जगह collect करता है। नया RPC लिखते / पुराना fix करते वक़्त नीचे का हर rule पालन करो।
+> हर rule के साथ वो असली bug लिखा है जिसने rule बनवाया — ताकि pattern दोबारा न दुहराया जाए।
+
+### A. SECURITY DEFINER + role-check (sabसे महत्वपूर्ण)
+1. **`current_user` का use SECDEF function के अंदर कभी न करो।** SECURITY DEFINER
+   होने पर `current_user` हमेशा **function-owner (postgres)** return करता है। इसलिए
+   `current_user IN ('postgres','service_role','supabase_admin')` जैसा check **सबको
+   service मानकर dead हो जाता है**।
+   - सही: `v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');`
+   - (सबक: `increment_clan_score` की पहली Phase-9 draft में यही trap था — anon RPC
+     फिर भी 204 देता रहा। सही करने पर 400 P0001 आया।)
+2. **null-caller bypass कभी न छोड़ो।** `IF v_caller IS NOT NULL THEN <check> END IF;`
+   पैटर्न बिना-JWT वाले caller को check **skip** करा देता है (PostgREST anon grid)।
+   हर wallet/leaderboard/state RPC में:
+   ```sql
+   IF NOT v_is_service THEN
+     IF v_caller IS NULL THEN RAISE EXCEPTION 'Not authorized — no caller identity'; END IF;
+     -- membership/ownership/admin check यहीं mandatory
+   END IF;
+   ```
+   (सबक: `increment_clan_score` anon-bypass, Live: anon RPC fake-clan → 204 OK था।)
+
+### B. Wallet / reward RPC के 6 स्तंभ (client पर कभी भरोसा नहीं)
+हर credit/debit/claim RPC में ये **सब** होने चाहिए:
+1. **caller = player:** `auth.jwt()->>'sub'` ही target हो (या admin-checked)।
+2. **server-authoritative amount:** client-sent amount ignore/`LEAST`-cap करो;
+   असली amount `app_settings.live_config` (या catalog key) से ही लो।
+3. **`FOR UPDATE` lock:** race में दो calls दो बार credit न करें (users row + unique-log row दोनों)।
+4. **unique claim-log / idempotency:** एक ही reward एक बार — dedicated claim-table
+   का `UNIQUE(user_id, …)` constraint + `ON CONFLICT` / `EXCEPTION WHEN unique_violation`।
+5. **period/state gate:** daily/weekly keys server-side date/week से verify (`stale_period`),
+   streak/tier server-side check।
+6. **rollback-safe:** credit fail पर status वापस pending (Paytm `creditIfFirstTime` pattern)।
+
+### C. Currency strings — canonical (plural)
+`wallet_transactions.currency` में सिर्फ़ ये canonical values:
+- `'coins'`, `'sky_diamonds'`, `'green_diamonds'` (plural), `'sponsored'`, `'inr'`।
+- `matches.entry_type` का `'sky_diamond'`/`'coin'` **ledger में मत लिखो** — उसे
+  `CASE WHEN entry_type='sky_diamond' THEN 'sky_diamonds' ELSE … END` से convert करो।
+- (सबक: `creator_publish_result` + `admin_confirm_creator_cheat` singular लिख रहे थे,
+  जिससे wallet-history UI (`listeners.js` दोनों check) में rows गायब दिखते थे।)
+
+### D. RLS policies — 4 rules
+1. Catalog/reward-source tables (**जिन्हें server SECDEF functions पढ़कर credit देते
+   हैं**) **admin-only** रखो: `vouchers` P0 (user सीधे reward_amount बदलकर
+   `redeem_voucher()` से mint कर सकता था, LIVE-PROVEN)। Catalog = vouchers,
+   reward_store_items (SELECT public केवल अगर कोई मूल्य-असर नहीं), cosmetic/streak/
+   mission config, app_settings।
+2. हर user-writable policy में `WITH CHECK` (सिर्फ़ USING नहीं) दो — नहीं तो caster
+   arbitrary rows बनाता है जो policy के outside गिर जाते हैं (Postgres default USING=CHECK
+   only when CHECK omitted **permissive** policies में — explicit देना साफ़ रहता है)।
+3. Sensitive columns (phone/upi/pan/device_fp/fcm/email) public/self-vs-other लीक न करें;
+   views में भी नहीं (`user_public_profiles` में phone/referral_code नहीं — R29 fix)।
+4. SECDEF function जो तुम्हारी admin-only table पढ़ता है — RLS से **unaffected** रहता है
+   (owner bypass, `relforcerowsecurity=false`)। कभी `FORCE ROW LEVEL SECURITY` मत करो
+   सिवाय rare cases — वरना server RPCs ही टूट जाएँगे।
+
+### E. जो working feature है उसे मत तोड़ो (business-rule preserve)
+- Client-side direct INSERT जो एक असली flow है (जैसे `wallet_transactions.pending_withdraw`),
+  tight करने से पहले पूरा round-trip देखो: कौन ADMIN उसे process करता है, क्या server पर
+  re-verify है (`resolve_sponsored_withdrawal` balance re-check है → request-row client से
+  भी safe)। जो safe by-design है उसे **छोड़ो और गाइड में लिख दो** क्यों छोड़ा।
+- हर policy/function drop से पहले `grep -rn "from('<table>')" user-repo admin-repo` करके
+  prove करो कोई live path नहीं टूटेगा।
+
+### F. Evidence discipline (R24-नियम)
+- "लगता है" नहीं — हर claim का live proof: `pg_get_functiondef` (audit-JSON stale हो सकता
+  है!), REST probe (anon/user/admin तीनों roles), और fix के बाद re-probe उसी probe से।
+- Fix करने के बाद **उसी exploit-probe को दोबारा चलाओ** — अगर अब block नहीं होती तो
+  आपका fix काम नहीं किया (Phase-9 की पहली clanscore draft ऐसे ही पकड़ी गई)।
+- `sql_verify_script.py` में नया check जोड़ो जब भी कोई security hole बंद करो — ताकि
+  दोबारा खुलने पर regression में fail हो (अब 21 checks)।
+
+### G. Delivery / repo process (हर DB/code change के साथ)
+1. **हर एडिट = 3-जगह sync (admin-repo में):** (a) delta `.sql` file (`YYYY-MM-DDx-*.sql`
+   नाम से), (b) `COMPLETE_SCHEMA.sql` में वही object update, (c) `DEVELOPER_GUIDE.md`
+   में entry। तीनों commit एक साथ, push `origin main`।
+2. **COMPLETE_SCHEMA edit करते वक़्त regex-replace मत करो** — delimiter mismatch
+   (`$fn$` vs `$function$`) आगे की पूरी definitions निगल सकता है। हमेशा **exact-text
+   edit** (edit tool / targeted match), फिर `git diff` से verify कि सिर्फ़ इच्छित
+   block बदला है। (सबक: Phase-5/Phase-9 में 2 बार यही लगभग हुआ — git checkout से बचा।)
+3. **Audit-JSON stale हो सकता है** — जो `audit_full_*.json` snapshots हैं वो पुराने हैं;
+   हर निर्णायक check के लिए **live** `pg_get_functiondef(p.oid)` + `pg_policies` +
+   REST probe ही source-of-truth (R24-निर्देश)।
+4. **Git remote हर turn में absent होता है** (`.git/config` snapshot में persist नहीं
+   होता) — push से पहले `git remote add origin https://x-access-token:…@github.com/…`
+   दोबारा set करो।
+
+### H. Platform facts (इन्हें code में assume करना सुरक्षित है)
+1. **App दोनों panels Firebase JWT को Supabase PostgREST में भेजते हैं और वह `anon`
+   role से execute होता है** — `auth.jwt()->>'sub'`=Firebase uid, `is_caller_admin()`
+   users table से पढ़ता है। इसलिए Firebase JWT **Supabase Edge gateway के `verify_jwt`
+   से reject** होता है — edge functions में `verify_jwt:false` + अपना Google-JWKS
+   (Firebase) RS256 verify करो (imgbb-upload v2 + paytm-create-order का pattern)।
+2. **Edge function source platform पर है, repo में नहीं** — Management API
+   `GET /v1/projects/{ref}/functions/{slug}/body` (eszip binary) से निकालो;
+   `/download` 404 देता है।
+3. **Realtime:** नई table का realtime चाहिए तो `ALTER PUBLICATION supabase_realtime
+   ADD TABLE …` करना न भूलो (पुराना सबक)।
+4. **Release = cache-bust:** हर release पर `index.html` के `?v=` + user-panel `sw.js`
+   का `CACHE_VER`/`ASSET_VER` दोनों bump (ऊपर विस्तृत warning)।
 
 ---
 

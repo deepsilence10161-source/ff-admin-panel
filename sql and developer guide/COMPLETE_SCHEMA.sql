@@ -1,6 +1,22 @@
 -- ================================================================
 -- MINI eSPORTS — COMPLETE DATABASE SCHEMA v32 (FIXED)
 -- ================================================================
+-- 🔒 SECURITY CONVENTIONS (R3 Phase-9, 2026-09-23d — हर नए RPC/policy में पालन करो;
+-- विस्तृत चेकलिस्ट DEVELOPER_GUIDE.md § SERVER-SIDE SECURITY CONVENTIONS में):
+--   1. SECURITY DEFINER के अंदर `current_user` कभी use न करो (हमेशा owner
+--      return करता है) — service check सिर्फ़:
+--        v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+--   2. null-caller bypass मत छोड़ो — `IF v_caller IS NOT NULL THEN` skip-on-anon है;
+--      हर guard में: IF NOT v_is_service THEN IF v_caller IS NULL THEN RAISE …
+--   3. Wallet/claim RPC: server-authoritative amount + FOR UPDATE + unique claim-log
+--      + period/state gate + rollback-safe (6 स्तंभ)।
+--   4. wallet_transactions.currency canonical: 'coins'|'sky_diamonds'|'green_diamonds'|'sponsored'|'inr'
+--      (मatches.entry_type 'sky_diamond'/'coin' → ledger में convert करो)।
+--   5. Catalog tables जिन्हें SECDEF credit-funcs पढ़ते हैं = admin-only RLS
+--      (vouchers P0 सबक — user reward_amount बदलकर redeem कर सकता था)।
+--   6. Fix के बाद उसी exploit-probe को दोबारा चलाओ + sql_verify_script.py में
+--      regression check जोड़ो।
+-- ================================================================
 -- ✅  IDEMPOTENT — safe to run on an existing live database, as many
 -- times as needed. Zero data loss, zero duplicate-object errors:
 -- • Tables:    CREATE TABLE IF NOT EXISTS (rows are never touched)
