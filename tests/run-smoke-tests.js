@@ -167,6 +167,21 @@ console.log('\n── TEST 5: R4 fa22-match-result.js entryF restore (cashback N
   ok(defIdx !== -1 && useIdx > defIdx, 'entryF define use-se-pehle (order safe)');
 }
 
+/* ── TEST 6: ROUND-5 — sponsored withdrawal single-authority (no dual approve) ── */
+console.log('\n── TEST 6: R5 sponsored withdrawal single-authority (server RPC apar) ──');
+{
+  const fa = fs.readFileSync(path.join(REPO, 'js/fa-sponsored-system.js'), 'utf8');
+  ok(fa.includes('single-authority'), 'fa-sponsored legacy approve ab inert (single-authority)');
+  ok(/window\.approveSponsoredWd\s*=\s*function[\s\S]*single-authority/.test(fa),
+     'legacy approveSponsoredWd ab RPC-hint only');
+  ok(fa.includes('admin_distribute_sponsored_prize'),
+     'sponsored prize distribution ab server RPC se');
+  ok(!fa.includes("ref('users/' + u.uid + '/sponsoredWinnings').transaction"),
+     'admin ab direct Firebase sponsoredWinnings credit NAHI karta');
+  const ss = fs.readFileSync(path.join(REPO, 'js/admin-supabase-sponsored.js'), 'utf8');
+  ok(ss.includes('resolve_sponsored_withdrawal'), 'secure sponsor wd resolve RPC intact');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }

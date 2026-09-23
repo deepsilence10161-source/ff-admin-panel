@@ -6805,3 +6805,47 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 **#1 entryF (पिछला segment):** `fa22-match-result.js` — `var entryF = t ? (t.entryFee || 0) : 0;` define किया (orphan mrPublishResults path, ReferenceError बंद, cashback वापस नहीं लाया, `node --check` pass)।
 
 ---
+
+---
+
+## Section 48 — R5 PRODUCTION HARDENING (2026-09-23j) 🔒
+
+**Authoritative architecture (अब enforcement-पूर्ण):**
+- **Client untrusted** · **Firebase mirror ≠ financial authority** · **Supabase/Postgres = authority**।
+- हर financial/match mutation => SECDEF RPC, server-derived amounts, FOR UPDATE row locks, atomic transaction, idempotency (सीख स्थायी)।
+- Firebase sirf **success के बाद** display-mirror; RPC fail => join/payment **fail closed** (कोई fallback नहीं)।
+
+**Round-5 fixed (live-verified):**
+1. **Free/ad join fallback (BLOCKER #1)** — `screens/join.js` ab सिर्फ़ `validate_and_join_match` (solo) / `join_match_team` (team) RPC; `.catch()`, no-supa, offline-queue सब fail-closed (Firebase-only join HATA). 
+2. **each_pays team flow (BLOCKER #2)** — कप्तान की JWT से दूसरे की wallet डीडक्ट **डिलीट**; ab `join_match_team` server सभी member rows lock करके atomic debit करता है — किसी की insufficient => पूरा rollback (live-proven)।
+3. **gift legacy overwrite (BLOCKER #3)** — `fixes-v7.js` की Firebase-confirmGiftTicket override **inert**; एकमात्र active = `matches.js` → `gift_match_entry` RPC।
+4. **Sponsored withdrawal status (BLOCKER #4)** — `wallet.js` अब `submit_sponsored_withdrawal` RPC (explicit 'pending', dup-guard); admin approve/reject सिर्फ़ `resolve_sponsored_withdrawal` (दो-पथ legacy neutralized)।
+5. **increment_match_filled_slots (BLOCKER #5)** — bounded/guarded (auth+exist+live+not-full+FOR UPDATE)।
+6. **Slot accounting (BLOCKER #6)** — pre-join client `joinedSlots` booking हटाई; slot सिर्फ़ server RPC भरता/घटाता; cancel/refund/no-show mode/captain-aware (R4) + ab cancel पर hold commissions void (commission-on-refunded-match band)।
+7–8. **Financial/creator audit** — पूरे R5 sweep में कोई client-amount/currency/commission path नहीं बचा; `creator_stats/creator_commissions` सिर्फ़ server (spend-triggered या finalize)।
+9. **Refund integrity** — unpaid (fee=0) joins पर कोई refund नहीं; dedup (already refunded); cancel-void commissions।
+10. **Wallet audit** — `trg_audit_wallet_balance` बरकरार; no secrets logged।
+11. **Admin RPC** — सब body-guard verified; `admin_distribute_sponsored_prize` जोड़े (server-side prize credit)।
+12. **SECDEF** — अब 86 (R5 +3); 0 mutable search_path; नए तीनों SECDEF + solidified guards।
+13. **RLS/privacy** — अपरिवर्तित (users own-row + guard trigger; join INSERT free-only WITH CHECK; wallet own-row + `fft_guard`; push_hook locked; views SECDEF-by-design §47)।
+14. **SECDEF views** — §47 (invoker असंभव, proven)।
+15. **Legacy Firebase bypass** — user-panel bridge ab `join_requests` financial columns (`entry_fee_paid`/`entry_type`/`fee_type`/`captain_uid`) کभी नहीं लिखता (authoritative server rows सिर्फ़ RPC); `processTeammateJoins`/`_createTeammateJR`/`checkAndAwardAchievements+50`/`deductMoney` सब inert/dead निष्क्रिय; offline-queue free-join RPC-केवल।
+16. **Reward replay** — voucher unique redemption + FOR UPDATE (race-proven: single-claim); ad-reward FOR UPDATE + 15s rate-limit (race-proven); daily-checkin UNIQUE; streak-claimed jsonb; mission unique; BP claimed jsonb; premium monthly unique.
+17. **Voucher** — server reward derivation; expiry/max-uses/dup (race-proven)।
+18. **Premium** — config prices/bonuses; `approve_premium`/`cancel_premium` admin-service; monthly unique।
+19. **BP** — tier-from-progress (claim from tier_def; `p_gd_reward`/tier client-fake असंभव); has_premium gate; season admin-roll।
+20. **Withdrawal** — sponsored-only; negative/over-balance/dup-pending blocked (RPC); admin resolve idempotent (status gate + FOR UPDATE)。
+21. **State machine** — validate_and_join_match + join_match_team दोनों upcoming/live-only ON JOIN; завершён/cancelled reject।
+22. **Concurrency** — last-slot (2 racing joins → 1 win), voucher (2 racing redeems → 1), ad (6 parallel → 1 credit) सब live-proven।
+23. **Idempotency** — unique (match,user) join; unique voucher redemption; claimed-mark; payout single-pending guard।
+24. **Error handling** — `.catch()` अब UI-fail (no silent success); `.then(null,)` केवल display-mirrors।
+25–26. **JS regr/dup** — full `node --check` sweep दोनों repos; dup-implementations गिफ्ट/टीम/विदड्रा single-authority अब और नहीं है।
+27. **Room privacy** — R3 से room_id/password `match_rooms` + `get_room_credentials` RPC; views में नहीं (36-check + §13)।
+28–31. **Notif/Clan/Referral/Creator self-play** — ownership guards + server derivation; self-referral/circular blocked; creator self-play DB+trigger+RPC तीन-स्तर।
+32. **Constraints** — जुड़े नहीं गए new CHECK/UNIQUE जहाँ table-wide safe नहीं → आवश्यकता से app-layer idempotency ही (avoid over-constraint on valid business)।
+33. **Advisor** — कोई unavailable endpoint (404); identifiable warnings (mutable search_path=0, views documented) सब बंद (§E report)।
+34. **Test suite** — Admin 27/27 · User 28/28 · SQL verify अब 44/44 (R4+R5 checks)।
+
+**Business rules preserved (unchanged):** Premium 49/99/199 · bonuses 50/150/400 · BP ₹49 · creator coin 10% / SD 15% / hold 7d · coins/SD/GD non-withdrawable · sponsored-withdrawable · no cashback · no undocumented fees · Paytm intentionally not-configured (future deploy-step, not-a-bug)।
+
+---

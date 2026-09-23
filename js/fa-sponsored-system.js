@@ -324,44 +324,42 @@ window.confirmDistributePrizes = function(tourId) {
 
   if (!updates.length) { showToast('Koi winner UID nahi diya', true); return; }
 
-  var done = 0;
+  /* ✅ R5 (2026-09-23): prize-credit ab SERVER-authoritative — admin ke browser
+     se direct Firebase sponsoredWinnings transaction hata diya (ye balance-asset
+     hai; server admin_distribute_sponsored_prize admin-guard + ledger row खुद
+     बनाता है)। Firebase ab sirf notification mirror. */
+  var done = 0, failed = 0;
   updates.forEach(function(u) {
-    // Credit sponsoredWinnings field
-    (window.rtdb||window.db).ref('users/' + u.uid + '/sponsoredWinnings').transaction(function(v) {
-      return (v||0) + u.prize;
-    });
-    // Add to winnings history
-    (window.rtdb||window.db).ref('users/' + u.uid + '/sponsoredWinningsHistory').push({
-      amount: u.prize,
-      tournamentId: tourId,
-      rank: u.rank,
-      type: 'sponsored_prize',
-      timestamp: Date.now()
-    });
-    // Send notification to user
-    (window.rtdb||window.db).ref('users/' + u.uid + '/notifications').push({
-      type: 'sponsored_prize',
-      title: '🏆 Sponsored Prize Mili!',
-      message: u.rank + ' — ₹' + u.prize + ' aapke wallet mein add ho gayi! Wallet > Withdraw se UPI pe bhej sakte hain.',
-      read: false,
-      timestamp: Date.now()
-    });
-    done++;
+    if (!window._supa) { failed++; return; }
+    window._supa.rpc('admin_distribute_sponsored_prize', {
+      p_uid: u.uid, p_amount: u.prize, p_tour_id: tourId, p_rank: u.rank
+    }).then(function(r) {
+      if (r.error || (r.data && r.data.success === false)) { failed++; }
+      else { done++; }
+      /* notification (Firebase display only) */
+      if (window.rtdb) {
+        window.rtdb.ref('users/' + u.uid + '/notifications').push({
+          type: 'sponsored_prize',
+          title: '🏆 Sponsored Prize Mili!',
+          message: u.rank + ' — ₹' + u.prize + ' aapke wallet mein add ho gayi! Wallet > Withdraw se UPI pe bhej sakte hain.',
+          read: false, timestamp: Date.now()
+        });
+      }
+    }).catch(function() { failed++; });
   });
 
-  // Mark tournament as distributed
+  /* Mark tournament as distributed (Firebase display) */
   (window.rtdb||window.db).ref('sponsoredTournaments/' + tourId).update({
-    prizeDistributed: true,
-    distributedAt: Date.now(),
-    status: 'completed'
+    prizeDistributed: true, distributedAt: Date.now(), status: 'completed'
   });
 
-  // Close modal
   if (window.closeModal) closeModal();
   var dm = document.getElementById('distModal');
   if (dm) dm.remove();
 
-  showToast('✅ ' + done + ' winners ko prizes credit ho gaye!', false);
+  showToast(failed === 0
+    ? ('✅ ' + done + ' winners ko prizes credit ho gaye!')
+    : ('⚠️ ' + done + ' credited, ' + failed + ' fail (server ne reject kiya)'), false);
   loadSponsoredTournaments();
 };
 
@@ -429,78 +427,19 @@ function loadSponsoredWithdrawals() {
 }
 
 window.approveSponsoredWd = function(reqId, uid, amount) {
-  if (!confirm('₹' + amount + ' ki withdrawal approve karo?')) return;
-  var rtdb = window.rtdb || window.db;
-  if (!rtdb) return;
-
-  /* Bug Critical #4 Fix: Deduct sponsoredWinnings BEFORE marking approved.
-     Previous code only updated status — users could resubmit the same amount
-     repeatedly since the balance was never reduced, draining sponsor funds. */
-  if (uid && amount > 0) {
-    // Deduct from Firebase sponsoredWinnings
-    rtdb.ref('users/' + uid + '/sponsoredWinnings').transaction(function(v) {
-      var cur = Number(v) || 0;
-      if (cur < amount) return cur; // insufficient — abort transaction
-      return cur - amount;
-    }, function(err, committed) {
-      if (err || !committed) {
-        if (window.showToast) showToast('❌ Insufficient sponsored balance — transaction aborted', true);
-        return;
-      }
-      // Deduction succeeded — now mark approved
-      rtdb.ref('walletRequests/' + reqId).update({ status: 'approved', approvedAt: Date.now(), deductedAmount: amount });
-
-      // Also deduct from Supabase if available
-      if (window._supa) {
-        window._supa.from('users').select('sponsored_winnings').eq('id', uid).single()
-          .then(function(r) {
-            var cur = Number((r.data || {}).sponsored_winnings) || 0;
-            window._supa.from('users').update({ sponsored_winnings: Math.max(0, cur - amount) }).eq('id', uid).then(null, function(){});
-            window._supa.from('wallet_transactions').insert({
-              user_id: uid, txn_type: 'sponsored_withdrawal_approved',
-              currency: 'inr', amount: amount, ref_id: reqId,
-              description: 'Sponsored prize withdrawal approved'
-            }).then(null, function(){});
-          }).catch(function(){});
-      }
-
-      // Notify user via dual-write
-      var notif = { type: 'withdrawal_approved', title: '✅ Withdrawal Approved!',
-        message: '₹' + amount + ' ki withdrawal request approve ho gayi. Payment aapke UPI pe bheja ja raha hai.',
-        read: false, timestamp: Date.now() };
-      rtdb.ref('users/' + uid + '/notifications').push(notif);
-      if (window._supa) {
-        window._supa.from('notifications').insert({
-          user_id: uid, type: notif.type, title: notif.title, body: notif.message, is_read: false
-        }).then(null, function(){});
-      }
-
-      if (window.showToast) showToast('✅ Withdrawal approved & balance deducted!', false);
-      loadSponsoredWithdrawals();
-    });
-  } else {
-    // Zero amount or no uid — just update status
-    rtdb.ref('walletRequests/' + reqId).update({ status: 'approved', approvedAt: Date.now() });
-    if (window.showToast) showToast('✅ Withdrawal approved!', false);
-    loadSponsoredWithdrawals();
-  }
+  /* ✅ R5 (2026-09-23): LEGACY OVERRIDE REMOVED — ye 2-path approve tha
+     (Firebase walletRequests + admin-side users.sponsored_winnings direct
+     update) jo SERVER resolve_sponsored_withdrawal RPC ke saat double-
+     authority bana raha tha. Ab keval admin-supabase-sponsored.js ka
+     single-authoritative approve (resolve_sponsored_withdrawal) hi chalta
+     hai. Ye filename backward-compat stub hai (koई backup state nahin). */
+  if (window.showToast) showToast('✅ Withdrawal system single-authority hai — approve sirf resolve_sponsored_withdrawal RPC se hota hai', true);
 };
 
 window.rejectSponsoredWd = function(reqId, uid, amount) {
-  if (!confirm('Reject karo? Amount wapas user ke balance mein add ho jayega.')) return;
-  (window.rtdb||window.db).ref('walletRequests/' + reqId).update({ status: 'rejected', rejectedAt: Date.now() });
-  // Refund
-  if (uid) {
-    (window.rtdb||window.db).ref('users/' + uid + '/sponsoredWinnings').transaction(function(v) { return (v||0) + amount; });
-    (window.rtdb||window.db).ref('users/' + uid + '/notifications').push({
-      type: 'withdrawal_rejected',
-      title: '❌ Withdrawal Rejected',
-      message: '₹' + amount + ' ki request reject ho gayi. Amount wapas aapke balance mein aa gaya.',
-      read: false, timestamp: Date.now()
-    });
-  }
-  showToast('Withdrawal rejected. Refund done.', false);
-  loadSponsoredWithdrawals();
+  /* ✅ R5: legacy reject भी inert — reject सिर्फ़ admin-supabase-sponsored.js
+     (resolve_sponsored_withdrawal RPC, status-only, no client balance write). */
+  if (window.showToast) showToast('Reject sirf resolve_sponsored_withdrawal RPC se hota hai', true);
 };
 
 /* ── Helpers ── */

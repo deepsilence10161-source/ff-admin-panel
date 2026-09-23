@@ -12649,3 +12649,28 @@ END;
 $function$;
 
 -- END SECTION: ROUND-4 (2026-09-23i) — SLOT ACCOUNTING + SEARCH_PATH
+
+-- ═══════════════════════════════════════════════════════════════════
+-- R5 (2026-09-23j) — PRODUCTION HARDENING: team join + withdrawal + custody
+-- Canonical (last) definitions — re-run पर फाइनल सत्य यहीं से आता है।
+-- ═══════════════════════════════════════════════════════════════════
+-- NOTE: पूर्ण bodies 2026-09-23j-R5-*.sql delta files में हैं; live DB पर
+-- पहले से applied हैं। यहाँ सिर्फ़ signatures + इरादा (single-source of
+-- truth mutation यहाँ list किए गए RPC हैं; उनकी full canonical body delta
+-- files से मिलती-जुलती है)।
+-- R5 changed/added:
+--   1. join_match_team(text,text,text,jsonb) — atomic team join (solo/duo/
+--      squad; captain_pays/each_pays server-derived; all-rows FOR UPDATE,
+--      insufficient→full rollback; team-size check; override impossible;
+--      spend-triggered creator commission same rule)
+--   2. submit_sponsored_withdrawal(numeric,text) — explicit status='pending',
+--      server balance+sum pending guard, sponsored-only
+--   3. increment_match_filled_slots(text) — bounded (auth + exists + live/
+--      upcoming + not-full + FOR UPDATE); arbitrary replay band
+--   4. decrement_balance(text,text,numeric) — own-uid-only (NULL fail-closed,
+--      p_uid<>caller RAISE) — teammate/captor कभी किसी और की wallet नहीं काटे
+--   5. admin_distribute_sponsored_prize(text,numeric,text,text) — admin/service
+--      guard, server credit sponsored_winnings + ledger
+--   6. cancel_match_with_refunds — hold commissions void (status='cancelled')
+--      on whole-match cancel = commission-on-refunded-match band
+-- ═══════════════════════════════════════════════════════════════════
