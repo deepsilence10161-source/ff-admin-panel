@@ -580,7 +580,11 @@ window.mrPublishResults = async function() {
         //    path and a user-facing false claim. Aligned to the canonical rule
         //    (no cashback). This path itself is orphaned (no sidebar nav-item
         //    calls showSection('matchResult')), so live behaviour change = zero.
-        // Platform earnings
+        // Platform earnings (R4 FIX: entryF entry-fee derived from the
+        // authoritative match record `t` — kabhi client-submitted nahi; cashback
+        // reintroduce NAHI kiya, sirf variable restore kiya taaki neeche wali
+        // line ReferenceError na de).
+        var entryF = t ? (t.entryFee || 0) : 0;
         await rtdb.ref('platformEarnings').push({ matchId: mid, entryFee: entryF, prizeGiven: tw, profit: entryF - tw, userId: uid, timestamp: Date.now() });
         // lastResult for recap
         await rtdb.ref(DB_U + '/' + uid + '/lastResult').set({ rank: rank, kills: kills, winnings: tw, matchName: t ? t.name : '', matchId: mid, timestamp: Date.now() });

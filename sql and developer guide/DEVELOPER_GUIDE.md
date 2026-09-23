@@ -6726,3 +6726,70 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 ## Repos/commits (इस change में)
 - user-repo: `android/app/build.gradle` + `.github/workflows/build-apk.yml` +
   `tests/run-smoke-tests.js` + `BUGFIX_CHANGELOG.md` — push `ff-user-panel` main।
+
+---
+
+## Section 46 — MATCH SLOT ACCOUNTING SEMANTIC (Round-4, 2026-09-23i) 🔒
+
+**Single locked definition (अब one source of truth):**
+
+> `matches.filled_slots` = **PLAYER SLOTS**, न कि join-rows/captains.
+> solo = 1 · duo = 2 · squad = 4
+
+**सारे path अब इसी semantic पर consistent हैं:**
+
+| Path | Function | filled_slots rule |
+|------|----------|-------------------|
+| Fill | `validate_and_join_match()` | `+= v_slots` (1/2/4) — server derive mode |
+| Fill (gift) | `gift_match_entry()` | `+1` (gift solo-only, unchanged) |
+| Legacy mirror | `increment_match_filled_slots()` | `+1` (db-bridge `joinedSlots` mirror — logical path, **NOT** double-count: bridge header me दोनों RPC call) |
+| Release (cancel) | `cancel_match_with_refunds()` | `- SUM(weight)` over `cancelled/refunded` rows |
+| Release (no-show, batch) | `internal_process_no_show_refunds()` cron | `- weight` per no-show row |
+| Release (no-show, self) | `claim_no_show_refund()` | `- weight` per row |
+| Release (cancelled, self) | `claim_match_refund()` | `- weight` per row |
+
+**Weight rule (decrement):** sirf **CAPTAIN/SOLO** join_requests row weight रखती है (`mode` weight 1/2/4); **partner rows weight 0** (`captain_uid IS NOT NULL AND captain_uid <> user_id`), क्योंकि partner join.js `_makePartnerJR` से अलग row बनाता है (captain row ने ही team slots भरे थे)। इसलिए दो-row team (captain+partner) पर cancel → `2-2 = 0` (ना `2-4 = -2` negative, ना double-release) — **r4_proof4 E2E live-verified**।
+
+**Mandatory guard rules (सीख, future fixes के लिए):**
+- हर slot fill/release `GREATEST(...,0)` floor — negative `filled_slots` कभी impossible।
+- Fill path `matches FOR UPDATE` row-lock में हो (validate_and_join_match पहले से `FOR UPDATE` + `v_available` capacity) — concurrent joins safe।
+- No-show के बाद **client-side `releaseNoShows` (checkin-system.js) सिर्फ़ NO-OP stub** — slot decrement सिर्फ़ server (cron) करता है, वरना double-decrement। (R4 client fix।)
+- Capacity = `max_slots - filled_slots` player-slot me (duo = 2 needs, squad = 4 needs) — already correct।
+
+**Pattern-note (permanent):** slot-accounting जैसे counter columns का semantic एक बार lock करके सारे write-path एक साथ audit करो (fill/release/refund/cancel/no-show/mirror/trigger) — अधूरा path = stale counter (live proof: 1 solo row `filled=1, active_joins=0` drift)। Delta-file: `2026-09-23i-R4-SLOT-SEARCHPATH-DELTA.sql`।
+
+**Round-4 search_path fixes (इस section के साथ):**
+- `reassign_clan_leader()` + `clamp_join_requests_client_update()` — `SET search_path TO 'public'` add (mutable search_path advisor warning बंद)। दोनों behavior-unchanged (bodies वही)।
+
+**Round-4 verification (live):**
+- r4_proof: duo join → filled 2/2 → solo join अब `MATCH_FULL` (pehले undercount से join हो जाता) ✓
+- r4_proof4: captain+partner cancel → exact 0 (weight rule) ✓
+- r4_proof2: free duo(2)+solo(1)=3 → cancel → 0, दूसरा cancel → floor 0 ✓
+- r4_proof5: dup join `ALREADY_JOINED`, full match `MATCH_FULL` ✓
+
+---
+
+## Section 47 — Round-4 SECURITY/FINANCIAL/CREATOR AUDIT RESULTS (2026-09-23)
+
+**#6 SECDEF (83 distinct, 0 without search_path):** 77 anon/auth-granted — हर money/admin-named function की body पढ़ी गई। सब safe:
+- admin/* → body me `is_admin` check (Platform fact: grant-level REVOKE मत करो — Firebase JWT PostgREST **anon** मानता है; body-guard ही सर्वोच्च, COMPLETE_SCHEMA §7)।
+- financial self-claim (`claim_*`, `apply_referral_code`, `purchase_cosmetic`, `redeem_voucher/reward_item`, `contribute_to_squad_bank`, `unlock_squad_bank_cosmetic`, `award_*`) → server-authoritative amounts + ownership + FOR UPDATE + idempotency।
+- Legacy/money-name जो "unguarded" लगते थे: `submit_gd_withdrawal` (hard-refuse, GD non-withdrawable), `block_creator_self_play*` (trigger/boolean), `sync_*` (trigger-only, caller-identity उपयोग नहीं, user-targeted नहीं) — **safe**।
+
+**#7 Financial params:** 19 money-named-param funcs — सब server-authoritative proven (p_reward/p_price/p_cost/p_coins/p_gd_reward/p_bonus_coins/p_amount/tier IGNORE, config/app_settings/catalog/db से derive)।
+
+**#8 Creator:** commission `creator_system` config (coin 10% / SD 15% / hold 7d) — कोई hardcoded 25% live/repo में नहीं। `claim_match_commission_payout` no-amount param + single-pending-row guard + server `creator_payouts`। `finalize_creator_commission` bare→boolean(admin/client-internal split)। Suspension/premium/prize-cap/self-play सब जगह।
+
+**#9 Wallet:** economy unchanged (Premium 49/99/199, monthly 50/150/400, BP ₹49, creator 10/15/7)। No legacy GD-withdrawal path re-introduced. GD/SD/Coins non-withdrawable। `submit_gd_withdrawal` refuse-only।
+
+**#10 Wallet audit:** `trg_audit_wallet_balance` → `audit_wallet_balance_changes()` live-wired (coins/sky_diamonds/green_diamonds/sponsored_winnings before/after/delta + actor/timestamp)। No secrets logged। (live proof: +7 credit → wallet_audit_log row।)
+
+**#11 Match security chain (validate_and_join_match order):** null-caller fail-closed → self-play → ban → server fee/currency → balance lock → duplicate → capacity (slot) → debit → ledger → join-row → capacity update → commission (spend-triggered, if eligible)। (live: r4_proof suite।)
+
+**#12 RLS/privacy:** users own-row + admin; `trg_guard_users_self_update` allowlist blocks self `coins/is_admin` (live-proof)। join_requests INSERT free-only (WITH CHECK)। wallet_transactions own-row + `fft_guard_wallet_insert` (client सिर्फ़ match_entry/squad_bank/pending txn types)। push_hook_config RLS enabled + 0 policies + postgres-only grants (authenticated select 42501 — live-proof)। `user_public_profiles`/`referral_leaderboard` SECDEF views, anon/auth SELECT-only, `is_banned` **intended** है (friends/home/offline-queue/join इसी से ban-enforce करते हैं — user-visible बैन सिग्नल, private-field नहीं) — remove न करो, वरना बैन enforcement टूटेगा।
+
+**#15 Advisor:** कोई advisor run नहीं हुआ (PG Meta Security Advisor endpoint इस environment में नहीं था) — see report Section E। Supabase-project hosting में advisor की चेतावनियाँ जिन्हें fix किया गया: mutable search_path (2 जगह, अब 0)।
+
+**#1 entryF (पिछला segment):** `fa22-match-result.js` — `var entryF = t ? (t.entryFee || 0) : 0;` define किया (orphan mrPublishResults path, ReferenceError बंद, cashback वापस नहीं लाया, `node --check` pass)।
+
+---
