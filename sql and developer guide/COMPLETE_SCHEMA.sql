@@ -16,6 +16,10 @@
 --      (vouchers P0 सबक — user reward_amount बदलकर redeem कर सकता था)।
 --   6. Fix के बाद उसी exploit-probe को दोबारा चलाओ + sql_verify_script.py में
 --      regression check जोड़ो।
+--   7. 🔴 PLATFORM FACT (2026-09-23f): Firebase JWT → PostgREST **anon** role मानता
+--      है (role claim नहीं होता)। इसलिए cash/identity RPCs की security **body guard**
+--      से रखो, grant-level `REVOKE ... FROM anon` मत करो (authenticated भी 42501
+--      पाते हैं, app टूटती है)। Fail-closed guard: `IF v_caller IS NULL THEN RAISE`.
 -- ================================================================
 -- ✅  IDEMPOTENT — safe to run on an existing live database, as many
 -- times as needed. Zero data loss, zero duplicate-object errors:
@@ -2413,7 +2417,8 @@ DECLARE
   v_commission     NUMERIC;
   v_commission_pct NUMERIC;
 BEGIN
-  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+  -- 🔒 R3 P0 FIX (2026-09-23): NULL-caller fail-closed (anon wallet-attack band).
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
     RAISE EXCEPTION 'NOT_AUTHORIZED';
   END IF;
 
@@ -3229,7 +3234,8 @@ DECLARE
   v_caller TEXT := auth.jwt() ->> 'sub';
   v_is_active_mentorship BOOLEAN;
 BEGIN
-  IF v_caller IS NOT NULL AND v_caller <> p_student_uid THEN
+  -- 🔒 R3 (2026-09-23) schema-sync: live ab fail-closed hai (NULL-caller block).
+  IF v_caller IS NULL OR v_caller <> p_student_uid THEN
     RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
   END IF;
   IF p_gd_amount < 1 THEN
@@ -3696,15 +3702,15 @@ CREATE OR REPLACE FUNCTION increment_rank_points(
 DECLARE
   v_caller   TEXT := auth.jwt() ->> 'sub';
   v_is_admin BOOLEAN;
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
 BEGIN
-  -- ✅ SECURITY FIX (2026-07-17): no identity check previously existed.
-  -- Currently dead code (confirmed zero live callers in either panel as
-  -- of this pass — core/db.js's DB.rank.addPoints and screens/rank.js's
-  -- updateSeasonStats define this call but nothing invokes them), so this
-  -- is defense-in-depth rather than an active exploit, but fixed to match
-  -- the same self-or-admin pattern as every other balance-mutating RPC in
-  -- case this is ever wired up later without someone re-auditing it first.
-  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+  /* 🔒 R3 (2026-09-23) schema-sync from live: fail-closed null-caller +
+     self-cap (250→500/call, 2000/day). Pehla draft fail-open tha (IS NOT
+     NULL AND) — anon rank-printer. */
+  IF NOT v_is_service AND v_caller IS DISTINCT FROM p_uid THEN
+    IF v_caller IS NULL THEN
+      RAISE EXCEPTION 'Not authorized — no caller identity';
+    END IF;
     SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
     IF NOT COALESCE(v_is_admin, false) THEN
       RAISE EXCEPTION 'Not authorized to modify rank points for this user';
@@ -3852,7 +3858,9 @@ BEGIN
   -- authenticated caller could force ANY user into ANY clan, AND set
   -- p_role directly to 'leader' for themselves or anyone else. Fixed to
   -- match what was always documented as the intended behavior.
-  IF v_caller IS NOT NULL AND v_caller <> p_user_id THEN
+  -- 🔒 R3 P1 FIX (2026-09-23): NULL-caller fail-closed — anon पहले किसी भी
+  --    user को किसी भी clan में डाल सकता था (total_members/users.clan_id फोर्ज)।
+  IF v_caller IS NULL OR v_caller <> p_user_id THEN
     RAISE EXCEPTION 'NOT_AUTHORIZED';
   END IF;
   p_role := 'member'; -- always forced, regardless of what the caller sent
@@ -3890,7 +3898,11 @@ BEGIN
   -- member)" but neither check existed in the code — any authenticated
   -- caller could remove ANY user from ANY clan (a griefing vector: one
   -- player repeatedly force-removing another from their own clan).
-  IF v_caller IS NOT NULL AND v_caller <> p_user_id THEN
+  -- 🔒 R3 P1 FIX (2026-09-23): NULL-caller fail-closed.
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+  IF v_caller <> p_user_id THEN
     SELECT leader_uid INTO v_real_leader FROM clans WHERE id = p_clan_id;
     IF v_real_leader IS DISTINCT FROM v_caller THEN
       RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
@@ -3937,12 +3949,29 @@ DECLARE
   v_ign          TEXT;
   v_contributors JSONB;
   v_prior        JSONB;
+  v_clan_ok      BOOLEAN;
+  v_is_member    BOOLEAN;
 BEGIN
-  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+  -- 🔒 R3 P0 FIX (2026-09-23): SECDEF NULL-caller trap — fail-closed.
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
     RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
   END IF;
+
   IF p_amount IS NULL OR p_amount < 1 THEN
     RETURN jsonb_build_object('ok', false, 'error', 'Invalid amount');
+  END IF;
+
+  -- 🔒 R3 P0 FIX (2026-09-23): clan exist + membership — fake/nonexistent
+  --    clan_id से पहले debit होकर GD burn होता था।
+  SELECT EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id) INTO v_clan_ok;
+  IF NOT v_clan_ok THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Clan not found');
+  END IF;
+  SELECT EXISTS (
+    SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_uid
+  ) INTO v_is_member;
+  IF NOT v_is_member THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not a member of this clan');
   END IF;
 
   SELECT green_diamonds, COALESCE(ign, 'Player') INTO v_balance, v_ign
@@ -3981,7 +4010,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-GRANT EXECUTE ON FUNCTION contribute_to_squad_bank(UUID, TEXT, NUMERIC) TO authenticated, service_role;
+-- 🔒 R3 PLATFORM FACT (2026-09-23): anon grant ज़रूरी है (Firebase JWT →
+--    PostgREST maps to anon role). Security = body guard, grant नहीं।
+GRANT EXECUTE ON FUNCTION contribute_to_squad_bank(UUID, TEXT, NUMERIC) TO anon, authenticated, service_role;
 -- ⚠️ Signature changed p_amount from INT to NUMERIC. If re-running against
 -- a database with the OLD signature: DROP FUNCTION IF EXISTS
 -- contribute_to_squad_bank(UUID, TEXT, INT); first.
@@ -4009,7 +4040,8 @@ DECLARE
   v_unlocked JSONB;
   v_is_member BOOLEAN;
 BEGIN
-  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+  -- 🔒 R3 P1 FIX (2026-09-23): NULL-caller fail-closed.
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
     RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
   END IF;
   SELECT EXISTS(SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_uid) INTO v_is_member;
@@ -6606,7 +6638,8 @@ DECLARE
   -- every creator was overpaid ~1.67x vs the documented/UI 15% rate).
   v_match_creator TEXT;
 BEGIN
-  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+  -- 🔒 R3 P0 FIX (2026-09-23): NULL-caller fail-closed (anon wallet-attack band).
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
     RAISE EXCEPTION 'NOT_AUTHORIZED';
   END IF;
 
@@ -10237,7 +10270,8 @@ DECLARE
   v_unlocked JSONB;
   v_is_member BOOLEAN;
 BEGIN
-  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+  -- 🔒 R3 P1 FIX (2026-09-23): NULL-caller fail-closed.
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
     RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
   END IF;
   SELECT EXISTS(SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_uid) INTO v_is_member;
@@ -11639,7 +11673,8 @@ DECLARE
   v_commission_pct NUMERIC;
   v_match_creator TEXT;
 BEGIN
-  IF v_caller IS NOT NULL AND v_caller <> p_uid THEN
+  -- 🔒 R3 P0 FIX (2026-09-23): NULL-caller fail-closed (anon wallet-attack band).
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
     RAISE EXCEPTION 'NOT_AUTHORIZED';
   END IF;
   SELECT creator_uid INTO v_match_creator FROM matches WHERE id = p_match_id;

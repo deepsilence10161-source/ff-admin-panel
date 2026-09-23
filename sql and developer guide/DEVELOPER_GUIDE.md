@@ -1,5 +1,5 @@
 # 🎮 MINI eSPORTS — COMPLETE DEVELOPER GUIDE
-## User Panel v32.16 | Admin Panel v26.12 | Last Updated: 2026-09-23 (R3 hardening P0–P9 + security conventions)
+## User Panel v32.16 | Admin Panel v26.12 | Last Updated: 2026-09-23 (R3 hardening P0–P11 + clan null-caller P0 fix)
 
 > ⚠️ **READ THIS FIRST**: this codebase went through a full security audit + fix pass in
 > July 2026 (v32.14 Security Overhaul). If you're touching ANY code that writes to the
@@ -152,6 +152,9 @@
    users table से पढ़ता है। इसलिए Firebase JWT **Supabase Edge gateway के `verify_jwt`
    से reject** होता है — edge functions में `verify_jwt:false` + अपना Google-JWKS
    (Firebase) RS256 verify करो (imgbb-upload v2 + paytm-create-order का pattern)।
+   ⚠️ इसका सीधा असर: **`REVOKE EXECUTE ... FROM anon` मत करो** cash/identity RPC पर —
+   authenticated users भी 42501 पाते हैं (app टूटती है, 2026-09-23f live-proven)।
+   Security body-guard से रखो (fail-closed null-caller), grant से नहीं।
 2. **Edge function source platform पर है, repo में नहीं** — Management API
    `GET /v1/projects/{ref}/functions/{slug}/body` (eszip binary) से निकालो;
    `/download` 404 देता है।
@@ -6519,3 +6522,66 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
 - views: active_matches invoker=true में कोई sensitive col नहीं; user_public_profiles
   / referral_leaderboard invoker=false by-design (public read surface, no phone/
   upi/pw — verified 0 leak cols)। notifications target_all admin-only rows।
+
+# SECTION 42 — R3 Phase-9 (cont.) + Phase-10/11: null-caller P0 family + dup-classify + tests — 2026-09-23f
+## P0/P1 (cash/identity) — CLOSED, live-proven
+- **P0 — `contribute_to_squad_bank` anon GD-burn (money).** SECDEF `IF v_caller IS NOT NULL
+  AND v_caller <> p_uid` fail-open था: anon (no JWT → v_caller NULL) में guard skip →
+  किसी भी user का असली green_diamonds कट सकता था, fake/nonexistent clan पर `ok:true`
+  (clans UPDATE = no-op) → GD silently burn, कोई wallet_transactions audit-row भी नहीं।
+  Live-proof: anon RPC fake-clan → `200 ok:true`, qa1 GD 14→13। Fix: fail-closed guard +
+  `Clan not found` + `Not a member of this clan` checks। Re-probe: `Not authorized` /
+  `Clan not found`, GD intact। (delta: `2026-09-23f-R3-PHASE9-CLAN-NULLCALLER.sql`)
+- **P0 — `validate_and_join_match` anon wallet-attack (join money path).** वही fail-open
+  guard match-join RPC पर भी बाक़ी था — anon (कोई identity नहीं) किसी भी user का balance
+  काटकर उसे किसी भी match में forced-join करा सकता था। Live-proof: anon fake-match →
+  `Match not found` (guard skip), authenticated cross-uid → `Not authorized`। Fix: fail-closed।
+  Re-probe: anon → `Not authorized`; auth self → `Match not found` (valid path intact)।
+- **P1 — join_clan / leave_clan anon forgery.** वही fail-open guard → anon किसी user को
+  किसी clan में डाल/निकाल सकता था। Fix: fail-closed। Re-probe: दोनों रुके।
+- **P1 — unlock_squad_bank_cosmetic** भी null-caller fail-closed किया (consistency)।
+- **अन्य fail-open-`IS NOT NULL AND` पूरा live स्कैन:** सिर्फ़ यही family थी; `award_mentor_reward`
+  व `increment_rank_points` live में पहले से fail-closed थे — COMPLETE_SCHEMA stale था, ab
+  live से sync (कोई fail-open guard बाक़ी नहीं)।
+- **🔴 PLATFORM FACT (इसे न भूलो):** यह app Firebase JWT को सीधे Bearer की तरह भेजता है
+  (`core/db.js` "Recreate Supabase client with Firebase token as Bearer")। Firebase JWT में
+  `role` claim नहीं होता → **PostgREST हर request को `anon` role मानता है।** असर:
+  * जिन RPCs में `anon EXECUTE` grant है, वही चलते हैं;
+  * `REVOKE EXECUTE ... FROM anon` करने पर **authenticated भी 42501** पाते हैं (app टूटती)
+    — इस fix के दौरान live-proven। इसलिए cash/identity RPCs की असली security = **body guard**
+    (fail-closed null-caller check), grant-level revoke नहीं। anon grant बरक़रार रखो।
+  * is_caller_admin जैसे अन्य guards body-level होने चाहिए, grant-level नहीं।
+
+## Phase-10 (code quality) — duplicate window.* classifier + load-order proof
+- user-panel: 92 referenced / 94 total local `.js` (2 unref = OneSignalSDKWorker.js + sw.js,
+  expected service-workers, dead नहीं)। 98 `defer`, 0 `async` ⇒ **deterministic**
+  document-order execution (defer scripts tree-order), same shared global scope ⇒
+  **last definition wins** (Node synthetic proof + winner-map committed:
+  `user-repo/tools_phase10/` + `/home/user/testing/phase10_load_order_winners.json`)।
+- Duplicate `window.*` categories: **162** (115 window-only + इन-फाइल funcs + abstract).
+  Buckets: **ACTIVE_LATER_OVERRIDE 117** (fix-layer later redefine — legit),
+  **REASSIGN_MUTATION 39** (state re-assign), **REVIEW 6** (साबित benign: state-flags/
+  comments)। **Reverse-override (fix→feature) 4 केस** — सब document-verified benign
+  (logActivity legacy→Supabase-migration; shareMatchWhatsApp documented legacy; _doCompare
+  same semantics; _bootCalled identical flag)। कोई अनाथ/टकराव नहीं — कुछ delete नहीं।
+- एक cosmetic नोट: `cancel_match_with_refunds` में duplicate `v_currency := CASE` line
+  (harmless, later cleanup candidate)।
+
+## Phase-11 (testing) — 38/38 + नई financial/security suite
+- **38/38 existing tests locate + PASS**: user `tests/run-smoke-tests.js` = 15, admin
+  `tests/run-smoke-tests.js` = 23 (दोनों rerun green)।
+- **नई suite `financial_security_suite.py` (43 checks PASS, repeatable, live-DB)**: RLS
+  anon-isolation (wallet/creator/tds/sd/sessions/rooms/admins/kyc = 0 rows; notifications
+  सिर्फ़ target_all; vouchers 0), wallet forge-block (increment/decrement/self-PATCH/rank-cap/
+  join caller), reward-abuse negative (streak/mission/cosmetic/voucher/bpxp/mentor/poll/gift/
+  creator-payout/sponsored/cancel-match/premium-bonus), ZERO balance-change snapshot, clan P0/P1
+  (नए), Paytm negative (min/max/no-token)। Hunter7 कभी नहीं छुआ।
+- **`sql_verify_script.py` अब 26 checks PASS** (18 + vouchers2 + clanscore1 + clan-nullcaller5)।
+- notifications policy by-design: type-allowlist exact list + length caps; user_id self-restrict
+  नहीं (member-to-member notif = feature), anon read = सिर्फ़ target_all rows (live-proven)।
+- match_results: `fft_guard_match_results_write` trigger **non-admin को पूरी तरह रोकता है**
+  (mr_insert_own policy मौजूद पर trigger RAISE से overridden — defense-in-depth)।
+
+## Repos/commits
+- admin-repo: delta `2026-09-23f-R3-PHASE9-CLAN-NULLCALLER.sql` + COMPLETE_SCHEMA sync +
+  यह guide section (§42) — push `ff-admin-panel` main को।
