@@ -6793,6 +6793,13 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 
 **#12 RLS/privacy:** users own-row + admin; `trg_guard_users_self_update` allowlist blocks self `coins/is_admin` (live-proof)। join_requests INSERT free-only (WITH CHECK)। wallet_transactions own-row + `fft_guard_wallet_insert` (client सिर्फ़ match_entry/squad_bank/pending txn types)। push_hook_config RLS enabled + 0 policies + postgres-only grants (authenticated select 42501 — live-proof)। `user_public_profiles`/`referral_leaderboard` SECDEF views, anon/auth SELECT-only, `is_banned` **intended** है (friends/home/offline-queue/join इसी से ban-enforce करते हैं — user-visible बैन सिग्नल, private-field नहीं) — remove न करो, वरना बैन enforcement टूटेगा।
 
+**#3 SECDEF-view conclusion (Round-4, live-decided):** `security_invoker=true` इन दोनों views पर **incompatible है — असली RLS-weaken ही होगा**, इसलिए by-design छोड़ा गया:
+- Role-sim live proof (2026-09-23):
+  - अभी (SECDEF owner-view): authenticated → `user_public_profiles` = **6 rows** (सब public profiles) — friends/search/rank/referral-leaderboard चलते हैं।
+  - `invoker=true` होता तो: authenticated → `users` RLS own-only = **1 row**; anon (Firebase JWT, `sub` NULL) → **0 rows**; `referrals` RLS own-only → **0 rows**।
+  - मतलब `invoker=true` = friends search/rank list/`referral_leaderboard` **सब 0-row होकर टूट जाते**, और इसे बचाने का एकमात्र तरीका `users` पर public-read RLS — **RLS weaken = absolute rule से मना**। पुराने `active_matches` में invoker=true सुधार इसलिए संभव था क्योंकि वो समय-base filter है (caller-identity RLS पर निर्भर नहीं)।
+- Current state सुरक्षित है: view owner `postgres` (SECDEF views owner-as-runner), anon/auth सिर्फ़ `SELECT` grant, कोई private column exposed नहीं। सिर्फ़ future-proof hardening है (कोई active exploit नहीं) — defer।
+
 **#15 Advisor:** कोई advisor run नहीं हुआ (PG Meta Security Advisor endpoint इस environment में नहीं था) — see report Section E। Supabase-project hosting में advisor की चेतावनियाँ जिन्हें fix किया गया: mutable search_path (2 जगह, अब 0)।
 
 **#1 entryF (पिछला segment):** `fa22-match-result.js` — `var entryF = t ? (t.entryFee || 0) : 0;` define किया (orphan mrPublishResults path, ReferenceError बंद, cashback वापस नहीं लाया, `node --check` pass)।
