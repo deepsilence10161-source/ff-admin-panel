@@ -6679,3 +6679,50 @@ contribute 2 GD → `{"ok": true, "amount": 2}`; `users.green_diamonds` 16→14;
 ## Repos/commits
 - admin-repo: delta `2026-09-23h-R3-PHASE15-FINAL-OBSERVABILITY.sql` + COMPLETE_SCHEMA sync
   (cancel_match guard+dedup, audit trigger §3.1) + SECTION 44 + fa22 cashback-alignment।
+
+# SECTION 45 — R3 Phase-16 AUTO-VERSION (manual APK version bump ख़त्म) — 2026-09-23x
+
+## समस्या (क्यों — सर की बात सही थी)
+APK का `versionCode`/`versionName` पहले `android/app/build.gradle` के दो literal
+(`versionCode 5`, `versionName "1.0.4"`) में थे — हर release पर हाथ से बढ़ाना पड़ता
+था। सर की बात: बहुत जगह manually bump करना पड़ता है और भूल जाते हैं। Live-scan ने
+साबित किया कि असली version **सिर्फ़ उन दो literal** में था (बाक़ी "version"
+references सब server-side force-update config = अलग सिस्टम; `AndroidManifest.xml`/
+Java/wf में कोई version नहीं)। फिर भी दो जगह + "भूल जाना" = Play-Store reject /
+force-update ग़लत / ज़रूरी-काम का टलना।
+
+## Fix — single source-of-truth + automatic bump (user-repo)
+- **Source of truth = git history**: `versionCode = git commit count` (HEAD),
+  `versionName = VERSION_MAJOR.VERSION_MINOR.<count>`।
+- `def VERSION_MAJOR = 1` / `def VERSION_MINOR = 0` — script vars (ext-प्रॉपर्टी
+  nested closure में कभी-कभी resolve नहीं होती, `def` हमेशा)। ये सिर्फ़ बड़े
+  feature-release पर बदलो (जैसे 2.0)।
+- दोनों **एक ही computed `def vc`** से — दो बार `gitCommitCount()` call करने पर
+  build के बीच नए commit से mismatch का ख़तरा था, वो बंद।
+- **Build FAIL on no-count** (silent stale version कभी नहीं): git न absent हो, न
+  shallow clone हो। CI में `actions/checkout` पर `fetch-depth: 0` अनिवार्य —
+  depth:1 (default) पर `git rev-list --count HEAD` = 1 मिलता = Play reject।
+- Groovy में `'git rev-list --count HEAD'.execute(null, project.rootDir)` — String
+  form (List-form overload-उलझन से बचने के लिए) + `consumeProcessOutput` (buffer
+  deadlock-safe) + `project.rootDir` (git parent dirs में ढूँढ लेता है)।
+
+## Verification (सब proof के साथ)
+- smoke `tests/run-smoke-tests.js` **22/22** (नया TEST 4 कोई hardcoded
+  versionCode/versionName नहीं, gitCommitCount + vc present, CI fetch-depth:0)।
+- `git rev-list --count HEAD` = 61 — repo-root और `android/` दोनों से (जहाँ build
+  execute होता है) → अगला build: versionCode 61 / versionName 1.0.61।
+- Play limit 2_100_000_000 — commit-count स्कीम से कोसों दूर।
+- force-update `_versionLessThan()` से compatible — 1.0.61 > 1.0.4 हमेशा सही।
+
+## सीख (स्थायी — नए संस्करण/बिल्ड के लिए)
+- **कभी भी "version bump" एक manual क़दम मत रखो** — जो चीज़ भूली जा सकती है उसे
+  build से derive करो (git count, टाइमस्टैम्प, CI run number)। सेकेंडरी नियम:
+  source-of-truth एक जगह, बाक़ी सब उससे निकले।
+- **CI echo/log में हाथ से constant मत लिखो** — build.gradle से ही पढ़ो (sed से
+  VERSION_MAJOR/MINOR) वरना आगे किसी ने major बदला तो log झूठा दिखेगा (वही
+  "दो जगह छूटना" problem फिर लौटती)।
+- shallow-clone trap (fetch-depth) हर git-derived build के लिए पक्का करो।
+
+## Repos/commits (इस change में)
+- user-repo: `android/app/build.gradle` + `.github/workflows/build-apk.yml` +
+  `tests/run-smoke-tests.js` + `BUGFIX_CHANGELOG.md` — push `ff-user-panel` main।
