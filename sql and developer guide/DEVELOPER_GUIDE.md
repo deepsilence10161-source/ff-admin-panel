@@ -6761,11 +6761,16 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 **Round-4 search_path fixes (इस section के साथ):**
 - `reassign_clan_leader()` + `clamp_join_requests_client_update()` — `SET search_path TO 'public'` add (mutable search_path advisor warning बंद)। दोनों behavior-unchanged (bodies वही)।
 
+**Round-4 client fixes (इस section के साथ):**
+- `screens/join.js` free/ad join अब **bhi** `validate_and_join_match` RPC से जाता है (paid path जैसा) — पहले free join direct `join_requests.insert` करता था, जिससे `matches.filled_slots` कभी नहीं बढ़ता था (live-proven gap: free match `filled=0, active_joins=1`) और free matches पर कोई capacity enforcement नहीं थी। अब duplicate check + capacity + slot-increment सब server-side atomic। Fee 0 है, koi debit नहीं (वही economy)।
+- `features/checkin-system.js` `releaseNoShows` अब NO-OP stub — slot decrement सिर्फ़ server (cron) करता है (double-decrement बंद)।
+
 **Round-4 verification (live):**
 - r4_proof: duo join → filled 2/2 → solo join अब `MATCH_FULL` (pehले undercount से join हो जाता) ✓
 - r4_proof4: captain+partner cancel → exact 0 (weight rule) ✓
 - r4_proof2: free duo(2)+solo(1)=3 → cancel → 0, दूसरा cancel → floor 0 ✓
 - r4_proof5: dup join `ALREADY_JOINED`, full match `MATCH_FULL` ✓
+- r4_proof_free: free solo match join (RPC) → filled 0→1, fee 0 no-debit, दूसरा user → `MATCH_FULL` ✓ (free-join gap बंद)
 
 ---
 
