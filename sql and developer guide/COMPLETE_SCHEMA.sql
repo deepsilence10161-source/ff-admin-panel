@@ -1306,13 +1306,23 @@ CREATE TABLE IF NOT EXISTS vouchers (
   updated_at    TIMESTAMPTZ DEFAULT NOW()  -- R24 (2026-09-21y): bridge supaSet upsert stamp
 );
 ALTER TABLE vouchers ENABLE ROW LEVEL SECURITY;
+-- R3-PHASE9 P0 FIX (2026-09-23d): vouchers catalog ab ADMIN-ONLY.
+--   (pehle v_select_all=true → कोई code/reward enumerate; v_update_auth →
+--   कोई authenticated user अपनी reward_amount/status/max_uses edit karke
+--   redeem_voucher() — SECURITY DEFINER, owner-पढ़त — से exploit कर सकता था)
+--   User panel redeem_voucher() RPC से ही redeem करता है (direct table
+--   read/write नहीं); server redemption owner-bypass से UNCHANGED रहता है।
 DROP POLICY IF EXISTS "v_select_all" ON vouchers;
-CREATE POLICY "v_select_all" ON vouchers FOR SELECT USING (true);
 DROP POLICY IF EXISTS "v_update_auth" ON vouchers;
-CREATE POLICY "v_update_auth" ON vouchers FOR UPDATE USING ((auth.jwt() ->> 'sub') IS NOT NULL);
 DROP POLICY IF EXISTS "v_admin_write" ON vouchers;
 CREATE POLICY "v_admin_write" ON vouchers FOR ALL
+  USING ((auth.jwt() ->> 'sub') IN (SELECT id FROM users WHERE is_admin = true))
+  WITH CHECK ((auth.jwt() ->> 'sub') IN (SELECT id FROM users WHERE is_admin = true));
+CREATE POLICY "v_admin_select" ON vouchers FOR SELECT
   USING ((auth.jwt() ->> 'sub') IN (SELECT id FROM users WHERE is_admin = true));
+CREATE POLICY "v_admin_update" ON vouchers FOR UPDATE
+  USING ((auth.jwt() ->> 'sub') IN (SELECT id FROM users WHERE is_admin = true))
+  WITH CHECK ((auth.jwt() ->> 'sub') IN (SELECT id FROM users WHERE is_admin = true));
 
 CREATE TABLE IF NOT EXISTS user_sessions (
   id          UUID  PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -10262,14 +10272,21 @@ CREATE OR REPLACE FUNCTION public.increment_clan_score(p_clan_id uuid, p_score i
 AS $function$
 DECLARE
   v_caller     TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
   v_is_member  BOOLEAN;
 BEGIN
   -- ✅ SECURITY FIX (2026-07-17): documented as "caller must be a real
-  -- clan_members row for that clan" but this was never actually checked —
-  -- any authenticated caller could inflate (or, since p_score/p_kills/
-  -- p_wins weren't bounded to non-negative either, potentially deflate)
-  -- any clan's leaderboard stats regardless of membership.
-  IF v_caller IS NOT NULL THEN
+  -- clan_members row for that clan" but this was never actually checked.
+  -- R3-PHASE9 FIX (2026-09-23d): anon/bypass band — pehle null-caller
+  -- (bina JWT) member-check skip kar leta tha (LIVE-PROVEN anon RPC →
+  -- 204 OK). Ab service_role hi bypass karta hai; authenticated caller
+  -- ko hamesha real clan_members row chahiye. NOTE: SECURITY DEFINER के
+  -- अंदर `current_user` हमेशा owner होता है इसलिए role-check सिर्फ़
+  -- current_setting('role', true) से।
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RAISE EXCEPTION 'Not authorized — no caller identity';
+    END IF;
     SELECT EXISTS(
       SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = v_caller
     ) INTO v_is_member;

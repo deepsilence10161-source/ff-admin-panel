@@ -6356,3 +6356,52 @@ client sirf label dikhata hai, GD authority server `tiers` JSONB hai.
   (500/call+2000/day), own-match (50/day), squad-bank (catalog), poll (unique+option),
   cosmetic (owned-idempotent)。 रेफरल/duel जैसे mutual-claim vectors है लेकिन
   कोई ledger असर नहीं (duel_records sirf storage, reward=0)।
+
+## R3-HARDEN (cont. 3) — Phase 9 (Data/RLS/privacy) — 2026-09-23
+
+### P0 CLOSED — vouchers catalog user-editable (LIVE-PROVEN)
+- पहले `v_update_auth` (UPDATE USING sub IS NOT NULL) + `v_select_all` (public):
+  कोई भी logged-in user किसी भी voucher की row (reward_amount/status/max_uses/
+  used_count) edit कर सकता था; server `redeem_voucher()` (SECURITY DEFINER) reward
+  इसी table से पढ़ता है → reward-inflation hole। **Prove:** qa1 नॉन-admin no-op
+  PATCH `vouchers` → 200 OK + row representation।
+- **FIX (2026-09-23d):** vouchers अब admin-only (v_admin_write ALL + WITH CHECK,
+  v_admin_select, v_admin_update)। User panel `.from('vouchers')` कहीं नहीं
+  (redeem RPC ही सिर्फ़ path — verified)। Server redemption owner-bypass से intact:
+  redeploy invalid-code → सही 'Invalid voucher code'। Live: anon GET = [] और
+  non-admin PATCH = [] (कुछ नहीं)।
+
+### P2 CLOSED — increment_clan_score anon bypass
+- पहले "IF v_caller IS NOT NULL THEN member-check" → बिना JWT (anon ग्रिड) call =
+  member-check skip, कोई भी clan का weekly_score/total_kills/total_wins inflate।
+  Live-prove: anon RPC fake-clan → 204 OK। Display-leaderboard only (money-nahi),
+  पर spam/cheating वेक्टर।
+- **FIX:** service_role (real role check) exempt; authenticated = member-check
+  mandatory; null caller RAISE। Live re-probe anon → 400 P0001।
+- **IMPORTANT pattern-note (future fixes ke लिए):** SECURITY DEFINER function के
+  अंदर `current_user` हमेशा **owner** (postgres) होता है — `current_user IN
+  ('postgres','service_role')` guard सबको service मानकर dead हो जाता है।
+  Real role = `current_setting('role', true) = 'service_role'`। यही दिक्कत मेरी
+  पहली draft में थी (अनोन re-probe फिर 204 देता रहा) — सुधारकर सिर्फ़
+  current_setting वाला check रखा गया।
+
+### By-design (कोई बदलाव नहीं — क्यों)
+- `notifications` INSERT policy: type-allowlist सही, user_id self-restricted नहीं
+  (legit social/flist flow — user A user B को notif), target_all सिर्फ़ admin
+  (v_admin_write) — कोई money नहीं।
+- `wallet_transactions.wt_insert_own`: client request-inserts (pending_withdraw /
+  pending_deposit / match_entry / squad contribution); असली पैसा सिर्फ़
+  `resolve_sponsored_withdrawal` के balance re-verify से जाता है — SEO audit-grade
+  ledger entries server-reauthoritative हैं।
+- `matches_select_all` public: room_id/room_password columns live मे हमेशा ख़ाली
+  हैं (creds `match_rooms` में, admin-only read policy) — कोई leak नहीं (Phase-2
+  fix already)। data/result_screenshot `{}` ख़ाली।
+- `users_self_update` guard (invoker-trigger): self coins/sky_diamonds/rank edit →
+  400 'Column coins is not self-editable' (LIVE-PROVEN)।
+
+### PHASE-9 check-list (सब live-verified)
+- सारी tabs RLS ON (113 tables)। users/matches/sd_requests/match_rooms/
+  wallet_transactions/creator_payouts/tds_* policies self-or-admin ✅।
+- views: active_matches invoker=true में कोई sensitive col नहीं; user_public_profiles
+  / referral_leaderboard invoker=false by-design (public read surface, no phone/
+  upi/pw — verified 0 leak cols)। notifications target_all admin-only rows।
