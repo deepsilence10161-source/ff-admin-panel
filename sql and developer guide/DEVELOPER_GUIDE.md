@@ -6882,3 +6882,34 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 > **सीख (स्थायी पैटर्न):** हर नए SQL delta के बाद — (1) delta file repo में, (2) COMPLETE_SCHEMA.sql में DEFINITION-level merge (comment नहीं), (3) DEVELOPER_GUIDE section, (4) sql_verify check, (5) live↔file byte-identity prove। Team/multi-user financial flows में "wallet डेबिट से पहले consent" server-side ही valid होती है — client list kabhi trusted नहीं।
 
 ---
+
+## Section 50 — R7 FINAL SECURITY LOCK: TEAM CONSENT + AUTO-SQUAD (2026-09-24) 🔒
+
+**Root-cause fixes (live-verified):**
+
+1. **Captain consent bypass बंद** — `team_invitations` पर direct `INSERT`/`UPDATE` ab anon/authenticated से **REVOKE** (सिर्फ़ SELECT बचा); `ti_update_own`/`ti_insert_own` RLS policies **DROP**। सिर्फ़ dedicated SECDEF RPCs ही state बदलते हैं: `invite_team_members` (create/pending) + `respond_team_invite` (member-only accept/decline)। Captain ab `UPDATE ... SET status='accepted'` नहीं कर सकता (42501 live-proven)।
+2. **Accepted invitation immutable** — `trg_team_invitation_immutable` (BEFORE UPDATE): अगर `status='accepted'` तो captain_uid/member_uid/match_id/mode/fee_type/status में कोई बदलाव → `ACCEPTED_INVITATION_IMMUTABLE` RAISE। साथ ही `invite_team_members` ab accepted invitation को कभी pending/reset नहीं करता (`ON CONFLICT ... WHERE status<>'accepted'` + loop में accepted को SKIP) — नए terms = cancel करके नया invite।
+3. **Payment-model tampering बंद** — `join_match_team` invitation authorization ab **`mode + fee_type` EXACT bind** करता है (captain_pays invite + each_pays request → `TEAM_TERMS_MISMATCH`; mode mismatch भी)। Client `p_fee_type` कभी trusted नहीं।
+4. **Auto-squad authorization manufacture बंद** — `form_auto_squad_team` ab caller को **usi match+mode की waiting queue** में होना required (`not_in_queue`/`queue_mode_mismatch`/`already_matched`); `p_needed` client-ignored (mode से server-derived); कैप्टन-first ordering (कोई victim select नहीं होता)। `join_match_team` ab खाली `p_team` पर **server अपनी authoritative matched-queue** से टीम derive करता है (client victim-UID list बिल्कुल ignored) — `AUTO_SQUAD_NO_MATCH`/`AUTO_SQUAD_INCOMPLETE`।
+5. **Auto-squad payment server-derived** — queue में `fee_type='each_pays'` server-set/force (client captain_pays भेजे तो भी each_pays — live-proven T26)। हर participant का queue-action ही उसका consent है।
+6. **Client wiring** — `features/auto-squad.js` नया `autoSquadCaptainJoin(matchId, mode)` → `join_match_team` with `p_team:[]` (matched team server-derivation); captain card text अब कहता है हर player अपनी fee देता है। `core/db.js autoSquad.joinQueue` direct upsert → `join_auto_squad_queue` RPC (INSERT/UPDATE revoked तो direct upsert fail होता)।
+
+**Attack matrix (R7, live synthetic role-sim, सब rollback):**
+- T1 captain accept → REJECT (member-only) · T2 member accept → OK
+- T3/T4 captain direct UPDATE status/fee_type → permission denied (42501)
+- T5/T5b accepted immutable (trigger) · T6 non-queued form → not_in_queue
+- T7 victim UID → TEAM_NOT_AUTHORIZED · T8/T9 terms tamper → TEAM_TERMS_MISMATCH
+- T10 each_pays (2×90) OK · T11 captain_pays (cap 80, member 100) OK
+- T13 insufficient teammate → full rollback (no debits/joins/slots)
+- T14 auto-squad form+server-join (2 matched, both 90) OK
+- T15 matched rejoin blocked · T16/T17 cross-match/mode form blocked
+- T18 increment slots denied · T19 ledger fabrication blocked · T20 admin RPC denied
+- T21/T22/T23 direct INSERT/UPDATE blocked · T24 duo-invite+squad-join terms rejected
+- T25 cross-user debit rejected · T26 client captain_pays ignored → server each_pays
+- T27 concurrency: 2 threads → 2 clean teams (2+2), no double-booking
+
+**Numbers:** SECDEF 88 (unchanged; new trigger non-SECDEF by design) · SQL verify 53 → **62/62** · User smoke 40 → **44/44** (TEST9) · Admin smoke 32/32 · attack probes 21/21 + 7/7 · synthetic residue 0।
+
+> **सीख (स्थायी):** consent की value रखने वाली table का state सिर्फ़ dedicated RPC बदले; client से आई member-list/fee-type हर बार server validate करे; accepted/consumed consent kabhi mutate न हो।
+
+---
