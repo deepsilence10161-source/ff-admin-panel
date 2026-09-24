@@ -402,255 +402,85 @@ window.mrSquadSync = function(inp, field) {
 
 /* ── Publish / Correct results ── */
 window.mrPublishResults = async function() {
+  /* ⛔ R7 FOLLOW-UP (2026-09-24d): orphaned "Match Result" panel ka publish
+     ab server ke EK atomic RPC `publish_match_results()` se chalta hai —
+     purana multi-hundred-write Firebase-transaction path (realMoney/wallet/
+     stats/* + 4x totalWinnings dupes) HATA diya. ye panel section-results
+     redirect ho chuka hai (admin-inline-e.js), lekin अगर kabhi direct call
+     ho to bhi single RPC hi chalega. Client sirf {user_id, rank, kills}. */
   var mid = (document.getElementById('mrMatchFilter') || {}).value || '';
   if (!mid) return showToast('Select a match first', true);
   if (typeof rtdb === 'undefined') return;
 
-  /* Bug 3 Fix: Check + set publishing lock BEFORE reading results.
-     Two concurrent clicks both read alreadyPublished=false before either writes.
-     Lock in Supabase is atomic — second click gets publish_lock=true and exits.
-
-     ✅ FIX (2026-08-18, live DB verification): `matches.publish_lock` and
-     `matches.publish_lock_at` columns DON'T EXIST in the real Supabase
-     schema (confirmed via REST — Postgres error 42703 on both). The old
-     code treated that API error as "lock already held by another admin"
-     (lockRes.data was null), so mrPublishResults() ALWAYS bailed with
-     "Another admin is publishing this match right now" and results could
-     never be published, and the match status was never set to completed.
-     Removed the broken column-based lock entirely. Double-publish
-     protection now rests on:
-       1) in-memory _mrPublishingInFlight guard (same browser),
-       2) the result_published_at / status check below (cross-session
-          source of truth — already implemented),
-       3) idempotent match_results upsert (onConflict match_id,user_id). */
-  if (window._mrPublishingInFlight) {
-    showToast('⏳ Already publishing — please wait...', true); return;
-  }
+  if (window._mrPublishingInFlight) { showToast('⏳ Already publishing — please wait...', true); return; }
   window._mrPublishingInFlight = true;
   var _releaseLock = function() { window._mrPublishingInFlight = false; };
 
-  var t = _mrMatchData;
   var rows = document.querySelectorAll('#mrPlayerTable tr[data-uid]');
-  if (!rows.length) return showToast('No players loaded', true);
+  if (!rows.length) { _releaseLock(); return showToast('No players loaded', true); }
 
-  // ✅ FIX: Duplicate rank check — publish se pehle block karo
-  var rankTeamCheck = {};
-  var hasDup = false;
-  rows.forEach(function(row) {
-    var rank = Number(row.querySelector('.mr-rank-input').value) || 0;
-    if (!rank) return;
-    var slotEl = row.querySelector('td:nth-child(4) span');
-    var slot = slotEl ? slotEl.textContent.trim() : '';
-    var teamId = (slot && slot.indexOf('/') > -1) ? slot.split('/')[0] : row.dataset.uid;
-    if (!rankTeamCheck[rank]) rankTeamCheck[rank] = [];
-    if (rankTeamCheck[rank].indexOf(teamId) === -1) rankTeamCheck[rank].push(teamId);
-    if (rankTeamCheck[rank].length > 1) hasDup = true;
-  });
-  if (hasDup) return showToast('⚠️ Duplicate ranks hain! Fix karo phir publish karo.', true);
+  /* duplicate rank check (sirf rank) */
+  var rankSeen = {};
+  for (var i = 0; i < rows.length; i++) {
+    var rk = Number((rows[i].querySelector('.mr-rank-input') || {}).value) || 0;
+    if (rk >= 1) {
+      if (rankSeen[rk]) { _releaseLock(); return showToast('⚠️ Duplicate ranks hain! Fix karo phir publish karo.', true); }
+      rankSeen[rk] = true;
+    }
+  }
 
-  // Check published status
   var statusSnap = await rtdb.ref('matches/' + mid + '/status').once('value');
   var alreadyPublished = (statusSnap.val() === 'resultPublished');
 
   var confirmMsg = alreadyPublished
     ? '⚠️ Results already published!\n\nCorrect karna chahte ho?\n• Zyada paise gaye → extra wapas katenge\n• Kam paise gaye → baaki add honge\n• Users ko notification milegi'
     : 'Confirm: Results publish karein aur prizes distribute karein?';
-  if (!confirm(confirmMsg)) return;
-
-  // Warn about unfilled rows
-  var unfilledNames = [];
-  rows.forEach(function(row) {
-    var rank = Number(row.querySelector('.mr-rank-input').value) || 0;
-    var kills = Number(row.querySelector('.mr-kills-input').value) || 0;
-    if (!rank && !kills) {
-      var nameEl = row.querySelector('td:nth-child(2) div');
-      unfilledNames.push(nameEl ? nameEl.textContent.trim() : 'Unknown');
-    }
-  });
-  if (unfilledNames.length > 0) {
-    var warnMsg = '⚠️ ' + unfilledNames.length + ' players ka rank/kills fill nahi hai:\n' +
-      unfilledNames.slice(0, 5).join(', ') + (unfilledNames.length > 5 ? '...' : '') +
-      '\n\nFir bhi publish karna hai?';
-    if (!confirm(warnMsg)) return;
-  }
+  if (!confirm(confirmMsg)) { _releaseLock(); return; }
 
   var pubBtn = document.getElementById('mrPublishBtn');
   var statusEl = document.getElementById('mrPublishStatus');
-  if (pubBtn) { pubBtn.disabled = true; pubBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing (0/' + rows.length + ')...'; }
+  if (pubBtn) { pubBtn.disabled = true; pubBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...'; }
   if (statusEl) statusEl.textContent = 'Processing...';
 
   try {
-    // Upload screenshots via ImgBB (Firebase Storage removed — not configured)
-    var uploadedUrls = [];
-    if (_mrScreenshots.length > 0 && typeof window.uploadToImgBB === 'function') {
-      for (var si = 0; si < _mrScreenshots.length; si++) {
-        try {
-          var imgName = 'result_' + mid + '_' + Date.now() + '_' + si;
-          var sUrl = await new Promise(function(resolve) {
-            window.uploadToImgBB(_mrScreenshots[si], imgName, function(err, url) {
-              resolve(err ? null : url);
-            });
-          });
-          if (sUrl) uploadedUrls.push(sUrl);
-        } catch(se) { console.warn('Screenshot upload failed:', se); }
-      }
-      if (uploadedUrls.length) {
-        await rtdb.ref('matches/' + mid + '/resultScreenshot').set(uploadedUrls[0]);
-        await rtdb.ref('matches/' + mid + '/resultScreenshots').set(uploadedUrls);
-      }
+    var payload = [];
+    for (var j = 0; j < rows.length; j++) {
+      var row = rows[j];
+      payload.push({
+        user_id: row.dataset.uid,
+        rank: Number((row.querySelector('.mr-rank-input') || {}).value) || 0,
+        kills: Number((row.querySelector('.mr-kills-input') || {}).value) || 0
+      });
     }
 
-    var totalPlayers = rows.length;
-    var DB_U = DB_USERS || 'users';
-    var DB_J = DB_JOIN || 'joinRequests';
+    var supaw = window._supa;
+    if (!supaw) throw new Error('Supabase unavailable — single authority required');
 
-    for (var i = 0; i < rows.length; i++) {
-      if (pubBtn) pubBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing (' + (i+1) + '/' + rows.length + ')...';
-      var row = rows[i];
-      var uid = row.dataset.uid;
-      var reqId = row.dataset.reqid;
-      var rank = Number(row.querySelector('.mr-rank-input').value) || 0;
-      var kills = Number(row.querySelector('.mr-kills-input').value) || 0;
-      var rp = 0;
-      if (rank === 1) rp = t ? t.firstPrize || 0 : 0;
-      else if (rank === 2) rp = t ? t.secondPrize || 0 : 0;
-      else if (rank === 3) rp = t ? t.thirdPrize || 0 : 0;
-      // ✅ FIX: Per-kill prize bhi add karo (match-history wala same method)
-      var pk = t ? (Number(t.perKillPrize) || 0) : 0;
-      var kp = kills * pk;
-      var tw = rp + kp;
+    var res = await supaw.rpc('publish_match_results', { p_match_id: mid, p_results: payload });
+    if (res && res.error) throw new Error(res.error.message || 'publish RPC failed');
+    var p = res && res.data;
+    if (!p || p.ok !== true) throw new Error((p && p.error) || 'Publish rejected by server');
 
-      if (alreadyPublished) {
-        // CORRECTION MODE
-        var oldResult = _mrExistingResults[uid] || {};
-        var oldTw = oldResult.winnings || oldResult.totalWinning || 0;
-        var oldKills = oldResult.kills || 0;
-        var delta = tw - oldTw;
-        var killDelta = kills - oldKills;
-
-        await rtdb.ref('matches/' + mid + '/results/' + uid).update({ rank: rank, kills: kills, rankPrize: rp, killPrize: kp, totalWinning: tw, correctedAt: Date.now() });
-        await rtdb.ref(DB_J + '/' + reqId).update({ kills: kills, rank: rank, reward: tw, resultStatus: 'completed' });
-
-        if (delta !== 0) {
-          await rtdb.ref(DB_U + '/' + uid + '/realMoney/winnings').transaction(function(v){ return Math.max(0, (v||0) + delta); });
-          await rtdb.ref(DB_U + '/' + uid + '/wallet/winningBalance').transaction(function(v){ return Math.max(0, (v||0) + delta); });
-          await rtdb.ref(DB_U + '/' + uid + '/stats/earnings').transaction(function(v){ return Math.max(0, (v||0) + delta); });
-          await rtdb.ref(DB_U + '/' + uid + '/totalWinnings').transaction(function(v){ return Math.max(0, (v||0) + delta); });
-
-          var deltaReason = delta > 0
-            ? '₹' + delta + ' add kiya — ' + (t ? t.name : 'Match') + ' result correction (Rank #' + rank + ')'
-            : '₹' + Math.abs(delta) + ' adjust kiya — ' + (t ? t.name : 'Match') + ' result correction (Rank #' + rank + ')';
-          await rtdb.ref(DB_U + '/' + uid + '/transactions').push({ type: delta > 0 ? 'correction_credit' : 'correction_debit', amount: Math.abs(delta), description: deltaReason, timestamp: Date.now() });
-
-          var notifMsg = delta > 0
-            ? '✅ Result correction: ₹' + delta + ' add kiya gaya. Match: ' + (t ? t.name : '') + ', Rank #' + rank + '. Pehle record mein galti thi, ab sahi kar diya gaya.'
-            : '⚠️ Result correction: ₹' + Math.abs(delta) + ' wapas liya gaya. Match: ' + (t ? t.name : '') + ', Rank #' + rank + '. Pehle galti se zyada prize diya gaya tha.';
-          await rtdb.ref(DB_U + '/' + uid + '/notifications').push({ title: '🔧 Result Correction', message: notifMsg, timestamp: Date.now(), read: false, type: 'correction', uid: uid });
-        }
-        if (killDelta !== 0) {
-          await rtdb.ref(DB_U + '/' + uid + '/totalKills').transaction(function(v){ return Math.max(0, (v||0) + killDelta); });
-          await rtdb.ref(DB_U + '/' + uid + '/stats/kills').transaction(function(v){ return Math.max(0, (v||0) + killDelta); });
-        }
-
-      } else {
-        // FIRST PUBLISH
-        await rtdb.ref('matches/' + mid + '/results/' + uid).set({ rank: rank, kills: kills, killPrize: kp, rankPrize: rp, totalWinning: tw, timestamp: Date.now() });
-        var resultRef = rtdb.ref('results').push();
-        await resultRef.set({ userId: uid, matchId: mid, matchName: t ? t.name : '', rank: rank, kills: kills, winnings: tw, won: rank === 1, entryFee: t ? t.entryFee || 0 : 0, totalPlayers: totalPlayers, timestamp: Date.now(), createdAt: Date.now(), cashbackGiven: false });
-        await rtdb.ref(DB_J + '/' + reqId).update({ kills: kills, rank: rank, reward: tw, resultStatus: 'completed' });
-        await rtdb.ref(DB_U + '/' + uid + '/totalKills').transaction(function(v){ return (v||0) + kills; });
-        await rtdb.ref(DB_U + '/' + uid + '/stats/kills').transaction(function(v){ return (v||0) + kills; });
-        if (tw > 0) {
-          await rtdb.ref(DB_U + '/' + uid + '/realMoney/winnings').transaction(function(v){ return (v||0) + tw; });
-          await rtdb.ref(DB_U + '/' + uid + '/wallet/winningBalance').transaction(function(v){ return (v||0) + tw; });
-          await rtdb.ref(DB_U + '/' + uid + '/stats/earnings').transaction(function(v){ return (v||0) + tw; });
-          await rtdb.ref(DB_U + '/' + uid + '/totalWinnings').transaction(function(v){ return (v||0) + tw; });
-          if (rank === 1) await rtdb.ref(DB_U + '/' + uid + '/stats/wins').transaction(function(v){ return (v||0) + 1; });
-          await rtdb.ref(DB_U + '/' + uid + '/transactions').push({ type: 'winning', amount: tw, description: (t ? t.name : 'Match') + ' — Rank #' + rank + ', ' + kills + ' kills', timestamp: Date.now() });
-          await rtdb.ref(DB_U + '/' + uid + '/notifications').push({ title: '🏆 Match Result!', message: '₹' + tw + ' jeeta! ' + (t ? t.name : '') + ' — Rank #' + rank + ', ' + kills + ' kills. Paise wallet mein add ho gaye.', timestamp: Date.now(), read: false, type: 'result', uid: uid, matchId: mid });
-        } else {
-          await rtdb.ref(DB_U + '/' + uid + '/notifications').push({ title: '📋 Match Result', message: (t ? t.name : 'Match') + ' — Tumhara rank: ' + (rank ? '#' + rank : 'Unranked') + ', Kills: ' + kills + '. Better luck next time! 💪', timestamp: Date.now(), read: false, type: 'result', uid: uid, matchId: mid });
-        }
-        // ✅ R3 Phase-14 (2026-09-23): Cashback removed — no real money refund.
-        //    Canonical publishResults (js/admin-inline-c.js) already dropped the
-        //    "Top 50% finishers -> 25% entry-fee coins cashback" long ago
-        //    (`// Cashback removed — no real money refund`). This orphaned
-        //    mrPublishResults path still credited 25% cashback and sent a false
-        //    "🎁 Cashback mila!" notification — inconsistent with the active
-        //    path and a user-facing false claim. Aligned to the canonical rule
-        //    (no cashback). This path itself is orphaned (no sidebar nav-item
-        //    calls showSection('matchResult')), so live behaviour change = zero.
-        // Platform earnings (R4 FIX: entryF entry-fee derived from the
-        // authoritative match record `t` — kabhi client-submitted nahi; cashback
-        // reintroduce NAHI kiya, sirf variable restore kiya taaki neeche wali
-        // line ReferenceError na de).
-        var entryF = t ? (t.entryFee || 0) : 0;
-        await rtdb.ref('platformEarnings').push({ matchId: mid, entryFee: entryF, prizeGiven: tw, profit: entryF - tw, userId: uid, timestamp: Date.now() });
-        // lastResult for recap
-        await rtdb.ref(DB_U + '/' + uid + '/lastResult').set({ rank: rank, kills: kills, winnings: tw, matchName: t ? t.name : '', matchId: mid, timestamp: Date.now() });
-      }
-    }
-
-    if (!alreadyPublished) {
-      await rtdb.ref('matches/' + mid).update({ status: 'resultPublished', resultPublishedAt: Date.now() });
-    } else {
-      await rtdb.ref('matches/' + mid).update({ resultCorrectedAt: Date.now() });
-    }
-
-    /* FIX Bug#5: Sync published results to Supabase.
-       mrPublishResults in fa22 was never calling _supaPublishResult → new section
-       results were invisible to user app which reads from Supabase exclusively. */
-    if (window._supa && window._supaResultEntries) {
-      try {
-        /* Sync each winner's result to Supabase */
-        var supaResultRows = window._supaResultEntries.filter(function(r){ return r.matchId === mid; });
-        if (supaResultRows.length === 0 && window._mrLastResultRows) {
-          supaResultRows = window._mrLastResultRows;
-        }
-        if (supaResultRows.length > 0) {
-          await window._supa.from('match_results').upsert(supaResultRows, { onConflict: 'match_id,user_id' });
-          console.log('[Bug#5 Fix] mrPublishResults Supabase match_results synced:', supaResultRows.length, 'rows');
-        }
-        /* Update match status in Supabase.
-           ✅ FIX (2026-08-18): removed `publish_lock` from this payload —
-           the column doesn't exist in the schema, and one invalid column
-           made the ENTIRE update fail (Postgres 42703), so the match
-           stayed non-'completed' in Supabase even after publishing. */
-        await window._supa.from('matches').update({
-          status: 'completed',
-          result_published_at: new Date().toISOString()
-        }).eq('id', mid).then(null, function(){
-          /* Fallback — try firebase_id column if id doesn't match */
-          window._supa.from('matches').update({ status:'completed', result_published_at: new Date().toISOString() }).eq('firebase_id', mid).then(null, function(){});
-        });
-      } catch(supaErr) {
-        console.warn('[Bug#5 Fix] mrPublishResults Supabase sync error:', supaErr.message);
-      }
-    }
+    /* Firebase status mirror (UI only) */
+    await rtdb.ref('matches/' + mid).update({
+      status: alreadyPublished ? 'resultPublished' : 'resultPublished',
+      resultPublishedAt: Date.now()
+    }).catch(function(){});
 
     _mrScreenshots = [];
-    mrRenderSsPreviews();
-    window._mrLastResultRows = null; // clear temp storage
-
-    if (pubBtn) { pubBtn.disabled = false; }
-    if (statusEl) statusEl.textContent = alreadyPublished ? '✅ Correction done! Users notified.' : '✅ Results published! Prizes distributed.';
-    showToast(alreadyPublished ? '✅ Result correction done!' : '✅ Results published!');
-    /* Bug 3 Fix: Release in-memory publish lock on success.
-       ✅ FIX (2026-08-18): removed the Supabase publish_lock release —
-       the column doesn't exist in the schema. */
+    if (typeof mrRenderSsPreviews === 'function') mrRenderSsPreviews();
+    if (pubBtn) { pubBtn.disabled = false; pubBtn.innerHTML = '<i class="fas fa-check-double"></i> Publish Results'; }
+    if (statusEl) statusEl.textContent = p.was_correction
+      ? '✅ Correction done! (' + p.corrections + ' corrections)'
+      : '✅ Results published! (' + p.players + ' players, ' + p.winners + ' winners)';
+    showToast(p.was_correction ? '✅ Result correction done!' : '✅ Results published!');
     _releaseLock();
-    setTimeout(function() {
-      if (window.showSection) showSection('match-history', null);
-    }, 1200);
-
-  } catch(err) {
+    setTimeout(function() { if (window.showSection) showSection('match-history', null); }, 1200);
+  } catch (err) {
     if (pubBtn) { pubBtn.disabled = false; pubBtn.innerHTML = '<i class="fas fa-check-double"></i> Publish Results'; }
     if (statusEl) statusEl.textContent = '❌ Error: ' + err.message;
     showToast('Error: ' + err.message, true);
     console.error('mrPublish error:', err);
-    /* Bug 3 Fix: Always release in-memory lock on error too.
-       ✅ FIX (2026-08-18): removed the Supabase publish_lock release —
-       the column doesn't exist in the schema. */
     _releaseLock();
   }
 };
@@ -659,80 +489,23 @@ window.mrPublishResults = async function() {
 
 /* ── FA22 EXTENSION: 3-Currency Prize Distribution ── */
 window.distributePrizesV2 = function(matchId, results) {
-  var db = window.rtdb || window.db;
-  if (!db) return;
-
-  db.ref('matches/' + matchId).once('value', function(snap) {
-    var match = snap.val(); if (!match) return;
-    var prizes = match.prizes || {};
-    var matchCategory = match.matchCategory || match.entryType || 'paid';
-
-    results.forEach(function(r) {
-      if (!r.userId) return;
-      var reward = { coins: 0, skyDiamonds: 0, greenDiamonds: 0 };
-      var rankPrize = null;
-
-      if (r.rank === 1) rankPrize = prizes.first;
-      else if (r.rank === 2) rankPrize = prizes.second;
-      else if (r.rank === 3) rankPrize = prizes.third;
-
-      if (rankPrize) {
-        reward.coins = Number(rankPrize.coins || 0);
-        reward.skyDiamonds = Number(rankPrize.skyDiamonds || 0);
-        reward.greenDiamonds = Number(rankPrize.greenDiamonds || 0);
-      }
-
-      // Per-kill reward
-      var kills = Number(r.kills || 0);
-      if (kills > 0 && prizes.perKill) {
-        reward.coins += kills * Number(prizes.perKill.coins || 0);
-        reward.skyDiamonds += kills * Number(prizes.perKill.skyDiamonds || 0);
-        reward.greenDiamonds += kills * Number(prizes.perKill.greenDiamonds || 0);
-      }
-
-      // Apply to user
-      var userRef = db.ref('users/' + r.userId);
-      if (reward.coins > 0) {
-        userRef.child('coins').transaction(function(c) { return (c||0) + reward.coins; });
-        userRef.child('coinHistory').push({ amount: reward.coins, reason: 'Match Prize: ' + (match.name||'Match'), rank: r.rank, timestamp: Date.now() });
-      }
-      if (reward.skyDiamonds > 0) {
-        userRef.child('skyDiamonds').transaction(function(c) { return (c||0) + reward.skyDiamonds; });
-        userRef.child('skyDiamondHistory').push({ amount: reward.skyDiamonds, reason: 'Match Prize: ' + (match.name||'Match'), rank: r.rank, timestamp: Date.now() });
-        // Also update realMoney.winnings for backward compat
-        userRef.child('realMoney/winnings').transaction(function(c) { return (c||0) + reward.skyDiamonds; });
-      }
-      if (reward.greenDiamonds > 0) {
-        userRef.child('greenDiamonds').transaction(function(c) { return (c||0) + reward.greenDiamonds; });
-        userRef.child('greenDiamondHistory').push({ amount: reward.greenDiamonds, reason: 'Match Prize: ' + (match.name||'Match'), rank: r.rank, timestamp: Date.now() });
-        // Track in stats
-        userRef.child('stats/greenDiamonds').transaction(function(c) { return (c||0) + reward.greenDiamonds; });
-      }
-
-      // Update match stats
-      if (matchCategory === 'ad') userRef.child('stats/adMatches').transaction(function(c) { return (c||0)+1; });
-      else if (matchCategory === 'coin') userRef.child('stats/coinMatches').transaction(function(c) { return (c||0)+1; });
-      else userRef.child('stats/paidMatches').transaction(function(c) { return (c||0)+1; });
-
-      if (r.rank === 1) userRef.child('stats/wins').transaction(function(c) { return (c||0)+1; });
-      if (kills > 0) userRef.child('stats/kills').transaction(function(c) { return (c||0)+kills; });
-
-      // Notify user
-      userRef.child('notifications').push({
-        type: 'result',
-        title: '🏆 Match Result!',
-        message: 'Rank #' + r.rank + ', Kills: ' + kills +
-          (reward.coins ? ' | 🪙 +' + reward.coins : '') +
-          (reward.skyDiamonds ? ' | 💠 +' + reward.skyDiamonds : '') +
-          (reward.greenDiamonds ? ' | <img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> +' + reward.greenDiamonds : ''),
-        matchId: matchId, matchName: match.name || '',
-        read: false, timestamp: Date.now()
-      });
-    });
-
-    // Mark match distributed
-    db.ref('matches/' + matchId + '/prizeDistributed').set(true);
-    db.ref('matches/' + matchId + '/distributedAt').set(Date.now());
-    if (window.showToast) showToast('Prizes distributed! (3-currency system)', false);
+  /* ⛔ R7 FOLLOW-UP (2026-09-24d): iska purana `match.prizes` 3-currency
+     object kabhi exist hi nahi karta (live flat columns first_prize/...)
+     → reward hamesha 0 tha (dead path). Ab single atomic RPC —
+     client sirf {user_id, rank, kills}; server prize compute karta hai. */
+  if (!window._supa) { if (window.showToast) showToast('Supabase unavailable', true); return; }
+  var payload = (results || []).map(function(r) {
+    return { user_id: r.userId || r.user_id, rank: r.rank || 0, kills: r.kills || 0 };
   });
+  window._supa.rpc('publish_match_results', { p_match_id: matchId, p_results: payload })
+    .then(function(res) {
+      var p = res && res.data;
+      if (res && res.error) throw new Error(res.error.message);
+      if (!p || p.ok !== true) throw new Error((p && p.error) || 'rejected');
+      if (window.showToast) showToast('Prizes distributed! (' + p.players + ' players, ' + p.winners + ' winners)', false);
+    })
+    .catch(function(e) {
+      console.error('[distributePrizesV2] publish RPC error:', e.message);
+      if (window.showToast) showToast('Error: ' + e.message, true);
+    });
 };

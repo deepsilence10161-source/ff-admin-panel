@@ -92,107 +92,18 @@ patchWhenReady('mrPublishResults', function () {
   var _orig = window.mrPublishResults;
   if (_orig._v23SupaSync) return;
 
+  /* ⛔ R7 FOLLOW-UP (2026-09-24d): wrapper ab INERT (forward-only).
+     Base mrPublishResults (fa22) ab khud server ke EK atomic RPC
+     `publish_match_results()` se publish karta hai (balance + ledger +
+     join_requests + match_results + stats + season + platform SAB RPC
+     andar). Is wrapper ka purana _supaResultEntries capture + match_results
+     upsert + matches.status update DUPLICATE tha — remove kar diya. */
   window.mrPublishResults = async function () {
-    var mid = ((document.getElementById('mrMatchFilter') || {}).value || '').trim();
-
-    /* Step 1: Resolve Supabase match UUID */
-    var supaMatchId = null;
-    var supa = getSupa();
-    if (supa && mid) {
-      try {
-        var mRes = await supa.from('matches').select('id').eq('firebase_id', mid).single();
-        if (mRes.data) supaMatchId = mRes.data.id;
-      } catch (_) {
-        /* firebase_id column may not exist in all deploys — fallback to id */
-        try {
-          var mRes2 = await supa.from('matches').select('id').eq('id', mid).single();
-          if (mRes2 && mRes2.data) supaMatchId = mRes2.data.id;
-        } catch (_2) { /* Supabase match not found — Firebase-only publish */ }
-      }
-    }
-
-    /* Step 2: Init _supaResultEntries so existing code block runs */
-    window._supaResultEntries = [];
-    window._v23SupaMatchId = supaMatchId;
-
-    /* Step 3: Intercept Firebase 'results' push to capture each result row */
-    var db = getDB();
-    var _savedRef = null;
-    if (db) {
-      _savedRef = db.ref.bind(db);
-      db.ref = (function (_prevRef) {
-        return function (path) {
-          var ref = _prevRef(path);
-          if (typeof path === 'string' && path === 'results') {
-            var _oPush = ref.push.bind(ref);
-            ref.push = function () {
-              var pRef = _oPush.apply(ref, arguments);
-              var _oSet = pRef.set.bind(pRef);
-              pRef.set = function (data) {
-                /* Capture result row when it's for the current match */
-                if (data && data.matchId && data.matchId === mid && data.userId) {
-                  window._supaResultEntries.push({
-                    match_id:      supaMatchId || mid,
-                    matchId:       mid,           /* for existing filter */
-                    user_id:       data.userId,
-                    rank:          Number(data.rank)    || 0,
-                    kills:         Number(data.kills)   || 0,
-                    total_winning: Number(data.winnings)|| 0,
-                    rank_prize:    Number(data.rankPrize||0),
-                    kill_prize:    Number(data.killPrize||0),
-                    was_winner:    !!(data.won || Number(data.rank) === 1),
-                    created_at:    new Date().toISOString()
-                  });
-                }
-                return _oSet.apply(pRef, arguments);
-              };
-              return pRef;
-            };
-          }
-          return ref;
-        };
-      })(db.ref.bind(db));
-    }
-
-    try {
-      var result = await _orig.apply(this, arguments);
-
-      /* Step 4: Extra Supabase sync — runs even if existing block fails/skips */
-      if (supa && supaMatchId && window._supaResultEntries && window._supaResultEntries.length > 0) {
-        try {
-          /* Re-map with correct Supabase UUID */
-          var rows = window._supaResultEntries.map(function (r) {
-            return Object.assign({}, r, { match_id: supaMatchId });
-          });
-
-          await supa.from('match_results').upsert(rows, { onConflict: 'match_id,user_id' });
-          console.log('[v23 Fix#2] ✅ match_results synced to Supabase:', rows.length, 'rows, match:', supaMatchId);
-
-          /* Also update Supabase matches.status.
-             ✅ FIX (2026-08-18): removed `publish_lock` from this payload —
-             the column doesn't exist in the real schema (verified via REST,
-             42703), and one invalid column made the ENTIRE update fail, so
-             matches stayed non-'completed' in Supabase after publishing. */
-          await supa.from('matches').update({
-            status:               'completed',
-            result_published_at:  new Date().toISOString()
-          }).eq('id', supaMatchId).then(null, function () {});
-
-        } catch (supaErr) {
-          console.warn('[v23 Fix#2] match_results upsert error:', supaErr.message);
-        }
-      }
-
-      return result;
-
-    } finally {
-      /* Always restore original db.ref */
-      if (db && _savedRef) db.ref = _savedRef;
-      window._v23SupaMatchId = null;
-    }
+    return _orig.apply(this, arguments);
   };
 
   window.mrPublishResults._v23SupaSync = true;
+
   console.log('[v23] FIX #2 ✅ mrPublishResults: _supaResultEntries initialized + Supabase sync active');
 });
 
@@ -398,106 +309,13 @@ patchWhenReady('processManualWallet', function () {
   var _orig = window.processManualWallet;
 
   window.processManualWallet = async function () {
-    var act = ((document.getElementById('manualAction')     ||{}).value||'credit');
-    var wt  = ((document.getElementById('manualWalletType') ||{}).value||'coins');
-    var amt = Number((document.getElementById('manualAmount')||{}).value)||0;
-    var uid = ((document.getElementById('manualUid')        ||{}).value||'').trim();
-    var rsn = ((document.getElementById('manualReason')     ||{}).value||'').trim() || 'Admin adjustment';
-
-    /* Credits have no race risk — use original */
-    if (act !== 'debit') return _orig.apply(this, arguments);
-
-    /* Input validation */
-    if (!uid)    return window.showToast && window.showToast('Enter UID', true);
-    if (amt <= 0) return window.showToast && window.showToast('Amount must be > 0', true);
-    if (amt > 999999) return window.showToast && window.showToast('Amount too large', true);
-
-    var currPath = wt==='sky' ? 'skyDiamonds' : wt==='green' ? 'greenDiamonds' : 'coins';
-    var supaCol  = wt==='sky' ? 'sky_diamonds'  : wt==='green' ? 'green_diamonds'  : 'coins';
-    var db = getDB();
-    if (!db) return _orig.apply(this, arguments);
-
-    /* Disable button */
-    var btns = document.querySelectorAll('#manualWalletModal .btn-primary');
-    btns.forEach(function(b){ if(typeof setLoading==='function') setLoading(b,true); });
-
-    try {
-      var abortMsg = null;
-
-      /* ── Atomic debit transaction ── */
-      var txRes = await db.ref((window.DB_USERS||'users') + '/' + uid + '/' + currPath)
-        .transaction(function (current) {
-          var cur = Number(current) || 0;
-          if (cur < amt) {
-            abortMsg = 'Insufficient ' + wt + ' balance (current: ' + cur + ', trying to debit: ' + amt + ')';
-            return undefined; /* Returning undefined aborts transaction */
-          }
-          return cur - amt;
-        });
-
-      if (!txRes.committed || abortMsg) {
-        throw new Error(abortMsg || 'Transaction aborted — balance may have changed concurrently');
-      }
-
-      /* ── Sync Supabase balance ── */
-      var supa = getSupa();
-      if (supa) {
-        var supaOk = await supa.rpc('decrement_balance', { p_uid: uid, p_col: supaCol, p_amount: amt })
-          .catch(function(){ return { error: { message: 'rpc_missing' } }; });
-
-        if (supaOk && supaOk.error) {
-          /* Fallback: direct update */
-          var cur2 = await supa.from('users').select(supaCol).eq('id', uid).single()
-            .catch(function(){ return { data: null }; });
-          if (cur2.data) {
-            var newBal = Math.max((cur2.data[supaCol] || 0) - amt, 0);
-            supa.from('users').update({ [supaCol]: newBal }).eq('id', uid).then(null, function(){});
-          }
-        }
-
-        /* wallet_transactions */
-        supa.from('wallet_transactions').insert({
-          user_id:    uid,
-          txn_type:   'admin_debit',
-          amount:     amt,
-          currency:   supaCol,
-          reason:     rsn,
-          created_at: new Date().toISOString()
-        }).catch(function(){});
-
-        /* Fix #12: admin_activity_log */
-        supa.from('admin_activity_log').insert({
-          admin_uid:   getAdminUid(),
-          action_type: 'manual_wallet_debit',
-          target_uid:  uid,
-          details:     { amount: amt, currency: wt, reason: rsn },
-          created_at:  new Date().toISOString()
-        }).catch(function(){});
-      }
-
-      /* Firebase transaction log */
-      db.ref((window.DB_USERS||'users') + '/' + uid + '/transactions').push({
-        type: 'admin_debit', currency: wt, amount: -amt, description: rsn, timestamp: Date.now()
-      }).catch(function(){});
-
-      /* Notify user */
-      if (typeof window._adminNotifyUser === 'function') {
-        window._adminNotifyUser(uid, {
-          title:   'Wallet Adjusted',
-          message: amt + ' ' + wt + ' remove kiye gaye. Reason: ' + rsn,
-          type:    'wallet_debit'
-        });
-      }
-
-      btns.forEach(function(b){ if(typeof setLoading==='function') setLoading(b,false); });
-      if (typeof closeModal === 'function') closeModal('manualWalletModal');
-      if (window.showToast) window.showToast('✅ ' + amt + ' ' + wt + ' debited (atomic)');
-
-    } catch (e) {
-      btns.forEach(function(b){ if(typeof setLoading==='function') setLoading(b,false); });
-      if (window.showToast) window.showToast('❌ Error: ' + e.message, true);
-      console.error('[v23 Fix#5] processManualWallet atomic debit failed:', e);
-    }
+    /* ⛔ R7 FOLLOW-UP (2026-09-24c): v23 ka atomic Firebase-transaction debit
+       path HATA DIYA GAYA. Ab Base (admin-inline-b.js) EK hi atomic RPC
+       `admin_adjust_wallet()` se credit + debit dono handle karta hai
+       (server FOR-UPDATE balance + wallet_transactions ledger RPC ke ANDAR).
+       Ye wrapper ab sirf base ko forward karta hai — koi alag Firebase
+       transaction / decrement_balance / direct-update fallback nahi. */
+    return _orig.apply(this, arguments);
   };
 
   window.processManualWallet._v23AtomicDebit = true;

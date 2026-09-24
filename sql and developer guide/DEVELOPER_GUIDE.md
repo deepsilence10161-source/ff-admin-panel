@@ -6936,3 +6936,67 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 > **सीख (स्थायी — जो Financial Mutation है उसके लिए):** किसी भी money-flow का **एक ही authoritative server path** हो (RPC), client/UI कभी दूसरा independent credit न करे; admin RPC से anon/PUBLIC grant हमेशा revoke (caller = authenticated JWT, body में is_admin); `p_admin_uid` जैसे client-supplied identity parameters कभी authorize न करें; cancel/refund rows को physically delete कर के evidence मत मिटाओ।
 
 ---
+
+---
+
+## Section 52 — R7 FOLLOW-UP: ONE LEDGER, ONE CANCEL PATH, TRUE GRANT CLASSIFICATION (2026-09-24c) 🔒
+
+**7 मुद्दों का root-cause fix (live-applied + live-verified):**
+
+1. **db-bridge Firebase financial fallback REMOVED** — `user-repo/core/db-bridge.js` `_handleRpcError()` में `fbFallbackPaths=['users','joinRequests','walletRequests']` था: Supabase write/RPC fail होने पर वह वही value Firebase RTDB पर `.set()` कर देता था (users/{uid}/coins, joinRequests, walletRequests) = **दूसरा non-authoritative balance लिखने वाला पथ**। हटाया गया — अब fail पर सिर्फ़ console + one-time toast। Genuinely Firebase-only mirror routes (tdsRecords/tdsHeld, videoWatched, selfExcluded, matches spectator listeners) `_supaWrite` में सीधे dispatch होते हैं — वही रहे, छूए नहीं।
+2. **fa66 = single atomic cancel** — base `fa63-fa70-automation-bundle.js` + v24 wrapper दोनों अब सिर्फ़ `cancel_match_with_refunds(p_match_id)` call करते हैं। पुराना path (matches UPDATE → per-player `increment_balance` → join_requests UPDATE → notifications insert → Supabase-unavailable पर `joinedMatches` Firebase coins transaction) **पूरा हटाया** — v24 का `catch → _orig` Firebase-fallback भी। Supabase unavailable = **skip** (कोई दूसरा refund path invent नहीं)। partial/double/concurrent refund risk समाप्त।
+3. **processManualWallet = single atomic ledger** — base (`admin-inline-b.js`) अब नए RPC `admin_adjust_wallet(p_uid, p_col, ±p_amount, p_reason)` से चलता है: server `FOR UPDATE`-style atomic read-modify-write + **wallet_transactions ledger RPC के अंदर** (single mutation)। Firebase अब सिर्फ़ transactions-log (UI mirror) + notification — balance **कभी नहीं**। v23 wrapper inert (base forward)। `admin-supabase-sync.js` orphan `_wrapManualCredit` भी single-RPC + correct admin_activity_log columns (admin_uid/action_type/target_uid)। पुराने `decrement_balance` RPC + direct users UPDATE fallback + client-side wallet insert सब हटाए।
+4. **78 SECDEF → चार वर्ग classification (अंधाधुंध revoke नहीं)** — live `pg_proc` से body+ACL निकाल कर classify: **23 ADMIN** (body `is_admin` JWT check → grant = authenticated+service_role, anon/PUBLIC revoke) · **48 AUTH-USER** (auth.uid context, null-caller fail-closed → authenticated+service_role) · **7 TRIGGER/SECDEF-INTERNAL** (service_role only) · **is_caller_admin** = anon+authenticated **intentional** (dozens RLS policies inline-use करती हैं: `users_select_own`, `ti_select_related`, आदि — revoke = पूरी app break; यही live का इकलौता anon EXECUTE है)। Views `user_public_profiles`/`referral_leaderboard` `security_invoker=false` **safest choice**: authentic columns-only + सिर्फ़ authenticated SELECT grant; invoker=true करने से logged-in की profile-search/friends/leaderboard टूट जाती (users RLS self/admin-only है)।
+5. **COMPLETE_SCHEMA फिर सौजन्य से reconcile** — fresh-deploy पुराना कमज़ोर schema न बनाए: (a) 5 stale financial anon/PUBLIC grants **neutral** (cancel PUBLIC/anon, validate_and_join_match anon, decrement_balance anon, join_match_team anon × साइट, join_auto_squad_queue anon); (b) `team_invitations` direct INSERT/UPDATE → **SELECT-only**; `auto_squad_queue` early-table + mid-file grants INSERT/UPDATE → DELETE (live state); (c) admin-sync-supabase **real note** जोड़ा (Firebase JWT → PostgREST anon **नहीं**, बल्कि `authenticated` — supabase-init-early syncFirebaseToken); (d) **S2b** चार missing SECDEF के final service-only grants; (e) **S2c** नया `admin_adjust_wallet` + `finalize_creator_commission` client-invoke revoke; (f) S5 extensions live-fact rewrite। Migration history पूरा हो गया — delta `2026-09-24c-R7-FOLLOWUP-AUTHORITATIVE-LEDGER.sql` दोनों जगह copy।
+6. **push_hook_config** — restricted ही रहा (RLS + `phc_admin_all` policy + zero client table-grants)। Advisor चुप कराने के लिए कोई public policy नहीं दी। "No policy" alert stale था (policy live में मौजूद) — documented, कोई weakening नहीं।
+7. **Extensions — dependency-first, तभी चलें** — (a) **pg_trgm**: live सिर्फ़ 47 extension-member deps (0 external caller) पर `idx_users_ign_trgm`/`idx_users_ff_uid_trgm` GIN opclass (`gin_trgm_ops`) इस्तेमाल करते हैं → relocate = opclass/`%` resolution break in future DDL → **keep in public, documented**। (b) **pg_net**: `extrelocatable=false` (move असंभव), live dependent trigger `notifications_push_hook` schema-qualified `net.http_post` कॉल करता है → **keep**; SSRF clamp: `REVOKE EXECUTE/USAGE` live no-op (owner `supabase_admin`, postgres grantor नहीं) — पर असली control **PostgREST exposed-schemas** है: REST `/rpc/http_post` सिर्फ़ `public.http_post` खोजता है (`PGRST202`), net exposed नहीं → SSRF client से unreachable standalone। REVOKE delta में रखा (idempotent re-apply के लिए)।
+
+**Live verify (behavioural, synthetic, सब rollback):** `admin_adjust_wallet` 8/8 — credit +25 coins→old100→new125, +10 sky, -30 debit→95, insufficient -999 → `Insufficient balance`, invalid column → reject, zero → reject, oversized → reject, no-JWT → `Admin only`; ledger rows exactly matching, status=approved। live anon SECDEF EXECUTE = **1** (is_caller_admin), authenticated SECDEF = **77**।
+
+> **सीख (स्थायी):** एक ही data को दो writepaths से कभी update न करें — हर financial mutation का **एक authoritative server path** (SECDEF RPC जो ledger खुद लिखे); client/front-end "fallback" (Firebase transaction, direct column update) अगर वही state change करता है तो वह fallback नहीं, **दूसरा authority** है — हटाओ। Trigger/extension का किरदार तय करने से पहले dependency (pg_depend) साबित करो। Fresh-deploy schema = live reality का mirror हो, वर्ना vuln restore हो जाता है।
+
+---
+
+---
+
+## Section 53 — R7 FOLLOW-UP (2): PRIZE DISTRIBUTION = ONE ATOMIC RPC (2026-09-24d) 🔒
+
+**Root-cause fixes (live-applied + live-verified):**
+
+1. **`publish_match_results(p_match_id, p_results)` — EK atomic RPC** — admin result-publish/prize-distribution का एक ही authoritative path। Server **खुद prize compute** करता है (`matches.first_prize/second_prize/third_prize/per_kill_prize` + `prize_type`/`entry_type` → currency), **captain_pays aggregation server-side** (`join_requests.fee_type`/`captain_uid`)। Client सिर्फ़ `{user_id, rank, kills}` भेजता है — amount/currency कभी client से नहीं।
+2. **सब एक ही txn में:** wallet credit + `wallet_transactions` ledger + `join_requests` (status/placement/prize_earned/kills) + `match_results` upsert + users stats (`total_kills/total_matches/total_wins/win_streak/rank_points/total_winnings`) + `season_stats` + `platform_earnings` + notifications।
+3. **Correction mode auto-detect** — `matches.result_published_at` set → per-target delta (credit/debit, floor-0) + correction ledger row; duplicate publish idempotent (delta=0 → no res).
+4. **Client-side सारे multi-path हटाए:** `admin-inline-c.js publishResults` (Firebase txn-first + bridge + 4 RPC + 3 insert ≈ सैकड़ों writes) → single RPC; `fa22 mrPublishResults` + `distributePrizesV2` (orphan) → single RPC; `admin-supabase-sync _wrapPublishResults` + `v23 mrPublishResults wrapper` → inert/forward-only (कोई दूसरा Write नहीं)।
+
+**Live behavioral (synthetic, सब rollback):**
+- Solo 3-player (coin, first=10, perKill=2): rank1+2kills → +14 coins, rank2 → 0, rank0+1kill → +2 coins; ledger exact; platform entry 5/profit सही; season 3 rows; notifications 3; match.status='completed' + result_published_at; rank_points 27/1/6।
+- Captain_pays duo (paid, green_diamond): member का rank2+1kill (3) captain को → captain green_diamonds +29 (20+6+3), member 0 + prize_earned 0।
+- Double-publish → idempotent (coins unchanged) · Correction (14→12) → correction_debit 2 · non-admin → `Admin only`।
+
+**Re-test:** publish RPC behavioral 3 scenarios PASS · JS `node --check` सब edited clean · COMPLETE_SCHEMA format intact (148 function bodies/0 zero-width/COMMIT-tail) · residue 0।
+
+> **सीख (स्थायी):** prize-distribution जैसे "per-player" money-flow में client loop = हर iteration एक alag transaction = partial-failure window; server-batch RPC एक ही txn में loop चला कर partial-failure window खत्म करता है। `captain_pays` जैसी aggregation server-side हो (client captain-uid/prize-amount कभी trust नहीं)। हर `matches/{mid}/results/{uid}`-जैसी nested-path client mirror से बचो — bridge उसे RPC के authoritative match_results rows से टकरा सकता है।
+
+---
+
+
+## Section 54 — R7 FOLLOW-UP (3): AUTO-SQUAD TEAM-FORMATION CONCURRENCY ROOT-CAUSE FIX (2026-09-24e) 🔒
+
+**Root-cause (T27 concurrency regression flake):**
+
+- `form_auto_squad_team()` me pre-existing functional race thi (security vulnerability NAHI — koi double-booking kabhi nahi hui, `auto_squad_queue` unique constraint + `status='waiting'` re-check + `FOR UPDATE SKIP LOCKED` hard-enforce karte the):
+  do concurrent callers me jo pehle candidate-SELECT chala leta tha, wo doosre caller ki abhi-'waiting' row ko partner bana leta tha (rank-tie me arbitrary) → doosra caller `already_matched` fail hota tha, 4 players me sirf 1 team banti thi aur 2 players orphan `waiting` reh jaate the. Synthetic 5x-loop me ~50% flake reproduce hoti thi.
+
+**Fix (live-applied 2026-09-24e):**
+
+1. **match-level advisory lock** — `pg_advisory_xact_lock(hashtextextended(p_match_id, 0))` — transaction-scoped, commit/rollback par auto-release; isi match ke formation calls serialize hote hain.
+2. **greedy drain (lock ke ANDAR)** — authorized call poori `waiting` queue se jitni **PURA** team ban saken, sab bana deti hai (loop). Chahe koi bhi caller lock jeete, final state deterministic: 4 waiting players → 2 teams of 2, **koi orphan nahi**.
+3. **authz guard wahi byte-same** — caller isi match+mode ki `waiting` queue me hona chahiye (`not_in_queue`/`already_matched`/`queue_mode_mismatch`), gair-queued attacker team nahi banata; caller hamesha first team me (`ORDER BY (user_id=caller) DESC`), client flat `{ok, team_id, user_ids}` contract **unchanged** (user-repo `auto-squad.js` untouched).
+4. **SECDEF/owner/ACL/search_path byte-same** — postgres owner, SECDEF true, `authenticated` + `service_role` EXECUTE, `search_path=public`; public-namespace SECDEF classification wahi (90 total / anon 1 / auth 78) — koi grant/revoke change nahi.
+
+**Live re-verify:** T27 concurrency **8/8 consecutive pass** (pehle ~50% flake) · security attack matrix (T21–T27) 7/7 · full regression (sql_verify 69, followup 21, T1–T20 21, cancel 21) sab green/preserved · synthetic residue 9 tables = 0।
+
+> **सीख (स्थायी):** concurrency test me flake ko "waise hi chhod/expectation dheela karna" MANA hai — pehle **root-cause** nikalo। Team-formation = select-candidates phir mark, dono ek hi serialized critical-section me hone chahiye; `SKIP LOCKED` sirf overlap rokta hai, orphan/drain nahi karta — `pg_advisory_xact_lock` se entire batch serialize karo aur lock ke andar **poora possible batch** drain karo, tab hi repeated concurrent call deterministic hota hai। Security invariant (no double-booking) alag se hamesha re-check karo, use hero mat banao jab functional correctness gire।
+
+---
+

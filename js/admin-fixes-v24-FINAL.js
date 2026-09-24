@@ -181,140 +181,67 @@ patchWhenReady('confirmWithdrawal', function () {
 patchWhenReady('fa66_checkAndCancelEmpty', function () {
   if (window.fa66_checkAndCancelEmpty._v24LiveCount) return;
 
-  var _orig = window.fa66_checkAndCancelEmpty;
-
   window.fa66_checkAndCancelEmpty = async function () {
-    var db   = getDB();
     var supa = getSupa();
-    if (!db) return;
+    if (!supa) { /* Supabase hi authoritative hai — bina Supabase koi cancel/refund nahi. */ return; }
 
-    /* Prefer Supabase for live counts (authoritative) */
-    if (supa) {
-      var now = Date.now();
-      var MIN_PLAYERS_PCT = window._fa66MinPlayersPct || 0.25;
+    var now = Date.now();
+    var MIN_PLAYERS_PCT = window._fa66MinPlayersPct || 0.25;
 
-      try {
-        /* Fetch upcoming matches from Supabase */
-        var matchRes = await supa.from('matches')
-          .select('id,name,status,scheduled_at,max_players,entry_fee,entry_type')
-          .eq('status', 'upcoming');
+    try {
+      /* Fetch upcoming matches from Supabase */
+      var matchRes = await supa.from('matches')
+        .select('id,name,status,scheduled_at,max_players,entry_fee,entry_type')
+        .eq('status', 'upcoming');
 
-        if (!matchRes.data || matchRes.data.length === 0) return;
+      if (!matchRes.data || matchRes.data.length === 0) return;
 
-        for (var i = 0; i < matchRes.data.length; i++) {
-          var m   = matchRes.data[i];
-          var mId = m.id;
-          var mt  = m.scheduled_at ? new Date(m.scheduled_at).getTime() : 0;
+      for (var i = 0; i < matchRes.data.length; i++) {
+        var m   = matchRes.data[i];
+        var mId = m.id;
+        var mt  = m.scheduled_at ? new Date(m.scheduled_at).getTime() : 0;
 
-          if (!mt || mt > now) continue;          // not started yet
-          if (mt + 15 * 60000 < now) continue;   // more than 15 min past — skip
+        if (!mt || mt > now) continue;          // not started yet
+        if (mt + 15 * 60000 < now) continue;   // more than 15 min past — skip
 
-          /* Get LIVE count from Supabase join_requests */
-          /* ✅ FIX (BUG L-6 class, higher stakes here): count:'exact'+
-             head:true is unreliable under some transport conditions
-             (confirmed elsewhere in this codebase, headless-Chromium
-             testing showed 100% ERR_ABORTED with the SQL-level filter
-             still being correct — a transport quirk, not a data bug).
-             Here specifically that's dangerous: if it silently returns
-             count=null/0 instead of throwing, this function reads
-             `filled=0` for a match that's actually full, and wrongly
-             auto-cancels it — a real match, real players, refunded for
-             no reason. Switched to a real row select + length so a
-             failure surfaces as a thrown/caught error (which the
-             try/catch below already handles by skipping the match) 
-             instead of a silent wrong zero. */
-          var countRes = await supa.from('join_requests')
-            .select('id')
-            .eq('match_id', mId)
-            .not('status', 'in', '("cancelled","refunded","rejected")')
-            .limit(1000);
+        /* Get LIVE count from Supabase join_requests (real row select — a
+           silent wrong-zero would wrongly cancel a full match, so length of a
+           real select surfaces transport failures as caught errors instead). */
+        var countRes = await supa.from('join_requests')
+          .select('id')
+          .eq('match_id', mId)
+          .not('status', 'in', '("cancelled","refunded","rejected")')
+          .limit(1000);
 
-          var filled = (countRes && countRes.data) ? countRes.data.length : 0;
-          var max    = Number(m.max_players) || 1;
+        var filled = (countRes && countRes.data) ? countRes.data.length : 0;
+        var max    = Number(m.max_players) || 1;
 
-          if (filled >= 2 && (filled / max) >= MIN_PLAYERS_PCT) continue; // enough players
+        if (filled >= 2 && (filled / max) >= MIN_PLAYERS_PCT) continue; // enough players
 
-          /* Auto-cancel in Supabase */
-          await supa.from('matches').update({
-            status:       'cancelled',
-            cancelled_at: new Date().toISOString(),
-            cancel_reason: 'auto_low_players'
-          }).eq('id', mId).then(null, function (e) {
-            console.error('[v24 fa66] Supabase cancel error:', e.message);
-          });
-
-          /* Refund players with entries */
-          if (filled > 0 && Number(m.entry_fee) > 0) {
-            var jRes = await supa.from('join_requests')
-              .select('user_id,entry_fee,entry_type')
-              .eq('match_id', mId)
-              .not('status', 'in', '("cancelled","refunded","rejected")')
-              .catch(function () { return { data: [] }; });
-
-            var rows = (jRes && jRes.data) ? jRes.data : [];
-            rows.forEach(function (r) {
-              var currency  = (r.entry_type === 'sky' || r.entry_type === 'sky_diamond')
-                              ? 'sky_diamonds' : 'coins';
-              var refundAmt = Number(r.entry_fee) || Number(m.entry_fee) || 0;
-              if (!refundAmt) return;
-
-              supa.rpc('increment_balance', {
-                p_uid: r.user_id, p_col: currency, p_amount: refundAmt
-              }).catch(function (e) {
-                console.error('[v24 fa66] refund error', r.user_id, e.message);
-              });
-
-              supa.from('join_requests').update({ status: 'refunded' })
-                .eq('user_id', r.user_id).eq('match_id', mId).then(null, function () {});
-
-              /* Notify user via Supabase notifications */
-              supa.from('notifications').insert({
-                user_id:    r.user_id,
-                type:       'info',
-                title:      '🔄 Match Cancelled — Refund!',
-                body:       (m.name || 'Match') + ' cancel ho gaya (players kam the). ' +
-                            refundAmt + ' ' + currency + ' refund ho gaya.',
-                created_at: new Date().toISOString()
-              }).catch(function () {});
-            });
-          }
-
-          /* Also update Firebase match node for consistency */
-          /* ✅ FIX (live-testing): getDB() only checks existence of
-             window.rtdb, not that the Supabase bridge has installed
-             (_isSupaBridge). This write targets `matches`, which is
-             Supabase-only — if the bridge wasn't ready yet, this hit
-             raw Firebase and threw permission_denied even though the
-             Supabase update two lines above had already succeeded.
-             Since the Supabase side is authoritative here (this whole
-             branch only runs `if (supa)`), just route through the
-             bridge-aware rtdb.ref() the rest of the codebase uses
-             instead of the getDB() shim, and skip entirely if the
-             bridge genuinely isn't up yet rather than risking a raw
-             Firebase write. */
-          if (window.rtdb && window.rtdb._isSupaBridge) {
-            window.rtdb.ref('matches/' + mId).update({
-              status: 'cancelled', cancelledAt: Date.now(),
-              cancelReason: 'auto_low_players'
-            }).catch(function () {});
-          }
-
-          console.log('[v24 fa66] Auto-cancelled match:', m.name,
-            '— live count:', filled, '/', max);
+        /* ⛔ R7 FOLLOW-UP (2026-09-24c): purana multi-step path
+           (matches.update + per-player increment_balance + join_requests.update
+           + notifications insert + rtdb mirror + catch->_orig Firebase
+           joinedMatches coins fallback) HATA DIYA GAYA. Ab EK atomic RPC
+           `cancel_match_with_refunds()` hi cancel + refund + ledger + commission
+           void karta hai. Firebase kabhi independently balance credit nahi. */
+        var res = await supa.rpc('cancel_match_with_refunds', { p_match_id: mId });
+        if (res && res.error) {
+          console.error('[v24 fa66] cancel RPC error:', mId, res.error.message);
+          continue; /* no fallback — never invent a second refund path */
         }
-      } catch (e) {
-        console.error('[v24 fa66] Supabase query error, falling back:', e.message);
-        _orig.apply(this, arguments); // Firebase fallback
+        var refundCount = (res && res.data && res.data.refund_count) || 0;
+        console.log('[v24 fa66] Auto-cancelled match:', m.name,
+          '— live count:', filled, '/', max, '| RPC:', (res && res.data) || {});
+        if (window.toast) window.toast('⚠️ Match cancelled: ' + (m.name || mId) +
+          ' (' + filled + ' players, ' + refundCount + ' refunded)', 'warn');
       }
-
-    } else {
-      /* Supabase unavailable — use original Firebase logic */
-      _orig.apply(this, arguments);
+    } catch (e) {
+      console.error('[v24 fa66] Supabase query error — SKIP (no Firebase refund fallback):', e.message);
     }
   };
 
   window.fa66_checkAndCancelEmpty._v24LiveCount = true;
-  console.log('[v24] BUG #5 ✅ fa66_checkAndCancelEmpty: Live count from Supabase');
+  console.log('[v24] BUG #5 ✅ fa66_checkAndCancelEmpty: Live count + single atomic cancel_match_with_refunds RPC');
 });
 
 /* ════════════════════════════════════════════════════════════════════════

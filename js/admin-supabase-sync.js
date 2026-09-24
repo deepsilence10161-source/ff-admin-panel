@@ -81,54 +81,16 @@
   function _wrapPublishResults() {
     var orig = window.publishResults;
     window.publishResults = async function() {
-      /* Call original */
-      /* ✅ Fix: set _currentMatchId from the result select BEFORE calling original */
+      /* ⛔ R7 FOLLOW-UP (2026-09-24d): publishResults() ab server ke EK atomic
+         RPC `publish_match_results()` se chalta hai (wallet credit + ledger +
+         join_requests + match_results + stats + season + platform SAB RPC
+         andar). Ye wrapper ka purana post-sync (rtdb 'results' node padhkar
+         join_requests.update + matches.status) ab zaroori nahi — RPC ne sab
+         kar diya. Isliye wrapper ab base ko forward karta hai, koi alag
+         Supabase write nahi. (Never re-add a balance credit here.) */
       var _midEl = document.getElementById('resultTournamentSelect');
       window._currentMatchId = _midEl ? _midEl.value : null;
-      await orig.apply(this, arguments);
-      /* After Firebase updates, sync winning players to Supabase */
-      setTimeout(async function() {
-        try {
-          var mid = window._currentMatchId || window._curMatchId;
-          if (!mid) return;
-          var rtdb_ = window.rtdb || window.db;
-          if (!rtdb_) return;
-          /* Get results from Firebase and sync to Supabase */
-          var snap = await rtdb_.ref('results').orderByChild('matchId').equalTo(mid).once('value');
-          if (!snap.exists()) return;
-          snap.forEach(function(c) {
-            var r = c.val();
-            if (!r || !r.userId) return;
-            var prize = Number(r.winnings || r.totalWinning || 0);
-            if (prize <= 0) return;
-            /* ✅ R24 FIX (double-credit): publishResults() itself already credits
-               the prize to Supabase (increment_balance + wallet_transactions
-               'match_win' + join_requests placement update — see its inline
-               window._supa block). This wrapper's OWN increment_balance +
-               wallet_transactions insert below used to run ON TOP of that —
-               every published result paid every winner TWICE in Supabase
-               (live-proven R24 E2E: 450 → 478 instead of 464). The balance /
-               ledger credit here is REMOVED; only the idempotent bookkeeping
-               syncs (join_requests kills/placement/prize_earned, matches
-               status) remain. Never re-add a balance credit here. */
-            /* Update match stats */
-            window._supa.from('join_requests')
-              .update({ kills: r.kills||0, placement: r.rank||0, prize_earned: prize })
-              .eq('match_id', mid).eq('user_id', r.userId)
-              .then(function(res) {
-                if (res && res.error) console.error('[AdminSync] join_requests kills/placement update FAILED for', r.userId, 'match', mid, ':', res.error.message);
-              });
-          });
-          /* Mark match as completed in Supabase */
-          window._supa.from('matches')
-            .update({ status: 'completed' })
-            .eq('id', mid)
-            .then(function(res) {
-              if (res && res.error) console.error('[AdminSync] Marking match completed REJECTED for', mid, ':', res.error.message);
-            });
-          console.log('[AdminSync] Results synced to Supabase for match:', mid);
-        } catch(e) { console.error('[AdminSync] publishResults sync error:', e.message); }
-      }, 3000);
+      return orig.apply(this, arguments);
     };
   }
 
@@ -222,19 +184,29 @@
       }
       await orig.apply(this, arguments);
       try {
+        /* ⛔ R7 FOLLOW-UP (2026-09-24c): EK atomic RPC `admin_adjust_wallet`.
+           Pehle increment_balance (ledger-less) + alag wallet_transactions
+           insert + alag admin_activity_log insert 3 alag mutations the.
+           Ab single authoritative ledger mutation; Firebase/UI mirror-only. */
         var col = type === 'sky' ? 'sky_diamonds' : type === 'green' ? 'green_diamonds' : 'coins';
         var amt = Number(amount) || 0;
         if (!uid || !amt) return;
-        await window._supa.rpc('increment_balance', { p_uid: uid, p_col: col, p_amount: amt });
-        await window._supa.from('wallet_transactions').insert({
-          user_id: uid, currency: col, txn_type: 'credit',
-          amount: amt, reason: 'admin_credit', note: note || 'Admin manual credit',
-          admin_id: adminId /* ✅ Always log admin UID */
+        var wres = await window._supa.rpc('admin_adjust_wallet', {
+          p_uid: uid, p_col: col, p_amount: amt,
+          p_reason: note || 'Admin manual credit'
         });
+        if (!wres || !wres.data || wres.data.success !== true) {
+          throw new Error((wres && wres.data && wres.data.error) || 'rejected');
+        }
+        /* Activity log as NON-authoritative audit mirror (best-effort).
+           Correct column names: admin_uid (not admin_id), action_type,
+           target_uid / details / created_at. */
         await window._supa.from('admin_activity_log').insert({
-          admin_id: adminId, /* ✅ Required, never null */
-          action: 'manual_credit', target_type: 'user', target_id: uid,
-          details: { col: col, amount: amt, note: note, timestamp: Date.now() }
+          admin_uid: adminId,
+          action_type: 'manual_wallet_credit',
+          target_uid: uid,
+          details: { col: col, amount: amt, note: note, timestamp: Date.now() },
+          created_at: new Date().toISOString()
         });
         console.log('[AdminSync] Manual credit synced by', adminId, ':', uid, col, amt);
       } catch(e) { console.error('[AdminSync] saveManualCredit sync error:', e.message); }

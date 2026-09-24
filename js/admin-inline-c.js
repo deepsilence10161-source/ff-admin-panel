@@ -1752,12 +1752,8 @@ async function publishResults(){
   setLoading(pubBtn,true);
   
   try{
-    // Load existing results if correction mode
-    var existingResults={};
-    if(alreadyPublished){
-      var _eRes=await rtdb.ref('results').orderByChild('matchId').equalTo(mid).once('value');
-      if(_eRes.exists()) _eRes.forEach(function(c){ var d=c.val(); if(d&&d.userId) existingResults[d.userId]=d; });
-    }
+    /* Correction-mode old-values ab server RPC khud match_results se
+       padhta hai (delta compute ke liye) — client-side pre-read hata diya. */
     
     // Upload result screenshots via ImgBB (Firebase Storage removed — not configured)
     var uploadedUrls=[];
@@ -1782,244 +1778,60 @@ async function publishResults(){
     }
     
     var totalPlayers=rows.length;
-    window._captainExtraWin = {}; // reset captain extra winnings tracker
-    var _failedUids = []; /* Track failed players for retry/report */
-    
+    /* ⛔ R7 FOLLOW-UP (2026-09-24d): PRIZE = ONE ATOMIC RPC.
+       publishResults() pehle har player ke liye Firebase transaction (bridge
+       se Supabase balance) + alag wallet_transactions INSERT + join_requests
+       UPDATE + rank_points/total_matches RPC + match_results upsert + season/
+       platform/screenshot — सैकड़ों alag writes, partial-failure का खतरा।
+       Ab server ka `publish_match_results(p_match_id, p_results)` EK hi txn
+       mein yeh sab karta hai: server khud prize compute (matches.* columns),
+       captain_pays aggregation (join_requests.fee_type/captain_uid), wallet
+       credit + ledger + join_requests + match_results + users stats +
+       season_stats + platform_earnings + notifications. Client sirf
+       {user_id, rank, kills} bhejta hai — koi amount/currency NAHI. */
+    var _serverResults = [];
     for(var i=0;i<rows.length;i++){
       var row=rows[i];
       var uid=row.dataset.uid;
-      var rid=row.dataset.reqid;
-      /* ── Per-player individual try/catch: one failure NEVER stops others ── */
-      try {
       var rank=Number(row.querySelector('.rank-input').value)||0;
       var kills=Number(row.querySelector('.kills-input').value)||0;
-      var rowFeeType = row.dataset.feetype || 'captain_pays';
-      var rowIsTeam = row.dataset.isteam === '1';
-      var rowCaptainUid = row.dataset.captainuid || '';
-      
-      var rp=0;
-      /* Use _MPD (set at load time from fresh Firebase fetch) for prize values */
-      var _pd = window._MRD || {};
-      var _f1 = _pd.f1 || (t?Number(t.firstPrize)||0:0);
-      var _f2 = _pd.f2 || (t?Number(t.secondPrize)||0:0);
-      var _f3 = _pd.f3 || (t?Number(t.thirdPrize)||0:0);
-      var perKill = _pd.pk || (t?Number(t.perKillPrize)||0:0);
-      if(rank===1) rp=_f1;
-      else if(rank===2) rp=_f2;
-      else if(rank===3) rp=_f3;
-      var killPrize = kills * perKill;
-      var tw = rp + killPrize; // rank prize + kill prize
-      
-      /* captain_pays + isTeamMember: this player's winnings go to captain instead */
-      /* We still record rank/kills for the team member but tw=0 for them */
-      /* Captain's tw will be accumulated from all team members' prizes */
-      if (rowFeeType === 'captain_pays' && rowIsTeam) {
-        /* Store this team member's prize to be given to captain later */
-        if (!window._captainExtraWin) window._captainExtraWin = {};
-        if (!window._captainExtraWin[rowCaptainUid]) window._captainExtraWin[rowCaptainUid] = 0;
-        window._captainExtraWin[rowCaptainUid] += tw;
-        tw = 0; // team member gets nothing
-      } else if (rowFeeType === 'captain_pays' && !rowIsTeam) {
-        /* Captain row: add team members' prizes to captain's total (collected above) */
-        var extra = (window._captainExtraWin && window._captainExtraWin[uid]) || 0;
-        tw += extra;
-      }
-      
-      if(alreadyPublished){
-        // CORRECTION MODE: calculate delta
-        var oldResult=existingResults[uid]||{};
-        var oldTw=oldResult.winnings||oldResult.totalWinning||0;
-        var delta=tw-oldTw;
-        
-        // Update result records
-        await rtdb.ref(DB_MATCHES+'/'+mid+'/results/'+uid).update({rank:rank,kills:kills,killPrize:killPrize,rankPrize:rp,totalWinning:tw,correctedAt:Date.now()});
-        await rtdb.ref(DB_JOIN+'/'+rid).update({kills:kills,rank:rank,killPrize:killPrize,rankPrize:rp,reward:tw,resultStatus:'completed'});
-        
-        // Apply delta to user wallet
-        if(delta!==0){
-          /* ✅ R24 FIX: wallet/winningBalance (→green_diamonds, same column as
-             realMoney/winnings) and totalWinnings (→total_winnings, same column
-             as stats/earnings) were DOUBLE-applying every correction delta in
-             Supabase. One canonical path per column now. */
-          await rtdb.ref(DB_USERS+'/'+uid+'/realMoney/winnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
-          await rtdb.ref(DB_USERS+'/'+uid+'/stats/earnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
-          
-          // Transaction record with reason
-          var deltaReason=delta>0
-            ? '+'+'₹'+delta+' added — '+( t?t.name:'Match')+' result correction (Rank #'+rank+')'
-            : '₹'+Math.abs(delta)+' adjusted — '+(t?t.name:'Match')+' result correction (Rank #'+rank+')';
-          await rtdb.ref(DB_USERS+'/'+uid+'/transactions').push({type:delta>0?'correction_credit':'correction_debit',amount:Math.abs(delta),description:deltaReason,timestamp:Date.now()});
-          
-          // Notification with reason
-          var notifMsg=delta>0
-            ? '✅ Result correction: ₹'+delta+' add kiya gaya. Match: '+(t?t.name:'')+', Rank #'+rank+'. Reason: Pehle record mein galti thi.'
-            : '⚠️ Result correction: ₹'+Math.abs(delta)+' adjust kiya gaya. Match: '+(t?t.name:'')+', Rank #'+rank+'. Reason: Pehle zyada prize distribute hua tha.';
-          await rtdb.ref(DB_USERS+'/'+uid+'/notifications').push({title:'🔧 Result Correction',message:notifMsg,timestamp:Date.now(),read:false,type:'correction',uid:uid});
-        }
-        
-        // Update kills stats delta
-        var oldKills=oldResult.kills||0;
-        var killDelta=kills-oldKills;
-        if(killDelta!==0){
-          /* ✅ R24 FIX: totalKills txn removed — bridge maps it to the SAME
-             supa column (total_kills) as stats/kills below → killDelta was
-             applied twice. stats/kills is the single canonical path. */
-          await rtdb.ref(DB_USERS+'/'+uid+'/stats/kills').transaction(function(v){return Math.max(0,(v||0)+killDelta);});
-        }
-        
-      } else {
-        // FIRST PUBLISH (normal flow)
-        await rtdb.ref(DB_MATCHES+'/'+mid+'/results/'+uid).set({rank:rank,kills:kills,killPrize:killPrize,rankPrize:rp,totalWinning:tw,timestamp:Date.now()});
-        var resultPushRef=rtdb.ref('results').push();
-        await resultPushRef.set({userId:uid,matchId:mid,matchName:t?t.name:'',rank:rank,kills:kills,killPrize:killPrize,rankPrize:rp,winnings:tw,won:rank===1,entryFee:t?t.entryFee||0:0,totalPlayers:totalPlayers,timestamp:Date.now(),createdAt:Date.now(),synced:false,cashbackGiven:false});
-        await rtdb.ref(DB_JOIN+'/'+rid).update({kills:kills,rank:rank,killPrize:killPrize,rankPrize:rp,reward:tw,resultStatus:'completed'});
-        /* ✅ FIX (2026-08-18): removed the `userMatches/...` result write —
-           user_matches has no kills/rank/kill_prize/rank_prize/reward/
-           result_status columns (REST 42703) and the filter never matched
-           (id=uid vs real UUID), so it always failed/affected 0 rows. The
-           authoritative result record is matches/{id}/results/{uid} (above)
-           and the join_requests row; user_matches is not read by the user
-           panel (verified) nor kept in sync, so dropping it loses nothing. */
-        /* ✅ R24 FIX (stats triple-count): the bridge maps BOTH users/{uid}/totalKills
-           AND users/{uid}/stats/kills to the SAME supa column total_kills
-           (USER_FIELD_MAP + NESTED_FIELD_MAP), and the supa-block below ALSO
-           incremented total_kills via RPC — live-proven +6 kills per +2-kill
-           publish. Same for totalWinnings/stats/earnings → total_winnings
-           (×2) and stats/wins + total_wins RPC (×2). Each metric now written
-           EXACTLY ONCE via its canonical stats/* path; only rank_points and
-           total_matches stay RPC (no RTDB path writes them). */
-        await rtdb.ref(DB_USERS+'/'+uid+'/stats/kills').transaction(function(v){return(v||0)+kills;});
-        if(tw>0){
-          // Credit prize to correct currency based on prizeType
-          /* ✅ Prize type: paid/SD entry → Green Diamond prize (non-withdrawable) | coin entry → coin prize */
-          var _prizeType = t ? (t.prizeType || (
-            (t.entryType==='paid' || t.entryType==='sky_diamond' || t.entryType==='skyDiamond') ? 'greenDiamond' :
-            t.entryType==='coin' ? 'coin' : 'coin'
-          )) : 'coin';
-          var _pricePath = _prizeType==='greenDiamond' ? '/greenDiamonds' : _prizeType==='skyDiamond' ? '/skyDiamonds' : '/coins';
-          var _prizeSymbol = _prizeType==='greenDiamond' ? '<img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">' : _prizeType==='skyDiamond' ? '💎' : '🪙';
-          await rtdb.ref(DB_USERS+'/'+uid+_pricePath).transaction(function(v){return(v||0)+tw;});
-          await rtdb.ref(DB_USERS+'/'+uid+'/stats/earnings').transaction(function(v){return(v||0)+tw;});
-          /* ✅ R24 FIX: totalWinnings txn removed — bridge maps it to the SAME
-             supa column (total_winnings) as stats/earnings above → prizes were
-             counted twice in total_winnings. stats/earnings is canonical. */
-          if(rank===1){
-            await rtdb.ref(DB_USERS+'/'+uid+'/stats/wins').transaction(function(v){return(v||0)+1;});
-            await rtdb.ref(DB_USERS+'/'+uid+'/stats/winStreak').transaction(function(v){return(v||0)+1;});
-          } else {
-            await rtdb.ref(DB_USERS+'/'+uid+'/stats/winStreak').set(0);
-          }
-          var breakdownMsg = (rp>0?'Rank #'+rank+' = '+_prizeSymbol+rp:'') + (killPrize>0?(rp>0?' + ':'')+kills+' kills × '+_prizeSymbol+perKill+' = '+_prizeSymbol+killPrize:'');
-          await rtdb.ref(DB_USERS+'/'+uid+'/transactions').push({type:'winning',currency:_prizeType,amount:tw,description:(t?t.name:'Match')+' — '+breakdownMsg,timestamp:Date.now()});
-          var winMsg='🏆 '+_prizeSymbol+tw+' jeeta! '+(t?t.name:'')+' — '+(rank?'Rank #'+rank+': '+_prizeSymbol+rp+', ':'')+(kills+' Kills: '+_prizeSymbol+killPrize)+'. Wallet mein add ho gaye.';
-          /* Bug Critical #1 Fix: dual-write notification to Firebase + Supabase */
-          await window._adminNotifyUser(uid,{title:'🏆 Match Result!',message:winMsg,type:'result',matchId:mid});
-          /* Bug Critical #5 Fix: Credit prize in Supabase wallet_transactions */
-          if(window._supa && tw > 0){
-            var _supaCurrency = _prizeType==='greenDiamond'?'green_diamonds':_prizeType==='skyDiamond'?'sky_diamonds':'coins';
-            /* ✅ R24 FIX (double-credit #2): NO increment_balance here!
-               The rtdb.ref(DB_USERS+'/'+uid+_pricePath).transaction() above is
-               already translated by the supabase-rtdb-bridge into a single
-               atomic Supabase users.coins/sky_diamonds update (supaTransaction
-               nested-field handler). This block's own increment_balance ran ON
-               TOP of that — every winner got paid TWICE in Supabase (live-proven
-               E2E twice: 450→478 and 292→320 instead of 464/306). Keep the
-               ledger row + join_requests/stats bookkeeping below; the balance
-               move itself happens exactly once via the bridge. */
-            window._supa.from('wallet_transactions').insert({user_id:uid,txn_type:'match_win',currency:_supaCurrency,amount:tw,ref_id:mid,description:(t?t.name:'Match')+' — Rank #'+rank+' prize'}).then(null, function(){});
-            window._supa.from('join_requests').update({status:'completed',placement:rank,prize_earned:tw,kills:kills}).eq('user_id',uid).eq('match_id',mid).then(null, function(){});
-            /* ✅ BUG 2 FIX: Update rank_points + stats in Supabase (leaderboard uses these) */
-            var _rankPts = rank===1?25 : rank===2?15 : rank===3?10 : rank<=10?5 : 1;
-            var _killRankPts = Math.min(kills, 3); /* cap kill bonus at 3 pts */
-            var _totalRankPts = _rankPts + _killRankPts;
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:'rank_points',p_amount:_totalRankPts}).then(null, function(){});
-            /* ✅ R24 FIX (stats triple-count): total_kills/total_wins RPCs removed —
-               stats/kills and stats/wins RTDB txns above ALREADY reach these same
-               columns via the bridge (NESTED_FIELD_MAP). The win_streak read-modify
-               block also removed — stats/winStreak txn covers win_streak; the old
-               read+cur+1 raced the bridge txn and bumped it twice. */
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_matches',p_amount:1}).then(null, function(){});
-            /* ✅ Insert match_results row for Supabase analytics */
-            window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:tw},{onConflict:'match_id,user_id'}).then(null, function(e){ console.error('[publishResults] match_results upsert FAIL uid='+uid+':', e && (e.message||e.code)); window._supaResultErrors=(window._supaResultErrors||0)+1; });
-          }
-        } else {
-          await rtdb.ref(DB_USERS+'/'+uid+'/stats/winStreak').set(0);
-          var noWinMsg='📋 '+(t?t.name:'')+' ka result publish ho gaya! Tumhara rank: '+(rank?'#'+rank:'Unranked')+', Kills: '+kills+'. Better luck next time! 💪';
-          /* Bug Critical #1 Fix: dual-write notification */
-          await window._adminNotifyUser(uid,{title:'📋 Result Published — Dekho!',message:noWinMsg,type:'result',matchId:mid});
-          /* ✅ Mark join_request completed + update stats for non-winners */
-          if(window._supa){
-            window._supa.from('join_requests').update({status:'completed',placement:rank,prize_earned:0,kills:kills}).eq('user_id',uid).eq('match_id',mid).then(null, function(){});
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:'rank_points',p_amount:1}).then(null, function(){}); /* participation point */
-            /* ✅ R24 FIX: total_kills RPC removed here too — the unconditional
-               stats/kills RTDB txn already covers total_kills via the bridge. */
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:'total_matches',p_amount:1}).then(null, function(){});
-            window._supa.from('users').update({win_streak:0}).eq('id',uid).then(null, function(){});
-            window._supa.from('match_results').upsert({match_id:mid,user_id:uid,placement:rank,kills:kills,prize:0},{onConflict:'match_id,user_id'}).then(null, function(e){ console.error('[publishResults] match_results upsert FAIL (non-winner) uid='+uid+':', e && (e.message||e.code)); window._supaResultErrors=(window._supaResultErrors||0)+1; });
-          }
-        }
-        // Cashback removed — no real money refund
-        // Platform profit tracking
-        var entryF=t?t.entryFee||0:0;
-        await rtdb.ref('platformEarnings').push({matchId:mid,entryFee:entryF,prizeGiven:tw,profit:entryF-tw,userId:uid,timestamp:Date.now()});
-        // lastResult for recap
-        await rtdb.ref(DB_USERS+'/'+uid+'/lastResult').set({rank:rank,kills:kills,winnings:tw,matchName:t?t.name:'',matchId:mid,timestamp:Date.now()});
-      }
-      } catch(_playerErr) {
-        /* One player failed — log it but CONTINUE with next player */
-        console.error('[publishResults] Player ' + uid + ' failed:', _playerErr && _playerErr.message);
-        _failedUids.push(uid);
-        /* Mark this row red so admin can see which player failed */
-        try { rows[i].style.background = 'rgba(255,60,60,0.15)'; } catch(e) {}
-        /* Continue loop — don't break */
-        continue;
-      }
+      _serverResults.push({ user_id: uid, rank: rank, kills: kills });
     }
-    /* Report failures if any */
-    if (_failedUids.length > 0) {
-      showToast('⚠️ ' + _failedUids.length + ' player(s) mein error — red rows check karo, dubara publish karo', true);
+    var _publishRes = null;
+    if (window._supa) {
+      _publishRes = await window._supa.rpc('publish_match_results', {
+        p_match_id: mid,
+        p_results: _serverResults
+      });
     }
-    
-    // Update match status
-    if(!alreadyPublished){
-      await rtdb.ref(DB_MATCHES+'/'+mid).update({status:'resultPublished',resultPublishedAt:Date.now()});
-      /* ✅ FIX 10: Set result_published_at in Supabase — prevents double-publish on reload */
-      if(window._supa) window._supa.from('matches').update({
-        status: 'completed',
-        result_published_at: new Date().toISOString()
-      }).eq('id', mid).then(null, function(){});
-    /* Update season stats for all players
-       ✅ R24 FIX: the RTDB seasonStats transaction was a silent no-op — the
-       bridge intercepts it, and its generic supa-transaction path has NO
-       insert fallback (live-proven: season_stats had 0 rows even after
-       multiple publishes). Write the real season_stats table directly
-       (read-modify-upsert on month_key+user_id). */
-    rows.forEach(function(row){
-      var rUid=row.dataset.uid; if(!rUid || !window._supa) return;
-      var rKills=Number(row.querySelector('.kills-input').value)||0;
-      var rRank=Number(row.querySelector('.rank-input').value)||0;
-      var now=new Date(); var monthKey=now.getFullYear()+'_'+String(now.getMonth()+1).padStart(2,'0');
-      window._supa.from('season_stats').select('wins,kills,matches').eq('month_key',monthKey).eq('user_id',rUid).maybeSingle()
-        .then(function(r){
-          var cur=(r && r.data)||{wins:0,kills:0,matches:0};
-          return window._supa.from('season_stats').upsert({
-            month_key:monthKey, user_id:rUid,
-            kills:(cur.kills||0)+rKills,
-            matches:(cur.matches||0)+1,
-            wins:(cur.wins||0)+(rRank===1?1:0)
-          },{onConflict:'month_key,user_id'});
-        }).then(null, function(e){ console.warn('[publishResults] season_stats upsert fail', rUid, e && e.message); });
-    });
-    } else {
-      await rtdb.ref(DB_MATCHES+'/'+mid).update({resultCorrectedAt:Date.now()});
+    if (_publishRes && _publishRes.error) {
+      throw new Error(_publishRes.error.message || 'publish RPC failed');
     }
-    
+    var _publishPayload = _publishRes && _publishRes.data;
+    if (!_publishPayload || _publishPayload.ok !== true) {
+      throw new Error((_publishPayload && _publishPayload.error) || 'Publish rejected by server');
+    }
+    /* Season stats ab server RPC ne likhe hain (spoof-free month_key) —
+       client-side season_stats upsert hata diya. */
+    if(window._supa && uploadedUrls.length > 0){
+      window._supa.from('matches').update({ result_screenshot: uploadedUrls[0] }).eq('id', mid).then(null, function(){});
+    }
+    /* NOTE: koi Firebase results-mirror loop NAHI likha gaya — `matches/{mid}/
+       results/{uid}` admin-bridge se match_results table par (filter= match_id
+       only, bina user_id) route hota hai → RPC ke authoritative match_results
+       rows corrupt ho sakte the. Server RPC hi result rows ka single writer hai;
+       user/admin dono panles match_results ko bridge se seedhe padhte hain. */
+    showToast(_publishPayload.was_correction
+      ? '✅ Result correction done! ('+_publishPayload.corrections+' corrections, '+_publishPayload.players+' players)'
+      : '✅ Results published! ('+_publishPayload.players+' players, '+_publishPayload.winners+' winners paid)');
+    // Update match status — server RPC ne kar diya (matches.status='completed'
+    // + result_published_at). Firebase mirror status sirf UI ke liye. */
+
     resultScreenshots=[];
     var ssP=document.getElementById('ssPreview');if(ssP)ssP.innerHTML='';
     var ssC=document.getElementById('screenshotCount');if(ssC)ssC.textContent='0 selected';
     
     setLoading(pubBtn,false);
-    showToast(alreadyPublished?'✅ Result correction done! Users notified.':'✅ Results published! Prizes distributed.');
     loadParticipants();
     _publishResultsInProgress = false;
     if(_pubBtn){ _pubBtn.disabled = false; _pubBtn.style.opacity = ''; }

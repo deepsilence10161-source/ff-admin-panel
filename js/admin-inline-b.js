@@ -1447,56 +1447,53 @@ async function processManualWallet(){
   if(!uid)return showToast('Enter UID',true);
   if(amt<=0)return showToast('Amount must be greater than 0',true);
   if(amt>999999)return showToast('Amount too large (max 999,999)',true);
-  var s=await rtdb.ref(DB_USERS+'/'+uid).once('value');
-  if(!s.exists())return showToast('User not found',true);
   var modalBtns=document.querySelectorAll('#manualWalletModal .btn-primary');
   modalBtns.forEach(function(b){setLoading(b,true);});
+
+  /* ⛔ R7 FOLLOW-UP (2026-09-24c): Supabase ab EKMATRA authoritative financial
+     ledger hai. Pehle credit/debit Firebase transaction se PEHLE chalta tha
+     (coins/skyDiamonds/greenDiamonds RTDB me), aur Supabase sirf "sync" hota
+     tha — RPC fail ho to direct read+update fallback bhi tha. Ab ye sab hata
+     diya gaya: EK hi atomic RPC `admin_adjust_wallet()` server par balance
+     roww-lock ke saath update karta hai AUR wallet_transactions ledger RPC ke
+     ANDAR likhta hai (single authoritative mutation). Firebase sirf UI mirror
+     (transactions log) likhta hai — kabhi balance nahi. */
   var supaCol=wt==='sky'?'sky_diamonds':wt==='green'?'green_diamonds':'coins';
-  var currPath=wt==='sky'?'skyDiamonds':wt==='green'?'greenDiamonds':'coins';
+  var adj=act==='credit'?amt:-amt;
+  var supaw=window._supa||(typeof getSupa==='function'?getSupa():null);
+  if(!supaw){
+    modalBtns.forEach(function(b){setLoading(b,false);});
+    return showToast('❌ Supabase unavailable — wallet change NOT applied (server authoritative)',true);
+  }
+
   try{
-    /* Bug#7 Fix: Firebase is source of truth — write Firebase FIRST, then sync Supabase.
-       This prevents Supabase-updated/Firebase-not state on partial failure.
-       If Supabase RPC doesn't exist, fall back to direct update. */
-    var _fbResult;
-    if(act==='credit'){
-      _fbResult=await rtdb.ref(DB_USERS+'/'+uid+'/'+currPath).transaction(function(v){return(v||0)+amt});
-      if(_fbResult.committed){
-        if(window._supa){
-          var _supaOk=await window._supa.rpc('increment_balance',{p_uid:uid,p_col:supaCol,p_amount:amt}).then(null, function(){return {error:{message:'rpc_missing'}};});
-          if(_supaOk&&_supaOk.error&&_supaOk.error.message&&_supaOk.error.message.includes('rpc_missing')){
-            /* RPC not set up — fallback to direct read+update */
-            var _cur=await window._supa.from('users').select(supaCol).eq('id',uid).single().then(function(r){return r;}, function(){return {data:null};});
-            if(_cur.data) window._supa.from('users').update({[supaCol]:(_cur.data[supaCol]||0)+amt}).eq('id',uid).then(null, function(){});
-          }
-        }
-      }
-    }else{
-      /* For debit: check Firebase balance BEFORE decrementing (prevent negative) */
-      var _curBal=await rtdb.ref(DB_USERS+'/'+uid+'/'+currPath).once('value');
-      var _curBalVal=Number(_curBal.val())||0;
-      if(_curBalVal<amt)throw new Error('Insufficient '+wt+' balance (current: '+_curBalVal+')');
-      _fbResult=await rtdb.ref(DB_USERS+'/'+uid+'/'+currPath).transaction(function(v){return Math.max((v||0)-amt,0)});
-      if(_fbResult.committed){
-        if(window._supa){
-          var _supaOk2=await window._supa.rpc('decrement_balance',{p_uid:uid,p_col:supaCol,p_amount:amt}).then(null, function(){return {error:{message:'rpc_missing'}};});
-          if(_supaOk2&&_supaOk2.error&&_supaOk2.error.message&&_supaOk2.error.message.includes('rpc_missing')){
-            var _cur2=await window._supa.from('users').select(supaCol).eq('id',uid).single().then(function(r){return r;}, function(){return {data:null};});
-            if(_cur2.data) window._supa.from('users').update({[supaCol]:Math.max((_cur2.data[supaCol]||0)-amt,0)}).eq('id',uid).then(null, function(){});
-          }
-        }
-      }
+    var res=await supaw.rpc('admin_adjust_wallet',{p_uid:uid,p_col:supaCol,p_amount:adj,p_reason:rsn});
+    if(res && res.error){ throw new Error(res.error.message||'RPC error'); }
+    if(!res || !res.data || res.data.success !== true){
+      throw new Error((res&&res.data&&res.data.error)||'Wallet change rejected by server');
     }
-    await rtdb.ref(DB_USERS+'/'+uid+'/transactions').push({type:act==='credit'?'admin_credit':'admin_debit',currency:wt,amount:act==='credit'?amt:-amt,description:rsn,timestamp:Date.now()});
-    if(window._supa){window._supa.from('wallet_transactions').insert({user_id:uid,currency:supaCol,txn_type:act==='credit'?'admin_credit':'admin_debit',amount:act==='credit'?amt:-amt,description:rsn}).then(null, function(){});}
-    await window._adminNotifyUser(uid,{title:act==='credit'?'💰 Wallet Credited!':'Wallet Adjusted',message:amt+' '+(act==='credit'?'add kiye gaye':'remove kiye gaye')+'. Reason: '+rsn,type:act==='credit'?'wallet_credit':'wallet_debit'});
-    var modalBtns2=document.querySelectorAll('#manualWalletModal .btn-primary');
-    modalBtns2.forEach(function(b){setLoading(b,false);});
+
+    /* Firebase = UI mirror ONLY (transactions log / notification) — no balance write */
+    await rtdb.ref(DB_USERS+'/'+uid+'/transactions').push({
+      type:act==='credit'?'admin_credit':'admin_debit',
+      currency:wt,
+      amount:act==='credit'?amt:-amt,
+      description:rsn,
+      timestamp:Date.now()
+    });
+    await window._adminNotifyUser(uid,{
+      title:act==='credit'?'💰 Wallet Credited!':'Wallet Adjusted',
+      message:amt+' '+wt+' '+(act==='credit'?'add kiye gaye':'remove kiye gaye')+'. Reason: '+rsn,
+      type:act==='credit'?'wallet_credit':'wallet_debit'
+    });
+
+    modalBtns.forEach(function(b){setLoading(b,false);});
     closeModal('manualWalletModal');
-    showToast('✅ '+amt+' '+(act==='credit'?'credited':'debited'));
+    showToast('✅ '+amt+' '+wt+' '+(act==='credit'?'credited':'debited')+' (server ledger)');
   }catch(e){
-    var modalBtns3=document.querySelectorAll('#manualWalletModal .btn-primary');
-    modalBtns3.forEach(function(b){setLoading(b,false);});
-    showToast('Error: '+e.message,true);
+    modalBtns.forEach(function(b){setLoading(b,false);});
+    showToast('❌ Error: '+e.message,true);
+    console.error('[processManualWallet] admin_adjust_wallet failed:', e);
   }
 }
 

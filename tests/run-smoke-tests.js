@@ -153,18 +153,15 @@ console.log('\n── TEST 4: no monolith residue in index.html; parts reference
   ok(!monoRef, 'index no longer references monolith admin-inline.js');
 }
 
-/* ── TEST 5: ROUND-4 — fa22 entryF defined (no ReferenceError) ── */
-console.log('\n── TEST 5: R4 fa22-match-result.js entryF restore (cashback NOT reintroduced) ──');
+/* ── TEST 5: R7 FOLLOW-UP — fa22 prize path ab SINGLE atomic RPC (no client writer) ── */
+console.log('\n── TEST 5: fa22-match-result.js single-RPC prize path (no client-side financial writer) ──');
 {
   const src = fs.readFileSync(path.join(REPO, 'js/features/fa22-match-result.js'), 'utf8');
-  ok(/var\s+entryF\s*=\s*t\s*\?\s*\(?t\.entryFee/, src,
-     'entryF defined (authoritative t.entryFee)');
-  ok(src.includes('platformEarnings'), 'platformEarnings push intact');
-  ok(!src.includes('cashback no real money refund से अलग 25% cashback'), 'cashback reintroduce NAHI');
-  // orphan-path hai — still safe: entryF use hone se pehle define
-  const defIdx = src.indexOf('var entryF');
-  const useIdx = src.indexOf('entryFee: entryF');
-  ok(defIdx !== -1 && useIdx > defIdx, 'entryF define use-se-pehle (order safe)');
+  ok(src.includes("rpc('publish_match_results'"), 'publish ab single atomic RPC publish_match_results');
+  ok(!/var\s+entryF\s*=\s*t\s*\?/.test(src), 'entryF client-side prize compute HATA (server authoritative)');
+  ok(!src.includes('platformEarnings'), 'platformEarnings client push HATA (server authoritative)');
+  ok(!src.includes('cashback'), 'cashback reintroduce NAHI (ab koi cashback word nahi)');
+  ok(!src.includes('wallet_transactions'), 'no direct client wallet_transactions write');
 }
 
 /* ── TEST 6: ROUND-5 — sponsored withdrawal single-authority (no dual approve) ── */

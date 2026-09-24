@@ -325,58 +325,32 @@
         var max    = Number(m.maxPlayers)  || 1;
 
         if (filled < 2 || (filled / max) < MIN_PLAYERS_PCT) {
-          // Auto-cancel
-          db.ref('matches/' + key).update({ status: 'cancelled', cancelledAt: Date.now(), cancelReason: 'auto_low_players' });
-
-          // Bug New-5 Fix: Refund via Supabase RPC (authoritative balance) instead
-          // of Firebase transaction so both databases stay in sync
-          if (filled > 0 && m.entryFee > 0) {
-            var supa = window._supa;
-            if (supa) {
-              // Fetch joined players from Supabase join_requests
-              supa.from('join_requests')
-                .select('user_id,entry_fee,entry_type')
-                .eq('match_id', key)
-                .not('status', 'in', '("cancelled","refunded")')
-                .then(function (jr) {
-                  var rows = jr.data || [];
-                  rows.forEach(function (r) {
-                    var currency = r.entry_type === 'sky' ? 'sky_diamonds' : 'coins';
-                    var refundAmt = Number(r.entry_fee) || Number(m.entryFee) || 0;
-                    if (!refundAmt) return;
-                    // Supabase balance refund
-                    supa.rpc('increment_balance', { p_uid: r.user_id, p_col: currency, p_amount: refundAmt })
-                      .catch(function (e) { console.error('[fa66] refund error', r.user_id, e.message); });
-                    // Mark join_request as refunded
-                    supa.from('join_requests').update({ status: 'refunded' })
-                      .eq('user_id', r.user_id).eq('match_id', key).then(null, function(){});
-                    // Notify user via Firebase
-                    db.ref('users/' + r.user_id + '/notifications').push({
-                      title: '🔄 Match Cancelled — Refund!',
-                      message: (m.name || 'Match') + ' cancel ho gaya (players kam the). ' + refundAmt + ' ' + currency + ' refund ho gaya.',
-                      type: 'refund',
-                      timestamp: Date.now(),
-                      read: false
-                    });
-                  });
-                }).catch(function (e) { console.error('[fa66] join_requests fetch error:', e.message); });
-            } else {
-              // Supabase unavailable — Firebase fallback only
-              db.ref('joinedMatches').once('value', function (jSnap) {
-                if (!jSnap.exists()) return;
-                jSnap.forEach(function (uSnap) {
-                  uSnap.forEach(function (mSnap) {
-                    if (mSnap.val().matchId === key) {
-                      var uid = uSnap.key;
-                      db.ref('users/' + uid + '/coins').transaction(function (coins) { return (coins || 0) + (Number(m.entryFee) || 0); });
-                    }
-                  });
-                });
-              });
-            }
+          /* ⛔ R7 FOLLOW-UP (2026-09-24c): EK HI authoritative atomic path.
+             Pehle ye function matches->update + per-player increment_balance
+             RPC + join_requests.update + (Supabase unavailable par) Firebase
+             joinedMatches transaction se coins refund karta tha — teen
+             alag-alag mutations, partial/double refund risk. Ab sab kuch
+             cancel_match_with_refunds(p_match_id) EK atomic RPC karta hai
+             (admin JWT check + FOR UPDATE lock + per-join refund + ledger +
+             commission void + match cancel). Firebase sirf mirror write. */
+          var supa = window._supa;
+          if (supa) {
+            supa.rpc('cancel_match_with_refunds', { p_match_id: key })
+              .then(function (res) {
+                if (res && res.error) { console.error('[fa66] cancel RPC error', key, res.error.message); return; }
+                var refundCount = (res && res.data && res.data.refund_count) || 0;
+                console.log('[fa66] Auto-cancelled (atomic RPC):', key, '—', (res && res.data) || {});
+                if (window.toast) window.toast('⚠️ Match cancelled: ' + (m.name || key) + ' (' + filled + ' players, ' + refundCount + ' refunded)', 'warn');
+              })
+              .catch(function (e) { console.error('[fa66] cancel_match_with_refunds error', key, e.message); });
+          } else {
+            /* Supabase unavailable — refund FIRST principle: do NOT write any
+               refund/status via Firebase. Skip; admin dashboard + scheduled
+               RPC retry handle it. (Purana joinedMatches Firebase coins
+               fallback hata diya gaya — double-refund risk tha.) */
+            console.warn('[fa66] Supabase unavailable — skip auto-cancel for', key);
+            return;
           }
-
-          if (window.toast) window.toast('⚠️ Match cancelled: ' + (m.name || key) + ' (' + filled + ' players)', 'warn');
         }
       });
     });

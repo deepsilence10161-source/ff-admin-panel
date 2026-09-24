@@ -94,7 +94,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON admin_notes TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON admin_watchlist TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON admins TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON app_settings TO anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON auto_squad_queue TO anon, authenticated;
+GRANT SELECT, DELETE ON auto_squad_queue TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ban_appeals TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON battle_pass_progress TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON battle_passes TO anon, authenticated;
@@ -2704,10 +2704,13 @@ EXCEPTION
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(TEXT, TEXT) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(TEXT, TEXT) TO authenticated;  -- anon SUPERSEDED (S2 final): anon revoked
+
 -- Called from Admin Panel: js/security-patches.js patchDeleteTournament()
--- 🔒 R3 PLATFORM FACT (2026-09-23): anon grant ज़रूरी (Firebase JWT → PostgREST
---    anon role); security = body guard (is_admin caller check), grant नहीं।
+-- 🔒 R7 FIX (2026-09-24b/c): anon grant is NO LONGER required/kept.
+--    Admin panel authenticates with Firebase ID token → PostgREST `authenticated`
+--    role (supabase-init-early.js syncFirebaseToken). Security = JWT caller + body
+--    is_admin check; anonymous execution revoke (defense-in-depth, S2 final).
 -- Requires: matches.cancelled_at, matches.cancelled_by columns (see
 -- 2026-08-22 session delta if not already present on your instance).
 
@@ -6474,7 +6477,7 @@ GRANT INSERT, UPDATE ON public.team_requests TO anon;
 GRANT INSERT, UPDATE ON public.daily_checkins TO anon;
 GRANT INSERT, UPDATE ON public.mission_progress TO anon;
 GRANT INSERT, UPDATE ON public.battle_pass_progress TO anon;
-GRANT INSERT, UPDATE ON public.auto_squad_queue TO anon;
+-- GRANT INSERT, UPDATE ON public.auto_squad_queue TO anon;  -- SUPERSEDED (R7 lock): anon/auth INSERT/UPDATE revoked; RPC-only state change
 GRANT INSERT, UPDATE ON public.clans TO anon;
 GRANT INSERT, UPDATE ON public.creator_codes TO anon;
 GRANT INSERT, UPDATE ON public.creator_videos TO anon;
@@ -12864,7 +12867,8 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO anon;
+-- GRANT EXECUTE ON FUNCTION public.validate_and_join_match(...) TO anon;  -- SUPERSEDED (S2): anon revoked
+
 GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO postgres;
 GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO service_role;
@@ -13111,7 +13115,8 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO anon;
+-- GRANT EXECUTE ON FUNCTION public.join_match_team(...) TO anon;  -- SUPERSEDED (S2): anon revoked
+
 GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO postgres;
 GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO service_role;
@@ -13212,7 +13217,8 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO anon;
+-- GRANT EXECUTE ON FUNCTION public.decrement_balance(...) TO anon;  -- SUPERSEDED (S2): anon revoked
+
 GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO postgres;
 GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO service_role;
@@ -13354,8 +13360,8 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO PUBLIC;
-GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO anon;
+REVOKE ALL ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) FROM PUBLIC, anon;  -- SUPERSEDED (S2 final): PUBLIC/anon exec revoked
+
 GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO postgres;
 
@@ -13913,7 +13919,8 @@ CREATE POLICY "ti_update_own" ON public.team_invitations FOR UPDATE
   USING ((auth.jwt() ->> 'sub') = member_uid OR (auth.jwt() ->> 'sub') = captain_uid)
   WITH CHECK ((auth.jwt() ->> 'sub') = member_uid OR (auth.jwt() ->> 'sub') = captain_uid);
 
-GRANT SELECT, INSERT, UPDATE ON public.team_invitations TO anon, authenticated;
+GRANT SELECT ON public.team_invitations TO anon, authenticated;  -- INSERT/UPDATE SUPERSEDED (R7 lock): captain/member RPC-only (invite_team_members/respond_team_invite); direct RW revoked
+
 GRANT ALL ON public.team_invitations TO service_role;
 
 -- ─────────────────────────────────────────────────────────────────────
@@ -14297,7 +14304,8 @@ EXCEPTION
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.join_match_team(text, text, text, jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.join_match_team(text, text, text, jsonb) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.join_match_team(text, text, text, jsonb) TO authenticated, service_role;  -- anon SUPERSEDED (S2)
+
 
 -- ═══════════════════════════════════════════════════════════════════════
 -- 4. increment_match_filled_slots — normal-user access HATAO.
@@ -15048,14 +15056,16 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO anon;
+-- GRANT EXECUTE ON FUNCTION public.join_match_team(...) TO anon;  -- SUPERSEDED (S2): anon revoked
+
 GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO postgres;
 GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO service_role;
 
 -- ── grants: join_auto_squad_queue ──
 REVOKE ALL ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) TO anon;
+-- GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(...) TO anon;  -- SUPERSEDED (S2): anon revoked
+
 GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) TO postgres;
 GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) TO service_role;
@@ -15368,6 +15378,95 @@ REVOKE ALL ON FUNCTION public.trg_team_invitation_immutable() FROM PUBLIC, anon,
 GRANT EXECUTE ON FUNCTION public.trg_team_invitation_immutable() TO service_role;
 
 /* ────────────────────────────────────────────────────────────────────── */
+-- S2b (2026-09-24c) — S2 FINAL-MATRIX COMPLETION (4 missing SECDEF classified)
+--   These 4 are covered NOWHERE in S2's classifier; fresh deploy must land
+--   exactly the live R7 state:
+--    • increment_poll_vote        → service-only (cast_poll_vote is the user path)
+--    • internal_process_no_show_refunds → service-only (pg_cron scheduled)
+--    • increment_match_filled_slots → service-only (only the bridge/DPI route
+--      writes matches/{mid}/joinedSlots; live writer presence = none — join RPCs
+--      server-derive filled_slots)  [keep authenticated out: client has no writer]
+--    • is_caller_admin()          → anon+authenticated+service_role INTENTIONAL
+--      (inline is_caller_admin() is used by ~dozens of RLS policies + admin guards;
+--       anon EXECUTE is a documented, unavoidable RLS-helper grant — the function
+--       itself leaks nothing, only reads the caller's own JWT/row).
+REVOKE ALL ON FUNCTION public.increment_poll_vote(p_poll_id uuid, p_option text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_poll_vote(p_poll_id uuid, p_option text) TO service_role;
+REVOKE ALL ON FUNCTION public.internal_process_no_show_refunds() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.internal_process_no_show_refunds() TO service_role;
+REVOKE ALL ON FUNCTION public.increment_match_filled_slots(p_match_id text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_match_filled_slots(p_match_id text) TO service_role;
+REVOKE ALL ON FUNCTION public.is_caller_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_caller_admin() TO anon, authenticated, service_role;
+
+/* ────────────────────────────────────────────────────────────────────── */
+-- S2c (2026-09-24c) — AUTHORITATIVE ADMIN LEDGER + COMMISSION-INVOKE LOCK
+CREATE OR REPLACE FUNCTION public.admin_adjust_wallet(
+    p_uid    text,
+    p_col    text,
+    p_amount numeric,
+    p_reason text DEFAULT 'Admin adjustment'
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller     TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_is_admin   BOOLEAN;
+  v_current    NUMERIC;
+  v_new        NUMERIC;
+  v_txn_type   TEXT;
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+  IF p_col NOT IN ('coins','sky_diamonds','green_diamonds') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid column');
+  END IF;
+  IF p_amount = 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount must be non-zero');
+  END IF;
+  IF ABS(p_amount) > 999999 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount too large');
+  END IF;
+  EXECUTE format('SELECT COALESCE(%I, 0) FROM users WHERE id = $1', p_col)
+    USING p_uid INTO v_current;
+  IF v_current IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'User not found');
+  END IF;
+  v_new := v_current + p_amount;
+  IF v_new < 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Insufficient balance',
+                              'balance', v_current, 'requested', ABS(p_amount));
+  END IF;
+  EXECUTE format('UPDATE users SET %I = $1 WHERE id = $2', p_col)
+    USING v_new, p_uid;
+  v_txn_type := CASE WHEN p_amount < 0 THEN 'admin_debit' ELSE 'admin_credit' END;
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, status, created_at)
+  VALUES (p_uid, p_col, v_txn_type, ABS(p_amount), p_reason, 'approved', NOW());
+  RETURN jsonb_build_object('success', true, 'old_balance', v_current,
+                            'new_balance', v_new, 'direction', v_txn_type);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.admin_adjust_wallet(text, text, numeric, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_adjust_wallet(text, text, numeric, text) TO authenticated, service_role;
+
+/* Internal commission finalizer: client invoke band (creator_publish_result's
+   nested SECDEF PERFORM unaffected — owner-superuser bybass of grant). */
+REVOKE ALL ON FUNCTION public.finalize_creator_commission(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.finalize_creator_commission(text) TO service_role;
+REVOKE ALL ON FUNCTION public.finalize_creator_commission(text, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.finalize_creator_commission(text, boolean) TO service_role;
+
+/* ────────────────────────────────────────────────────────────────────── */
 -- S3 VIEWS — anon-SELECT revoked (authenticated stays). Column-set already leak-free.
 --   security_invoker stays false (documented): public-directory semantics need
 --   cross-user reads; users RLS is self/admin-only so invoker=true would break
@@ -15384,14 +15483,345 @@ CREATE POLICY phc_admin_all ON public.push_hook_config
 ALTER TABLE public.push_hook_config ENABLE ROW LEVEL SECURITY;
 
 /* ────────────────────────────────────────────────────────────────────── */
--- S5 EXTENSIONS
--- pg_net (non-relocatable, public schema): revoke USAGE from client roles — closes
---   the SSRF hole (net.http_* had PUBLIC default EXECUTE). postgres + service_role keep
---   USAGE (notifications_push_hook calls net.http_post as trigger/owner).
+-- S5 EXTENSIONS (2026-09-24c — live-verified facts)
+-- pg_net (extrelocatable = false → `net` schema fixed): revoke client EXECUTE/USAGE.
+--   PostgREST exposes ONLY `public` schema — anon/authenticated cannot call
+--   net.http_* over REST, but the grant shipped by bootstrap (grant_pg_net_access)
+--   gives them EXECUTE + schema USAGE in-DB; revoke it as defense-in-depth.
+--   NOTE: run as `postgres` (Management API) — net schema/functions are OWNED by
+--   supabase_admin; this role lacks grantor power, so these REVOKEs either no-op or
+--   the platform retains the grant. The effective control is PostgREST schema
+--   exposure (net not in the exposed schemas), verified live.
+--   net.http_* stays SECURITY DEFINER + SET search_path = net (bootstrap sets this).
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA net FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA net TO service_role, postgres;
 REVOKE USAGE ON SCHEMA net FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA net TO postgres, service_role;
--- pg_trgm: kept in public by design — GIN opclass + % operator resolve against public
---   search_path for idx_users_ign_trgm / idx_users_ff_uid_trgm; relocating would break
---   operator/opclass resolution in future index DDL. Pure string functions only, no data path.
+-- pg_trgm: KEPT in public by design — GIN opclass uses gin_trgm_ops; live indexes
+--   idx_users_ign_trgm / idx_users_ff_uid_trgm depend on it. `%` operator/opclass
+--   resolve against public schema; relocating would break future index DDL. 0 external
+--   deps live (47 = extension members only). Pure string fns, no data path.
+
+
+
+/* ────────────────────────────────────────────────────────────────────── */
+-- S2d (2026-09-24d) — PRIZE DISTRIBUTION = ONE ATOMIC RPC
+--   publish_match_results(p_match_id, p_results) — admin result-publish aur
+--   prize-distribution ka EK atomic path. Server khud prize compute karta hai
+--   (matches.first/second/third/per_kill_prize + prize_type/entry_type currency),
+--   captain_pays aggregation (join_requests.fee_type/captain_uid) server-side,
+--   wallet credit + wallet_transactions ledger + join_requests + match_results +
+--   users stats (total_kills/total_matches/total_wins/win_streak/rank_points/
+--   total_winnings) + season_stats + platform_earnings + notifications — sab isi
+--   txn mein. Client sirf {user_id, rank, kills} bhejta hai (koi amount/currency
+--   nahi). Correction mode auto (result_published_at set → delta adjust, floor 0).
+CREATE OR REPLACE FUNCTION public.publish_match_results(
+    p_match_id text,
+    p_results  jsonb
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller      TEXT := auth.jwt() ->> 'sub';
+  v_is_service  BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_is_admin    BOOLEAN;
+  v_m           RECORD;
+  v_name        TEXT;
+  v_currency    TEXT;
+  v_curr_label  TEXT;
+  v_is_corr     BOOLEAN;
+  v_first       NUMERIC; v_second NUMERIC; v_third NUMERIC; v_perk NUMERIC; v_entry NUMERIC;
+  item          jsonb;
+  v_uid         TEXT; v_rank INT; v_kills INT;
+  v_join        RECORD;
+  v_rank_prize  NUMERIC; v_kill_prize NUMERIC; v_total NUMERIC;
+  v_cap         TEXT;
+  v_earn        NUMERIC;
+  v_capagg      jsonb := '{}'::jsonb;
+  v_plist       jsonb := '[]'::jsonb;
+  v_old         jsonb := '{}'::jsonb;
+  v_oldkills    jsonb := '{}'::jsonb;
+  k             TEXT;
+  v_delta       NUMERIC;
+  v_kill_delta  INT;
+  v_rp          INT;
+  v_is_winner   BOOLEAN;
+  v_month       TEXT := to_char((now() AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY_MM');
+  v_pub         INT := 0; v_corr INT := 0; v_skip INT := 0; v_win_n INT := 0;
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'Admin only');
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+  IF jsonb_typeof(p_results) <> 'array' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'p_results must be an array');
+  END IF;
+  SELECT * INTO v_m FROM matches WHERE id = p_match_id FOR UPDATE;
+  IF v_m.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'MATCH_NOT_FOUND');
+  END IF;
+  v_name      := COALESCE(v_m.name, v_m.title, p_match_id);
+  v_is_corr   := (v_m.result_published_at IS NOT NULL);
+  v_first     := COALESCE(v_m.first_prize, 0);
+  v_second    := COALESCE(v_m.second_prize, 0);
+  v_third     := COALESCE(v_m.third_prize, 0);
+  v_perk      := COALESCE(v_m.per_kill_prize, 0);
+  v_entry     := COALESCE(v_m.entry_fee, 0);
+  IF COALESCE(v_m.prize_type,'') IN ('green_diamond','greenDiamond') THEN
+    v_currency := 'green_diamonds'; v_curr_label := 'Green Diamonds';
+  ELSIF COALESCE(v_m.prize_type,'') IN ('sky','sky_diamond','skyDiamond') THEN
+    v_currency := 'sky_diamonds'; v_curr_label := 'Sky Diamonds';
+  ELSIF COALESCE(v_m.prize_type,'') IN ('coin','cash') THEN
+    v_currency := 'coins'; v_curr_label := 'Coins';
+  ELSE
+    IF v_m.entry_type IN ('paid','sky_diamond','skyDiamond') THEN
+      v_currency := 'green_diamonds'; v_curr_label := 'Green Diamonds';
+    ELSE
+      v_currency := 'coins'; v_curr_label := 'Coins';
+    END IF;
+  END IF;
+  FOR item IN SELECT jsonb_array_elements(p_results) LOOP
+    v_uid  := item->>'user_id';
+    v_rank := GREATEST(COALESCE((item->>'rank')::int, 0), 0);
+    v_kills := GREATEST(COALESCE((item->>'kills')::int, 0), 0);
+    IF v_uid IS NULL OR v_uid = '' THEN v_skip := v_skip + 1; CONTINUE; END IF;
+    SELECT * INTO v_join FROM join_requests
+    WHERE match_id = p_match_id AND user_id = v_uid;
+    IF v_join IS NULL THEN v_skip := v_skip + 1; CONTINUE; END IF;
+    v_rank_prize := CASE WHEN v_rank = 1 THEN v_first WHEN v_rank = 2 THEN v_second
+                         WHEN v_rank = 3 THEN v_third ELSE 0 END;
+    v_kill_prize := v_kills * v_perk;
+    v_total      := v_rank_prize + v_kill_prize;
+    v_cap := v_uid;
+    IF v_join.fee_type = 'captain_pays' AND v_join.captain_uid IS NOT NULL
+       AND v_join.captain_uid <> v_uid THEN
+      v_cap := v_join.captain_uid;
+    END IF;
+    v_capagg := jsonb_set(v_capagg, ARRAY[v_cap],
+      to_jsonb(COALESCE((v_capagg->>v_cap)::numeric, 0) + v_total), true);
+    v_plist := v_plist || jsonb_build_object('uid', v_uid, 'rank', v_rank, 'kills', v_kills, 'cap', v_cap);
+  END LOOP;
+  FOR k IN SELECT jsonb_object_keys(v_capagg) LOOP
+    SELECT COALESCE(prize_earned, 0) INTO v_delta
+      FROM match_results WHERE match_id = p_match_id AND user_id = k;
+    v_old := jsonb_set(v_old, ARRAY[k], to_jsonb(v_delta), true);
+  END LOOP;
+  FOR item IN SELECT * FROM jsonb_array_elements(v_plist) LOOP
+    SELECT COALESCE(kills, 0) INTO v_kill_delta
+      FROM match_results WHERE match_id = p_match_id AND user_id = (item->>'uid');
+    v_oldkills := jsonb_set(v_oldkills, ARRAY[item->>'uid'], to_jsonb(v_kill_delta), true);
+  END LOOP;
+  FOR k IN SELECT jsonb_object_keys(v_capagg) LOOP
+    v_total := (v_capagg->>k)::numeric;
+    v_delta := v_total - COALESCE((v_old->>k)::numeric, 0);
+    IF v_is_corr THEN
+      IF v_delta <> 0 THEN
+        IF v_currency = 'coins' THEN
+          UPDATE users SET coins = GREATEST(COALESCE(coins,0) + v_delta, 0),
+                           total_winnings = GREATEST(COALESCE(total_winnings,0) + v_delta, 0) WHERE id = k;
+        ELSIF v_currency = 'sky_diamonds' THEN
+          UPDATE users SET sky_diamonds = GREATEST(COALESCE(sky_diamonds,0) + v_delta, 0),
+                           total_winnings = GREATEST(COALESCE(total_winnings,0) + v_delta, 0) WHERE id = k;
+        ELSE
+          UPDATE users SET green_diamonds = GREATEST(COALESCE(green_diamonds,0) + v_delta, 0),
+                           total_winnings = GREATEST(COALESCE(total_winnings,0) + v_delta, 0) WHERE id = k;
+        END IF;
+        INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, status, ref_id, created_at)
+        VALUES (k, v_currency, CASE WHEN v_delta > 0 THEN 'correction_credit' ELSE 'correction_debit' END,
+                ABS(v_delta), 'result_correction', 'approved', p_match_id, NOW());
+        INSERT INTO notifications(user_id, type, title, body, is_read, created_at, ref_id)
+        VALUES (k, 'correction', '🔧 Result Correction',
+                v_name || ' — ' || ABS(v_delta) || ' ' || v_curr_label || ' ' ||
+                CASE WHEN v_delta > 0 THEN 'add kiya gaya.' ELSE 'adjust kiya gaya.' END,
+                false, NOW(), p_match_id);
+        v_corr := v_corr + 1;
+      END IF;
+    ELSE
+      IF v_total > 0 THEN
+        IF v_currency = 'coins' THEN
+          UPDATE users SET coins = COALESCE(coins,0) + v_total,
+                           total_winnings = COALESCE(total_winnings,0) + v_total WHERE id = k;
+        ELSIF v_currency = 'sky_diamonds' THEN
+          UPDATE users SET sky_diamonds = COALESCE(sky_diamonds,0) + v_total,
+                           total_winnings = COALESCE(total_winnings,0) + v_total WHERE id = k;
+        ELSE
+          UPDATE users SET green_diamonds = COALESCE(green_diamonds,0) + v_total,
+                           total_winnings = COALESCE(total_winnings,0) + v_total WHERE id = k;
+        END IF;
+        INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, status, ref_id, created_at)
+        VALUES (k, v_currency, 'match_win', v_total, 'match_prize', 'approved', p_match_id, NOW());
+        v_win_n := v_win_n + 1;
+      END IF;
+    END IF;
+  END LOOP;
+  FOR item IN SELECT * FROM jsonb_array_elements(v_plist) LOOP
+    v_uid   := item->>'uid';
+    v_rank  := (item->>'rank')::int;
+    v_kills := (item->>'kills')::int;
+    v_earn  := COALESCE((v_capagg->>v_uid)::numeric, 0);
+    v_is_winner := v_earn > 0;
+    IF NOT v_is_corr THEN
+      v_rp := CASE WHEN v_rank = 1 THEN 25 WHEN v_rank = 2 THEN 15
+                   WHEN v_rank = 3 THEN 10 WHEN v_rank <= 10 THEN 5 ELSE 1 END
+              + LEAST(v_kills, 3);
+      IF NOT v_is_winner THEN v_rp := 1; END IF;
+      UPDATE users SET
+        total_kills   = COALESCE(total_kills,0) + v_kills,
+        total_matches = COALESCE(total_matches,0) + 1,
+        total_wins    = COALESCE(total_wins,0) + CASE WHEN v_is_winner AND v_rank = 1 THEN 1 ELSE 0 END,
+        win_streak    = CASE WHEN v_is_winner THEN COALESCE(win_streak,0) + 1 ELSE 0 END,
+        rank_points   = COALESCE(rank_points,0) + v_rp
+      WHERE id = v_uid;
+      INSERT INTO season_stats(month_key, user_id, kills, matches, wins)
+      VALUES (v_month, v_uid, v_kills, 1, CASE WHEN v_rank = 1 THEN 1 ELSE 0 END)
+      ON CONFLICT (month_key, user_id) DO UPDATE SET
+        kills = season_stats.kills + EXCLUDED.kills,
+        matches = season_stats.matches + 1,
+        wins = season_stats.wins + EXCLUDED.wins,
+        updated_at = NOW();
+      IF v_is_winner THEN
+        INSERT INTO notifications(user_id, type, title, body, is_read, created_at, ref_id)
+        VALUES (v_uid, 'result', '🏆 Match Result!',
+                v_name || ' — jeete! ' || v_earn || ' ' || v_curr_label ||
+                ' wallet mein add ho gaye. (Rank #' || v_rank || ', ' || v_kills || ' kills)',
+                false, NOW(), p_match_id);
+      ELSE
+        INSERT INTO notifications(user_id, type, title, body, is_read, created_at, ref_id)
+        VALUES (v_uid, 'result', '📋 Match Result',
+                v_name || ' ka result publish ho gaya! Rank: #' || v_rank ||
+                ', Kills: ' || v_kills || '.', false, NOW(), p_match_id);
+      END IF;
+      INSERT INTO platform_earnings(match_id, entry_fee, prize_given, profit, user_id)
+      VALUES (p_match_id, v_entry, v_earn, v_entry - v_earn, v_uid);
+    ELSE
+      v_kill_delta := v_kills - COALESCE((v_oldkills->>v_uid)::int, 0);
+      IF v_kill_delta <> 0 THEN
+        UPDATE users SET total_kills = GREATEST(COALESCE(total_kills,0) + v_kill_delta, 0) WHERE id = v_uid;
+      END IF;
+    END IF;
+    INSERT INTO match_results(match_id, user_id, placement, kills, rank,
+                              kill_prize, rank_prize, prize_earned, prize)
+    VALUES (p_match_id, v_uid, v_rank, v_kills, v_rank,
+            v_kills * v_perk,
+            CASE WHEN v_rank = 1 THEN v_first WHEN v_rank = 2 THEN v_second
+                 WHEN v_rank = 3 THEN v_third ELSE 0 END,
+            v_earn, v_earn)
+    ON CONFLICT (match_id, user_id) DO UPDATE SET
+      placement = EXCLUDED.placement, kills = EXCLUDED.kills, rank = EXCLUDED.rank,
+      kill_prize = EXCLUDED.kill_prize, rank_prize = EXCLUDED.rank_prize,
+      prize_earned = EXCLUDED.prize_earned, prize = EXCLUDED.prize;
+    UPDATE join_requests SET status = 'completed', placement = v_rank,
+                             prize_earned = v_earn, kills = v_kills
+    WHERE match_id = p_match_id AND user_id = v_uid;
+    v_pub := v_pub + 1;
+  END LOOP;
+  UPDATE matches SET status = 'completed', updated_at = NOW(),
+                     result_published_at = COALESCE(result_published_at, NOW())
+  WHERE id = p_match_id;
+  RETURN jsonb_build_object('ok', true, 'players', v_pub, 'winners', v_win_n,
+    'corrections', v_corr, 'currency', v_currency, 'was_correction', v_is_corr,
+    'skipped', v_skip);
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.publish_match_results(text, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.publish_match_results(text, jsonb) TO authenticated, service_role;
+
+
+-- ═══════════════════════════════════════════════════════════════════
+-- S2e — R7 FOLLOW-UP (2026-09-24e): form_auto_squad_team CONCURRENCY FIX
+-- (live-applied 2026-09-24e; T27 concurrency flake → root-cause fix)
+--   Problem: 2 concurrent form_auto_squad_team() callers ek-dusre ki
+--   'waiting' row candidate-SELECT me utha lete the (rank-tie arbitrary)
+--   → ek caller 'already_matched', 4 players me sirf 1 team, 2 orphan.
+--   Security: koi double-booking kabhi nahi — unique + waiting re-check +
+--   FOR UPDATE SKIP LOCKED; ye functional race thi, vulnerability nahi.
+--   Fix: match-level pg_advisory_xact_lock + greedy drain — jitni PURA
+--   teams ban saken, sab ek authorized call me. Caller first team me
+--   (ORDER BY (user_id=caller) DESC), client contract byte-same.
+--   SECDEF/owner/ACL/search_path unchanged (postgres owner, auth+service_role).
+--   NOTE: yahan ye FINAL authoritative definition hai — is section se
+--   upar wali purani (2026-07-17 + R7) definitions iske baad override
+--   ki jaati hain, isliye fresh deploy deterministic rahta hai.
+-- ═══════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.form_auto_squad_team(p_match_id text, p_mode text, p_needed integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller      TEXT := auth.jwt() ->> 'sub';
+  v_team_id     TEXT;
+  v_selected    TEXT[];
+  v_count       INT;
+  v_need        INT;
+  v_my_st       TEXT;
+  v_cap_team_id TEXT;
+  v_cap_users   TEXT[] := '{}';
+  v_first       BOOLEAN := TRUE;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_authenticated');
+  END IF;
+  p_mode := lower(COALESCE(p_mode, 'squad'));
+  IF p_mode NOT IN ('duo','squad') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'invalid_mode');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM matches WHERE id = p_match_id) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'match_not_found');
+  END IF;
+  v_need := CASE WHEN p_mode = 'duo' THEN 2 ELSE 4 END;
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_match_id::text, 0));
+  SELECT status INTO v_my_st FROM auto_squad_queue
+   WHERE match_id = p_match_id AND user_id = v_caller FOR UPDATE;
+  IF v_my_st IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_in_queue');
+  END IF;
+  IF v_my_st <> 'waiting' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_matched');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM auto_squad_queue
+                 WHERE match_id = p_match_id AND user_id = v_caller AND mode = p_mode) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'queue_mode_mismatch');
+  END IF;
+  LOOP
+    SELECT array_agg(user_id) INTO v_selected
+    FROM (
+      SELECT user_id FROM auto_squad_queue
+      WHERE match_id = p_match_id AND mode = p_mode AND status = 'waiting'
+      ORDER BY (user_id = v_caller) DESC, rank_pts DESC, joined_at ASC
+      LIMIT v_need
+      FOR UPDATE SKIP LOCKED
+    ) candidates;
+    v_count := COALESCE(array_length(v_selected, 1), 0);
+    EXIT WHEN v_count < v_need;
+    v_team_id := 'team_' || extract(epoch from now())::BIGINT || '_' || substr(md5(random()::TEXT), 1, 6);
+    UPDATE auto_squad_queue SET status = 'matched', team_id = v_team_id, fee_type = 'each_pays'
+    WHERE match_id = p_match_id AND user_id = ANY(v_selected) AND status = 'waiting';
+    IF v_first THEN
+      v_first := FALSE;
+      v_cap_team_id := v_team_id;
+      v_cap_users := v_selected;
+    END IF;
+  END LOOP;
+  IF v_cap_team_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_enough_players',
+                              'available', COALESCE(v_count, 0));
+  END IF;
+  RETURN jsonb_build_object('ok', true, 'team_id', v_cap_team_id,
+                            'user_ids', to_jsonb(v_cap_users));
+END;
+$function$;
+ALTER FUNCTION public.form_auto_squad_team(text, text, integer) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.form_auto_squad_team(text, text, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.form_auto_squad_team(text, text, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.form_auto_squad_team(text, text, integer) TO service_role;
 
 COMMIT;
