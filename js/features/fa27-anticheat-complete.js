@@ -247,21 +247,22 @@ window.showRefundQueue = function() {
 };
 
 window.processRefund = function(key, uid, fee, entryType) {
+  /* ✅ R7 FINAL LAST PASS — NO independent Firebase balance credit.
+     Pehle yahan users/{uid}/coins aur realMoney/deposited pe transaction()
+     chala ke balance badhaya jata tha — yeh dual-authority/double-refund
+     thi jabki asli authoritative refund Supabase cancel_match_with_refunds()
+     (match-level, admin) ya claim_match_refund() (player-level, server)
+     RPC se hota hai. Balance mutation ab SIRF server RPC se; yahan sirf
+     queue ka bookkeeping status update hota hai. Koi client Firestore/RTDB
+     write balance nahi badha sakta. */
   var db = rt(); if (!db) return;
-  db.ref('refundRequests/' + key).update({ status: 'approved', approvedAt: Date.now() });
-  if (entryType === 'coin') {
-    db.ref('users/' + uid + '/coins').transaction(function(v) { return (v||0) + Number(fee); });
-  } else {
-    db.ref('users/' + uid + '/realMoney/deposited').transaction(function(v) { return (v||0) + Number(fee); });
-  }
-  var nk = db.ref('users/' + uid + '/notifications').push().key;
-  db.ref('users/' + uid + '/notifications/' + nk).set({
-    title: '💸 Refund Approved!',
-    message: (entryType==='coin' ? fee+' coins' : '₹'+fee) + ' refund ho gaya — room release nahi hua tha.',
-    type: 'wallet_approved', timestamp: Date.now(), read: false
-  });
-  _toast('✅ Refund processed!');
-  window.showRefundQueue();
+  db.ref('refundRequests/' + key).update({ status: 'approved', approvedAt: Date.now() })
+    .then(function(){
+      if (window.console) console.log('[fa27] R7: refund request', key, 'marked approved (server RPC handles balance); no client-side credit.');
+      _toast('✅ Refund request approved — server path se process hoga.');
+      window.showRefundQueue();
+    })
+    .catch(function(e){ console.warn('[fa27] processRefund status update error:', e && e.message); });
 };
 
 window.denyRefund = function(key) {

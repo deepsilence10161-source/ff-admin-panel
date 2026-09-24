@@ -6913,3 +6913,26 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 > **सीख (स्थायी):** consent की value रखने वाली table का state सिर्फ़ dedicated RPC बदले; client से आई member-list/fee-type हर बार server validate करे; accepted/consumed consent kabhi mutate न हो।
 
 ---
+
+## Section 51 — R7 FINAL LAST PASS: REFUND + PERMISSIONS + SCHEMA CONSOLIDATION (2026-09-24b) 🔒
+
+**Root-cause fixes (live-verified):**
+
+1. **Admin cancel/refund = single authority** — admin UI का `cancelTournament` (base) ab सिर्फ़ atomic `cancel_match_with_refunds()` RPC call करता है। पहले वह Firebase-bridge `.transaction()` से **users.coins/sky_diamonds सीधा UPDATE** + फिर `increment_balance` RPC + wallet insert दोनों चलाता था = **dual-authority double-refund** (live-proven risk: दो स्वतंत्र credit पथ)। Firebase अब और कभी independently balance credit नहीं करता — sirf mirror/UI cleanup।
+2. **cancel RPC hardened** — `cancel_match_with_refunds` rewrite: (a) authorization = `auth.jwt()->>'sub'` MUST be admin; `p_admin_uid` client-supplied को **ignore** कर `cancelled_by = v_caller` (spoof-proof); (b) `matches` row `FOR UPDATE` lock (dup/concurrent serialize); (c) already-cancelled → `{ok, refund_count:0, already_cancelled}` idempotent; (d) per-join `FOR UPDATE` refund loop server-fee (`entry_fee_paid`) से, already-refunded/rejected skip; (e) non-paid joins → cancelled; (f) hold-commissions void; (g) slot bookkeeping captain-aware।
+3. **Grants classified + revoked** — सभी 88 SECDEF RPCs classify किए: **23 ADMIN** (26 grant-entries; cancel/increment/decrement/admin_*/resolve_*/approve_*/release/mint सब से `anon`+`PUBLIC` REVOKE, सिर्फ़ `authenticated`+`service_role`); **54 AUTH_USER** (user-facing, सब null-caller fail-closed, `anon` revoke); **7 TRIGGER/SECDEF-INTERNAL** (sync_admin_tables/sync_leaderboard/audit_wallet_balance_changes/notifications_push_hook/redirect_match_room_secrets/block_creator_self_play(+_check)) से सब client roles REVOKE; **6 TRIGGER/NON-SECDEF** helpers का PUBLIC default REVOKE; **is_caller_admin** intentional-keep (RLS-policy helper `users_select_own`/`users_update_own` रन-टाइम call करती हैं — revoke = पूरी app break)।
+4. **Views protected** — `user_public_profiles` + `referral_leaderboard` से `anon` SELECT REVOKE (authenticated stays — profile-search/friends/player-card/leaderboard logged-in flows); column-set ख़ुद leak-free (कोई wallet/contact/KYC/admin column नहीं)।
+5. **push_hook_config locked** — RLS enable + `phc_admin_all` admin-only policy (hook_secret/gateway_apikey protected); client roles को **zero table-grants** (सिर्फ़ postgres) — strongest lock + policy = defence-in-depth।
+6. **Firebase refund-queue neutralized** — `fa27 processRefund` का independent `users/{uid}/coins`+`realMoney/deposited` balance-credit **हटाया** (सिर्फ़ status update; balance सिर्फ़ server RPC); v21 Bug#16/#102/#94 cancelTournament patches **inert** (नया base single-authority); v24 Bug#14 का Supabase `join_requests.delete()`+`matches.delete()` (physical evidence-erase) **removed** — cancel+refund अब rows को cancelled state में preserve करता है।
+7. **Extensions documented** — `net` schema client-USAGE revoke attempt live-proven **no-op** (grantor = platform `supabase_admin`, non-relocatable extension) — पर असली exposure पहले से **zero** है: PostgREST सिर्फ़ `public` schema serve करता है (anon `rpc/net.http_get` → `PGRST202` "Searched for public.http_get"), इसलिए SSRF client-पहुँच से बाहर। `pg_trgm` public schema में by-design (GIN opclass + `%` operator search_path से resolve — `idx_users_ign_trgm`/`idx_users_ff_uid_trgm`; relocate = index DDL break)।
+
+**Attack matrix (R7-final, live synthetic role-sim, सब rollback):**
+- A1 anon cancel → `42501 permission denied (function)` · A2 normal user → `NOT_AUTHORIZED` · A3 admin coin cancel → 2 refunds · A4 admin paid cancel → sky_diamonds refund · A5 duplicate → `already_cancelled:true, refund_count:0` · A6 already-refunded join skip (count=1) · A7 ledger exactly 2 rows/total 20 (no dup/partial) · A8 `p_admin_uid` spoof ignored → `cancelled_by=real caller` · A9 hold commission voided
+- B1/B1b increment_balance anon revoke + call blocked · B2 self-stats (authenticated) intact · B3 cross-user wallet increment REJECT · B4 cross-user decrement REJECT · B5 join fee = server 99 (client 1 ignored)
+- C1 views anon-SELECT=0 · C2 authenticated cross-user public-profile read intact · C3 push_hook_config: normal user 0 rows + zero client table-grants + admin policy present
+
+**Numbers:** SQL verify → **69/69** · attack probes 21/21 + 7/7 + **21/21 (new final)** · user smoke 44/44 · admin smoke 32/32 · synthetic residue **0** · JS `node --check` sweep both repos clean। SECDEF 88 (unchanged) · mutable search_path 0 · anon EXECUTE (public) = 1 (सिर्फ़ is_caller_admin, intentional)।
+
+> **सीख (स्थायी — जो Financial Mutation है उसके लिए):** किसी भी money-flow का **एक ही authoritative server path** हो (RPC), client/UI कभी दूसरा independent credit न करे; admin RPC से anon/PUBLIC grant हमेशा revoke (caller = authenticated JWT, body में is_admin); `p_admin_uid` जैसे client-supplied identity parameters कभी authorize न करें; cancel/refund rows को physically delete कर के evidence मत मिटाओ।
+
+---

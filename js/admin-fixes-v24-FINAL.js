@@ -717,34 +717,19 @@ patchWhenReady('deleteTournament', function () {
   if (window.deleteTournament._v24SupaClean) return;
   var _orig = window.deleteTournament;
 
+  /* ✅ R7 FINAL LAST PASS — Bug#14 cleanup INERT. Pehle yeh original
+     deleteTournament ke baad Supabase join_requests.delete() +
+     matches.delete() karta tha — yani refund/audit evidence (paid join
+     rows + match row) ko PHYSICALLY erase kar deta tha. Ab delete =
+     cancel+refund via single-authority RPC hai (rows cancel state mein
+     PRESERVE hote hain, koi permanent delete nahi) — evidence intact,
+     no double/partial refund. */
   window.deleteTournament = async function (id) {
-    /* Run original (handles Firebase + confirm dialog) */
-    await _orig.apply(this, arguments);
-
-    /* After original: clean up Supabase */
-    var supa = getSupa();
-    if (!supa || !id) return;
-
-    try {
-      /* Delete all join_requests for this match from Supabase */
-      await supa.from('join_requests').delete().eq('match_id', id)
-        .catch(function (e) {
-          console.warn('[v24 Bug#14] join_requests delete error:', e.message);
-        });
-
-      /* Also mark match as cancelled in Supabase (original only removes from Firebase) */
-      await supa.from('matches').delete().eq('id', id)
-        .catch(function (e) {
-          console.warn('[v24 Bug#14] matches delete error:', e.message);
-        });
-
-      console.log('[v24 Bug#14 ✅] deleteTournament: Supabase cleanup done for', id);
-    } catch (e) {
-      console.error('[v24 Bug#14] deleteTournament Supabase cleanup error:', e.message);
-    }
+    return _orig.apply(this, arguments);
   };
 
   window.deleteTournament._v24SupaClean = true;
+  console.log('[v24] BUG #14 INERT (R7): Supabase physical-delete removed — cancel+refund preserves evidence.');
   console.log('[v24] BUG #14 ✅ deleteTournament: Supabase join_requests cleanup added');
 });
 

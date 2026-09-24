@@ -145,24 +145,14 @@ patchWhenReady('_fa58ApproveSelected', function () {
    FIX: Patch cancelTournament to also mark join_requests status='refunded'
    ════════════════════════════════════════════════════════════════════════ */
 patchWhenReady('cancelTournament', function () {
-  var _orig = window.cancelTournament;
-  window.cancelTournament = async function (mid) {
-    await _orig.apply(this, arguments);
-    var supa = getSupa();
-    if (supa && mid) {
-      supa.from('join_requests')
-        .update({ status: 'refunded', refunded_at: new Date().toISOString() })
-        .eq('match_id', mid)
-        .in('status', ['pending', 'approved', 'joined'])
-        .catch(function (e) { console.warn('[v21 Bug#16] cancelTournament Supabase join_requests update:', e.message); });
-      /* Also update match status in Supabase */
-      supa.from('matches').update({ status: 'cancelled' }).eq('id', mid)
-        .catch(function () {
-          supa.from('matches').update({ status: 'cancelled' }).eq('firebase_id', mid).then(null, function () {});
-        });
-    }
-  };
-  console.log('[v21] Bug#16 fix: cancelTournament Supabase join_requests sync applied');
+  /* ✅ R7 FINAL LAST PASS — Bug#16 patch now INERT (no-op). Pehle yeh
+     base cancelTournament ke baad Supabase join_requests.update(status=refunded)
+     + matches.update(status=cancelled) karta tha — ab base khud
+     cancel_match_with_refunds() atomic RPC call karta hai jo refund +
+     join status + match cancel sab transaction mein karta hai. Client se
+     is tarah ka duplicate join_requests write ab zaroori nahi (aur
+     server-authoritative path ko duplicate/divergent state deta tha). */
+  console.log('[v21] Bug#16 patch INERT (R7): cancelTournament ab single-authority RPC-only.');
 });
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1040,30 +1030,13 @@ window.adminClearUserNotifications = async function (uid) {
    FIX: Skip refund loop when entryFee === 0
    ════════════════════════════════════════════════════════════════════════ */
 patchWhenReady('cancelTournament', function () {
-  var _orig = window.cancelTournament;
-  if (_orig && _orig._freeMatchPatched) return;
-  window.cancelTournament = async function (mid) {
-    /* ✅ FIX (live-testing, defensive): getDB() only checks existence,
-       not bridge-readiness. Use the bridge-aware rtdb directly for this
-       Supabase-only path (matches), consistent with the rest of the
-       codebase. */
-    var db = (window.rtdb && window.rtdb._isSupaBridge) ? window.rtdb : null;
-    if (db) {
-      var mSnap = await db.ref((window.DB_MATCHES || 'matches') + '/' + mid).once('value');
-      var match = mSnap.val() || {};
-      if (Number(match.entryFee) === 0 && match.entryType === 'free') {
-        /* Free match — still cancel but skip refund loop */
-        await db.ref((window.DB_MATCHES || 'matches') + '/' + mid).update({ status: 'cancelled', cancelledAt: Date.now() });
-        var supa = getSupa();
-        if (supa) supa.from('matches').update({ status: 'cancelled' }).eq('id', mid).then(null, function () {});
-        window.showToast('✅ Free match cancelled');
-        return;
-      }
-    }
-    return _orig.apply(this, arguments);
-  };
-  window.cancelTournament._freeMatchPatched = true;
-  console.log('[v21] Bug#102 fix: cancelTournament skips refund for free matches');
+  /* ✅ R7 FINAL LAST PASS — Bug#102 patch now INERT (no-op). Pehle yeh
+     free-match ke liye Firebase-side cancel + refund-skip path tha jisme
+     seedha Firebase .update(status=cancelled) hota tha. Ab base
+     cancel_match_with_refunds() RPC hi authoritative hai — free match
+     (0 entry_fee_paid rows) mein RPC khud koi refund nahi karta,
+     refund_count=0 lauta ke match cancel kar deta hai. */
+  console.log('[v21] Bug#102 patch INERT (R7): cancelTournament ab single-authority RPC-only.');
 });
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1468,41 +1441,15 @@ setTimeout(function () {
     clearInterval(iv);
     var _orig = window.cancelTournament;
     if (_orig && _orig._refundQueuePatched) return;
-    window.cancelTournament = async function(mid) {
-      await _orig.apply(this, arguments);
-      /* Bug#94 Fix: Write refund entries to refundRequests node so fa27 queue processes them */
-      var db = window.rtdb || window.adminDb || window.db;
-      if (!db || !mid) return;
-      try {
-        var jSnap = await db.ref(window.DB_JOIN || 'joinRequests').orderByChild('tournamentId').equalTo(mid).once('value');
-        if (!jSnap.exists()) return;
-        var batch = [];
-        jSnap.forEach(function(c) {
-          var j = c.val();
-          var uid = j.uid || j.userId;
-          if (!uid || !j.entryFee || Number(j.entryFee) <= 0) return;
-          /* Write a refund request for fa27 to pick up */
-          batch.push(db.ref('refundRequests').push({
-            uid: uid,
-            matchId: mid,
-            joinRequestId: c.key,
-            amount: Number(j.entryFee),
-            currency: j.entryType || 'coin',
-            reason: 'Match cancelled by admin',
-            status: 'pending',
-            createdAt: Date.now()
-          }));
-        });
-        if (batch.length > 0) {
-          await Promise.all(batch);
-          console.log('[Bug#94 Fix] Wrote', batch.length, 'refund requests to refundRequests node for match:', mid);
-        }
-      } catch(e) {
-        console.warn('[Bug#94 Fix] refundRequests write error:', e.message);
-      }
-    };
+    /* ✅ R7 FINAL LAST PASS — Bug#94 patch now INERT (no-op). Ye pehle
+       cancelTournament base chalne ke baad refundRequests node mein
+       Firebase-write entries dalta tha taaki fa27 queue unhe conventionally
+       balance-credit kare — yani ek DUSRA independent balance-credit path.
+       Ab base cancel_match_with_refunds() RPC single-authority refund karta
+       hai; koi second queue write/credit zaroori nahi (fa27 processRefund
+       bhi server-RPC-only ho chuka hai). */
     window.cancelTournament._refundQueuePatched = true;
-    console.log('[v21] Bug#94 fix: cancelTournament now writes to refundRequests node');
+    console.log('[v21] Bug#94 fix INERT (R7): independent refundRequests write removed — single-authority RPC.');
   }, 1500);
 })();
 

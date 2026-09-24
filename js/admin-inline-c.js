@@ -1041,115 +1041,60 @@ async function sendRoomNotificationToMatch(matchId, roomId, roomPassword, matchN
   }
 }
 
-/* cancelTournament — auto-refund ALL joined players
-   Checks BOTH joinRequests/ AND matches/{id}/joined/ for players
-   Refunds to deposit balance (paid) or coins (coin matches)
-*/
+/* cancelTournament — R7 SINGLE-AUTHORITY CANCEL + REFUND
+   ════════════════════════════════════════════════════════════════
+   Admin UI ab SIRF atomic Supabase RPC cancel_match_with_refunds()
+   call karta hai — wahi ek authoritative refund path hai jo:
+     • JWT caller (auth.jwt()->>'sub') ka admin-check khud karta hai
+     • matches row FOR UPDATE lock karta hai (dup/concurrent serialize)
+     • har PAID join_requests ka entry_fee_paid server-side refund karta
+       hai (client amount kabhi trust nahi)
+     • wallet_transactions ledger + join status + commission void +
+       match cancel — sab ek transaction mein
+   Firebase / rtdb-bridge se KOI independent balance credit nahi hota
+   (double-refund band). UI sirf reader hai — RPC ka asli result dikhata
+   hai. p_admin_uid client se bheja hi nahi jaata (RPC ignore karta hai).
+   ════════════════════════════════════════════════════════════════ */
 async function cancelTournament(id){
-  if(!confirm('Cancel & refund ALL joined players?\n\nThis will:\n• Set status to "cancelled"\n• Refund entry fee to ALL joined players\n• Send notification to each player'))return;
+  if(!confirm('Cancel & refund ALL joined players?\n\nThis will:\n• Set status to "cancelled"\n• Atomically refund entry fee to each PAID player\n• Send notification to each player'))return;
   try{
-    var t=allTournaments[id];
-    var entryFee=t?Number(t.entryFee)||0:0;
-    var matchName=t?t.name:'Match';
-    var isC=t&&t.entryType==='coin';
-    var pr=[];
-    var rc=0;
-    var refundedUids={};  /* Track to avoid double refunds */
-    
-    /* ── Check joinRequests/ node ── */
-    var jS=await rtdb.ref(DB_JOIN).once('value');
-    jS.forEach(function(c){
-      var j=c.val(),tid=j.tournamentId||j.matchId;
-      /* ✅ BUG FIX (2026-08-22): 'pending' was NOT in this list — but
-      validate_and_join_match() (the RPC that actually deducts the entry
-      fee and creates the row) sets status='pending' by default. Money is
-      already taken at that point; 'pending' here means room/attendance
-      pending, NOT membership pending. Excluding it meant a player who
-      had genuinely joined (and paid) simply never appeared in Joined
-      Players / notification lists / refund lists until some OTHER admin
-      action happened to flip status — confirmed live (Testing2: user
-      showed 'Joined' in their own app but the row was invisible here).
-      Now only the genuinely-not-joined terminal statuses are excluded. */
-      var _NOT_JOINED=['cancelled','refunded','rejected','no_show'];
-      var isJoined=(_NOT_JOINED.indexOf(j.status)===-1);
-      if(tid===id&&isJoined){
-        var uid=getUid(j);
-        var fee=Number(j.entryFee)||entryFee;
-        /* ✅ Bug 8 Fix: isC from joinRequest's own entryType (not just match entryType) */
-        var jIsC = j.entryType === 'coin' || j.entryType === 'coins' || isC;
-        var supaCol = jIsC ? 'coins' : 'sky_diamonds';
-        if(uid&&fee&&!refundedUids[uid]){
-          rc++;
-          refundedUids[uid]=true;
-          /* Firebase RTDB update (admin-supabase-sync.js will also sync) */
-          var rp1=jIsC?'coins':'realMoney/deposited',rp2=jIsC?null:'wallet/depositBalance';
-          pr.push(rtdb.ref(DB_USERS+'/'+uid+'/'+rp1).transaction(function(v){return(v||0)+fee}));
-          if(rp2)pr.push(rtdb.ref(DB_USERS+'/'+uid+'/'+rp2).transaction(function(v){return(v||0)+fee}));
-          pr.push(rtdb.ref(DB_USERS+'/'+uid+'/transactions').push({type:'refund',amount:fee,description:'Cancelled: '+matchName,timestamp:Date.now()}));
-          pr.push(rtdb.ref(DB_USERS+'/'+uid+'/notifications').push({title:'Match Cancelled 🚫',message:matchName+' cancelled. '+(jIsC?fee+' coins':'💎'+fee)+' refunded.',timestamp:Date.now(),read:false}));
-          /* ✅ Supabase sync — correct column per currency */
-          if(window._supa){
-            window._supa.rpc('increment_balance',{p_uid:uid,p_col:supaCol,p_amount:fee}).then(null, function(){});
-            window._supa.from('wallet_transactions').insert({user_id:uid,currency:supaCol,txn_type:'credit',amount:fee,reason:'match_refund',ref_id:id}).then(null, function(){});
-            window._supa.from('join_requests').update({status:'refunded'}).eq('id',c.key).then(null, function(){});
-          }
-        }
-        pr.push(rtdb.ref(DB_JOIN+'/'+c.key).update({status:'refunded'}));
-      }
-    });
-    
-    /* ── Also check matches/{id}/joined/ node for direct joins ── */
-    var mJoined=await rtdb.ref(DB_MATCHES+'/'+id+'/joined').once('value');
-    if(mJoined.exists()){
-      mJoined.forEach(function(ps){
-        var puid=ps.key;
-        var pdata=ps.val();
-        var fee=Number(pdata.entryFee)||entryFee;
-        var pIsC = pdata.entryType === 'coin' || pdata.entryType === 'coins' || isC;
-        var pSupaCol = pIsC ? 'coins' : 'sky_diamonds';
-        if(!refundedUids[puid]&&fee){
-          rc++;
-          refundedUids[puid]=true;
-          var rp1=pIsC?'coins':'realMoney/deposited',rp2=pIsC?null:'wallet/depositBalance';
-          pr.push(rtdb.ref(DB_USERS+'/'+puid+'/'+rp1).transaction(function(v){return(v||0)+fee}));
-          if(rp2)pr.push(rtdb.ref(DB_USERS+'/'+puid+'/'+rp2).transaction(function(v){return(v||0)+fee}));
-          pr.push(rtdb.ref(DB_USERS+'/'+puid+'/transactions').push({type:'refund',amount:fee,description:'Cancelled: '+matchName,timestamp:Date.now()}));
-          pr.push(rtdb.ref(DB_USERS+'/'+puid+'/notifications').push({title:'Match Cancelled 🚫',message:matchName+' cancelled. '+(pIsC?fee+' coins':'💎'+fee)+' refunded.',timestamp:Date.now(),read:false}));
-          if(window._supa){
-            window._supa.rpc('increment_balance',{p_uid:puid,p_col:pSupaCol,p_amount:fee}).then(null, function(){});
-            window._supa.from('wallet_transactions').insert({user_id:puid,currency:pSupaCol,txn_type:'credit',amount:fee,reason:'match_refund',ref_id:id}).then(null, function(){});
-          }
-        }
-      });
+    var supa = window._supa || (window.getSupa && window.getSupa());
+    if(!supa){ showToast('Supabase client not ready', true); return; }
+
+    var res = await supa.rpc('cancel_match_with_refunds', { p_match_id: id });
+    if(res && res.error){ throw new Error(res.error.message || 'RPC failed'); }
+    var data = res && res.data;
+    if(!data || data.ok !== true){
+      throw new Error((data && data.error) || 'cancel/refund failed');
     }
-    
-    /* ── Set match status to cancelled ── */
-    pr.push(rtdb.ref(DB_MATCHES+'/'+id).update({status:'cancelled',cancelledAt:Date.now(),cancelledBy:_adminUid()}));
-    
-    await Promise.all(pr);
-    console.log('✅ Match cancelled: '+matchName+' — '+rc+' players refunded');
-    showToast('✅ Cancelled — '+rc+' players refunded');
+
+    var rc = data.refund_count || 0;
+    console.log('[cancelTournament] single-authority RPC ok:', id, '— refunds:', rc);
+    showToast('✅ Cancelled — ' + rc + ' player' + (rc === 1 ? '' : 's') + ' refunded');
     loadTournaments();
   }catch(e){
-    console.error('cancelTournament error:',e);
-    showToast('Error: '+e.message,true);
+    console.error('cancelTournament error:', e);
+    showToast('Error: ' + (e && e.message ? e.message : e), true);
   }
 }
 async function deleteTournament(id){
-  /* Base implementation — security-patches.js overrides this with refund logic */
-  if(!confirm('⚠️ Match delete karna hai? Joined players ko refund check kiya jayega.'))return;
+  /* R7 SINGLE-AUTHORITY: delete = cancel + refund (physical row removal nahi —
+     refund/audit evidence preserve hota hai). Same atomic RPC
+     cancel_match_with_refunds(); Firebase/rtdb side only mirror refresh. */
+  if(!confirm('⚠️ Match cancel/delete karna hai? Joined players ko atomic refund milega.'))return;
   try{
-    var DB_J=window.DB_JOIN||'joinRequests';
-    /* Cancel all join requests first */
-    var snap=await rtdb.ref(DB_J).orderByChild('matchId').equalTo(id).once('value');
-    if(snap.exists()){
-      var updates={};
-      snap.forEach(function(c){updates[DB_J+'/'+c.key+'/status']='cancelled';});
-      await rtdb.ref().update(updates);
+    var supa = window._supa || (window.getSupa && window.getSupa());
+    if(!supa){ showToast('Supabase client not ready', true); return; }
+    var res = await supa.rpc('cancel_match_with_refunds', { p_match_id: id });
+    if(res && res.error){ throw new Error(res.error.message || 'RPC failed'); }
+    var data = res && res.data;
+    if(!data || data.ok !== true){
+      throw new Error((data && data.error) || 'cancel/refund failed');
     }
-    await rtdb.ref(DB_MATCHES+'/'+id).remove();
-    showToast('Deleted');loadTournaments();
-  }catch(e){showToast('Error: '+e.message,true);}
+    var rc = data.refund_count || 0;
+    showToast('✅ Match cancelled — ' + rc + ' refund' + (rc === 1 ? '' : 's'));
+    loadTournaments();
+  }catch(e){ showToast('Error: ' + (e && e.message ? e.message : e), true); }
 }
 /* syncTournamentStatuses — Auto-update DATABASE status based on time
    Uses the same 1-hour duration logic as getMatchStatus()

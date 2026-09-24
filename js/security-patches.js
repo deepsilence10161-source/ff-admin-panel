@@ -172,19 +172,21 @@
               if (!confirm(confirmMsg)) return;
 
               supa.rpc('cancel_match_with_refunds', {
-                p_match_id: id,
-                p_admin_uid: (window._adminUid ? window._adminUid() : null)
+                p_match_id: id
+                /* R7: p_admin_uid ab client se bheja hi nahi — RPC caller
+                   (auth.jwt()->>'sub') ko authoritative admin maanta hai. */
               }).then(function (res) {
                 var data = res.data;
                 if (!data || data.ok !== true) {
                   _toast('❌ Refund/cancel failed: ' + ((data && data.error) || (res.error && res.error.message) || 'unknown error'), 'err');
                   return;
                 }
-                /* Clean up the Firebase-only side (room chat, live listeners etc.)
-                   via the original delete path, but Supabase matches row is
-                   already marked cancelled by the RPC — origDel's own Supabase
-                   delete (if any) will just no-op on a missing/renamed row. */
-                origDel(id);
+                /* R7: RPC ne match cancel + refund + ledger + commissions
+                   sab kar diya hai. Ab sirf UI refresh — base deleteTournament
+                   ko dobara call NAHI karte (nahi to second RPC/confirm hota).
+                   Firebase mirror/UI cleanup yahan loadTournaments() se ho
+                   jata hai. */
+                if (typeof window.loadTournaments === 'function') window.loadTournaments();
                 var rc = data.refund_count || 0;
                 _toast('✅ Match cancelled. ' + rc + ' refund' + (rc === 1 ? '' : 's') + ' issue kiye.', 'ok');
               }).catch(function (e) {
