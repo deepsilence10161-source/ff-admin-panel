@@ -16404,4 +16404,16 @@ REVOKE EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id
 
 
 
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 2026-09-26a SECURITY P0 FIXES (increment_match_filled_slots anon close)
+-- source: 2026-09-26a-SECURITY-P0-FIXES.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+
+
+REVOKE EXECUTE ON FUNCTION public.increment_match_filled_slots(p_match_id text) FROM anon;
+
+
+
+
 COMMIT;

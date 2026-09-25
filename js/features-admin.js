@@ -1174,104 +1174,44 @@
     el.appendChild(row);
   };
   window._publishResults = function (matchId, matchName, prize1, prize2, prize3) {
+    /* ⛔ R7 SECURITY (2026-09-26, P0): legacy "Publish & Auto-Pay" sirf client-side
+       Firebase money-write karta tha (users/{uid}/realMoney/winnings + stats/earnings
+       + transactions) = client financial authority + double ledger. Ab inert:
+       single authoritative server RPC `publish_match_results()` hi chalega —
+       client sirf {user_id, rank, kills}. Koi amount/currency/prize NAHI bhejta,
+       koi Firebase money-write NAHI. (prize1/2/3 params ab ignore hote hain —
+       server matches.first/second/third_prize + per_kill_prize se compute karta hai.) */
     var posInputs = document.querySelectorAll('.res-pos');
     var killInputs = document.querySelectorAll('.res-kills');
-    var ignInputs = document.querySelectorAll('.res-ign');
     var results = [];
     posInputs.forEach(function(posEl, i) {
       var pos = Number(posEl.value) || 0;
       var kills = Number(killInputs[i] && killInputs[i].value) || 0;
       var uid = posEl.getAttribute('data-uid') || '';
-      var name = posEl.getAttribute('data-name') || (ignInputs[i] ? ignInputs[i].value.trim() : '');
-      if (!name && !uid) return;
-      var prize = pos === 1 ? Number(prize1)||0 : pos === 2 ? Number(prize2)||0 : pos === 3 ? Number(prize3)||0 : 0;
-      results.push({ rank: pos || 99, playerName: name, uid: uid, kills: kills, prize: prize });
+      if (!uid) return; /* IGN-only row → RPC skip (server join undefined) */
+      if (!pos && !kills) return;
+      results.push({ user_id: uid, rank: pos || 0, kills: kills });
     });
-    if (!results.length) { _toast('Koi result nahi', true); return; }
-    /* Get match mode for prize splitting */
-    rtdb.ref('matches/' + matchId).once('value', function(matchSnap) {
-      var matchData = matchSnap.val() || {};
-      var mode = (matchData.mode || matchData.type || 'solo').toLowerCase();
-      var teamSize = mode === 'duo' ? 2 : mode === 'squad' ? 4 : 1;
-
-      /* For duo/squad: split rank prize among teammates who share same rank */
-      /* Group by rank to find team members */
-      var rankGroups = {};
-      results.forEach(function(r) {
-        if (!rankGroups[r.rank]) rankGroups[r.rank] = [];
-        rankGroups[r.rank].push(r);
-      });
-
-      /* Adjust prize: split rank prize equally among same-rank players */
-      results.forEach(function(r) {
-        var sameRankPlayers = rankGroups[r.rank] || [r];
-        var teamCount = Math.max(sameRankPlayers.length, 1);
-        if (teamSize > 1 && teamCount > 1) {
-          r.originalPrize = r.prize;
-          r.prize = Math.floor(r.prize / teamCount);
-          r.prizeNote = 'Team share (' + teamCount + ' members)';
-        }
-      });
-
-      /* Write to matches/{id}/results - main path */
-      var batch = {};
-      results.forEach(function(r, i) { 
-        if (r.uid) batch['matches/' + matchId + '/results/' + r.uid] = r;
-        /* Also write to global results node for user panel */
-        var rk = rtdb.ref('results').push().key;
-        batch['results/' + rk] = {
-          userId: r.uid, matchId: matchId, rank: r.rank,
-          kills: r.kills, winnings: r.prize, totalWinning: r.prize, won: r.rank === 1,
-          timestamp: Date.now(), createdAt: Date.now()
-        };
-      });
-      rtdb.ref().update(batch);
-      rtdb.ref('matches/' + matchId + '/status').set('resultPublished');
-
-      /* Auto-pay winners */
-      var paid = 0;
-      results.forEach(function(r) {
-        if (r.prize <= 0) return;
-        var doPayByUid = function(uid) {
-          if (!uid) return;
-          /* Add winnings to realMoney.winnings */
-          rtdb.ref('users/' + uid + '/realMoney/winnings').transaction(function(v) { return (v||0) + r.prize; });
-          /* Track earnings in stats */
-          rtdb.ref('users/' + uid + '/stats/earnings').transaction(function(v) { return (v||0) + r.prize; });
-          /* TDS tracking */
-          rtdb.ref('users/' + uid + '/tds/winningsCredited').transaction(function(v) { return (v||0) + r.prize; });
-          if (r.rank === 1) rtdb.ref('users/' + uid + '/stats/wins').transaction(function(v) { return (v||0) + 1; });
-          rtdb.ref('users/' + uid + '/stats/kills').transaction(function(v) { return (v||0) + r.kills; });
-          /* Transaction record */
-          rtdb.ref('users/' + uid + '/transactions').push({
-            type: 'match_prize', amount: r.prize, matchId: matchId, matchName: matchName,
-            rank: r.rank, kills: r.kills, timestamp: Date.now(), status: 'completed'
-          });
-          /* Notification */
-          var prizeMsg = teamSize > 1
-            ? 'Position #'+r.rank+' in '+matchName+'. Your share: 💎'+r.prize+'!'
-            : 'Congratulations! Position #'+r.rank+' in '+matchName+'. 💎'+r.prize+' added to wallet!';
-          rtdb.ref('users/' + uid + '/notifications').push({
-            title: r.rank <= 3 ? '🏆 You Won 💎' + r.prize + '!' : '🎮 Match Result',
-            message: r.rank <= 3 ? prizeMsg : 'Match '+matchName+' result published. Kills: '+r.kills,
-            type: 'result', matchId: matchId, timestamp: Date.now(), read: false
-          });
-          paid++;
-        };
-        if (r.uid) { doPayByUid(r.uid); }
-        else if (r.playerName) {
-          rtdb.ref('users').orderByChild('ign').equalTo(r.playerName).once('value', function(s) {
-            s.forEach(function(c) { doPayByUid(c.key); });
-          });
-        }
-      });
-      /* Log activity */
-      if (window.logActivity) logActivity('publish_results', matchId, { count: results.length, matchName: matchName });
-      _toast('✅ Results published! ' + results.filter(function(r){return r.prize>0;}).length + ' winners paid. Mode: ' + mode + (teamSize>1?' (Prize split '+teamSize+'-way)':''));
-      _close();
-    }); /* end rtdb.ref('matches').once */
+    if (!results.length) { _toast('Koi player result nahi (UID wale rows chahiye)', true); return; }
+    if (!window._supa) { _toast('Supabase not ready — single authority required', true); return; }
+    if (window._pubInFlight) { _toast('⏳ Already publishing...', true); return; }
+    window._pubInFlight = true;
+    window._supa.rpc('publish_match_results', { p_match_id: matchId, p_results: results })
+      .then(function(res) {
+        var p = res && res.data;
+        if (res && res.error) throw new Error(res.error.message || 'publish RPC failed');
+        if (!p || p.ok !== true) throw new Error((p && p.error) || 'Publish rejected by server');
+        _toast('✅ Results published! (' + p.players + ' players, ' + p.winners + ' winners paid' +
+               (p.was_correction ? ', ' + p.corrections + ' corrections' : '') + ')');
+        if (window.logActivity) logActivity('publish_results', matchId, { count: p.players, matchName: matchName });
+        _close();
+      })
+      .catch(function(err) {
+        _toast('Error: ' + (err && err.message), true);
+        console.error('_publishResults error:', err);
+      })
+      .then(function() { window._pubInFlight = false; });
   };
-
   /* ─── FEATURE 32: DISPUTE MANAGEMENT ─── */
 
   window.showDisputes = function () {

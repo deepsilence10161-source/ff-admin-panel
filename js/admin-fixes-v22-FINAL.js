@@ -255,35 +255,16 @@ patchWhenReady('mhCalcPrize', function () {
 
 patchWhenReady('saveMhCorrections', function () {
   var _orig = window.saveMhCorrections;
+  /* ⛔ R7 SECURITY (2026-09-26, P0): YE SPLIT-PATCH AB DEAD HAI — saveMhCorrections
+     ab single authoritative server RPC `correct_match_result()` par chalta hai aur
+     server khud duo/squad + captain_pays prize split compute karta hai
+     (matches.first/second/third_prize + join_requests.fee_type/captain_uid).
+     Client-side `row.dataset.prize` override ka koi meaning nahi reh gaya —
+     isliye wrapper ab pure passthrough hai (koi prize math client par nahi). */
   window.saveMhCorrections = async function () {
-    /* Patch _MHD with split awareness before calling original */
-    var d = window._MHD;
-    if (!d) return _orig.apply(this, arguments);
-
-    /* Override prize calculation during save to apply team split */
-    var rows = document.querySelectorAll('#mhParticipantsList tr[data-uid]');
-    rows.forEach(function (row) {
-      var mode = (row.dataset.mode || 'solo').toLowerCase();
-      var isTM = row.dataset.isteam === '1';
-      var ft   = row.dataset.feetype || 'each_pays';
-      if (mode === 'solo' || isTM) return;
-
-      var r = Number((row.querySelector('.mh-rank')||{}).value) || 0;
-      var k = Number((row.querySelector('.mh-kills')||{}).value) || 0;
-      var rp = r===1?d.f1:r===2?d.f2:r===3?d.f3:0;
-      var kp = k * d.pk;
-      var fullPrize = rp + kp;
-      var teamSize = mode === 'squad' ? 4 : 2;
-
-      if (ft !== 'captain_pays' && fullPrize > 0) {
-        /* Store split prize in dataset so original save uses it */
-        row.dataset.prize = Math.floor(fullPrize / teamSize);
-      }
-    });
-
     return _orig.apply(this, arguments);
   };
-  console.log('[v22] Bug#33 Fix: saveMhCorrections applies duo/squad prize split');
+  console.log('[v22] Bug#33 Fix: saveMhCorrections split-patch retired (server computes split → passthrough)');
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════

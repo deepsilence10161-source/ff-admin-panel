@@ -99,77 +99,25 @@ function patchWhenReady(name, patcher, delay) {
    ════════════════════════════════════════════════════════════════════════ */
 patchWhenReady('confirmWithdrawal', function () {
   if (window.confirmWithdrawal._v24SupaSync) return; // prevent double-patch
-  var _orig = window.confirmWithdrawal;
-
+  /* ⛔ R7 SECURITY (2026-09-26, P0): confirmWithdrawal base function DELETED hai
+     (Wallet Requests tab 2026-08-19 remove) — ye wrapper MISSING function par
+     __orig = undefined attach hota THA; अगर window.confirmWithdrawal kabhi
+     किसी purane path se define ho jata to ye client-side users.update +
+     wallet_transactions.insert (direct financial write) karta. Ab HARD INERT:
+     koi direct balance write NAHI, सिर्फ़ server RPCs allowed:
+     resolve_sd_request / resolve_sponsored_withdrawal (live withdrawal paths).
+     Server hi single financial authority hai. */
   window.confirmWithdrawal = async function () {
-    /* Run the original function (Firebase steps + modal close) */
-    await _orig.apply(this, arguments);
-
-    /* After original completes, sync to Supabase */
-    var supa = getSupa();
-    if (!supa) return;
-
-    /* Pull the data that was just processed (same globals as original) */
-    var w   = window.allWalletRequests && window.pendingWithdrawData
-              ? window.allWalletRequests[window.pendingWithdrawData.requestId]
-              : null;
-    if (!w) return; // already closed / data gone
-
-    var uid = w.uid || w.userId || w.oderId || null;
-    if (!uid) return;
-
-    var amt    = Number(w.amount) || 0;
-    var rid    = window.pendingWithdrawData && window.pendingWithdrawData.requestId;
-    /* Determine currency column based on request type */
-    var wdCol  = (w.entryType === 'coin' || w.type === 'coin')
-                 ? 'coins' : 'sky_diamonds';
-
-    /* TDS may have been applied — use netAmt stored on request, else full amt */
-    var netAmt = Number(w.amountAfterTDS || w.netAmount || amt);
-    if (netAmt <= 0) return;
-
-    try {
-      /* STEP A: Decrement Supabase balance via RPC */
-      var rpcResult = await supa.rpc('decrement_balance', {
-        p_uid: uid, p_col: wdCol, p_amount: netAmt
-      }).catch(function () { return { error: { message: 'rpc_missing' } }; });
-
-      /* STEP B: Fallback — direct read+update if RPC not available */
-      if (rpcResult && rpcResult.error) {
-        var cur = await supa.from('users').select(wdCol).eq('id', uid).single()
-                    .catch(function () { return { data: null }; });
-        if (cur && cur.data) {
-          var newBal = Math.max(0, (cur.data[wdCol] || 0) - netAmt);
-          await supa.from('users').update({ [wdCol]: newBal }).eq('id', uid)
-            .catch(function (e) {
-              console.error('[v24 Bug#1] Supabase balance update fallback error:', e.message);
-            });
-        }
-      }
-
-      /* STEP C: Insert wallet_transactions record */
-      await supa.from('wallet_transactions').insert({
-        user_id:    uid,
-        txn_type:   'debit',
-        amount:     netAmt,
-        currency:   wdCol,
-        reason:     'Withdrawal approved by admin',
-        ref_id:     rid || null,
-        created_at: new Date().toISOString()
-      }).catch(function (e) {
-        console.warn('[v24 Bug#1] wallet_transactions insert failed:', e.message);
-      });
-
-      console.log('[v24 Bug#1 ✅] confirmWithdrawal: Supabase synced —',
-        netAmt, wdCol, 'debited for', uid);
-
-    } catch (e) {
-      console.error('[v24 Bug#1] confirmWithdrawal Supabase sync error:', e.message);
-    }
+    var supa = window._supa || (window.getSupa && window.getSupa());
+    var msg = 'Withdrawal approval ab server RPC se hota hai (resolve_sd_request / resolve_sponsored_withdrawal) — ye legacy action disabled hai.';
+    if (window.showToast) showToast('ℹ️ ' + msg, false);
+    console.warn('[v24] confirmWithdrawal inert:', msg);
+    if (supa) { /* कोई client-side financial write intentionally नहीं */ }
+    return null;
   };
 
   window.confirmWithdrawal._v24SupaSync = true;
-  console.log('[v24] BUG #1 ✅ confirmWithdrawal: Supabase balance sync added');
+  console.log('[v24] BUG #1 ✅ confirmWithdrawal: INERT — server-only withdrawal authority enforced');
 });
 
 /* ════════════════════════════════════════════════════════════════════════

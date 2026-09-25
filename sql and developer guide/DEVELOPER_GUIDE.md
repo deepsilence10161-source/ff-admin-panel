@@ -7070,3 +7070,28 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 **Regression:** sql_verify 71/0 · r7_followup 22/0 · financial 43/0 · attack 21/21 · attack2 7/7 · final 23/23 · CANCEL_RACE pass · admin/user smoke 0 page-errors.
 
 **Warning:** supabase_admin-owned objects (pg_net ACL, vault/pgbouncer SECDEF funcs) are platform-managed — postgres role cannot REVOKE from them by design.
+
+
+---
+
+## 57. R7 P0 fixes — client financial authority removal + slot accounting (2026-09-26a)
+
+**P0 findings & fixes:**
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `saveMhCorrections()` client-side Firebase money-write (Match History bulk correction) | Rewired → per-player server `correct_match_result()` RPC; Firebase `realMoney/winnings`, `stats/earnings`, `transactions` writes removed |
+| 2 | `_publishResults()` client-side Firebase money-write (features-admin legacy "Publish & Auto-Pay") | Rewired → single `publish_match_results()` RPC; prize1/2/3 params ignored (server computes) |
+| 3 | `confirmWithdrawal()` legacy wallet stuff | base already deleted (2026-08-19); v24 wrapper made INERT — server RPCs `resolve_sd_request` / `resolve_sponsored_withdrawal` are the only financial authority |
+| 4 | `increment_match_filled_slots` anon EXECUTE | REVOKE from anon (DB delta). No live client caller: joins (`validate_and_join_match`, `join_match_team`, `form_auto_squad_team`, ad-watch join) increment `filled_slots` server-side inside own transaction (`FOR UPDATE` + `filled_slots = filled_slots + v_slots`) |
+
+**P1 (broad anon grants cleanup) — classified already-clean:**
+- 74→73 anon SECDEF EXECUTE: every remaining one is a live client RPC (body-guarded `auth.jwt`+ownership/admin) or an RLS helper (`is_caller_admin`, `f_user_public_profiles`, `f_referral_leaderboard`).
+- `increment_match_filled_slots` was the only true residual (no live caller) → closed in P0-4.
+- Trigger/internal functions anon EXECUTE = 0; non-SECDEF anon EXECUTE = 0; PUBLIC (grantee=0) EXECUTE = 0.
+- admin roles still resolve to anon (PLATFORM FACT #7) — body guards are the actual security boundary; blanket revoke would break the live app.
+
+**Live invariants (post-fix):**
+- anon SECDEF EXECUTE = 73; authenticated SECDEF = 0; pg_net in `extensions`; definer views 0; mutable search_path 0.
+- Joins stay atomic server-side; slot accounting single-authority.
+- Withdrawal/correction/publish all single-authoritative server RPCs.

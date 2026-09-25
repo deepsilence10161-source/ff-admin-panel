@@ -680,43 +680,60 @@ window.mhFilterRows = function(s) {
 };
 
 window.saveMhCorrections = async function() {
+  /* ⛔ R7 SECURITY (2026-09-26, P0): Match History ka bulk "Save All" ab single
+     authoritative server RPC `correct_match_result()` per player. Purana path
+     Firebase `users/{uid}/realMoney/winnings` + `stats/earnings` + `transactions`
+     client-side mutate karta tha = client financial authority + double ledger —
+     JAISA KE single-player correction (openResultCorrection) kab ka server RPC
+     par hata hai. Ab: client sirf {p_match_id, p_user_id, p_rank, p_kills}
+     bhejta hai. Koi prize/currency NAHI. koi Firebase money-write NAHI.
+     Server match_results/join_requests ka old-prize snapshot leke wallet delta +
+     wallet_transactions + notifications + admin_actions sab EK txn me karta hai.
+     (v22 ka duo/squad prize-split patch ab dead hai — server khud compute karta
+     hai; old-prize baseline bhi server hi hota hai, yahan client ne jo dekha
+     usse nahi.) */
   var d=window._MHD; if(!d){if(window.showToast)showToast('Match select karo pehle',true);return;}
   var rows=document.querySelectorAll('#mhParticipantsList tr[data-uid]');
   if(!rows.length) return;
   var btn=document.getElementById('mhSaveBtn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving...';}
-  var rtdb=window.rtdb||window.db, mid=d.mid, er=window._MHR||{};
-  var promises=[];
+  var mid=d.mid;
+  var results=[];
   rows.forEach(function(row){
     var uid=row.dataset.uid;
     var rank=Number((row.querySelector('.mh-rank')||{}).value)||0;
     var kills=Number((row.querySelector('.mh-kills')||{}).value)||0;
-    var rp=rank===1?d.f1:rank===2?d.f2:rank===3?d.f3:0, kp=kills*d.pk;
-    var isTM=row.dataset.isteam==='1', ft=row.dataset.feetype||'solo';
-    var prize=(isTM&&ft==='captain_pays')?0:(rp+kp);
-    var oldPrize=er[uid]?er[uid].winnings:0, delta=prize-oldPrize;
-    var upd={rank:rank,kills:kills,rankPrize:rp,killPrize:kp,winnings:prize,totalWinning:prize,correctedAt:Date.now(),correctedBy:'admin'};
-    var resKey=er[uid]?er[uid].key:null;
-    if(resKey) promises.push(rtdb.ref('results/'+resKey).update(upd));
-    else if(rank||kills) promises.push(rtdb.ref('results').push(Object.assign({userId:uid,matchId:mid,timestamp:Date.now()},upd)));
-    promises.push(rtdb.ref('matches/'+mid+'/results/'+uid).update(upd));
-    if(delta!==0){
-      /* ✅ R24 FIX: wallet/winningBalance (same supa column as realMoney/winnings)
-         and totalWinnings (same column as stats/earnings) removed — every MH
-         correction delta was applied 2× in Supabase. */
-      promises.push(rtdb.ref('users/'+uid+'/realMoney/winnings').transaction(function(v){return Math.max(0,(v||0)+delta);}));
-      promises.push(rtdb.ref('users/'+uid+'/stats/earnings').transaction(function(v){return Math.max(0,(v||0)+delta);}));
-      var deltaMsg = delta>0 ? '✅ ₹'+delta+' add kiya — result fix (Rank #'+rank+', '+kills+' kills)' : '⚠️ ₹'+Math.abs(delta)+' adjust kiya — result fix (pehle zyada tha)';
-      promises.push(rtdb.ref('users/'+uid+'/transactions').push({type:delta>0?'correction_credit':'correction_debit',amount:Math.abs(delta),description:deltaMsg,timestamp:Date.now()}));
-      promises.push(rtdb.ref('users/'+uid+'/notifications').push({title:'🔧 Result Updated',message:'Rank #'+rank+', '+kills+' kills → ₹'+prize+(delta>0?' (+₹'+delta+' credited)':' (-₹'+Math.abs(delta)+' adjusted)'),timestamp:Date.now(),read:false}));
-    }
-    promises.push(rtdb.ref('joinRequests').orderByChild('matchId').equalTo(mid).once('value').then(function(s){ if(s.exists()) s.forEach(function(c){if(c.val().userId===uid) rtdb.ref('joinRequests/'+c.key).update({rank:rank,kills:kills,reward:prize});}); }));
+    if(!uid) return;
+    if(!rank && !kills) return; /* koi correction nahi */
+    results.push({ p_match_id: mid, p_user_id: uid, p_rank: rank, p_kills: kills });
   });
+  if(!results.length){ if(window.showToast)showToast('Koi correction nahi dali',true); if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Save All Corrections';} return; }
+
   try {
-    await Promise.all(promises);
-    if(window.showToast) showToast('✅ Sab '+rows.length+' players ke results save ho gaye!');
+    var supa=window._supa;
+    if(!supa){ throw new Error('Supabase not ready — correction nahi ho sakti'); }
+    var okCount=0, failRows=[];
+    /* sequential — har player ke liye server-side atomic + fail साफ़ दिखे */
+    for(var k=0;k<results.length;k++){
+      var pr=results[k];
+      var r=await supa.rpc('correct_match_result', pr);
+      if(r.error){ failRows.push(pr.p_user_id+' ('+(r.error.message||'RPC error')+')'); continue; }
+      var dd=r.data||{};
+      if(dd.ok===true || dd.success===true){ okCount++; }
+      else { failRows.push(pr.p_user_id+' ('+(dd.error||'Server rejected')+')'); }
+    }
+    if(okCount && !failRows.length){
+      if(window.showToast) showToast('✅ '+okCount+' players ke results server se correct ho gaye!');
+    } else if(okCount && failRows.length) {
+      if(window.showToast) showToast('⚠️ '+okCount+' corrected, '+failRows.length+' rejected — '+failRows.join(', '),true);
+    } else {
+      if(window.showToast) showToast('❌ Koi correction nahi hui — '+failRows.join(', '),true);
+    }
+    /* Firebase results-tree MIRROR (admin-supabase-sync listener) apne aap
+       match_results se sync karega — client yahan sirf UI display update
+       karne ke liye reload karta hai, koi money-write nahi. */
     window._MHR={};
-    await loadMatchHistoryResult();
+    if(window.loadMatchHistoryResult) await loadMatchHistoryResult();
   } catch(e){ if(window.showToast) showToast('❌ Error: '+e.message,true); }
   if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-save"></i> Save All Corrections';}
 };
