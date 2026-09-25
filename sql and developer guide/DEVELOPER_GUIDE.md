@@ -7043,3 +7043,30 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 - `pg_proc`/`information_schema` counts को दस्तावेज़ बनाने से पहले **oid-level distinct count** लो (overloads जैसे `finalize_creator_commission(text)` और `(text,boolean)`).
 - Admin-panel के "obsolete checks" पुराने grant-model expect न करें — हर assertion को नई body-guard reality से update करो, न कि test weak करो।
 - पिछले interrupted-turn के server-side drifts (`correct_match_result`, `submit_gd_withdrawal`, S2b revokes) को source-of-truth में reconcile करना न भूलें।
+
+
+---
+
+## 56. Security Advisor fixes — pg_net placement + authenticated SECDEF (2026-09-25d)
+
+**Findings (Supabase Security Advisor):**
+1. 🟠 `pg_net` extension installed in `public` schema.
+2. 🔴 74 anonymous SECURITY DEFINER functions executable.
+3. 🟠 78 authenticated SECURITY DEFINER functions executable.
+
+**Root-cause classification (blind revoke नहीं):**
+
+| Finding | Root cause | Action |
+|---|---|---|
+| pg_net in public | extrelocatable=false; installed in public | DROP + `CREATE EXTENSION pg_net WITH SCHEMA extensions` (doc-blessed; queue empty → 0 lost) |
+| 74 anon SECDEF | PLATFORM FACT #7: Firebase JWT (no Supabase role claim) → PostgREST anon role | **No revoke** — these are the app's actual client RPCs, all body-guarded (auth.jwt sub + governance). Revoking = breaking the live app. |
+| 78 authenticated SECDEF | Same FACT #7: authenticated role is UNREACHABLE (GoTrue `firebase` OIDC "not allowed"; auth.users=0) | REVOKE EXECUTE FROM authenticated (grantor postgres) — 78→0. anon/service_role untouched. |
+
+**Live proofs (post-fix):**
+- admin panel real client (Firebase auth → anon resolve): `is_caller_admin()=true`, search n=6, `admin_approve_profile` returns business response (not permission-deny) ← authenticated revoke broke nothing.
+- pg_net: trigger `trg_notifications_push` tgenabled='O'; background worker echo-request 200 OK; queue 0 pending.
+- `net.http_*` PUBLIC EXECUTE remains (grantor supabase_admin; postgres can't revoke) — platform-safe: PostgREST never exposes `net` schema + anon/authenticated are NOLOGIN (down to Supabase docs "Permissions").
+
+**Regression:** sql_verify 71/0 · r7_followup 22/0 · financial 43/0 · attack 21/21 · attack2 7/7 · final 23/23 · CANCEL_RACE pass · admin/user smoke 0 page-errors.
+
+**Warning:** supabase_admin-owned objects (pg_net ACL, vault/pgbouncer SECDEF funcs) are platform-managed — postgres role cannot REVOKE from them by design.
