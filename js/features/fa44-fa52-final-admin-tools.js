@@ -202,19 +202,36 @@ window.revokeReferralBonus = function(uid) {
 
   if (!confirm('Kya aap ' + uid + ' ka referral bonus revoke karna chahte hain?')) return;
 
-  // Get referral bonus coins and deduct
-  db.ref('users/' + uid + '/referralBonusCoins').once('value', function(s) {
-    var bonusCoins = Number(s.val()) || 0;
-    if (bonusCoins <= 0) { _toast('No referral bonus found for this user'); return; }
+  /* ⛔ R7 SECURITY (2026-09-26, P0-B): yahan pehle Firebase
+     `users/{uid}/referralBonusCoins` padhke direct `users/{uid}/coins`
+     transaction (-=) karta tha. But referralBonusCoins Supabase users table
+     mein column hi nahi hai — isliye read hamesha null aata tha aur code
+     "No referral bonus found" bolke kuch nahi karta tha (safe, par dead).
+     Ab authoritative server RPC `admin_revoke_referral_bonus()` — single txn:
+     coins debit (LEAST(current, amount) — kabhi minus nahi jaye) +
+     wallet_transactions(debit/referral_bonus_revoke) + admin_actions log +
+     notification. Amount ab admin explicit prompt se deta hai (kyunki abhi
+     koi persistent referralBonusCoins source nahi hai). */
+  var amt = Number(prompt('Referral bonus coins to revoke (amount):'));
+  if (!amt || amt <= 0) { _toast('Positive amount enter karo'); return; }
 
-    db.ref('users/' + uid + '/coins').transaction(function(c) {
-      return Math.max(0, (Number(c)||0) - bonusCoins);
-    }).then(function() {
-      db.ref('users/' + uid + '/referralBonusRevoked').set({ amount: bonusCoins, revokedAt: Date.now(), reason: 'Referral fraud' });
-      db.ref('users/' + uid + '/referralBonusCoins').set(0);
-      _toast('✅ Revoked ' + bonusCoins + ' referral bonus coins from ' + uid);
+  var supa = window._supa;
+  if (!supa) { _toast('Supabase not connected'); return; }
+
+  supa.rpc('admin_revoke_referral_bonus', { p_uid: uid, p_amount: amt, p_reason: 'Referral fraud' })
+    .then(function(res) {
+      if (res.error || (res.data && res.data.success === false)) {
+        var msg = (res.data && res.data.error) || (res.error && res.error.message) || 'Unknown error';
+        _toast('❌ Revoke failed: ' + msg);
+        return;
+      }
+      var revoked = res.data && res.data.revoked;
+      _toast('✅ Revoked ' + (revoked != null ? revoked : amt) + ' referral bonus coins from ' + uid);
+    })
+    .catch(function(e) {
+      console.error('[fa44] revokeReferralBonus failed:', e && e.message);
+      _toast('❌ Revoke failed: ' + (e && e.message));
     });
-  });
 };
 
 /* ══════════════════════════════════════════════════

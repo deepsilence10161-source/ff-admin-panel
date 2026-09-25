@@ -116,8 +116,20 @@ window.fa14Unban = async function(uid) {
 
 window.fa14GiveCoins = async function(uid) {
   var amt = Number(prompt('Coins amount:')); if (!amt || amt <= 0) return;
-  await rtdb.ref('users/' + uid + '/coins').transaction(function(c) { return (c || 0) + amt; });
-  await rtdb.ref('users/' + uid + '/notifications').push({ title: '🪙 Coins Received!', message: amt + ' coins admin ne diye!', type: 'cashback', timestamp: Date.now(), read: false });
+  /* ⛔ R7 SECURITY (2026-09-26, P0-B): direct Firebase `users/{uid}/coins`
+     transaction (+=) client-side ho raha tha = client financial authority.
+     Bridge isse Supabase users.coins pe direct-column-update bana deta tha
+     (waha column grant lockdown ho chuka hai, isliye silently fail hota tha).
+     Ab authoritative server RPC `admin_set_coins('add')` — admin-guarded,
+     FOR UPDATE atomic, wallet_transactions logged. */
+  if (!window._supa) { showToast('Supabase not connected', true); return; }
+  var res = await window._supa.rpc('admin_set_coins', { p_uid: uid, p_action: 'add', p_amount: amt });
+  if (res.error || (res.data && res.data.success === false)) {
+    var msg = (res.data && res.data.error) || (res.error && res.error.message) || 'Unknown error';
+    showToast('❌ Coins failed: ' + msg, true); return;
+  }
+  /* fire-and-forget notification — bridge routes to Supabase notifications */
+  try { await rtdb.ref('users/' + uid + '/notifications').push({ title: '🪙 Coins Received!', message: amt + ' coins admin ne diye!', type: 'cashback', timestamp: Date.now(), read: false }); } catch(e) {}
   if (window.usersCache && window.usersCache[uid]) window.usersCache[uid].coins = (window.usersCache[uid].coins || 0) + amt;
   showToast('🪙 ' + amt + ' coins given!'); fa14Search();
 };

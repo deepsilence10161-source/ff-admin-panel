@@ -1159,64 +1159,38 @@ window.endCurrentSeason = function() {
   if (!db_) return;
   if (!confirm('Current season end karo? Top players ko badges milenge.')) return;
 
-  db_.ref('appSettings/currentSeason').once('value', function(snap) {
-    var season = snap.val() || {};
-    var seasonId   = season.id || 'S1';
-    var seasonName = season.name || 'Season';
-    var seasonNum  = season.seasonNum || season.season_num || 1;
-    var monthKey   = new Date().toISOString().slice(0,7); // same key fa68 uses, so both write to the same place
+  /* ⛔ R7 SECURITY (2026-09-26, P0-B): pehle yahan client sab users fetch
+     karke JS mein sort karta tha aur HAR top-100 player ko direct
+     `users/{uid}/coins` transaction (+=) se credit karta tha — client
+     financial authority (bridge isse Supabase users.coins direct-update
+     bana deta tha jaha column grant lockdown hai, toh wo credits silently
+     fail ho rahe the). Ab authoritative server RPC
+     `admin_end_current_season()` — single txn me:
+       • ranking calcRkScore = wins*40 + kills*2 + matches + streak*10
+       • tier calcRk (wahi thresholds), position reward calcSeasonReward
+         (1→500, ≤5→200, ≤20→100, else 50) — sab server-side, client-helper
+         formulas se verbatim match
+       • coins credit + wallet_transactions + seasonal_league_history
+         archive + notification + season deactivate (app_settings
+         currentSeason.active=false + live_config.seasonActive=0)
+     Koi client money-write NAHI. */
+  var supa = window._supa;
+  if (!supa) { if (window.showToast) showToast('Supabase not connected', true); return; }
 
-    /* ✅ FIX (Audit follow-up): pehle 'stats/rankPoints' field se order
-       kiya jaata tha jo 'users' table mein EXIST hi nahi karta (har user
-       ke liye undefined milta — ranking meaningless thi). Ab sab users
-       fetch karke calcRkScore() (rank.js wala wahi formula jo live rank
-       display mein use hota hai) se JS mein sort karte hain — consistent
-       aur sahi. */
-    db_.ref('users').once('value', function(uSnap) {
-      var players = [];
-      uSnap.forEach(function(c) { players.push({ uid: c.key, u: c.val() }); });
-      players.sort(function(a,b) {
-        var sa = window.calcRkScore ? window.calcRkScore(a.u.stats||{}) : 0;
-        var sb = window.calcRkScore ? window.calcRkScore(b.u.stats||{}) : 0;
-        return sb - sa;
-      });
-
-      // Award badges + archive — SAME shape/path as fa68_checkSeasonReset
-      // (seasonHistory/{month}/{uid} → seasonal_league_history table),
-      // taaki UserPanel ka seasonal-league.js dono triggers se aaya data
-      // sahi se dikha sake.
-      players.forEach(function(p, i) {
-        var pos = i + 1;
-        var rewardInfo = window.calcSeasonReward ? window.calcSeasonReward(pos) : null;
-        if (!rewardInfo) return; // sirf top 100 ko reward/archive milta hai, jaisa seasonal-league.js promise karta hai
-        var rk = window.calcRk ? window.calcRk(p.u.stats||{}) : { badge:'Bronze', emoji:'🏅', pts:0 };
-        var coins = pos === 1 ? 500 : pos <= 5 ? 200 : pos <= 20 ? 100 : 50;
-
-        db_.ref('users/' + p.uid + '/coins').transaction(function(v) { return (v||0) + coins; });
-        db_.ref('seasonHistory/' + monthKey + '/' + p.uid).set({
-          userId:     p.uid,
-          seasonName: seasonName,
-          seasonNum:  seasonNum,
-          finalTier:  rk.badge,
-          points:     rk.pts,
-          badge:      rewardInfo.badge,
-          reward:     rewardInfo.reward,
-          emoji:      rewardInfo.emoji
-        });
-        db_.ref('users/' + p.uid + '/notifications').push({
-          type: 'season_end', title: '🏆 Season Ended!',
-          message: seasonName + ' mein tumhara rank: #' + pos + '! ' + rewardInfo.badge + ' mila! ' + rewardInfo.reward + ' bonus!',
-          read: false, timestamp: Date.now()
-        });
-      });
-
-      // Mark season inactive
-      db_.ref('appSettings/currentSeason').update({ active: false });
-      db_.ref('appSettings/liveConfig').update({ seasonActive: 0 });
-
-      if (window.showToast) showToast('✅ Season ended! ' + players.length + ' players ranked, top 100 rewarded.', false);
+  supa.rpc('admin_end_current_season', {})
+    .then(function(res) {
+      if (res.error || (res.data && res.data.success === false)) {
+        var msg = (res.data && res.data.error) || (res.error && res.error.message) || 'Unknown error';
+        if (window.showToast) showToast('❌ Season end failed: ' + msg, true);
+        return;
+      }
+      var rewarded = (res.data && res.data.rewarded) || 0;
+      if (window.showToast) showToast('✅ Season ended! Top ' + rewarded + ' rewarded.', false);
+    })
+    .catch(function(e) {
+      console.error('[v10] endCurrentSeason failed:', e && e.message);
+      if (window.showToast) showToast('❌ Season end failed: ' + (e && e.message), true);
     });
-  });
 };
 
 window._v10ShowTab = function(tab) {

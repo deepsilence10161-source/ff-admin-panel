@@ -336,26 +336,34 @@ window.rewardSuggestion = function(key, uid) {
   var amount = Number(prompt('Amount (coins/₹):'));
   if (!amount || amount <= 0) { if(window.showToast) showToast('Invalid amount'); return; }
 
+  var typeParam = rewardType === '2' ? 'real_money' : 'coins';
   var rewardLabel = rewardType === '2' ? '₹' + amount : amount + ' coins';
 
-  rt.ref('suggestions/' + key).update({ status: 'rewarded', reward: rewardLabel, rewardedAt: Date.now() });
+  /* ⛔ R7 SECURITY (2026-09-26, P0-B): yahan client सीधे
+     `users/{uid}/coins` ya `users/{uid}/realMoney/bonus` transaction (+=)
+     karta tha — realMoney/bonus toh Supabase users table mein column hi
+     nahi hai (bridge NESTED_FIELD_MAP sirf realMoney/winnings→green_diamonds
+     / realMoney/deposited→sky_diamonds jaanta hai), toh wo write guaranteed
+     no-op tha. Ab authoritative server RPC `admin_reward_suggestion()` —
+     single txn: balance credit (coins | green_diamonds) + wallet_transactions
+     + suggestions.status='rewarded' + notification. */
+  var supa = window._supa;
+  if (!supa) { if(window.showToast) showToast('Supabase not connected', true); return; }
 
-  if (rewardType === '2') {
-    rt.ref('users/' + uid + '/realMoney/bonus').transaction(function(v) { return (v||0) + amount; });
-  } else {
-    rt.ref('users/' + uid + '/coins').transaction(function(v) { return (v||0) + amount; });
-  }
-
-  // Notify user
-  var nk = rt.ref('users/' + uid + '/notifications').push().key;
-  rt.ref('users/' + uid + '/notifications/' + nk).set({
-    title: '🏆 Suggestion Reward Mila!',
-    message: 'Teri suggestion ke liye ' + rewardLabel + ' reward diya gaya! Shukriya!',
-    type: 'wallet_approved', timestamp: Date.now(), read: false
-  });
-
-  if(window.showToast) showToast('🏆 Reward sent: ' + rewardLabel);
-  window.showSuggestionManager();
+  supa.rpc('admin_reward_suggestion', { p_key: key, p_reward_type: typeParam, p_amount: amount })
+    .then(function(res) {
+      if (res.error || (res.data && res.data.success === false)) {
+        var msg = (res.data && res.data.error) || (res.error && res.error.message) || 'Unknown error';
+        if(window.showToast) showToast('❌ Reward failed: ' + msg, true);
+        return;
+      }
+      if (window.showToast) showToast('🏆 Reward sent: ' + rewardLabel);
+      window.showSuggestionManager();
+    })
+    .catch(function(e) {
+      console.error('[fa26] rewardSuggestion failed:', e && e.message);
+      if(window.showToast) showToast('❌ Reward failed: ' + (e && e.message), true);
+    });
 };
 
 /* ── User Suggestions (Supabase) — v32.4 ──────────────────────────

@@ -7092,6 +7092,51 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 - admin roles still resolve to anon (PLATFORM FACT #7) — body guards are the actual security boundary; blanket revoke would break the live app.
 
 **Live invariants (post-fix):**
-- anon SECDEF EXECUTE = 73; authenticated SECDEF = 0; pg_net in `extensions`; definer views 0; mutable search_path 0.
+- anon SECDEF EXECUTE = 76; authenticated SECDEF = 0; pg_net in `extensions`; definer views 0; mutable search_path 0.
 - Joins stay atomic server-side; slot accounting single-authority.
 - Withdrawal/correction/publish all single-authoritative server RPCs.
+
+---
+
+## 58. R7 P0-B fixes — direct client money-writes → authoritative RPCs (2026-09-26b)
+
+**Finding (user-reported, live-confirmed):** 4 actively-loaded admin files
+client-side se direct coins/realMoney likh rahe the — `fa14GiveCoins`,
+`rewardSuggestion`, `revokeReferralBonus`, `endCurrentSeason`.
+
+**Live-verified reality before fix (read-only survey):**
+- Admin panel `window.rtdb` = Supabase **bridge**; Firebase RTDB replaced.
+  `users/{uid}/coins` → `users.coins` direct-column update — that column's
+  UPDATE grant is already locked down, so these writes were silently failing
+  (no loss risk, but dead UI promises).
+- `users.realMoney/bonus` aur `users.referralBonusCoins` Firebase fields ka
+  Supabase `users` table mein **koi column exist nahi karta** (bridge
+  `NESTED_FIELD_MAP` sirf `realMoney/winnings→green_diamonds`,
+  `realMoney/deposited→sky_diamonds` jaanta hai) → `rewardSuggestion`'s ₹
+  carrot aur `revokeReferralBonus` ka read-then-debit dono guaranteed no-op the.
+- Existing authoritative RPCs: `admin_set_coins(add/remove/set)`,
+  `admin_adjust_wallet(±)`, `increment_balance`/`decrement_balance` — sab
+  admin-guarded + `wallet_transactions` logged. Isilye `fa14GiveCoins` needs
+  **no new RPC** — rewired to existing `admin_set_coins('add')`.
+
+**New delta `2026-09-26b-SECURITY-P0B-FIXES.sql` — 3 new authoritative RPCs:**
+| RPC | Purpose | Ledger path |
+|---|---|---|
+| `admin_reward_suggestion(p_key, p_reward_type, p_amount)` | suggestion reward; `p_reward_type` ∈ coins/real_money (real_money→green_diamonds per owner decision) | single txn: balance credit + wallet_transactions(reason=suggestion_reward) + suggestions.status=rewarded + notification |
+| `admin_revoke_referral_bonus(p_uid, p_amount, p_reason)` | referral-fraud clawback | single txn: coins debit `LEAST(current, amount)` (floor 0) + wallet_transactions(debit) + admin_actions log + notification |
+| `admin_end_current_season(p_season_name)` | season end | single txn: server ranking (calcRkScore = wins*40+kills*2+matches+streak*10), tier (calcRk thresholds), position rewards (1→500, ≤5→200, ≤20→100, else 50), coins credit + wallet_transactions + seasonal_league_history archive + notification + app_settings deactivate (currentSeason.active=false, live_config.seasonActive=0) |
+
+**Client rewires:**
+- `fa14-player-lookup.js` `fa14GiveCoins` → `admin_set_coins('add')`; Firebase coins.transaction removed; notification via bridge (Supabase notifications table).
+- `fa26-poll-suggestion.js` `rewardSuggestion` → `admin_reward_suggestion`; Firebase coins/realMoney.bonus transactions removed; server sets status+notification.
+- `fa44-fa52-final-admin-tools.js` `revokeReferralBonus` → `admin_revoke_referral_bonus`; dead referralBonusCoins read removed (column doesn't exist); prompt asks amount.
+- `fa-admin-v10-final.js` `endCurrentSeason` → `admin_end_current_season`; entire client-side sort/reward loop removed (single RPC).
+
+**Live verification:** r8_p0b_verify 15/0 (SECDEF+guard+grants) · r8_p0b_smoke 25/0
+(coins/real_money credit, revoke debit+floor, season 500-coin+archive+deactivate,
+non-admin denied, rollback no-leak). anon SECDEF EXECUTE now 76 (3 new body-guarded
+admin RPCs; authenticated stays 0). No legacy direct money-write remains in repo.
+
+**Warning:** season-end reward formula/tier/promise values SHARED with client
+helpers (`supabase-init-early.js` calcRkScore/calcRk/calcSeasonReward) — server
+RPC must stay in lockstep with those if display changes.
