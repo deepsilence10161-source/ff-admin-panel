@@ -7000,3 +7000,46 @@ force-update ग़लत / ज़रूरी-काम का टलना।
 
 ---
 
+
+---
+
+## Section 55 — R7 FOLLOW-UP (4): ANON-ROLE POSTGREST REALITY + LEGACY FINANCIAL INERT (2026-09-25c) 🔒
+
+### क्या हुआ (live-proven root finding)
+नए 10-item batch की recon में एक **platform-sachchai** साबित हुई जो दो पुराने decisions को पलट देती है:
+
+1. **यह deployment PostgREST पर `anon` role में चलती है.** Firebase Third-Party-Auth JWTs अपने साथ `sub` (Firebase UID) तो लाते हैं पर `role` claim नहीं — इसलिए PostgREST हर request को `anon` role में चलाता है। Live proofs:
+   - `auth.users` = **0** rows (कोई native Supabase session कभी नहीं बना)
+   - वैध Firebase admin token + anon key → GET `/auth/v1/user` = `bad_jwt: signing method RS256 is invalid` (third-party तो config है पर validate नहीं होता)
+   - वही token → `is_caller_admin()` = **true** (मतलब `auth.jwt()->>'sub'` भरता है, sirf role `anon` रहता है)
+   - वही token → हर **authenticated-granted** function/view = `42501`
+   - **PostgREST JWT signature अभी भी verify करता है** (tampered/garbage token → 401) — `sub` forge नहीं हो सकता।
+
+2. **इसलिए 09-24c के "authenticated-only" REVOKEs prod-breaking थे** (अपने ही PLATFORM FACT #7 के ख़िलाफ़):
+   - 77 client-called SECDEF RPCs unreachable (resolve_sd_request, approve_premium, publish_match_results, admin_adjust_wallet, cancel_match_with_refunds …)
+   - `user_public_profiles`/`referral_leaderboard` से anon-SELECT हटा → **friend-search = 0 results live** (QAUserOne DB में होते हुए भी "Koi player nahi mila")
+   - `increment_poll_vote`/`increment_match_filled_slots` जैसे client-called counters service-only → टूटे
+
+### सही security model (यहीं से स्थायी सिख)
+- **Auth = SECDEF body guard (fail-closed) + RLS + server-config price authority.** Grant-layer इस deployment में auth-layer नहीं है।
+- **हर financial/admin RPC का body guard verify करो** (न कि blind grant expectation): admin path = `SELECT is_admin FROM users WHERE id = auth.jwt()->>'sub'` + `v_caller IS NULL → reject`; user path = `v_caller IS NULL → reject` + (जहाँ अधिकार चाहिए) `v_caller IS DISTINCT FROM p_uid → reject`; all money amounts server-config/prize-table से derive, client `p_coins/p_reward/p_gd_amount/p_price` **IGNORE**।
+- **Guarded RPCs → `anon, authenticated, service_role` EXECUTE; internal/unguarded/scheduled/nested (कोई client caller नहीं) → `service_role` ONLY; उम्मीद "anon=0 है तो secure है" से काम न चलाओ।**
+- `users` anon grant column-level re-grant जैसी **documented रखो**; सबसे ऊपर का "REVOKE FROM anon मत करो" PLATFORM FACT #7 notice अब live-verified है।
+
+### इस batch में resolution (10 items)
+| # | Item | Resolution |
+|---|------|------------|
+| 1 | legacy `approveWallet`/`rejectWallet` (Firebase-only money paths) | **inert** — balance/ledger writes remove; sirf RTDB status-mirror + `admin_activity_log` audit; real financial path RPC-only बना रहता है |
+| 2 | `submitResultCorrection` | **सिंगल authoritative RPC** `correct_match_result()` — admin-panel JS अब RPC call करता है (server prize compute, wallet delta, `wallet_transactions` correction_credit/debit, notifications, `match_results` upsert, `join_requests`, `admin_actions` सब एक txn); client केवल rank/kills/manual-amount भेजता है, Firebase mirror loop हटा |
+| 3 | legacy `approveSkyDiamond`/`approvePremium` | **RPC-first** — `resolve_sd_request` (SD) + `approve_premium` (premium) पर route; direct client balance-credit remove |
+| 4 | `is_caller_admin` anon | **KEEP (documented रहा)** — RLS-helper grant है, leak नहीं; revoke attempt rollback (product-breaking proof के साथ) |
+| 5 | admin SECDEF auth-execute | classified; guarded client = anon restore, internal = service-only (78 SECDEF auth अभी भी classification से match) |
+| 6/7 | `user_public_profiles` + `referral_leaderboard` views | **`security_invoker=true` + SECDEF whitelist-wrapper functions** (`f_user_public_profiles`/`f_referral_leaderboard`, owner postgres, केवल non-sensitive columns) + anon-SELECT restore — friend-search E2E फिर 3/3 results |
+| 8 | `pg_trgm`/`pg_net` | `pg_trgm` पहले से extensions-schema (relocatable, GIN index debt 0) ✅; `pg_net` **non-relocatable रहा** (public + client access revoke documented) |
+| 9 | migration/source sync | `COMPLETE_SCHEMA` में `2026-09-25c-PROD-RECONCILE` भाग merge (views wrapper + `correct_match_result` + `submit_gd_withdrawal` + grant matrix byte-same) |
+| 10 | regression | sql_verify 71/0 · followup 22/0 · attack 21/21 · attack2 7/7 · financial_suite 43/0 · PUBLISH_E2E pass · correction live positive · search E2E 3/3 |
+
+### ध्यान-योग्य सावधानियाँ (इसी सेक्शन से सीख)
+- `pg_proc`/`information_schema` counts को दस्तावेज़ बनाने से पहले **oid-level distinct count** लो (overloads जैसे `finalize_creator_commission(text)` और `(text,boolean)`).
+- Admin-panel के "obsolete checks" पुराने grant-model expect न करें — हर assertion को नई body-guard reality से update करो, न कि test weak करो।
+- पिछले interrupted-turn के server-side drifts (`correct_match_result`, `submit_gd_withdrawal`, S2b revokes) को source-of-truth में reconcile करना न भूलें।

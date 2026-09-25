@@ -469,34 +469,31 @@ window.submitResultCorrection = async function(matchId, userId, userNameEncoded)
   var kills=Number((document.getElementById('rcKills')||{}).value)||0;
   var manualOn=document.getElementById('rcManualOverride')&&document.getElementById('rcManualOverride').checked;
   var manualAmt=Number((document.getElementById('rcPrize')||{}).value)||0;
-  var d=window._rcMatchData||{};
-  var rp=0; if(rank===1)rp=d.f1||0; else if(rank===2)rp=d.f2||0; else if(rank===3)rp=d.f3||0;
-  var kp=kills*(d.pk||0), prize=manualOn?manualAmt:(rp+kp);
   if(!rank&&!kills&&!manualOn){if(window.showToast)showToast('❌ Rank ya Kills daalo',true);return;}
+  var supa=window._supa;
+  if(!supa){ if(window.showToast)showToast('❌ Supabase not ready — correction nahi ho sakti',true); return; }
   try{
-    var rtdb=window.rtdb||window.db;
-    var resSnap=await rtdb.ref('results').orderByChild('userId').equalTo(userId).once('value');
-    var resKey=null, oldPrize=0;
-    if(resSnap.exists()) resSnap.forEach(function(c){var cv=c.val();if((cv.matchId||cv.tournamentId)===matchId){resKey=c.key;oldPrize=cv.winnings||cv.totalWinning||0;}});
-    var upd={rank:rank,kills:kills,rankPrize:rp,killPrize:kp,winnings:prize,totalWinning:prize,correctedAt:Date.now(),correctedBy:'admin'};
-    if(resKey) await rtdb.ref('results/'+resKey).update(upd);
-    else await rtdb.ref('results').push(Object.assign({userId:userId,matchId:matchId,userName:userName,timestamp:Date.now()},upd));
-    await rtdb.ref('matches/'+matchId+'/results/'+userId).update(upd);
-    var delta=prize-oldPrize;
-    if(delta!==0){
-      await rtdb.ref('users/'+userId+'/realMoney/winnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
-      await rtdb.ref('users/'+userId+'/stats/earnings').transaction(function(v){return Math.max(0,(v||0)+delta);});
-      /* ✅ R24 FIX: totalWinnings txn removed — same supa column (total_winnings)
-         as stats/earnings above; delta was applied 2×. */
-      await rtdb.ref('users/'+userId+'/transactions').push({type:delta>0?'correction_credit':'correction_debit',amount:Math.abs(delta),description:'Result correction – Rank #'+rank+', '+kills+' kills',timestamp:Date.now()});
+    /* ✅ R7 FOLLOW-UP (2026-09-25): result correction ab SINGLE authoritative
+       RPC `correct_match_result()` se — server khud prize compute karta hai
+       (matches.first/second/third/per_kill_prize + prize_type/entry_type
+       currency), wallet delta + wallet_transactions ledger + notifications +
+       match_results + join_requests + admin_actions sab EK txn me. Client
+       sirf {rank, kills} ya admin manual-override amount bhejta hai — koi
+       prize/currency NAHI. Firebase mirror loop NAHI likha gaya (purana path
+       users/{uid}/realMoney + transactions ko client-side mutate karta tha
+       = client financial authority + double ledger). Server hi single writer. */
+    var payload={ p_match_id: matchId, p_user_id: userId, p_user_name: userName };
+    if(manualOn){ payload.p_manual_amount=manualAmt; }
+    else { if(rank) payload.p_rank=rank; if(kills) payload.p_kills=kills; }
+    var r=await supa.rpc('correct_match_result', payload);
+    if(r.error || !r.data || r.data.ok!==true){
+      var msg=(r.data&&r.data.error)||(r.error&&r.error.message)||'Server rejected correction';
+      if(window.showToast)showToast('❌ '+msg,true);
+      return;
     }
-    var jrQ=await rtdb.ref('joinRequests').orderByChild('matchId').equalTo(matchId).once('value');
-    if(jrQ.exists()) jrQ.forEach(function(c){if(c.val().userId===userId) rtdb.ref('joinRequests/'+c.key).update({rank:rank,kills:kills,killPrize:kp,rankPrize:rp,reward:prize,resultStatus:'completed'});});
-    var note='Result correction: Rank #'+rank+', '+kills+' kills → Prize ₹'+prize;
-    if(rp||kp) note+=' (₹'+rp+' rank + ₹'+kp+' kills)';
-    await rtdb.ref('users/'+userId+'/notifications').push({title:'🔧 Result Corrected',message:note,timestamp:Date.now(),read:false,type:'correction'});
-    await rtdb.ref('adminActions').push({action:'result_correction',matchId:matchId,userId:userId,userName:userName,newRank:rank,newKills:kills,newPrize:prize,delta:delta,timestamp:Date.now()});
-    if(window.showToast) showToast('✅ Corrected! Prize: ₹'+prize+(delta>0?' (+₹'+delta+')':delta<0?' (-₹'+Math.abs(delta)+')':''));
+    var d=r.data;
+    var prize=(d.new_prize!=null)?d.new_prize:0, delta=(d.delta!=null)?d.delta:0;
+    if(window.showToast) showToast('✅ Corrected! Rank#'+d.new_rank+', '+d.new_kills+' kills → Prize ₹'+prize+(delta>0?' (+₹'+delta+')':delta<0?' (-₹'+Math.abs(delta)+')':''));
     document.getElementById('genericModal').classList.remove('show');
     if(window.loadMatchHistory) loadMatchHistory();
   }catch(e){if(window.showToast)showToast('❌ Error: '+e.message,true);}
@@ -872,12 +869,35 @@ window.showSkyDiamondRequests = function() {
       body.innerHTML = '<div style="color:#ff4444;padding:20px">Error: ' + (e.message||'Load failed') + '</div>';
     });
 };
-window.approveSkyDiamond = function(reqId, uid, amount) {
+window.approveSkyDiamond = async function(reqId, uid, amount) {
+  /* ⛔ R7 FOLLOW-UP (2026-09-25): legacy Firebase-only SD approve (Sky
+     Diamonds direct client-side credit + Firebase skyDiamondRequests) ab
+     authoritative `resolve_sd_request` RPC par route karta hai — server
+     apni taraf se sd_requests FOR UPDATE lock, wallet credit + ledger
+     (wallet_transactions reason='sd_purchase_approved') + notifications
+     karta hai. Client balance NAHI likhta. */
   if (!uid || !amount) return;
-  rtdb.ref('users/' + uid + '/skyDiamonds').transaction(function(v){ return (Number(v)||0) + amount; });
-  rtdb.ref('skyDiamondRequests/' + reqId).update({ status:'approved', approvedAt: Date.now() });
-  rtdb.ref('users/' + uid + '/notifications').push({ title:'💎 Sky Diamonds Added!', message: amount + ' Sky Diamonds aapke wallet mein add ho gaye!', type:'wallet_approved', read:false, createdAt:Date.now() });
-  showToast('✅ ' + amount + ' Sky Diamonds credited!');
+  var supa = window._supa;
+  if (supa) {
+    var supaId = await window._resolveSdRequestId(reqId);
+    if (!supaId) { showToast('❌ Could not find matching Supabase request', true); return; }
+    var res = await supa.rpc('resolve_sd_request', { p_request_id: supaId, p_action: 'approve' });
+    if (res.error || (res.data && res.data.ok === false)) {
+      var msg = res.error ? res.error.message : (res.data && res.data.error);
+      showToast('❌ Approve failed: ' + msg, true);
+      showSkyDiamondRequests();
+      return;
+    }
+  } else {
+    showToast('❌ Supabase not ready — paisa credit nahi hua', true);
+    return;
+  }
+  /* Mirror-only notification (Supabase resolve_sd_request already credited
+     balance + ledger; Firebase skyDiamondRequests now legacy mirror) */
+  try {
+    rtdb.ref('skyDiamondRequests/' + reqId).update({ status:'approved', approvedAt: Date.now() }).catch(function(){});
+  } catch(e) {}
+  showToast('✅ ' + amount + ' Sky Diamonds credited (server ledger)!');
   showSkyDiamondRequests();
 };
 window.rejectSkyDiamond = async function(reqId) {
@@ -928,14 +948,29 @@ window.showPremiumRequests = function() {
     body.innerHTML = h;
   });
 };
-window.approvePremium = function(reqId, uid, tierId, gdBonus) {
+window.approvePremium = async function(reqId, uid, tierId, gdBonus) {
+  /* ⛔ R7 FOLLOW-UP (2026-09-25): legacy Firebase-only premium approve
+     (premiumTier/premiumExpires client write + GD bonus client credit) ab
+     authoritative `approve_premium` RPC par route karta hai. Server premium
+     level/expiry + (bundle) Battle Pass atomic grant karta hai; R29E model:
+     GD bonus approve par NAHI (monthly Coins claim server-side hai). */
   if (!uid) return;
-  var expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000);
-  rtdb.ref('users/' + uid).update({ premiumTier: tierId, premiumExpiresAt: expiresAt });
-  if (gdBonus > 0) rtdb.ref('users/' + uid + '/greenDiamonds').transaction(function(v){ return (Number(v)||0) + gdBonus; });
-  rtdb.ref('premiumRequests/' + reqId).update({ status:'approved', approvedAt: Date.now() });
-  rtdb.ref('users/' + uid + '/notifications').push({ title:'👑 Premium Activated!', message:'Aapka Premium plan 30 din ke liye activate ho gaya! ' + (gdBonus>0 ? gdBonus + ' <img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green Diamonds bonus bhi mile!' : ''), type:'wallet_approved', read:false, createdAt:Date.now() });
-  showToast('✅ Premium activated for 30 days!');
+  var supa = window._supa;
+  if (supa) {
+    var r = await supa.rpc('approve_premium', { p_uid: uid, p_tier: Number(tierId)||1, p_days: 30, p_grant_bp: false });
+    if (r.error || (r.data && r.data.success === false)) {
+      var msg = (r.data && r.data.error) || (r.error && r.error.message) || 'Unknown error';
+      showToast('❌ ' + msg, true);
+      return;
+    }
+  } else {
+    showToast('❌ Supabase not ready — premium activate nahi hua', true);
+    return;
+  }
+  try {
+    rtdb.ref('premiumRequests/' + reqId).update({ status:'approved', approvedAt: Date.now() }).catch(function(){});
+  } catch(e) {}
+  showToast('✅ Premium activated for 30 days (server authoritative)!');
   showPremiumRequests();
 };
 

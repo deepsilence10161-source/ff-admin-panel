@@ -1,0 +1,165 @@
+-- ══════════════════════════════════════════════════════════════
+-- 2026-09-25b — GRANT-RESTORE: Firebase-JWT → PostgREST `anon` role
+-- (PLATFORM FACT #7, live-proven: auth.users=0, /auth/v1/user bad_jwt
+--  RS256; deployed panels anon role me chalte hain). Har function ka
+--  body fail-closed guard verified hai (caller-identity / admin lookup /
+--  server-config price authority; client amount params IGNORE).
+--  NO-JWT anon attacker har jagah body guard se reject hota hai.
+-- ══════════════════════════════════════════════════════════════
+REVOKE ALL ON FUNCTION public.admin_adjust_wallet(p_uid text, p_col text, p_amount numeric, p_reason text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_adjust_wallet(p_uid text, p_col text, p_amount numeric, p_reason text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_approve_profile(p_request_id uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_approve_profile(p_request_id uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_confirm_creator_cheat(p_flag_id uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_confirm_creator_cheat(p_flag_id uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_create_sponsored_match(p_title text, p_sponsor_name text, p_mode text, p_max_slots integer, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric, p_prize_type text, p_description text, p_map text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_create_sponsored_match(p_title text, p_sponsor_name text, p_mode text, p_max_slots integer, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric, p_prize_type text, p_description text, p_map text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_dismiss_creator_flag(p_flag_id uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_dismiss_creator_flag(p_flag_id uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_reject_profile(p_request_id uuid, p_reason text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_reject_profile(p_request_id uuid, p_reason text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_roll_battle_pass_season() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_roll_battle_pass_season() TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_send_broadcast_notification(p_type text, p_title text, p_body text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_send_broadcast_notification(p_type text, p_title text, p_body text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_send_notification(p_user_id text, p_type text, p_title text, p_body text, p_ref_id text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_send_notification(p_user_id text, p_type text, p_title text, p_body text, p_ref_id text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_set_coins(p_uid text, p_action text, p_amount numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_set_coins(p_uid text, p_action text, p_amount numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_set_fraud_score(p_uid text, p_score integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_set_fraud_score(p_uid text, p_score integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_sync_user_balance(p_uid text, p_coins numeric, p_sky_diamonds numeric, p_green_diamonds numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.admin_sync_user_balance(p_uid text, p_coins numeric, p_sky_diamonds numeric, p_green_diamonds numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.apply_referral_code(p_code text, p_reward numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.apply_referral_code(p_code text, p_reward numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.approve_creator_application(p_uid text, p_code text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.approve_creator_application(p_uid text, p_code text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.approve_premium(p_uid text, p_tier integer, p_days integer, p_grant_bp boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.approve_premium(p_uid text, p_tier integer, p_days integer, p_grant_bp boolean) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.award_battle_pass_xp(p_uid text, p_season text, p_xp integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.award_battle_pass_xp(p_uid text, p_season text, p_xp integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.award_mentor_reward(p_student_uid text, p_mentor_uid text, p_gd_amount integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.award_mentor_reward(p_student_uid text, p_mentor_uid text, p_gd_amount integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.cancel_premium(p_uid text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.cancel_premium(p_uid text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.cast_poll_vote(p_poll_id uuid, p_option text, p_option_idx integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.cast_poll_vote(p_poll_id uuid, p_option text, p_option_idx integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_ad_reward() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_ad_reward() TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_battle_pass_tier(p_season text, p_tier integer, p_track text, p_gd_reward numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_battle_pass_tier(p_season text, p_tier integer, p_track text, p_gd_reward numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_match_commission_payout() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_match_commission_payout() TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_match_refund(p_join_id uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_match_refund(p_join_id uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_mission_reward(p_mission_key text, p_period text, p_coins integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_mission_reward(p_mission_key text, p_period text, p_coins integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_premium_monthly_bonus(p_tier integer, p_bonus_coins integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_premium_monthly_bonus(p_tier integer, p_bonus_coins integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_referral_reward(p_code text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_referral_reward(p_code text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_streak_milestone(p_day integer, p_coins integer, p_badge text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_streak_milestone(p_day integer, p_coins integer, p_badge text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_watch_earn_reward(p_match_id text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.claim_watch_earn_reward(p_match_id text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.contribute_to_squad_bank(p_clan_id uuid, p_uid text, p_amount numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.contribute_to_squad_bank(p_clan_id uuid, p_uid text, p_amount numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.creator_create_match(p_title text, p_mode text, p_entry_type text, p_entry_fee numeric, p_max_slots integer, p_per_kill_prize numeric, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.creator_create_match(p_title text, p_mode text, p_entry_type text, p_entry_fee numeric, p_max_slots integer, p_per_kill_prize numeric, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.creator_publish_result(p_match_id text, p_results jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.creator_publish_result(p_match_id text, p_results jsonb) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.creator_set_room(p_match_id text, p_room_id text, p_room_password text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.creator_set_room(p_match_id text, p_room_id text, p_room_password text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.form_auto_squad_team(p_match_id text, p_mode text, p_needed integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.form_auto_squad_team(p_match_id text, p_mode text, p_needed integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.get_my_poll_vote(p_poll_id uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_my_poll_vote(p_poll_id uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.get_room_credentials(p_match_id text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_room_credentials(p_match_id text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.increment_balance(p_uid text, p_col text, p_amount numeric) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_balance(p_uid text, p_col text, p_amount numeric) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.increment_city_score(p_city text, p_month text, p_score integer, p_wins integer, p_kills integer, p_uid text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_city_score(p_city text, p_month text, p_score integer, p_wins integer, p_kills integer, p_uid text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.increment_clan_score(p_clan_id uuid, p_score integer, p_kills integer, p_wins integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_clan_score(p_clan_id uuid, p_score integer, p_kills integer, p_wins integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.increment_rank_points(p_uid text, p_points integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_rank_points(p_uid text, p_points integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.leave_clan(p_user_id text, p_clan_id uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.leave_clan(p_user_id text, p_clan_id uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.post_squad_finder_listing(p_mode text, p_playstyle text, p_note text, p_role text, p_lang text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.post_squad_finder_listing(p_mode text, p_playstyle text, p_note text, p_role text, p_lang text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.process_daily_checkin(p_tier_rewards numeric[], p_milestone_bonus numeric, p_milestone_days integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.process_daily_checkin(p_tier_rewards numeric[], p_milestone_bonus numeric, p_milestone_days integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.publish_match_results(p_match_id text, p_results jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.publish_match_results(p_match_id text, p_results jsonb) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.purchase_cosmetic(p_cosmetic_key text, p_price integer, p_display_name text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.purchase_cosmetic(p_cosmetic_key text, p_price integer, p_display_name text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.rate_creator_match(p_match_id text, p_stars integer, p_reason text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.rate_creator_match(p_match_id text, p_stars integer, p_reason text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.record_duel_result(p_caller_uid text, p_opponent_uid text, p_caller_won boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.record_duel_result(p_caller_uid text, p_opponent_uid text, p_caller_won boolean) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.redeem_voucher(p_code text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.redeem_voucher(p_code text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.reject_creator_application(p_uid text, p_note text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reject_creator_application(p_uid text, p_note text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.release_eligible_commissions() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.release_eligible_commissions() TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.resolve_sd_request(p_request_id uuid, p_action text, p_note text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.resolve_sd_request(p_request_id uuid, p_action text, p_note text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.resolve_sponsored_withdrawal(p_txn_id uuid, p_action text, p_note text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.resolve_sponsored_withdrawal(p_txn_id uuid, p_action text, p_note text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.set_user_ban_status(p_uid text, p_banned boolean, p_reason text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.set_user_ban_status(p_uid text, p_banned boolean, p_reason text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.set_user_location_once(p_city text, p_state text, p_lat double precision, p_lng double precision) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.set_user_location_once(p_city text, p_state text, p_lat double precision, p_lng double precision) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.start_free_trial() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.start_free_trial() TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.submit_age_verification(p_date_of_birth date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_age_verification(p_date_of_birth date) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.track_mission_progress(p_mission_key text, p_period text, p_progress integer, p_target integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.track_mission_progress(p_mission_key text, p_period text, p_progress integer, p_target integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.unlock_squad_bank_cosmetic(p_clan_id uuid, p_item_id text, p_cost integer, p_uid text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.unlock_squad_bank_cosmetic(p_clan_id uuid, p_item_id text, p_cost integer, p_uid text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.user_has_phone(p_phone text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.user_has_phone(p_phone text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.correct_match_result(text, text, integer, integer, numeric, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.correct_match_result(text, text, integer, integer, numeric, text) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.increment_match_filled_slots(p_match_id text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_match_filled_slots(p_match_id text) TO anon, authenticated, service_role;
+-- NOTE: increment_poll_vote UNGARDED hai (koi caller/JWT check nahi — no-JWT
+--   anon bhi polls vote_counts inflate kar sakta tha) → service_role KEEP.
+--   Authoritative user path cast_poll_vote() hai (invalid_option + already_voted
+--   guards); admin fallback pahle se try/catch-dedicated hai.
+REVOKE ALL ON FUNCTION public.increment_poll_vote(p_poll_id uuid, p_option text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_poll_vote(p_poll_id uuid, p_option text) TO service_role;
+
+-- Views: anon-SELECT restore (SECDEF wrapper whitelist ke through) —
+--  friend-search / player-card / referral leaderboard prod restore.
+GRANT SELECT ON public.user_public_profiles TO anon;
+GRANT SELECT ON public.referral_leaderboard TO anon;
+REVOKE ALL ON FUNCTION public.f_user_public_profiles() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.f_user_public_profiles() TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.f_referral_leaderboard() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.f_referral_leaderboard() TO anon, authenticated, service_role;

@@ -917,35 +917,39 @@
     });
   };
   window.approveWallet = function (key, uid, amount, type) {
+    /* ⛔ R7 FOLLOW-UP (2026-09-25) — INERT financial path: Supabase is the
+       one authoritative financial ledger. Ye legacy RTDB handler ab PAISA
+       NAHI hilata — no realMoney deposit/withdrawal mutation, no balance
+       credit (pehle yahan client-side money write hota tha). Status + admin
+       audit log mirror-only rahte hain (UI consistency). Real deposit/withdraw
+       actions apne dedicated RPCs se hote hain (resolve_sd_request for SD,
+       resolve_sponsored_withdrawal for sponsored winnings). */
     rtdb.ref('walletRequests/' + key).update({ status: 'approved', approvedAt: Date.now() });
-    if (type === 'deposit') {
-      rtdb.ref('users/' + uid + '/realMoney/deposited').transaction(function (v) { return (v || 0) + amount; });
+    if (window._supa && uid) {
+      window._supa.from('admin_activity_log').insert({
+        admin_uid: (window.getAdminUid ? window.getAdminUid() : 'admin'), action_type: 'legacy_wallet_approve_mirror',
+        target_uid: uid, details: { amount: amount, type: type, note: 'inert — balance untouched; RPC-only financial path', timestamp: Date.now() },
+        created_at: new Date().toISOString()
+      }).then(null, function(){});
     }
-    var nid = rtdb.ref('users/' + uid + '/notifications').push().key;
-    rtdb.ref('users/' + uid + '/notifications/' + nid).set({
-      type: type === 'deposit' ? 'wallet_approved' : 'withdraw_done',
-      title: type === 'deposit' ? '✅ Deposit Approved!' : '✅ Withdrawal Processed!',
-      body: '₹' + amount + ' ' + (type === 'deposit' ? 'wallet mein add hua' : 'processed ho gaya'),
-      read: false, createdAt: Date.now()
-    });
     _logAction('approve_wallet', key, { uid: uid, amount: amount, type: type });
-    _toast('✅ Approved!');
+    _toast('⛔ Legacy request approve (mirror-only) — paisa RPC se hi hota hai');
     window.showPendingWallet();
   };
   window.rejectWallet = function (key, uid, amount, type) {
+    /* ⛔ R7 FOLLOW-UP (2026-09-25) — INERT (same as approveWallet): koi
+       refund/balance write NAHI (pehle yahan client-side refund hota tha —
+       double-source-of-truth). Mirror-only status write. */
     rtdb.ref('walletRequests/' + key).update({ status: 'rejected', rejectedAt: Date.now() });
-    if (type === 'withdraw') {
-      rtdb.ref('users/' + uid + '/realMoney/winnings').transaction(function (v) { return (v || 0) + amount; });
+    if (window._supa && uid) {
+      window._supa.from('admin_activity_log').insert({
+        admin_uid: (window.getAdminUid ? window.getAdminUid() : 'admin'), action_type: 'legacy_wallet_reject_mirror',
+        target_uid: uid, details: { amount: amount, type: type, note: 'inert — balance untouched; RPC-only financial path', timestamp: Date.now() },
+        created_at: new Date().toISOString()
+      }).then(null, function(){});
     }
-    var nid = rtdb.ref('users/' + uid + '/notifications').push().key;
-    rtdb.ref('users/' + uid + '/notifications/' + nid).set({
-      type: type === 'deposit' ? 'wallet_rejected' : 'withdraw_rejected',
-      title: type === 'deposit' ? '❌ Deposit Rejected' : '❌ Withdrawal Rejected',
-      body: '₹' + amount + ' ' + (type === 'withdraw' ? 'wapas wallet mein add hua' : 'rejected ho gaya'),
-      read: false, createdAt: Date.now()
-    });
     _logAction('reject_wallet', key, { uid: uid, amount: amount, type: type });
-    _toast('Rejected!');
+    _toast('⛔ Legacy request reject (mirror-only) — refund RPC se hi hota hai');
     window.showPendingWallet();
   };
 
