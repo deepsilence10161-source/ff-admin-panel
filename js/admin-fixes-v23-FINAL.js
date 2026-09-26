@@ -537,30 +537,28 @@ patchWhenReady('fa10ActivityHeatmap', function () {
       var auth = getAuth();
       var uid  = auth && auth.currentUser ? _adminUid() : null;
 
-      /* Write to Supabase first (primary source for user app) */
+      /* R8 cleanup (2026-09-26): legacy block REMOVED.
+         It contained (1) a raw client upsert into poll_votes, (2) a call to
+         increment_poll_vote — a service_role-ONLY RPC, so that call could only
+         ever return 42501 (its "fallback" below was therefore the only path
+         ever taken), and (3) that fallback wrote polls.vote_counts straight
+         from the client (server-owned aggregate) — duplicating
+         cast_poll_vote's own count update = double-count hazard.
+         Canonical path now (identical to the user panel): cast_poll_vote RPC,
+         which derives identity from the JWT, validates poll + option, inserts
+         poll_votes under its unique constraint (one vote per user) and
+         maintains vote_counts server-side. No silent client fallback. */
       if (supa && pollId && uid) {
         try {
-          /* Upsert vote (one vote per user per poll) */
-          await supa.from('poll_votes').upsert({
-            poll_id:  pollId,
-            user_id:  uid,
-            option:   option !== undefined ? option : optionIdx,
-            voted_at: new Date().toISOString()
-          }, { onConflict: 'poll_id,user_id' });
-
-          /* Try RPC increment first */
-          var rpcRes = await supa.rpc('increment_poll_vote', { p_poll_id: pollId, p_option: option || String(optionIdx) })
-            .catch(function(){ return { error: true }; });
-
+          var rpcRes = await supa.rpc('cast_poll_vote', {
+            p_poll_id:   pollId,
+            p_option:    option !== undefined ? String(option) : String(optionIdx),
+            p_option_idx: (typeof optionIdx === 'number') ? optionIdx : (parseInt(optionIdx, 10) || 0)
+          });
           if (rpcRes && rpcRes.error) {
-            /* Fallback: manual increment in polls.vote_counts JSONB */
-            var pollRes = await supa.from('polls').select('vote_counts, options').eq('id', pollId).single();
-            if (pollRes.data) {
-              var vc = pollRes.data.vote_counts || {};
-              var key = option !== undefined ? String(option) : String(optionIdx);
-              vc[key] = (vc[key] || 0) + 1;
-              supa.from('polls').update({ vote_counts: vc }).eq('id', pollId).then(null, function(){});
-            }
+            console.warn('[v23 Fix#10] cast_poll_vote failed:', rpcRes.error.message || rpcRes.error);
+          } else if (rpcRes && rpcRes.data && rpcRes.data.ok === false) {
+            console.warn('[v23 Fix#10] cast_poll_vote refused:', rpcRes.data.error);
           }
         } catch (e) {
           console.warn('[v23 Fix#10] Poll Supabase vote error:', e.message);
