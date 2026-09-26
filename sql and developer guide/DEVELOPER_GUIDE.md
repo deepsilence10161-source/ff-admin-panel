@@ -7191,3 +7191,72 @@ No UI redesign, no feature removal, no security weakening; Supabase authoritativ
 economy; Firebase mirror only; client never trusted for uid/balance/price/fee/
 currency/reward/commission/XP/rank-points/score/win-kills/tier/BP/mission/refund/payout;
 RPC failure = operation failure (no client/Firebase financial fallback).
+
+---
+
+## §60 — R8 FINAL: 4 DB HARDENING FIXES (2026-09-26d)
+
+**Migration:** `sql and developer guide/2026-09-26d-R8-FINAL-DB-HARDENING.sql`
+(single consolidated delta; idempotent — re-applied ×2 with zero errors after the
+initial two-phase apply).
+
+### FIX #1 — `admin_adjust_wallet` lost-update (row lock)
+Balance read replaced with `SELECT COALESCE(<whitelisted col>,0) INTO v_current
+FROM public.users WHERE id = p_uid FOR UPDATE;` — the later
+`UPDATE ... WHERE id = $2` executes in the same transaction while the row is
+locked. Column whitelist (coins/sky_diamonds/green_diamonds), `p_amount <> 0`,
+`|p_amount| <= 999999`, insufficient-balance protection, admin/service
+authorization, `wallet_transactions` ledger row and the return shape are
+unchanged. Verified: two overlapping adjustments (100 + 200 on a 1000 balance)
+→ final 1300, no lost update.
+
+### FIX #2 — admin-only RPCs off the anon/authenticated surface (trusted backend path)
+Every panel request (user **and** admin) runs as Postgres role `anon` — the role
+comes from the `Authorization` header, never from `apikey`. Therefore the admin
+RPCs are now reached through the project's trusted backend path:
+
+- **Edge fn `admin-gateway`** (`supabase/functions/admin-gateway/index.ts`,
+  deployed `verify_jwt = false`, zero external imports). Verifies the Firebase
+  ID token server-side (`identitytoolkit accounts:lookup` → uid), then calls
+  `admin_gateway_exec` with the service role.
+- **DB wrapper `admin_gateway_exec(p_fn, p_args, p_actor)`** — service_role-only;
+  re-checks `users.is_admin` for `p_actor` (never a client-supplied uid),
+  27-name allow-list, injects the verified caller identity for sub-guarded
+  functions (`set_config('request.jwt.claims', …, true)`) and server-derives
+  `p_admin_uid` for `cancel_match_with_refunds`, then dispatches with the
+  caller's arguments bound through `pg_proc` names/types.
+- **Client shim `js/r8-admin-gateway-shim.js`** (both panels) — wraps
+  `.rpc()` so ONLY the 27 allow-listed names go through
+  `functions.invoke('admin-gateway', …)`; response `{data, error}` shape is
+  preserved and a gateway failure is surfaced (no silent fallback).
+- **EXECUTE cleanup** — all 27 admin-only functions revoked from PUBLIC, `anon`
+  and `authenticated`; `service_role` keeps EXECUTE. User-action RPCs
+  (join/check-in/room/clan/voucher/team/wallet-claims/…), `is_caller_admin()`
+  (used by 4 RLS policies) and `f_user_public_profiles` (view backing) are
+  untouched. `increment_poll_vote` / `claim_no_show_refund` remain
+  service-only per their earlier documented locks.
+- Security Advisor: admin-only functions in the anon-executable list **79 → 52**
+  (delta = exactly the 27 revoked); 0 admin-only functions remain flagged.
+
+### FIX #3 — RLS on internal idempotency tables
+`season_finalizations` and `suggestion_rewards`: `CREATE TABLE IF NOT EXISTS`
++ `ENABLE ROW LEVEL SECURITY` + `REVOKE ALL` from PUBLIC/anon/authenticated +
+`GRANT ALL` to `service_role`. No policies are created (deny-all): only the
+`SECURITY DEFINER` writers (owner `postgres`, RLS-bypassed) and service_role can
+touch them. Season finalization (`already_finalized`) and suggestion reward
+(`already_rewarded`) exactly-once paths re-verified after the change.
+
+### Verification (all live)
+- Admin smoke **59/59**, user smoke **56/56** (fresh suites:
+  `testing/r8d_admin_smoke.py`, `testing/r8d_user_smoke.py`; transport-level +
+  catalog + live browser; results in `testing/_r8d_results/`).
+- Live browser: admin panel routes `admin_adjust_wallet` through the gateway and
+  receives a business response; direct legacy calls → `42501 permission denied`;
+  user panel: admin RPC refused, user RPCs unaffected.
+- 12 R8 guard triggers still live (users/clans/notifications/join_requests/
+  matches/team_invitations/wallet_transactions).
+
+### Rules preserved
+No UI redesign, no feature removal, no security weakening; Supabase remains the
+only financial authority; Firebase stays a request/status mirror; no
+service_role key in any frontend; financial RPC failure = operation failure.

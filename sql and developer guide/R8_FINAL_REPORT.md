@@ -1,140 +1,96 @@
-# R8 ONE-CLICK FINAL SECURITY + FINANCIAL HARDENING — FINAL REPORT
+# R8 FINAL — 4 DATABASE HARDENING FIXES — FINAL REPORT
 
-**Date:** 2026-09-26
-**Repos:** `deepsilence10161-source/ff-admin-panel` (HEAD `39c505d`) · `deepsilence10161-source/ff-user-panel` (HEAD `3b78923`)
-**Migration (applied to Supabase, idempotent):** `sql and developer guide/2026-09-26c-R8-FINAL-HARDENING.sql`
-**Guide:** `DEVELOPER_GUIDE.md` §59 appended.
+**Date:** 2026-09-26 · **Scope:** FIX #1 (wallet row lock) · FIX #2 (admin-only RPC EXECUTE removal + trusted backend path) · FIX #3 (RLS on internal idempotency tables) · FIX #4 (one clean migration)
+**Repos:** `deepsilence10161-source/ff-admin-panel` — HEAD `4213dca` (shim + gateway source + `index.html`) · `deepsilence10161-source/ff-user-panel` — HEAD `fb3317b` (shim + `index.html`)
+**Guide:** `DEVELOPER_GUIDE.md` §60 appended.
+**Primitives used:** Supabase project `hddhkculuyrfoevxmlwy`; Postgres identity of every panel request = role `anon` (proven: role comes from `Authorization`, never from `apikey`).
 
 ---
 
-## CHANGES MADE
+## 1. FIXED
 
-### Supabase (single consolidated, idempotent delta — re-apply safe ×3 verified)
-| Change | Function/Trigger | Closes |
+- **FIX #1 — `admin_adjust_wallet` lost update.** The balance read is now a real row lock: `SELECT COALESCE(<whitelisted col>, 0) FROM public.users WHERE id = p_uid FOR UPDATE`, with the `UPDATE … WHERE id = $2` and the `wallet_transactions` ledger insert executing in the same transaction under that lock. Column whitelist (`coins`/`sky_diamonds`/`green_diamonds`), `p_amount <> 0`, `|p_amount| ≤ 999999`, insufficient-balance protection, admin/service authorization and the return shape are byte-for-byte preserved (no client-side read-modify-write, no fallback).
+- **FIX #2 — admin-only RPC EXECUTE removal + trusted backend path.** Classification first, then:
+  - **27 genuinely admin-only RPCs** revoked from `PUBLIC`, `anon` **and** `authenticated` (`REVOKE ALL` + `GRANT EXECUTE … TO service_role`, overload/name-safe loop): `admin_adjust_wallet, admin_approve_profile, admin_confirm_creator_cheat, admin_create_sponsored_match, admin_dismiss_creator_flag, admin_distribute_sponsored_prize, admin_end_current_season, admin_reject_profile, admin_revoke_referral_bonus, admin_reward_suggestion, admin_roll_battle_pass_season, admin_send_broadcast_notification, admin_send_notification, admin_set_coins, admin_set_fraud_score, admin_sync_user_balance, approve_creator_application, approve_premium, cancel_match_with_refunds, cancel_premium, correct_match_result, publish_match_results, reject_creator_application, release_eligible_commissions, resolve_sd_request, resolve_sponsored_withdrawal, set_user_ban_status`.
+  - **Trusted backend path (new, no service_role key in any frontend):** Edge Function `admin-gateway` (`verify_jwt=false`; Firebase ID token verified **server-side** via Identity Toolkit → uid; the token is never decoded-and-trusted locally) → DB wrapper `admin_gateway_exec(p_fn, p_args, p_actor)` (service_role-only, re-checks `users.is_admin` for the server-derived actor, 27-name allow-list, server-injects `p_admin_uid` for `cancel_match_with_refunds`, injects the verified caller identity as transaction-local `request.jwt.claims` so sub-guarded functions keep working, binds arguments by `pg_proc` name/type) → the target RPC with the service role.
+  - **Client shim** `js/r8-admin-gateway-shim.js` in **both** panels wraps `.rpc()` so the 27 names go through `functions.invoke('admin-gateway', …)`; every other RPC is untouched; `{data, error}` shape preserved; gateway failure is surfaced — there is no silent fallback to a direct client write.
+  - **User-action RPCs were not touched**: join/check-in/room/clan/voucher/team/cosmetic/withdrawal-request/poll-vote/battle-pass/mission/ad-claim and `is_caller_admin()` (used by 4 RLS policies) / `f_user_public_profiles` (view backing) keep their existing grants. `increment_poll_vote` and `claim_no_show_refund` stay service-only per their earlier documented locks (R3-8 / R15).
+- **FIX #3 — RLS on internal idempotency/audit tables.** `season_finalizations` and `suggestion_rewards`: `CREATE TABLE IF NOT EXISTS` + `ENABLE ROW LEVEL SECURITY` + `REVOKE ALL` from `PUBLIC`/`anon`/`authenticated` + `GRANT ALL TO service_role`. No policies are created — deny-all for clients; the `SECURITY DEFINER` writers (owner `postgres`) and `service_role` keep working.
+- **FIX #4 — one clean migration.** All of the above lives in a single new file (no duplication of old migrations, idempotent, no credentials).
+- **Cleanup:** the temporary role-probe function used for diagnosis is dropped (`r8_zz_role_probe` → 0 rows in `pg_proc`); synthetic test rows and probe ledger/notification/marker rows are removed (final cleanup check: 0 residue).
+
+## 2. VERIFIED
+
+16-point battery — every point executed live, all green (`testing/_r8d_results/verification_16pt.json`):
+
+| # | Point | Result |
 |---|---|---|
-| Signup mint guard | `guard_users_insert` + `trg_users_insert_guard` (BEFORE INSERT) — hard-resets coins/sky/green/rank_points/is_admin/is_banned/premium/creator/referral/* to safe defaults for non-service, non-admin INSERT | P5 |
-| Clan mint guard | `guard_clans_insert` + `trg_clans_insert_guard` — leader=caller, total_members=1, zero squad_bank_gd/unlocked/contributors/score | P6 |
-| Clan leader economy-freeze | `guard_clans_update` + `trg_clans_update_guard` — non-admin UPDATE freezes leader_uid/total_members/weekly_score/total_wins/total_kills/squad_bank_gd/squad_bank_unlocked/squad_bank_contributors/status/disbanded_at/join_code; profile fields (name/emblem/badge/bio) editable | P1 |
-| Notification spoof guard | `guard_notification_insert` + `trg_notifications_spoof_guard` — self OK; cross-user only with real peer relationship (friendship/duel/mentor/clan-war/clan-cosmetic/matched-team/active-squad); `target_all` broadcast admin-only | P4 |
-| Deposit inflation guard | `fft_guard_wallet_insert` tightened — `pending_deposit` must be `sky_diamonds`, 1..100000, own row only | P3c |
-| join_requests authority freeze | `clamp_join_requests_client_update` — freezes ALL authoritative fields (status/checked_in/checkin_at/kills/placement/prize_earned/entry_fee/entry_fee_paid/fee_type/mode/captain_uid/squad_members/in_room/in_room_at/attendance_status/slot_number) for non-admin clients | P1 |
-| Season exactly-once | `admin_end_current_season` + `season_finalizations` marker → re-click returns `already_finalized`; rank_points/win_streak/rp_today reset folded server-side | P8 |
-| Suggestion exactly-once | `admin_reward_suggestion` + `suggestion_rewards` marker → `already_rewarded`; pending→rewarded atomic; real_money→green_diamonds | P7 |
-| Balance reconciliation | `admin_sync_user_balance` — audited before/after/delta ledger rows + reason; never a blind overwrite | P10 |
-| TOCTOU fix | `decrement_balance` — FOR UPDATE row lock, no negative, own-uid only, column whitelist | P10 |
-| Room-secret guard | `guard_matches_room_secrets` + `trg_matches_room_secrets` — client can never populate matches.room_id/room_password (NULL-forced; creds live in `match_rooms`, admin-RLS-only) | P25 |
-| Check-in RPC | `check_in_match(p_match_id)` — server-validates real open/close window, FOR UPDATE, active-join check | P22 |
-| Room confirm RPC | `confirm_in_room(p_join_id)` — caller must own the join, FOR UPDATE | P22 |
-| Clan join RPC | `join_clan` 5-arg overload (`p_ign` ignored; `p_max_members` clamped 1..10, default 10) + existence/disbanded/full/duplicate/caller checks; grants anon/authenticated/service_role | Clan join |
-| Self-report lock-down | `guard_users_self_update` — `win_streak` removed from allowed list (server-authored via publish_match_results) | P11–P15 |
+| 1 | User smoke ≥44/44 | **56/56 PASS** (fresh suite) |
+| 2 | Admin smoke ≥33/33 | **59/59 PASS** (fresh suite) |
+| 3 | Concurrent admin wallet adjustments — no lost update | PASS — two overlapping service-role adjustments (100 + 200 on balance 1000) → final **1300** |
+| 4 | anon cannot execute admin RPCs | PASS — 27/27 `anon` EXECUTE = 0 grants; live call → `42501 permission denied` |
+| 5 | Normal authenticated cannot | PASS — 27/27 `authenticated` EXECUTE = 0 grants |
+| 6 | Admin JWT can | PASS — 21 live gateway probes return business responses; sub-guarded fns (`set_user_ban_status` → `user_not_found`, `cancel_match_with_refunds` → `MATCH_NOT_FOUND`) prove caller-claim injection; live-browser admin RPC shows the same |
+| 7 | service_role can | PASS — service_role EXECUTE intact 27/27; rollback probes C1–C6 execute on the trusted path |
+| 8 | RLS enabled on both tables | PASS — `relrowsecurity = true` both |
+| 9 | Direct anon CRUD blocked | PASS — SELECT/INSERT/UPDATE/DELETE × 2 tables → `401 42501` (8 checks) |
+| 10 | Season finalization exactly-once | PASS — 1st call `success:true`, 2nd → `already_finalized`; SECDEF owners still `postgres` (RLS bypass intact) |
+| 11 | Suggestion reward exactly-once | PASS — credited `green_diamonds = 5` with exactly 1 marker; 2nd call → `already_rewarded` |
+| 12 | Wallet ledger append-only / trusted | PASS — client credit insert blocked, inflated `pending_deposit` blocked, delete blocked (row counts unchanged); the ledger is written only inside the admin RPC |
+| 13 | Join / payment / refund / team / auto-squad intact | PASS — `validate_and_join_match` (uid-mismatch + fake match), `check_in_match`, `confirm_in_room`, `redeem_voucher`, `join_clan`, `respond_team_invite`, `contribute_to_squad_bank`, `purchase_cosmetic`, `submit_sponsored_withdrawal`, `invite_team_members`, `decrement_balance` all callable and fail-closed on invalid input; live user panel works |
+| 14 | Clan / notification / match-room guards intact | PASS — 12 R8 guard triggers live (incl. `trg_notifications_spoof_guard`, `trg_matches_room_secrets`, `trg_team_invitation_immutable`, `trg_users_insert_guard`, `trg_clans_*`, `trg_clamp_jr_client`, `trg_guard_users_self_update`, `trg_fft_wallet_insert_guard`); cross-user notification spoof blocked |
+| 15 | No service_role key in frontend | PASS — exhaustive scan of both repos (`.js`/`.html`/`.json`, incl. base64 JWT payload decoding): zero service_role credentials |
+| 16 | Source-wide financial scan | PASS — 86 client-side financial-table mutation sites catalogued and classified; **none** is a client-authoritative money write (blocked by RLS/guards, inert legacy wrappers, or self-service request rows). Firebase holds only request/status mirrors (`walletRequests` incl. UTR/status) — never balances. Chain intact: server-side authority (RPC/SECDEF) → wallet mutation → `wallet_transactions` ledger → audit triggers |
 
-### User panel (`ff-user-panel`, 8 files)
-- `core/db.js` — `joinRequests.create` → `validate_and_join_match`; `checkIn` → `check_in_match`; `confirmInRoom` → `confirm_in_room`; `setStatus`/`setResult` RETIRED (loud no-op).
-- `core/db-bridge.js` — joinRequests `refunded`/`inRoom`/`isUpdate` legacy writes retired; only display-only `ign_at_join` mirror remains.
-- `screens/room.js` — `confirmInRoom` → `confirm_in_room` RPC with real success/error handling.
-- `features/checkin-system.js` — `doMatchCheckIn` → `check_in_match` RPC.
-- `features/streak.js` — `updateWinStreak` local-UI only (no Supabase write).
-- `features/clan.js` + `js/bugfix-v30-final.js` — `updateClanScore` → `increment_clan_score` RPC (Firebase transaction + direct read-modify-write removed); v30 `_joinDirect` retired; `join_clan` result contract fixed (`ok`).
-- `js/bugfixes-v29-final.js` — fund-squad-bank → `contribute_to_squad_bank` RPC (direct clans read-modify-write removed).
+Additional executed evidence:
+- **Live-browser (both panels, GitHub Pages):** admin panel loads with 0 page errors, shim active on the live client, `functions.invoke` available, in-browser `admin_adjust_wallet` returns `{success:false, error:"User not found"}` through the gateway, direct legacy path → `42501`; user panel loads with 0 page errors, admin RPC refused, user RPC (`check_in_match`) returns a normal business response.
+- **Migration idempotency:** after the initial two-phase application, the full file was re-applied twice — zero errors, ACL/RLS state unchanged (anon 0 / service intact / RLS on).
+- **Gateway re-probe after all re-applications:** healthy (401 without token / 403 non-admin / 200 business responses with admin token).
+- **Rollback-only probes:** all exactly-once/idempotency/concurrency probes ran inside `BEGIN … ROLLBACK` or on synthetic rows that were deleted afterwards — verified zero residue (users / wallet rows / season marker all 0).
 
-### Admin panel (`ff-admin-panel`, 3 files)
-- `js/admin-supabase-sync.js` — Firebase→Supabase balance overwrite path REMOVED (P9/P10); non-financial ban/stats sync kept.
-- `js/admin-fixes-v21.js` — Bug#97 bulk `users.update({rank_points,win_streak})` removed (now atomic server-side).
-- `sql and developer guide/DEVELOPER_GUIDE.md` — §59 documentation.
+## 3. STILL OPEN
 
----
+Documented, non-blocking, none of them a weakening introduced by this round:
 
-## P0 FIXED
+1. **`increment_poll_vote` legacy admin-panel call site** (`admin-fixes-v23-FINAL.js:552`): the RPC stays service-only (documented lock from R3-8/R15 — it is an unguarded vote-count inflater), so that legacy call fails closed; its manual `polls` jsonb fallback was already neutralized in the prior round. Kept as-is (removing it would be a feature change).
+2. **Self-service deposit annotation insert** (`user-repo/screens/wallet.js:611`) remains by design: own-row `wallet_transactions` row with `txn_type='pending_deposit'`, `currency='sky_diamonds'`, ≤ 100000, no balance authority (guarded by `fft_guard_wallet_insert`). Unchanged from the previous audit’s SAFE verdict.
+3. **Three functions remain executable by `authenticated`** (`check_in_match`, `confirm_in_room`, `join_clan`) and a set of user/backend-class functions remain executable by `anon` (52 Advisor lints, all user-action class with JWT/`is_admin` guards, e.g. `increment_balance`, `increment_rank_points`, `get_room_credentials`). Classification says keep — they are the live client paths; listed here for transparency.
+4. **Edge-function deploy hygiene:** during deployment an intermediate broken version (empty entrypoint) briefly served 503 and was corrected by redeploy (now `version 4`, healthy). Re-verify `admin-gateway` after any future redeploy.
+5. **No destructive positive-money E2E on live data this round** (no real refunds/payouts/joins executed, by design). Positive-path evidence comes from the rollback-transaction probes (season finalization actually rewarding, suggestion reward actually crediting) plus the previous round’s positive tests; the code paths for those flows are unchanged.
 
-1. **Clan leader economy inflation (RLS)** — `clans_update_leader` policy gave leader WITH-CHECK over `squad_bank_gd` etc.; closed by `guard_clans_update` freeze trigger (leader economy writes now server-RPC-only).
-2. **Signup wallet mint** — `users_insert_own` allowed preset coins/green/is_admin; closed by `guard_users_insert`.
-3. **Notification spoof/broadcast** — closed by `guard_notification_insert`.
-4. **Clan mint (squad_bank_gd preset)** — closed by `guard_clans_insert`.
-5. **Firebase→Supabase balance overwrite (admin sync)** — closed in `admin-supabase-sync.js`.
+## 4. SECURITY ADVISOR RESULT
 
----
+Re-run after the fix (`GET /v1/projects/<ref>/advisors/security`, snapshot in `testing/_r8d_results/advisor_after.json`):
 
-## P1 FIXED
+- **57 lints total:** 52 × `anon_security_definer_function_executable`, 3 × `authenticated_security_definer_function_executable`, 2 × `rls_enabled_no_policy`.
+- **Anon-executable SECURITY DEFINER functions: 79 → 52.** The delta is **exactly the 27 admin-only RPCs**; **0 admin-only functions remain in the anon-executable list** (checked name-by-name against the 27).
+- The 52 remaining anon-executable entries are user-action RPCs (join/check-in/room/clan/voucher/team/wallet-claims/BP/mission/ad-claims/… — identity from JWT `sub`, no cross-user mutation, no trusted client amounts) — intentionally kept.
+- The 3 `authenticated`-executable entries are the same legit user RPCs (`check_in_match`, `confirm_in_room`, `join_clan`).
+- The 2 `rls_enabled_no_policy` lints are **our two internal tables** (`season_finalizations`, `suggestion_rewards`) — expected: RLS on, no client policies, deny-all by design (this is the FIX #3 state, not a defect).
+- Note: the goal was correct access control, not a green count — the remaining lints are the documented user-action class.
 
-1. `join_requests` authoritative-field client UPDATE — fully frozen (`clamp_join_requests_client_update` full freeze).
-2. `win_streak` self-report — removed from self-editable allowlist (server-authored only).
-3. `pending_deposit` currency/cap — tightened.
-4. `matches.room_id/room_password` client inject — frozen (P25).
-5. `join_clan` no member-cap + caller-spoof — capped + caller-verified.
+## 5. MIGRATION NAME/VERSION
 
----
+- **Migration (single, consolidated):** `sql and developer guide/2026-09-26d-R8-FINAL-DB-HARDENING.sql`
+  - **Applied status:** applied in two phases (phase 1 = wrapper + FIX #1 + REVOKE/GRANT of the wrapper; phase 2 = FIX #2b revoke loop + FIX #3), then **re-applied twice in full** as one script — 0 errors, idempotent.
+  - Contents: FIX #1 row lock · FIX #2a `admin_gateway_exec` · FIX #2b 27-function EXECUTE cleanup loop · FIX #3 `CREATE TABLE IF NOT EXISTS` + `ENABLE ROW LEVEL SECURITY` + grants/revokes · read-only sanity SELECT. No secrets/credentials.
+- **Edge Function:** `admin-gateway` (id `7fd35b96-4839-4e35-8637-c3797d009a3d`, slug `admin-gateway`, `verify_jwt=false`, deployed **version 4**).
+- **Client:** `js/r8-admin-gateway-shim.js` (both panels), loaded after the supabase-js UMD/compat layer (admin) / before `core/db.js` (user); admin repo HEAD `4213dca`, user repo HEAD `fb3317b`.
 
-## P2 FIXED
+## 6. USER SMOKE RESULT
 
-1. v23 poll double-write — RPC `increment_poll_vote` service-only; manual fallback neutralized live (verified non-exploitable).
-2. db-bridge `checkIns` mirror — clamp trigger neutralizes non-admin writes.
-3. Fixed harness-level false-positives in final regression (correct assertions).
+**56 / 56 PASS** (requirement ≥ 44/44) — fresh suite `testing/r8d_user_smoke.py`, raw output `testing/_r8d_results/user_smoke.json`.
+Coverage: 11 live-transport read paths (users/wallet/matches/join_requests/notifications/clans/suggestions/match_results/public-profiles/sd_requests) · 8 guard checks (direct coins/is_admin/is_banned writes blocked, cross-user write blocked, wallet credit + inflated deposit + ledger delete blocked, cross-user notification spoof blocked — all with before/after value or row-count proof) · 14 fail-closed RPC probes + 2 documented service-only refusals · 4 grant checks (19/19 user-action RPCs anon-executable; admin-only = 0; direct + gateway refusal for non-admin) · 8 RLS direct-CRUD checks + server-side idempotency path intact · 2 no-service_role-credential scans · 6 live-browser checks on the user panel.
+Note: the previous round’s 44-check script was not present in the workspace, so a fresh equivalent suite was built and executed (this is stated for transparency; the counts above are the executed, reproducible numbers).
 
----
+## 7. ADMIN SMOKE RESULT
 
-## SECURITY DEFINER
+**59 / 59 PASS** (requirement ≥ 33/33) — fresh suite `testing/r8d_admin_smoke.py`, raw output `testing/_r8d_results/admin_smoke.json`.
+Coverage: 17 catalog/structure checks (27/27 anon + authenticated revoked, service intact, wrapper ACL + `search_path`, FIX #1 body markers, guards on all 27, RLS + deny-all + ownership) · 26 gateway-transport checks (401 no/garbage token, 403 non-admin, 400 non-allow-listed/missing fn, 21 admin-panel RPCs reachable with business responses, bogus column rejected, legacy direct path refused `42501`) · 8 rollback-only probes (season exactly-once, suggestion reward exactly-once with 1 marker + correct credit, `release_eligible_commissions`, `admin_create_sponsored_match`, FIX #1 concurrency 1000+100+200=1300 no lost update, residue cleanup) · 6 live-browser checks on the admin panel (load, shim active, `functions.invoke`, gateway round-trip, legacy path refusal).
+Note: as with the user suite, the previous round’s 33-check script was not recoverable, so this fresh suite defines the executed 59/59.
 
-All new/changed SECURITY DEFINER functions are `SET search_path TO 'public'` (scanned: **0** SECDEF plpgsql functions without search_path). Client-trusted values never accepted: uid/admin-uid always re-derived from `auth.jwt()->>'sub'`; fee/currency/reward/commission/XP/points server-derived from `app_settings` or table rows; member-cap, deposit amount, wallet columns whitelisted server-side.
+## 8. FINAL STATUS
 
-## RLS
+**READY**
 
-- `guard_users_insert` / `guard_clans_insert` / `guard_clans_update` / `guard_notification_insert` / `fft_guard_wallet_insert` / `clamp_join_requests_client_update` / `guard_matches_room_secrets` now gate every risky client write path (belt-and-suspenders over RLS).
-- Wallet append-only (`wt_insert_own`/`wt_select_own` — no UPDATE/DELETE policy).
-- `notif_insert` whitelist + relationship trigger; `team_formed` whitelisted & gated.
-
-## WALLET
-
-- Client balance self-write blocked (coins/sky/green/rank_points/premium/ban/fraud all blocked).
-- `admin_sync_user_balance` = audited reconcile (before/after/delta + reason), no blind overwrite.
-- `decrement_balance` FOR UPDATE; `increment_balance` stats-cap-100; `increment_rank_points` 500/call + 2000/day.
-- `fft_guard_wallet_insert` — only own `pending_deposit` (sky, capped) / `pending_withdraw`.
-
-## MATCH
-
-- Join engine: `validate_and_join_match` (server fee/currency derivation, FOR UPDATE, self-play/capacity/dup/banned checks) — single canonical path (client `create`, `rank.js`, `fix6-offline-queue` all route here).
-- Team join: `join_match_team` (server-derived teammates for auto-squad, invitation consent, capacity lock, no client team-uid trust).
-- Refunds: `claim_match_refund` / `claim_no_show_refund` (once-only, origin-traceable).
-- Room credentials: `get_room_credentials` (joined/paid only) + `match_rooms` admin-RLS-only.
-- Check-in/room-confirm now server RPCs.
-
-## REWARDS
-
-- Battle Pass: `claim_battle_pass_tier`/`award_battle_pass_xp` (track-aware, premium-check, 2000 XP/day cap, replay guard).
-- Premium monthly bonus: unique `(user_id, month_key)`, server-config bonus; duplicate → single reward.
-- Referral: `apply_referral_code`/`claim_referral_reward` server-config reward, self-ref blocked, unique referred, both credited exactly once.
-- Voucher: `redeem_voucher` FOR UPDATE + atomic max-uses + expiry + unique redemption.
-- Mission/daily-checkin/streak: idempotent, server-capped.
-
-## CREATOR
-
-- Commission server-configured %, 7-day hold (`lock_creator_commission`/`release_creator_commission`), no self-pay, creator-match self-play blocked (`creator_uid = caller` + `validate_and_join_match`).
-- `finalize_creator_commission` duplicate-guarded; `claim_match_commission_payout` once-only; `release_eligible_commissions` admin/service-only.
-
-## FIREBASE
-
-- Firebase mirror-only. Auth = Firebase JWT (`sub`=uid) → Supabase anon role. Bridge RPC-failure does NOT fall back to Firebase financial writes (`_handleRpcError` removed in R7; re-verified — no silent fallback remains).
-
-## MIGRATIONS
-
-- `sql and developer guide/2026-09-26c-R8-FINAL-HARDENING.sql` — consolidated, idempotent (re-applied ×3 without error).
-- `sql and developer guide/DEVELOPER_GUIDE.md` §59.
-
-## TESTS
-
-- **User smoke: 44/44 PASS** · **Admin smoke: 33/33 PASS** (both suites green).
-- **Empirical rollback-only probes (this run):** unauthorized admin RPCs (`admin_adjust_wallet`, `admin_set_coins`, `publish_match_results`, `correct_match_result`, `cancel_match_with_refunds`, `admin_end_current_season`, `admin_reward_suggestion`, `admin_sync_user_balance`) → all fail-closed (`Admin only`/`NOT_AUTHORIZED`).
-- **Behavioral:** P1 join_requests freeze · P4 spoof/broadcast blocked · P5 signup mint reset · P6 clan mint reset · P1 leader economy freeze + profile-edit allowed · P8 season `already_finalized` · P7 suggestion marker · P10 reconcile ledger · P3c deposit currency/cap · P26 self-guard · P27 wallet append-only · self-play block · capacity-full block · `join_clan` legit/spoof/cap · `confirm_in_room` legit vs clamp · `check_in_match` not-joined.
-- **Concurrency/idempotency:** FOR UPDATE locks verified in `validate_and_join_match`, `decrement_balance`, `claim_match_refund`, `redeem_voucher`, `confirm_in_room`; unique-constraint replay guards (`season_finalizations`, `suggestion_rewards`, `premium_monthly_bonus_claims`, `referrals.referred_id`, `voucher_redemptions`).
-- **Privacy:** public SELECT surface audited — no PII/credentials leak; `users`/`suggestions`/`notifications`/`wallet` restricted to self/admin; `matches.room_password` client-write frozen + real creds in admin-only `match_rooms`.
-
-## REMAINING ISSUES
-
-- **None blocking.** Non-blocking notes:
-  1. `clans.squad_bank_contributors` / `match_results.prize` remain PUBLIC-readable (design-intent leaderboard data — flagged to product, not an exploit).
-  2. `join_clan` legacy 3-arg overload still exists (superseded by the 5-arg version used by the client).
-  3. fa68 monthly season reset bulk `users.update(total_kills/wins/matches/rank_tier)` runs via admin JWT (admin-bypass in guard) — functional; server RPC is authoritative for season rewards.
-  4. Client `select('*')` on matches remains (public feed) — room-cred columns content-frozen by trigger, so leak surface is zero.
-
-## FINAL STATUS
-
-**PRODUCTION READY**
+All four fixes are applied to the live database and verified by executed tests: wallet row-lock (no lost update), admin-only RPC EXECUTE removed for anon+authenticated with the Admin Panel working through the trusted `admin-gateway` path (no service_role key in any frontend), RLS enabled with deny-all on both internal tables, and one idempotent migration file. Smokes: **admin 59/59**, **user 56/56**. Advisor confirms zero admin-only functions remain anon-executable. The residuals in §3 are documented, pre-existing/by-design, and non-blocking.
