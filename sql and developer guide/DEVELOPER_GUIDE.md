@@ -7385,3 +7385,18 @@ flow me server-side move karke band kar sakte ho.
 **Security note (chhota, operator ke liye):** ek shell error traceback me GitHub token ki value
 inadvertently echo ho gayi thi (local sandbox output). Koi third-party exposure nahi hui, lekin
 caution ke liye aap chahein to us token ko rotate kar sakte hain.
+
+### §61.3 — Items 4–8 closure (2026-09-26, final round)
+
+| # | Item | Kya kiya | Evidence |
+|---|---|---|---|
+| 4 | Legacy/dead RPC call-sites | **3 dead call-sites removed** — (a) admin panel ka `increment_poll_vote` (service_role-only ⇒ har call 42501 fail hoti thi) + uska client-side `polls.vote_counts` fallback (double-count hazard) hata kar **canonical `cast_poll_vote`** RPC lagaya (user panel jaisa hi path); (b) user panel ke `DB.users.setBan` (zero callers) hata diya; (c) `core/db-bridge.js` ka legacy `matches/<id>/joinedSlots` branch (service-only RPC) explicit **no-op** kar diya — slots ab sirf `validate_and_join_match` me server-side. Admin panel ke baaki 46 service-only call-sites **live hain** (R8 gateway shim se route hote hain — admin smoke D5 se verified). | `_r8e_results/*`, smoke reruns (`user 56/0`, `admin 59/0` post-cleanup), commits `6b62db4` + `d277934` |
+| 5 | `pending_deposit` self-row insert | Yeh **request-creation hai, financial authority nahi** — RLS policy `sd_insert_pending` WITH CHECK = `(jwt sub = user_id) AND status='pending'`. Live proof: own pending insert 201 ✓, self-approve 401 (0 rows) ✓, foreign uid 401 ✓, status flip blocked ✓, **koi balance/ledger change nahi** ✓. Credit authority sirf `resolve_sd_request` (admin/service; row FOR UPDATE, status pending → SD credit + ledger). | `_r8e_results/pending_deposit_evidence.json` |
+| 6 | Admin Gateway final health | slug `admin-gateway` (id `5b72e5dc…`) ACTIVE, bundle me `admin_gateway_exec` + `fn_not_allowed` maujood (bundle by-id fetch se verified) · **27/27 RPC reachable**, latency 528/594/1555 ms · no-token **401**, non-admin **403**, unknown fn **400** · wallet +1/−1 round-trip OK (revert ke saath). | `_r8e_results/payout_gateway_evidence.json` §item6 |
+| 7 | Real payout/refund positive flows | **Poora money cycle QA accounts par** (production balances ko chhua nahi), sab revert ke saath: entry debit 10 coins (`match_entry`) → prize +15 (`match_win/match_prize`) → **refund** +10 (`match_cancelled_refund`, join `refunded`) → **creator commission**: paid join ⇒ `1.50 inr` hold (15% `sdMatchCommissionPct`, `eligible_at +7d`) ⇒ gateway `release_eligible_commissions` ⇒ `eligible` ⇒ `claim_match_commission_payout` ⇒ `pending_payout` + `creator_payouts` row ⇒ double-claim refused. Invariants: negative wallets 0, negative commissions 0, bad ledger rows 0. | `_r8e_results/payout_gateway_evidence.json`, `_r8e_results/commission_cycle.json` |
+| 8 | Final audit freeze | **`R8_FINAL_BASELINE.md`** — Admin17 + User16 area-wise tables, frozen artifact hashes, live DB snapshot, migrations, Advisor, adversarial, money-path, cleanup log, gateway health. Baseline: user **56/0**, admin **59/0**, flow **79/0**, race **17/0**. | `R8_FINAL_BASELINE.md` |
+
+**Commission gate note (documented):** creator commission **sirf sky_diamonds ('paid') matches** par accrue hoti hai
+(`validate_and_join_match`: `IF v_fee_mode='sky_diamonds' AND v_charge_fee>0`, pct = `creator_system.sdMatchCommissionPct`,
+default 15; row `currency='inr'`, status `hold`, hold days = `commissionHoldDays` 7). Coin matches par commission nahi — ye
+server-side design hai, isliye coin-match test me commission row nahi bani (expected).
