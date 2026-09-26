@@ -105,6 +105,7 @@
      after the Supabase SDK and before every other panel script that
      might call .catch() on a query builder. -->
 <script defer src="js/supabase-compat-patch.js?v=20260919d"></script>
+<script defer src="js/r8-admin-gateway-shim.js?v=20260926d"></script><!-- R8 FINAL: admin-only RPCs via trusted backend path (admin-gateway) -->
 <script>
   /* Admin panel constants */
   window.SUPABASE_URL = 'https://hddhkculuyrfoevxmlwy.supabase.co';
