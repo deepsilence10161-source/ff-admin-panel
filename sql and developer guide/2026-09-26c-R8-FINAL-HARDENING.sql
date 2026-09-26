@@ -842,6 +842,63 @@ COMMIT;
 
 -- ═══════════════════════════════════════════════════════════════════════
 -- ═══════════════════════════════════════════════════════════════════════
+-- R8 EXTRA-4 (P1): clans UPDATE economy-freeze — leader ab profile/config
+--   (name/tag/emblem/badge/announcement/bio) hi edit kar sakta hai; economy
+--   columns (squad_bank_gd/squad_bank_unlocked/squad_bank_contributors/
+--   total_members/total_wins/total_kills/weekly_score/status/disbanded_at/
+--   join_code/leader_uid) non-admin leader UPDATE mein FREEZE ho jaate hain.
+--   (Existing `clans_update_leader` policy ne leader ko in sab par WITH-CHECK
+--   di — squad_bank_gd inflation vector. Koi legit client leader-economy
+--   write nahi hai; sab RPC-driven. Server RPCs run as postgres → bypass.)
+-- ═══════════════════════════════════════════════════════════════════════
+BEGIN;
+
+CREATE OR REPLACE FUNCTION public.guard_clans_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $fn$
+DECLARE
+  v_caller   TEXT := auth.jwt() ->> 'sub';
+  v_is_admin BOOLEAN;
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;  -- server RPC / service path is authoritative
+  END IF;
+  IF v_caller IS NULL THEN
+    RETURN NEW;  -- anon can't UPDATE anyway (RLS); fall through safely
+  END IF;
+  SELECT COALESCE(is_admin, false) INTO v_is_admin FROM users WHERE id = v_caller;
+  IF v_is_admin THEN
+    RETURN NEW;
+  END IF;
+
+  -- Non-admin (i.e. at most a leader): economy/status/identity columns are
+  -- server-owned and must not drift from client writes.
+  NEW.leader_uid           := OLD.leader_uid;
+  NEW.total_members        := OLD.total_members;
+  NEW.weekly_score         := OLD.weekly_score;
+  NEW.total_wins           := OLD.total_wins;
+  NEW.total_kills          := OLD.total_kills;
+  NEW.squad_bank_gd        := OLD.squad_bank_gd;
+  NEW.squad_bank_unlocked  := OLD.squad_bank_unlocked;
+  NEW.squad_bank_contributors := OLD.squad_bank_contributors;
+  NEW.status               := OLD.status;
+  NEW.disbanded_at         := OLD.disbanded_at;
+  NEW.join_code            := OLD.join_code;
+
+  RETURN NEW;
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS trg_clans_update_guard ON public.clans;
+CREATE TRIGGER trg_clans_update_guard
+  BEFORE UPDATE ON public.clans
+  FOR EACH ROW EXECUTE FUNCTION public.guard_clans_update();
+
+COMMIT;
+
+-- ═══════════════════════════════════════════════════════════════════════
 -- R8 EXTRA-3 (P11-P15): stats self-report lock-down — win_streak (and any
 --   other match-stats column) is authored ONLY by server results RPCs
 --   (publish_match_results / correct_match_result / increment_balance caps).
