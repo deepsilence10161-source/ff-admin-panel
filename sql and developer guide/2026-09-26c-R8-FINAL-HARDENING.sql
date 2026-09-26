@@ -841,6 +841,57 @@ CREATE TRIGGER trg_matches_room_secrets
 COMMIT;
 
 -- ═══════════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════════════
+-- R8 EXTRA-3 (P11-P15): stats self-report lock-down — win_streak (and any
+--   other match-stats column) is authored ONLY by server results RPCs
+--   (publish_match_results / correct_match_result / increment_balance caps).
+--   guard_users_self_update abhi bhi 'win_streak' ko self-editable allow
+--   karta tha — client apni streak khud inflate kar ke season-ranking score
+--   (win_streak*10) badha sakta tha. Ab use allowed-list se nikal diya.
+-- ═══════════════════════════════════════════════════════════════════════
+BEGIN;
+
+CREATE OR REPLACE FUNCTION public.guard_users_self_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path TO 'public'
+AS $fn$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role')
+      OR (current_user IN ('postgres','supabase_admin','service_role'));
+  v_allowed TEXT[] := ARRAY[
+    'avatar_url','avatar_bg_color','banner_url','bio','city','phone',
+    'is_live','stream_link','stream_title','rival_uid','fcm_token',
+    'fcm_updated_at','device_fp','clan_id','referral_code',
+    'referral_popup_done','profile_status','pending_ign',
+    'profile_request_count','duo_team','squad_team','partner_uid',
+    'squad_uids','updated_at','last_seen',
+    'state'
+  ];
+  v_col  TEXT;
+  v_old  JSONB := to_jsonb(OLD);
+  v_new  JSONB := to_jsonb(NEW);
+BEGIN
+  IF v_is_service OR (v_caller IS NOT NULL AND COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false)) THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NULL OR v_caller <> OLD.id THEN
+    RAISE EXCEPTION 'Not authorized to update this user row';
+  END IF;
+  FOR v_col IN SELECT jsonb_object_keys(v_new) LOOP
+    IF NOT (v_col = ANY(v_allowed)) THEN
+      IF v_old -> v_col IS DISTINCT FROM v_new -> v_col THEN
+        RAISE EXCEPTION 'Column % is not self-editable', v_col;
+      END IF;
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$fn$;
+
+COMMIT;
+
 -- R8 EXTRA-1c (P1/P22): confirm_in_room — attendance server-authoritative.
 --   Room confirm ab RPC se; client ab in_room/in_room_at khud nahi likh
 --   sakta (clamp trigger). Caller must own the join request + be in a
