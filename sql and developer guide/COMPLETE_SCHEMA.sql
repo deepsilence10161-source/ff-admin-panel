@@ -1,6 +1,85 @@
 -- ================================================================
--- MINI eSPORTS — COMPLETE DATABASE SCHEMA v32 (FIXED)
+-- MINI eSPORTS — COMPLETE DATABASE SCHEMA v33 — CONSOLIDATED (2026-09-26)
 -- ================================================================
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- v33 — CONSOLIDATED (2026-09-26)  ·  SINGLE SOURCE OF TRUTH
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- All dated migration/delta files that used to sit next to this file have been
+-- MERGED INTO IT and DELETED. Their history is preserved in the appended
+-- SECTION 60 (consolidated final state) and in the migration-history table
+-- (supabase_migrations.schema_migrations, entries flagged *_merged).
+-- Merged + removed files (64):
+--     2026-08-22-SESSION-DELTA.sql                                243 lines  sha256:ca8d49b41fb5930d
+--     2026-08-23-SESSION-DELTA.sql                                149 lines  sha256:d2afe31ca946f57e
+--     2026-08-24-SESSION-DELTA.sql                                236 lines  sha256:6d2bed1740ebe445
+--     2026-08-25-SESSION-DELTA.sql                                125 lines  sha256:0824424b27cd984e
+--     2026-08-25b-SESSION-DELTA.sql                                73 lines  sha256:9070e5a6b3edc9ef
+--     2026-08-26-SESSION-DELTA.sql                                210 lines  sha256:ac04fc2f7bd2570e
+--     2026-08-26b-SESSION-DELTA.sql                               283 lines  sha256:5b8a974e3de86087
+--     2026-08-28-SESSION-DELTA.sql                                117 lines  sha256:eae1f09428acb528
+--     2026-08-29-SESSION-DELTA.sql                                119 lines  sha256:1acbc41a63490ed2
+--     2026-09-16-SESSION-DELTA.sql                                 91 lines  sha256:8aafff00e75704cf
+--     2026-09-20-SESSION-DELTA.sql                                 87 lines  sha256:5c2ee2b8eec94085
+--     2026-09-20b-R3-FIX-DELTA.sql                                657 lines  sha256:c457ccf132356d21
+--     2026-09-20c-ROOM-PHASE2-DELTA.sql                           204 lines  sha256:5406d939562b774b
+--     2026-09-20d-SEEDS-ADREV-DELTA.sql                           124 lines  sha256:70a3a8cf9e6eb0a1
+--     2026-09-20e-TRIGGER-V3-ADDENDUM.sql                          51 lines  sha256:fed914902d429ded
+--     2026-09-20f-ROUND4-DELTA.sql                                229 lines  sha256:7498304bb5114dec
+--     2026-09-20g-ROUND4B-DELTA.sql                                69 lines  sha256:2db8664346fbb802
+--     2026-09-20h-ROUND5-DELTA.sql                                121 lines  sha256:bcaddc2900e41026
+--     2026-09-20i-ROUND6-DELTA.sql                                 95 lines  sha256:5bd5ca280ca52ff7
+--     2026-09-20j-ROUND7-DELTA.sql                                 53 lines  sha256:356a785d24ba359f
+--     2026-09-20k-ROUND8-DELTA.sql                                 74 lines  sha256:1657a27c01439864
+--     2026-09-20m-ROUND9-DELTA.sql                                 68 lines  sha256:565222389517f6e7
+--     2026-09-20n-ROUND10-DELTA.sql                                33 lines  sha256:934288e8ce3357f6
+--     2026-09-20o-ROUND12-DELTA.sql                                36 lines  sha256:371b4aa05a79e895
+--     2026-09-20q-ROUND15-DELTA.sql                                50 lines  sha256:81adaf972aeb9f3c
+--     2026-09-20r-ROUND17-DELTA.sql                                40 lines  sha256:d0bb0ede972ebdb0
+--     2026-09-20t-ROUND18-DELTA.sql                                39 lines  sha256:ac89a17b7d4107d9
+--     2026-09-21u-ROUND20-DELTA.sql                                62 lines  sha256:f6afbbf7c4477e03
+--     2026-09-21v-ROUND23-DELTA.sql                                26 lines  sha256:c6019431971e638f
+--     2026-09-21w-R24-DELTA.sql                                    61 lines  sha256:6e9aa569ddd80f0f
+--     2026-09-21y-R24-VOUCHER-DELTA.sql                            76 lines  sha256:3a099e8de32de5bc
+--     2026-09-21z-R24-ATTENDANCE-DELTA.sql                         11 lines  sha256:ce579f1321960c9d
+--     2026-09-22a-R28-PREMIUM-DELTA.sql                            88 lines  sha256:1d040049ae57c08a
+--     2026-09-22b-R29-PRIVACY-REALTIME-DELTA.sql                   90 lines  sha256:38f7803e01cba2e4
+--     2026-09-22c-R29B-AUTO-APPROVE-DELTA.sql                      66 lines  sha256:d9155b9d058a24d5
+--     2026-09-22d-R29C-PHONE-RPC-FIX-DELTA.sql                     50 lines  sha256:eccbf7e1b1c3c3c7
+--     2026-09-22e-R29E-AUDIT-FIXES-DELTA.sql                      628 lines  sha256:b4b8322684a183a0
+--     2026-09-22f-R29F-BATTLEPASS-COLLECTIBLES-DELTA.sql          120 lines  sha256:f37daaa6474f9245
+--     2026-09-22g-R29F-SEASONROLL-BACKFILL-DELTA.sql               73 lines  sha256:2939c9797bf2da55
+--     2026-09-23a-R3HARDEN-P0-JOINFEE-DELTA.sql                   228 lines  sha256:8570f8db6439a4f1
+--     2026-09-23b-R3HARDEN-WINSTREAK-FIX-DELTA.sql                 69 lines  sha256:77eb64c590ef2938
+--     2026-09-23c-R3-SSOT-DELTA.sql                               379 lines  sha256:41a51e2e2c2b14d2
+--     2026-09-23d-R3-PHASE9-VOUCHER-P0.sql                         36 lines  sha256:b3e3f7177ef8136e
+--     2026-09-23e-R3-PHASE9-CLANSCORE.sql                          52 lines  sha256:b32193a4afafaec5
+--     2026-09-23f-R3-PHASE9-CLAN-NULLCALLER.sql                   446 lines  sha256:70ff5df8fbdc3b65
+--     2026-09-23g-R3-PHASE13-OBSERVABILITY.sql                    124 lines  sha256:0374a3e182e8f902
+--     2026-09-23h-R3-PHASE15-FINAL-OBSERVABILITY.sql              174 lines  sha256:0493e28043e822ef
+--     2026-09-23i-R4-SLOT-SEARCHPATH-DELTA.sql                    508 lines  sha256:41b586d0d0ac7570
+--     2026-09-23j-R5-COMMISSION-VOID-DELTA.sql                     93 lines  sha256:16615993acca3769
+--     2026-09-23j-R5-HARDEN-DB-DELTA.sql                          307 lines  sha256:3234a6be16497040
+--     2026-09-23j-R5-TEAM-JOIN-DELTA.sql                          214 lines  sha256:be6e36f0b103800b
+--     2026-09-23k-R6-TEAM-CONSENT-DELTA.sql                       600 lines  sha256:a29b51c3b97d10d4
+--     2026-09-24a-R7-FINAL-SECURITY-LOCK.sql                      605 lines  sha256:a10b0221554ac2c9
+--     2026-09-24b-R7-FINAL-LAST-PASS-REFUND-PERMISSIONS.sql       300 lines  sha256:676cdd887b30a089
+--     2026-09-24c-R7-FOLLOWUP-AUTHORITATIVE-LEDGER.sql            118 lines  sha256:185e2f845c677d7b
+--     2026-09-24d-R7-PRIZE-SINGLE-RPC.sql                         307 lines  sha256:e3a6ebb4182d4432
+--     2026-09-24e-R7-T27-CONCURRENCY.sql                          131 lines  sha256:5c0321fd00268426
+--     2026-09-25b-GRANT-RESTORE-ANON-ROLE.sql                     166 lines  sha256:d94666a727a03707
+--     2026-09-25c-PROD-RECONCILE.sql                              477 lines  sha256:76e9a7c991ff9e45
+--     2026-09-25d-SECURITY-ADVISOR-FIXES.sql                      129 lines  sha256:b69be00d22e26ff9
+--     2026-09-26a-SECURITY-P0-FIXES.sql                            31 lines  sha256:1c6d3d48bb294fef
+--     2026-09-26b-SECURITY-P0B-FIXES.sql                          260 lines  sha256:e8940f6d8dba3c99
+--     2026-09-26c-R8-FINAL-HARDENING.sql                         1070 lines  sha256:6e61f379f0d6aed3
+--     2026-09-26d-R8-FINAL-DB-HARDENING.sql                       286 lines  sha256:1c5463a75a25efb8
+-- SECTION 60 was generated from the LIVE database, so running this file
+-- top-to-bottom reproduces the live schema exactly (functions, tables, columns,
+-- constraints, indexes, triggers, RLS, policies, views, sequences and the exact
+-- privilege/ACL state). Verified: applying it twice leaves the live schema
+-- fingerprint byte-identical.
+-- ═══════════════════════════════════════════════════════════════════════════════
+
 -- 🔒 SECURITY CONVENTIONS (R3 Phase-9, 2026-09-23d — हर नए RPC/policy में पालन करो;
 -- विस्तृत चेकलिस्ट DEVELOPER_GUIDE.md § SERVER-SIDE SECURITY CONVENTIONS में):
 --   1. SECURITY DEFINER के अंदर `current_user` कभी use न करो (हमेशा owner
@@ -16684,4 +16763,5690 @@ REVOKE ALL ON FUNCTION public.admin_end_current_season(text) FROM PUBLIC, authen
 GRANT EXECUTE ON FUNCTION public.admin_end_current_season(text) TO anon, service_role;
 
 
+COMMIT;
+
+
+BEGIN;
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- SECTION 60 — CONSOLIDATED FINAL STATE  (R8 FINAL · 2026-09-26)
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- Every dated *-DELTA.sql / *-FIXES.sql / *-HARDENING.sql file that used to live
+-- in this folder has been MERGED INTO THIS FILE and removed. Everything below is
+-- generated from the LIVE database (the authority at merge time), so running this
+-- file top-to-bottom reproduces the live schema exactly — including the final
+-- body of every function that changed in rounds R3→R8, the objects added after
+-- this file was last hand-edited, and the exact privilege (ACL) state.
+--
+-- Idempotent: CREATE ... IF NOT EXISTS / CREATE OR REPLACE / DROP ... IF EXISTS /
+-- guarded DO-blocks for constraints. Safe to re-run on the live database.
+-- No secrets / credentials.
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- ── 60.1  Tables added after the last hand-edit (final live shape) ──
+
+CREATE TABLE IF NOT EXISTS public.ad_reward_log (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  user_id text NOT NULL,
+  coins_earned integer NOT NULL,
+  log_date date DEFAULT CURRENT_DATE NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ad_reward_log_pkey PRIMARY KEY (id)
+);
+ALTER TABLE public.ad_reward_log ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.reward_redemptions (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  uid text NOT NULL,
+  name text,
+  item text NOT NULL,
+  cost integer NOT NULL,
+  address text,
+  phone text,
+  status text DEFAULT 'pending'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT reward_redemptions_pkey PRIMARY KEY (id)
+);
+ALTER TABLE public.reward_redemptions ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.reward_store_items (
+  name text NOT NULL,
+  coins_cost integer NOT NULL,
+  active boolean DEFAULT true,
+  CONSTRAINT reward_store_items_pkey PRIMARY KEY (name)
+);
+ALTER TABLE public.reward_store_items ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.season_finalizations (
+  season_name text NOT NULL,
+  finalized_at timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT season_finalizations_pkey PRIMARY KEY (season_name)
+);
+ALTER TABLE public.season_finalizations ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.suggestion_rewards (
+  suggestion_ref text NOT NULL,
+  user_id text NOT NULL,
+  reward_type text NOT NULL,
+  amount numeric NOT NULL,
+  currency text NOT NULL,
+  awarded_by text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  CONSTRAINT suggestion_rewards_pkey PRIMARY KEY (suggestion_ref)
+);
+ALTER TABLE public.suggestion_rewards ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.voucher_redemptions (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  voucher_code text NOT NULL,
+  user_id text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT voucher_redemptions_pkey PRIMARY KEY (id),
+  CONSTRAINT voucher_redemptions_voucher_code_user_id_key UNIQUE (voucher_code, user_id)
+);
+ALTER TABLE public.voucher_redemptions ENABLE ROW LEVEL SECURITY;
+
+-- ── 60.2  Columns added after the last hand-edit ──
+ALTER TABLE public.auto_squad_queue ADD COLUMN IF NOT EXISTS fee_type text DEFAULT 'each_pays'::text NOT NULL;
+ALTER TABLE public.battle_pass_progress ADD COLUMN IF NOT EXISTS xp_today integer DEFAULT 0 NOT NULL;
+ALTER TABLE public.battle_pass_progress ADD COLUMN IF NOT EXISTS xp_day date;
+ALTER TABLE public.clan_wars ADD COLUMN IF NOT EXISTS week text;
+ALTER TABLE public.clan_wars ADD COLUMN IF NOT EXISTS clan_a_name text;
+ALTER TABLE public.clan_wars ADD COLUMN IF NOT EXISTS clan_b_name text;
+ALTER TABLE public.clan_wars ADD COLUMN IF NOT EXISTS winner_id uuid;
+ALTER TABLE public.duel_challenges ADD COLUMN IF NOT EXISTS challenger_ign text;
+ALTER TABLE public.duel_challenges ADD COLUMN IF NOT EXISTS challengee_ign text;
+ALTER TABLE public.duel_challenges ADD COLUMN IF NOT EXISTS mode text DEFAULT 'solo'::text;
+ALTER TABLE public.duel_challenges ADD COLUMN IF NOT EXISTS taunt text;
+ALTER TABLE public.duel_challenges ADD COLUMN IF NOT EXISTS result text;
+ALTER TABLE public.join_requests ADD COLUMN IF NOT EXISTS user_ff_uid text;
+ALTER TABLE public.leaderboard ADD COLUMN IF NOT EXISTS created_at timestamp with time zone DEFAULT now() NOT NULL;
+ALTER TABLE public.live_streams ADD COLUMN IF NOT EXISTS match_id text;
+ALTER TABLE public.live_streams ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS rank integer;
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS kill_prize numeric DEFAULT 0;
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS rank_prize numeric DEFAULT 0;
+ALTER TABLE public.match_results ADD COLUMN IF NOT EXISTS prize_earned numeric DEFAULT 0;
+ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS firebase_id text;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS ign text;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS rank_pts integer DEFAULT 0;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS rank_tier text;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS total_sessions integer DEFAULT 0;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS total_students integer DEFAULT 0;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS successful_students integer DEFAULT 0;
+ALTER TABLE public.mentor_profiles ADD COLUMN IF NOT EXISTS gd_earned integer DEFAULT 0;
+ALTER TABLE public.mentor_requests ADD COLUMN IF NOT EXISTS mentor_ign text;
+ALTER TABLE public.mentor_requests ADD COLUMN IF NOT EXISTS student_ign text;
+ALTER TABLE public.mentor_requests ADD COLUMN IF NOT EXISTS student_rank_pts integer DEFAULT 0;
+ALTER TABLE public.mentor_requests ADD COLUMN IF NOT EXISTS student_rank_badge text;
+ALTER TABLE public.mentor_requests ADD COLUMN IF NOT EXISTS message text;
+ALTER TABLE public.mentor_requests ADD COLUMN IF NOT EXISTS last_rewarded_tier integer DEFAULT 0 NOT NULL;
+ALTER TABLE public.premium_requests ADD COLUMN IF NOT EXISTS plan_type text DEFAULT 'monthly'::text;
+ALTER TABLE public.premium_requests ADD COLUMN IF NOT EXISTS bundle_id text;
+ALTER TABLE public.premium_requests ADD COLUMN IF NOT EXISTS approved_at timestamp with time zone;
+ALTER TABLE public.premium_requests ADD COLUMN IF NOT EXISTS rejected_at timestamp with time zone;
+ALTER TABLE public.premium_requests ADD COLUMN IF NOT EXISTS approved_by text;
+ALTER TABLE public.profile_requests ADD COLUMN IF NOT EXISTS processed_at timestamp with time zone;
+ALTER TABLE public.profile_requests ADD COLUMN IF NOT EXISTS processed_by text;
+ALTER TABLE public.referrals ADD COLUMN IF NOT EXISTS referred_name text;
+ALTER TABLE public.referrals ADD COLUMN IF NOT EXISTS code text;
+ALTER TABLE public.referrals ADD COLUMN IF NOT EXISTS reward numeric DEFAULT 0;
+ALTER TABLE public.sd_requests ADD COLUMN IF NOT EXISTS approved_at timestamp with time zone;
+ALTER TABLE public.sd_requests ADD COLUMN IF NOT EXISTS rejected_at timestamp with time zone;
+ALTER TABLE public.sd_requests ADD COLUMN IF NOT EXISTS approved_by text;
+ALTER TABLE public.sd_requests ADD COLUMN IF NOT EXISTS firebase_req_id text;
+ALTER TABLE public.sponsored_prize_claims ADD COLUMN IF NOT EXISTS sponsored_id uuid;
+ALTER TABLE public.sponsored_prize_claims ADD COLUMN IF NOT EXISTS placement integer;
+ALTER TABLE public.sponsored_prize_claims ADD COLUMN IF NOT EXISTS prize_amount numeric DEFAULT 0;
+ALTER TABLE public.sponsored_prize_claims ADD COLUMN IF NOT EXISTS currency text DEFAULT 'green_diamonds'::text;
+ALTER TABLE public.sponsored_prize_claims ADD COLUMN IF NOT EXISTS rank integer;
+ALTER TABLE public.sponsored_prizes ADD COLUMN IF NOT EXISTS match_id text;
+ALTER TABLE public.sponsored_prizes ADD COLUMN IF NOT EXISTS total_prize numeric DEFAULT 0;
+ALTER TABLE public.sponsored_prizes ADD COLUMN IF NOT EXISTS distribution jsonb;
+ALTER TABLE public.sponsored_prizes ADD COLUMN IF NOT EXISTS is_distributed boolean DEFAULT false;
+ALTER TABLE public.sponsored_prizes ADD COLUMN IF NOT EXISTS distributed_at timestamp with time zone;
+ALTER TABLE public.sponsored_prizes ADD COLUMN IF NOT EXISTS distributed_by text;
+ALTER TABLE public.sponsored_tournaments ADD COLUMN IF NOT EXISTS prizes jsonb;
+ALTER TABLE public.sponsored_tournaments ADD COLUMN IF NOT EXISTS match_id text;
+ALTER TABLE public.sponsored_tournaments ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE public.sponsored_tournaments ADD COLUMN IF NOT EXISTS prize_distributed boolean DEFAULT false;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS user_ign text;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS user_ff_uid text;
+ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS replied_at timestamp with time zone;
+ALTER TABLE public.user_activities ADD COLUMN IF NOT EXISTS ign text;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS sponsored_winnings numeric DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS referral_popup_done boolean DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS trial_used boolean DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_seen timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_deleted boolean DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS clean_badge_revoked_at timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS stream_title text;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS referral_applied_at timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS level integer DEFAULT 1;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS exp integer DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS total_winnings numeric DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS partner_uid text;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS duo_team jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS squad_team jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS penalty_points integer DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS creator_code text;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS age_verified boolean DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS date_of_birth date;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS age_verified_at timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS deleted_at timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS fraud_checked_at timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS state text;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS location_set_at timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS location_lat double precision;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS location_lng double precision;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS creator_rating numeric DEFAULT 5.0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS creator_rating_count integer DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS creator_strikes integer DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS creator_suspended_until timestamp with time zone;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS creator_suspended_permanently boolean DEFAULT false;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS banner_url text;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS squad_uids jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS streak_milestones_claimed jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rp_today integer DEFAULT 0 NOT NULL;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS rp_day date;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS mpm_today integer DEFAULT 0;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS mpm_day date;
+ALTER TABLE public.wallet_transactions ADD COLUMN IF NOT EXISTS reviewed_at timestamp with time zone;
+ALTER TABLE public.wallet_transactions ADD COLUMN IF NOT EXISTS reviewed_by text;
+
+-- ── 60.3  Sequences ──
+CREATE SEQUENCE IF NOT EXISTS public.premium_monthly_bonus_claims_id_seq AS bigint INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1 NO CYCLE;
+GRANT USAGE, SELECT ON SEQUENCE public.premium_monthly_bonus_claims_id_seq TO anon, authenticated, service_role;
+ALTER SEQUENCE public.premium_monthly_bonus_claims_id_seq OWNED BY public.premium_monthly_bonus_claims.id;
+
+-- ── 60.4  Views (final definitions) ──
+CREATE OR REPLACE VIEW public.active_matches AS
+SELECT id,
+    title,
+    name,
+    mode,
+    entry_type,
+    entry_fee,
+    max_slots,
+    filled_slots,
+    prize_pool,
+    first_prize,
+    second_prize,
+    third_prize,
+    per_kill_prize,
+    prize_type,
+    map,
+    status,
+    scheduled_at,
+    room_status,
+    banner_url,
+    stream_link,
+    youtube_link,
+    spectator_count,
+    is_featured,
+    is_sponsored,
+    is_special,
+    special_category,
+    ads_required,
+    min_rank,
+    match_sub_type,
+    creator_uid,
+    creator_code,
+    prize_distribution,
+    result_screenshot,
+    result_screenshots,
+    result_published_at,
+    cancelled_at,
+    cancelled_by,
+    completed_at,
+    reminder_sent,
+    data,
+    created_at,
+    updated_at,
+    firebase_id,
+    room_release_minutes,
+    room_released_at
+   FROM matches
+  WHERE status = ANY (ARRAY['upcoming'::text, 'live'::text])
+  ORDER BY scheduled_at;
+ALTER VIEW public.active_matches SET (security_invoker = true);
+CREATE OR REPLACE VIEW public.referral_leaderboard AS
+SELECT referrer_id,
+    ign,
+    avatar_url,
+    referral_count
+   FROM f_referral_leaderboard() f_referral_leaderboard(referrer_id, ign, avatar_url, referral_count);
+ALTER VIEW public.referral_leaderboard SET (security_invoker = true);
+CREATE OR REPLACE VIEW public.user_public_profiles AS
+SELECT id,
+    ign,
+    ff_uid,
+    avatar_url,
+    avatar_bg_color,
+    city,
+    bio,
+    rank_tier,
+    rank_points,
+    total_wins,
+    total_kills,
+    total_matches,
+    win_streak,
+    has_clean_badge,
+    is_banned,
+    is_live,
+    stream_link,
+    stream_title,
+    clan_id,
+    profile_status,
+    level,
+    exp,
+    is_vip,
+    is_creator,
+    created_at
+   FROM f_user_public_profiles() f_user_public_profiles(id, ign, ff_uid, avatar_url, avatar_bg_color, city, bio, rank_tier, rank_points, total_wins, total_kills, total_matches, win_streak, has_clean_badge, is_banned, is_live, stream_link, stream_title, clan_id, profile_status, level, exp, is_vip, is_creator, created_at);
+ALTER VIEW public.user_public_profiles SET (security_invoker = true);
+
+-- ── 60.5  Functions: final live bodies (added/changed since last hand-edit) ──
+
+-- admin_adjust_wallet(p_uid text, p_col text, p_amount numeric, p_reason text) [UPDATED]
+CREATE OR REPLACE FUNCTION public.admin_adjust_wallet(p_uid text, p_col text, p_amount numeric, p_reason text DEFAULT 'Admin adjustment'::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller     TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_is_admin   BOOLEAN;
+  v_current    NUMERIC;
+  v_new        NUMERIC;
+  v_txn_type   TEXT;
+BEGIN
+  /* Authorization: JWT caller MUST be an admin; service_role = trusted backend. */
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+
+  IF p_col NOT IN ('coins','sky_diamonds','green_diamonds') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid column');
+  END IF;
+  IF p_amount = 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount must be non-zero');
+  END IF;
+  IF ABS(p_amount) > 999999 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount too large');
+  END IF;
+
+  /* R8 FINAL (FIX #1): row-level lock. p_col is whitelisted above, %I is
+     injection-safe, and FOR UPDATE holds the users row until this
+     transaction ends — the UPDATE below therefore happens under the lock. */
+  EXECUTE format('SELECT COALESCE(%I, 0) FROM public.users WHERE id = $1 FOR UPDATE', p_col)
+    USING p_uid INTO v_current;
+  IF v_current IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'User not found');
+  END IF;
+
+  v_new := v_current + p_amount;
+  IF v_new < 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Insufficient balance',
+                              'balance', v_current, 'requested', ABS(p_amount));
+  END IF;
+
+  /* Executes while the same users row is still locked (same transaction). */
+  EXECUTE format('UPDATE public.users SET %I = $1 WHERE id = $2', p_col)
+    USING v_new, p_uid;
+
+  v_txn_type := CASE WHEN p_amount < 0 THEN 'admin_debit' ELSE 'admin_credit' END;
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, status, created_at)
+  VALUES (p_uid, p_col, v_txn_type, ABS(p_amount), p_reason, 'approved', NOW());
+
+  RETURN jsonb_build_object('success', true, 'old_balance', v_current,
+                            'new_balance', v_new, 'direction', v_txn_type);
+END;
+$function$;
+
+-- admin_end_current_season(p_season_name text) [UPDATED]
+CREATE OR REPLACE FUNCTION public.admin_end_current_season(p_season_name text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller      TEXT := auth.jwt() ->> 'sub';
+  v_is_admin    BOOLEAN;
+  v_is_service  BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_season_name TEXT;
+  v_season_num  INT := 1;
+  v_cfg         JSONB;
+  u             RECORD;
+  v_pos         INT := 0;
+  v_score       NUMERIC;
+  v_coins       INT;
+  v_tier        TEXT;
+  v_tier_emoji  TEXT;
+  v_pos_badge   TEXT;
+  v_pos_reward  TEXT;
+  v_pos_emoji   TEXT;
+  v_rewarded    INT := 0;
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+
+  SELECT value INTO v_cfg FROM app_settings WHERE key = 'currentSeason';
+  v_season_name := COALESCE(p_season_name, (v_cfg ->> 'name'), 'Season');
+  v_season_num  := COALESCE((v_cfg ->> 'seasonNum')::INT, 1);
+
+  /* R8 P8: exactly-once finalization marker. Re-click / concurrent click
+     safe — second call inserts nothing and returns already_finalized. */
+  INSERT INTO season_finalizations(season_name) VALUES (v_season_name)
+  ON CONFLICT (season_name) DO NOTHING;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'already_finalized',
+                              'season', v_season_name);
+  END IF;
+
+  FOR u IN
+    SELECT id,
+           (COALESCE(total_wins,0)*40 + COALESCE(total_kills,0)*2
+            + COALESCE(total_matches,0)*1 + COALESCE(win_streak,0)*10)::NUMERIC AS score
+      FROM users
+     WHERE COALESCE(total_matches,0) > 0
+     ORDER BY 2 DESC, id
+     LIMIT 100
+  LOOP
+    v_pos   := v_pos + 1;
+    v_score := u.score;
+
+    IF v_score >= 5000 THEN v_tier := 'Grandmaster'; v_tier_emoji := '🌟';
+    ELSIF v_score >= 3500 THEN v_tier := 'Heroic'; v_tier_emoji := '⚔️';
+    ELSIF v_score >= 2000 THEN v_tier := 'Legend'; v_tier_emoji := '👑';
+    ELSIF v_score >= 1501 THEN v_tier := 'Diamond'; v_tier_emoji := '💎';
+    ELSIF v_score >= 1001 THEN v_tier := 'Platinum'; v_tier_emoji := '🔷';
+    ELSIF v_score >= 601 THEN v_tier := 'Gold'; v_tier_emoji := '🥇';
+    ELSIF v_score >= 301 THEN v_tier := 'Silver'; v_tier_emoji := '🥈';
+    ELSE v_tier := 'Bronze'; v_tier_emoji := '🏅';
+    END IF;
+
+    IF v_pos = 1 THEN
+      v_pos_badge := 'Grandmaster Badge'; v_pos_reward := '🌟 Grandmaster Badge + 500🪙'; v_pos_emoji := '🌟'; v_coins := 500;
+    ELSIF v_pos <= 5 THEN
+      v_pos_badge := 'Legend Badge'; v_pos_reward := '👑 Legend Badge + 200🪙'; v_pos_emoji := '👑'; v_coins := 200;
+    ELSIF v_pos <= 20 THEN
+      v_pos_badge := 'Diamond Badge'; v_pos_reward := '💎 Diamond Badge + 100🪙'; v_pos_emoji := '💎'; v_coins := 100;
+    ELSE
+      v_pos_badge := 'Gold Badge'; v_pos_reward := '🥇 Gold Badge + 50🪙'; v_pos_emoji := '🥇'; v_coins := 50;
+    END IF;
+
+    UPDATE users SET coins = COALESCE(coins, 0) + v_coins WHERE id = u.id;
+
+    INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, status, created_at)
+    VALUES (u.id, 'coins', 'credit', v_coins, 'season_reward', 'approved', now());
+
+    INSERT INTO seasonal_league_history(user_id, season_name, season_num, final_tier, points, badge, reward, emoji, created_at)
+    VALUES (u.id, v_season_name, v_season_num, v_tier, v_score::INT, v_pos_badge, v_pos_reward, v_pos_emoji, now());
+
+    INSERT INTO notifications(user_id, type, title, body, is_read, created_at)
+    VALUES (u.id, 'season_end', '🏆 Season Ended!',
+            format('%s mein tumhara rank: #%s! %s mila!', v_season_name, v_pos::text, v_pos_reward),
+            false, now());
+
+    v_rewarded := v_rewarded + 1;
+  END LOOP;
+
+  /* R8: season reset (rank_points + win_streak) now server-side + atomic
+     (previously a non-atomic bulk client UPDATE in admin-fixes-v21 Bug#97). */
+  UPDATE users SET rank_points = 0, win_streak = 0, rp_today = 0;
+
+  UPDATE app_settings
+     SET value = value || jsonb_build_object('active', false),
+         updated_at = now()
+   WHERE key = 'currentSeason';
+  UPDATE app_settings
+     SET value = value || jsonb_build_object('seasonActive', 0),
+         updated_at = now()
+   WHERE key = 'live_config';
+
+  RETURN jsonb_build_object('success', true, 'season', v_season_name,
+                            'rewarded', v_rewarded);
+END;
+$function$;
+
+-- admin_gateway_exec(p_fn text, p_args jsonb, p_actor text) [ADDED]
+CREATE OR REPLACE FUNCTION public.admin_gateway_exec(p_fn text, p_args jsonb DEFAULT '{}'::jsonb, p_actor text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_allowed TEXT[] := ARRAY[
+    'admin_adjust_wallet','admin_approve_profile','admin_confirm_creator_cheat',
+    'admin_create_sponsored_match','admin_dismiss_creator_flag','admin_distribute_sponsored_prize',
+    'admin_end_current_season','admin_reject_profile','admin_revoke_referral_bonus',
+    'admin_reward_suggestion','admin_roll_battle_pass_season','admin_send_broadcast_notification',
+    'admin_send_notification','admin_set_coins','admin_set_fraud_score','admin_sync_user_balance',
+    'approve_creator_application','approve_premium','cancel_match_with_refunds','cancel_premium',
+    'correct_match_result','publish_match_results','reject_creator_application',
+    'release_eligible_commissions','resolve_sd_request','resolve_sponsored_withdrawal',
+    'set_user_ban_status'
+  ];
+  v_is_priv BOOLEAN := (current_user IN ('postgres','supabase_admin','service_role'))
+                       OR (current_setting('role', true) = 'service_role');
+  v_args    JSONB := COALESCE(p_args, '{}'::jsonb);
+  v_names   TEXT[];
+  v_types   TEXT[];
+  v_parts   TEXT[] := ARRAY[]::TEXT[];
+  v_i       INT;
+  v_sql     TEXT;
+  v_result  JSONB;
+BEGIN
+  IF NOT v_is_priv THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_authorized');
+  END IF;
+  IF p_fn IS NULL OR NOT (p_fn = ANY(v_allowed)) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'fn_not_allowed');
+  END IF;
+  IF p_actor IS NULL OR NOT EXISTS (
+       SELECT 1 FROM users WHERE id = p_actor AND is_admin = true) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+  END IF;
+
+  /* Server-derived audit identity — never the client's word. */
+  IF p_fn = 'cancel_match_with_refunds' THEN
+    v_args := jsonb_set(v_args, '{p_admin_uid}', to_jsonb(p_actor), true);
+  END IF;
+
+  SELECT array_agg(x.n ORDER BY x.i), array_agg(format_type(x.ty, NULL) ORDER BY x.i)
+    INTO v_names, v_types
+    FROM (
+      SELECT i, p.proargnames[i] AS n, p.proargtypes[i-1] AS ty
+      FROM pg_proc p, generate_series(1, COALESCE(array_length(p.proargnames,1),0)) AS i
+      WHERE p.pronamespace = 'public'::regnamespace AND p.proname = p_fn
+    ) x;
+
+  IF v_names IS NULL THEN
+    v_sql := format('SELECT to_jsonb(public.%I())', p_fn);
+  ELSE
+    FOR v_i IN 1 .. array_length(v_names, 1) LOOP
+      CONTINUE WHEN NOT (v_args ? v_names[v_i]);
+      IF v_types[v_i] = 'jsonb' THEN
+        v_parts := v_parts || format('%I => $1', v_names[v_i]);
+      ELSE
+        v_parts := v_parts || format('%I => ($2->>%L)::%s', v_names[v_i], v_names[v_i], v_types[v_i]);
+      END IF;
+    END LOOP;
+    v_sql := format('SELECT to_jsonb(public.%I(%s))', p_fn, array_to_string(v_parts, ', '));
+  END IF;
+
+  /* Verified admin identity for the target function's own guard (txn-local). */
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', p_actor, 'role', 'authenticated', 'aud', 'authenticated')::text,
+    true);
+
+  EXECUTE v_sql USING v_args, v_args INTO v_result;
+  RETURN COALESCE(v_result, '{}'::jsonb);
+
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$function$;
+
+-- admin_reward_suggestion(p_key text, p_reward_type text, p_amount numeric, p_user_id text) [UPDATED]
+CREATE OR REPLACE FUNCTION public.admin_reward_suggestion(p_key text, p_reward_type text, p_amount numeric, p_user_id text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller    TEXT := auth.jwt() ->> 'sub';
+  v_is_admin  BOOLEAN;
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_user_id   TEXT;
+  v_col       TEXT;
+  v_currency  TEXT;
+  v_label     TEXT;
+  v_ref       TEXT;
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+
+  IF p_amount IS NULL OR p_amount <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount must be positive');
+  END IF;
+  IF p_amount > 999999 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount too large');
+  END IF;
+
+  IF p_reward_type = 'real_money' THEN
+    v_col := 'green_diamonds'; v_currency := 'green_diamonds'; v_label := '₹' || p_amount::text;
+  ELSIF p_reward_type = 'coins' THEN
+    v_col := 'coins'; v_currency := 'coins'; v_label := p_amount::text || ' coins';
+  ELSE
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid reward type');
+  END IF;
+
+  /* Resolve the target user: explicit admin-supplied uid wins; otherwise
+     look the suggestion up by id (user_suggestions is the live table). */
+  IF p_user_id IS NOT NULL AND p_user_id <> '' THEN
+    v_user_id := p_user_id;
+  ELSE
+    SELECT user_id INTO v_user_id FROM user_suggestions WHERE id::text = p_key LIMIT 1;
+    IF v_user_id IS NULL THEN
+      SELECT user_id INTO v_user_id FROM suggestions
+       WHERE id::text = p_key OR user_id = p_key LIMIT 1;
+    END IF;
+  END IF;
+
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Suggestion not found');
+  END IF;
+
+  v_ref := COALESCE(NULLIF(p_key, ''), 'uid:' || v_user_id || ':' || p_reward_type);
+
+  /* Exactly-once: marker row is unique per suggestion ref. */
+  INSERT INTO suggestion_rewards(suggestion_ref, user_id, reward_type, amount, currency, awarded_by)
+  VALUES (v_ref, v_user_id, p_reward_type, p_amount, v_currency, v_caller)
+  ON CONFLICT (suggestion_ref) DO NOTHING;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'already_rewarded');
+  END IF;
+
+  EXECUTE format('UPDATE users SET %I = COALESCE(%I, 0) + $1 WHERE id = $2', v_col, v_col)
+    USING p_amount, v_user_id;
+
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status, created_at)
+  VALUES (v_user_id, v_currency, 'credit', p_amount, 'suggestion_reward', v_ref, 'approved', now());
+
+  /* Align live table status (pending → rewarded-equivalent 'implemented'). */
+  UPDATE user_suggestions SET status = 'implemented'
+   WHERE id::text = p_key AND status IN ('pending','reviewed');
+  UPDATE suggestions SET status = 'rewarded'
+   WHERE (id::text = p_key OR user_id = p_key) AND status = 'pending';
+
+  INSERT INTO notifications(user_id, type, title, body, is_read, created_at)
+  VALUES (v_user_id, 'wallet_approved', '🏆 Suggestion Reward Mila!',
+          format('Teri suggestion ke liye %s reward diya gaya! Shukriya!', v_label), false, now());
+
+  RETURN jsonb_build_object('success', true, 'reward', v_label, 'user_id', v_user_id);
+END;
+$function$;
+
+-- admin_sync_user_balance(p_uid text, p_coins numeric, p_sky_diamonds numeric, p_green_diamonds numeric, p_reason text) [UPDATED]
+CREATE OR REPLACE FUNCTION public.admin_sync_user_balance(p_uid text, p_coins numeric, p_sky_diamonds numeric, p_green_diamonds numeric, p_reason text DEFAULT 'admin_reconcile'::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller   TEXT := auth.jwt() ->> 'sub';
+  v_is_admin BOOLEAN;
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_cur record;
+  v_before_coins numeric;
+  v_before_sky numeric;
+  v_before_green numeric;
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+
+  IF p_coins < 0 OR p_sky_diamonds < 0 OR p_green_diamonds < 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Balances must be non-negative');
+  END IF;
+  IF p_coins > 1e9 OR p_sky_diamonds > 1e9 OR p_green_diamonds > 1e9 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Balance out of sane range');
+  END IF;
+
+  SELECT coins, sky_diamonds, green_diamonds
+    INTO v_before_coins, v_before_sky, v_before_green
+    FROM users WHERE id = p_uid FOR UPDATE;
+  IF v_before_coins IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'User not found');
+  END IF;
+  v_before_coins := COALESCE(v_before_coins, 0);
+  v_before_sky   := COALESCE(v_before_sky, 0);
+  v_before_green := COALESCE(v_before_green, 0);
+
+  UPDATE users SET
+    coins = p_coins,
+    sky_diamonds = p_sky_diamonds,
+    green_diamonds = p_green_diamonds
+  WHERE id = p_uid;
+
+  IF p_coins <> v_before_coins THEN
+    INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status, created_at, description)
+    VALUES (p_uid, 'coins',
+            CASE WHEN p_coins > v_before_coins THEN 'reconcile_credit' ELSE 'reconcile_debit' END,
+            ABS(p_coins - v_before_coins), p_reason, v_caller, 'approved', NOW(),
+            'before:' || v_before_coins || ' after:' || p_coins);
+  END IF;
+  IF p_sky_diamonds <> v_before_sky THEN
+    INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status, created_at, description)
+    VALUES (p_uid, 'sky_diamonds',
+            CASE WHEN p_sky_diamonds > v_before_sky THEN 'reconcile_credit' ELSE 'reconcile_debit' END,
+            ABS(p_sky_diamonds - v_before_sky), p_reason, v_caller, 'approved', NOW(),
+            'before:' || v_before_sky || ' after:' || p_sky_diamonds);
+  END IF;
+  IF p_green_diamonds <> v_before_green THEN
+    INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status, created_at, description)
+    VALUES (p_uid, 'green_diamonds',
+            CASE WHEN p_green_diamonds > v_before_green THEN 'reconcile_credit' ELSE 'reconcile_debit' END,
+            ABS(p_green_diamonds - v_before_green), p_reason, v_caller, 'approved', NOW(),
+            'before:' || v_before_green || ' after:' || p_green_diamonds);
+  END IF;
+
+  RETURN jsonb_build_object('success', true,
+    'before', jsonb_build_object('coins', v_before_coins, 'sky_diamonds', v_before_sky, 'green_diamonds', v_before_green),
+    'after',  jsonb_build_object('coins', p_coins, 'sky_diamonds', p_sky_diamonds, 'green_diamonds', p_green_diamonds));
+END;
+$function$;
+
+-- apply_referral_code(p_code text, p_reward numeric) [UPDATED]
+CREATE OR REPLACE FUNCTION public.apply_referral_code(p_code text, p_reward numeric)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := (auth.jwt() ->> 'sub');
+  v_referrer_uid TEXT;
+  v_referrer_ign TEXT;
+  v_existing UUID;
+  v_matches INT;
+  v_cfg JSONB;
+  v_real_reward NUMERIC;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authenticated');
+  END IF;
+
+  /* ✅ SECURITY FIX (2026-09-08): "server-authoritative wallet RPC"
+     audit — p_reward was a client-supplied parameter, sanity-bounded
+     only to <= 500. A user could call this RPC directly with
+     p_reward=500 and get 10x the real configured referral bonus
+     (referralJoinCoins, normally ~50). The reward amount is now
+     always read from server-side config here — the p_reward argument
+     is kept (so the existing call site in referral-system-fix.js
+     doesn't need to change its call signature) but is IGNORED; only
+     the server's own config value is ever actually credited. */
+  SELECT value INTO v_cfg FROM app_settings WHERE key = 'live_config';
+  v_real_reward := COALESCE((v_cfg->>'referralJoinCoins')::NUMERIC, 50);
+
+  SELECT id, ign INTO v_referrer_uid, v_referrer_ign FROM users WHERE referral_code = p_code LIMIT 1;
+  IF v_referrer_uid IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid referral code');
+  END IF;
+  IF v_referrer_uid = v_caller THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Apna khud ka code use nahi kar sakte');
+  END IF;
+
+  SELECT total_matches INTO v_matches FROM users WHERE id = v_caller;
+  IF COALESCE(v_matches, 0) > 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Referral code sirf pehle match se pehle apply ho sakta hai!');
+  END IF;
+
+  -- referrals.referred_id has a UNIQUE constraint — a user can only ever
+  -- be referred once, this doubles as the duplicate-application guard.
+  SELECT id INTO v_existing FROM referrals WHERE referred_id = v_caller FOR UPDATE;
+  IF v_existing IS NOT NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Aap already ek referral code use kar chuke ho!');
+  END IF;
+
+  -- Also guard against a user who already has referred_by set (e.g. from
+  -- signup flow) applying a code again through this path.
+  IF EXISTS(SELECT 1 FROM users WHERE id = v_caller AND referred_by IS NOT NULL) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Aap already kisi ka referral use kar chuke ho');
+  END IF;
+
+  INSERT INTO referrals (referrer_id, referred_id, referrer_ign, join_bonus_paid)
+    VALUES (v_referrer_uid, v_caller, v_referrer_ign, true);
+  UPDATE users SET referred_by = v_referrer_uid, referral_popup_done = true WHERE id = v_caller;
+  UPDATE users SET coins = COALESCE(coins,0) + v_real_reward WHERE id = v_referrer_uid;
+
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id)
+    VALUES(v_referrer_uid, 'coins', 'credit', v_real_reward, 'referral_bonus', v_caller);
+
+  RETURN jsonb_build_object('success', true, 'referrer_uid', v_referrer_uid, 'referrer_ign', v_referrer_ign, 'reward', v_real_reward);
+END;
+$function$;
+
+-- cast_poll_vote(p_poll_id uuid, p_option text, p_option_idx integer) [UPDATED]
+CREATE OR REPLACE FUNCTION public.cast_poll_vote(p_poll_id uuid, p_option text, p_option_idx integer DEFAULT NULL::integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid TEXT := auth.jwt() ->> 'sub';
+  v_status TEXT;
+  v_options JSONB;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_authenticated');
+  END IF;
+
+  SELECT status, options INTO v_status, v_options FROM polls WHERE id = p_poll_id;
+  IF v_status IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'poll_not_found');
+  END IF;
+  IF v_status != 'active' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'poll_closed');
+  END IF;
+  /* FIX (2026-09-20s R17): invalid option ab reject — pehle 'hack' jaisa
+     koi bhi option-key vote_counts me ban raha tha (results-tamper). */
+  IF v_options IS NULL OR NOT (v_options ? p_option) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'invalid_option');
+  END IF;
+
+  BEGIN
+    INSERT INTO poll_votes(poll_id, user_id, option, option_idx) VALUES (p_poll_id, v_uid, p_option, p_option_idx);
+  EXCEPTION WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_voted');
+  END;
+
+  UPDATE polls
+  SET vote_counts = jsonb_set(
+        COALESCE(vote_counts,'{}'::jsonb),
+        ARRAY[p_option],
+        to_jsonb(COALESCE((vote_counts->>p_option)::int,0) + 1)
+      ),
+      total_votes = COALESCE(total_votes,0) + 1
+  WHERE id = p_poll_id;
+
+  RETURN jsonb_build_object('ok', true);
+END;
+$function$;
+
+-- check_in_match(p_match_id text) [ADDED]
+CREATE OR REPLACE FUNCTION public.check_in_match(p_match_id text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid   TEXT := auth.jwt() ->> 'sub';
+  v_jr    RECORD;
+  v_m     RECORD;
+  v_cfg   JSONB;
+  v_open  INT := 30;
+  v_close INT := 5;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_authenticated');
+  END IF;
+
+  SELECT jr.id, jr.status, jr.checked_in, jr.user_id
+    INTO v_jr
+    FROM join_requests jr
+   WHERE jr.match_id = p_match_id AND jr.user_id = v_uid
+     FOR UPDATE;
+  IF v_jr.id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_joined');
+  END IF;
+  IF v_jr.status NOT IN ('pending','approved','joined') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'join_not_active');
+  END IF;
+  IF COALESCE(v_jr.checked_in, false) THEN
+    RETURN jsonb_build_object('success', true, 'already_checked_in', true);
+  END IF;
+
+  SELECT status, scheduled_at INTO v_m FROM matches WHERE id = p_match_id;
+  IF v_m.status IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'match_not_found');
+  END IF;
+
+  SELECT value INTO v_cfg FROM app_settings WHERE key = 'live_config';
+  v_open  := COALESCE((v_cfg->>'checkInOpenMins')::INT, 30);
+  v_close := COALESCE((v_cfg->>'checkInCloseMins')::INT, 5);
+
+  IF now() < (v_m.scheduled_at - (v_open  || ' minutes')::interval) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'check_in_not_open_yet');
+  END IF;
+  IF now() >= (v_m.scheduled_at - (v_close || ' minutes')::interval) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'check_in_closed');
+  END IF;
+
+  UPDATE join_requests
+     SET checked_in = true, checkin_at = NOW()
+   WHERE id = v_jr.id AND user_id = v_uid;
+
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+
+-- claim_watch_earn_reward(p_match_id text) [UPDATED]
+CREATE OR REPLACE FUNCTION public.claim_watch_earn_reward(p_match_id text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_cfg JSONB;
+  v_coins_per_interval INT;
+  v_daily_limit_mins INT;
+  v_interval_mins INT;
+  v_match_status TEXT;
+  v_today DATE := CURRENT_DATE;
+  v_today_mins INT;
+  v_last_claim TIMESTAMPTZ;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
+  END IF;
+
+  /* FIX (2026-09-20 Round-6): FOR UPDATE — parallel claims serialize
+     (race-window me interval/daily-limit checks sab last-claim insert se
+     pehle read kar sakte the). */
+  PERFORM 1 FROM users WHERE id = v_caller FOR UPDATE;
+
+  -- Match must genuinely exist and be live right now — server checks
+  -- this itself, does not trust the client's cached match status.
+  SELECT status INTO v_match_status FROM matches WHERE id = p_match_id;
+  IF v_match_status IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Match not found');
+  END IF;
+  IF v_match_status <> 'live' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Match is not live');
+  END IF;
+
+  -- Read live config for the reward amount and limits — never trust
+  -- the client to tell us how many coins an interval is worth.
+  SELECT value INTO v_cfg FROM app_settings WHERE key = 'live_config';
+  v_coins_per_interval := COALESCE((v_cfg->>'watchCoinsPerInterval')::INT, 2);
+  v_daily_limit_mins   := COALESCE((v_cfg->>'watchDailyLimitMins')::INT, 30);
+  v_interval_mins      := COALESCE((v_cfg->>'watchIntervalMins')::INT, 5);
+
+  IF COALESCE((v_cfg->>'watchEarnEnabled')::INT, 1) = 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Watch & Earn is currently disabled');
+  END IF;
+
+  -- Rate-limit: reject if this user claimed for ANY match within the
+  -- last (interval - a small grace) minutes. Stops a client from
+  -- calling this RPC in a tight loop to farm coins far faster than
+  -- the real timer would allow.
+  SELECT max(created_at) INTO v_last_claim FROM watch_earn_log WHERE user_id = v_caller;
+  IF v_last_claim IS NOT NULL AND v_last_claim > (now() - (v_interval_mins || ' minutes')::interval + interval '20 seconds') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Too soon — wait for the next interval');
+  END IF;
+
+  -- Daily cap, computed server-side from today's actual logged rows —
+  -- not from anything the client reports.
+  SELECT COALESCE(sum(watched_mins), 0) INTO v_today_mins
+  FROM watch_earn_log WHERE user_id = v_caller AND log_date = v_today;
+  IF v_today_mins >= v_daily_limit_mins THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Daily watch limit reached', 'todayMins', v_today_mins);
+  END IF;
+
+  -- Everything checked out — credit exactly v_coins_per_interval, a
+  -- server-computed value, never anything the client supplied.
+  UPDATE users SET coins = COALESCE(coins, 0) + v_coins_per_interval WHERE id = v_caller;
+
+  INSERT INTO watch_earn_log (user_id, match_id, coins_earned, watched_mins, log_date)
+  VALUES (v_caller, p_match_id, v_coins_per_interval, v_interval_mins, v_today);
+
+  INSERT INTO wallet_transactions (user_id, currency, txn_type, amount, reason)
+  VALUES (v_caller, 'coins', 'credit', v_coins_per_interval, 'watch_earn');
+
+  RETURN jsonb_build_object('success', true, 'coinsEarned', v_coins_per_interval, 'todayMins', v_today_mins + v_interval_mins);
+END;
+$function$;
+
+-- clamp_join_requests_client_update() [UPDATED]
+CREATE OR REPLACE FUNCTION public.clamp_join_requests_client_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_is_admin BOOLEAN;
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;
+  END IF;
+  SELECT COALESCE(is_admin,false) INTO v_is_admin FROM users WHERE id = auth.jwt() ->> 'sub';
+  IF NOT COALESCE(v_is_admin,false) THEN
+    -- P1: authoritative join fields are server-only.
+    NEW.id             := OLD.id;
+    NEW.match_id       := OLD.match_id;
+    NEW.user_id        := OLD.user_id;
+    NEW.status         := OLD.status;
+    NEW.entry_type     := OLD.entry_type;
+    NEW.entry_fee      := OLD.entry_fee;
+    NEW.entry_fee_paid := OLD.entry_fee_paid;
+    NEW.fee_type       := OLD.fee_type;
+    NEW.mode           := OLD.mode;
+    NEW.captain_uid    := OLD.captain_uid;
+    NEW.squad_members  := OLD.squad_members;
+    NEW.prize_earned   := OLD.prize_earned;
+    NEW.placement      := OLD.placement;
+    NEW.kills          := OLD.kills;
+    NEW.checked_in     := OLD.checked_in;
+    NEW.checkin_at     := OLD.checkin_at;
+    NEW.in_room        := OLD.in_room;
+    NEW.in_room_at     := OLD.in_room_at;
+    NEW.attendance_status := OLD.attendance_status;
+    NEW.slot_number    := OLD.slot_number;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+-- confirm_in_room(p_join_id uuid) [ADDED]
+CREATE OR REPLACE FUNCTION public.confirm_in_room(p_join_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid TEXT := auth.jwt() ->> 'sub';
+  v_jr  RECORD;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_authenticated');
+  END IF;
+
+  SELECT id, user_id, status, in_room
+    INTO v_jr
+    FROM join_requests
+   WHERE id = p_join_id
+     FOR UPDATE;
+  IF v_jr.id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'join_not_found');
+  END IF;
+  IF v_jr.user_id <> v_uid THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_your_join');
+  END IF;
+  IF v_jr.status NOT IN ('pending','joined','checked_in') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'join_not_active');
+  END IF;
+  IF COALESCE(v_jr.in_room, false) THEN
+    RETURN jsonb_build_object('success', true, 'already_in_room', true);
+  END IF;
+
+  UPDATE join_requests
+     SET in_room = true, in_room_at = NOW()
+   WHERE id = p_join_id AND user_id = v_uid;
+
+  RETURN jsonb_build_object('success', true);
+END;
+$function$;
+
+-- decrement_balance(p_uid text, p_col text, p_amount numeric) [UPDATED]
+CREATE OR REPLACE FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  allowed_cols TEXT[] := ARRAY['coins','green_diamonds','sky_diamonds'];
+  v_balance    NUMERIC;
+  v_caller     TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL OR v_caller <> p_uid THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Not authorized — own UID only');
+    END IF;
+  END IF;
+
+  IF p_amount < 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Amount must be non-negative');
+  END IF;
+  IF NOT (p_col = ANY(allowed_cols)) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Column not allowed: ' || p_col);
+  END IF;
+
+  EXECUTE format('SELECT COALESCE(%I, 0) FROM users WHERE id = $1 FOR UPDATE', p_col)
+    USING p_uid INTO v_balance;
+  IF v_balance IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'User not found');
+  END IF;
+  IF v_balance < p_amount THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Insufficient balance',
+      'balance', v_balance, 'required', p_amount);
+  END IF;
+
+  EXECUTE format(
+    'UPDATE users SET %I = GREATEST(COALESCE(%I, 0) - $1, 0) WHERE id = $2',
+    p_col, p_col
+  ) USING p_amount, p_uid;
+  RETURN jsonb_build_object('success', true, 'balance_after', v_balance - p_amount);
+END;
+$function$;
+
+-- fft_guard_wallet_insert() [UPDATED]
+CREATE OR REPLACE FUNCTION public.fft_guard_wallet_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NOT NULL AND COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false) THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'Wallet entries sirf authenticated system path se banti hain';
+  END IF;
+
+  IF NEW.user_id = v_caller AND NEW.txn_type = 'pending_deposit' THEN
+    IF NEW.currency <> 'sky_diamonds' THEN
+      RAISE EXCEPTION 'pending_deposit ledger rows must be sky_diamonds';
+    END IF;
+    IF NEW.amount IS NULL OR NEW.amount <= 0 OR NEW.amount > 100000 THEN
+      RAISE EXCEPTION 'pending_deposit amount out of range (1..100000)';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF NEW.user_id = v_caller AND NEW.txn_type = 'pending_withdraw' THEN
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'Wallet entries (%) sirf system create kar sakta hai', NEW.txn_type;
+END;
+$function$;
+
+-- guard_clans_insert() [ADDED]
+CREATE OR REPLACE FUNCTION public.guard_clans_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'clans: authenticated callers only';
+  END IF;
+  IF EXISTS (SELECT 1 FROM users WHERE id = v_caller AND COALESCE(is_admin, false)) THEN
+    RETURN NEW;
+  END IF;
+
+  NEW.leader_uid             := v_caller;
+  NEW.total_members          := 1;
+  NEW.weekly_score           := 0;
+  NEW.total_wins             := 0;
+  NEW.total_kills            := 0;
+  NEW.squad_bank_gd          := 0;
+  NEW.squad_bank_unlocked    := '{}'::jsonb;
+  NEW.squad_bank_contributors := '{}'::jsonb;
+  NEW.disbanded_at           := NULL;
+  NEW.status                 := 'active';
+
+  RETURN NEW;
+END;
+$function$;
+
+-- guard_clans_update() [ADDED]
+CREATE OR REPLACE FUNCTION public.guard_clans_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller   TEXT := auth.jwt() ->> 'sub';
+  v_is_admin BOOLEAN;
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;  -- server RPC / service path is authoritative
+  END IF;
+  IF v_caller IS NULL THEN
+    RETURN NEW;  -- anon can't UPDATE anyway (RLS); fall through safely
+  END IF;
+  SELECT COALESCE(is_admin, false) INTO v_is_admin FROM users WHERE id = v_caller;
+  IF v_is_admin THEN
+    RETURN NEW;
+  END IF;
+
+  -- Non-admin (i.e. at most a leader): economy/status/identity columns are
+  -- server-owned and must not drift from client writes.
+  NEW.leader_uid           := OLD.leader_uid;
+  NEW.total_members        := OLD.total_members;
+  NEW.weekly_score         := OLD.weekly_score;
+  NEW.total_wins           := OLD.total_wins;
+  NEW.total_kills          := OLD.total_kills;
+  NEW.squad_bank_gd        := OLD.squad_bank_gd;
+  NEW.squad_bank_unlocked  := OLD.squad_bank_unlocked;
+  NEW.squad_bank_contributors := OLD.squad_bank_contributors;
+  NEW.status               := OLD.status;
+  NEW.disbanded_at         := OLD.disbanded_at;
+  NEW.join_code            := OLD.join_code;
+
+  RETURN NEW;
+END;
+$function$;
+
+-- guard_matches_room_secrets() [ADDED]
+CREATE OR REPLACE FUNCTION public.guard_matches_room_secrets()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_is_admin BOOLEAN;
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;
+  END IF;
+  SELECT COALESCE(is_admin, false) INTO v_is_admin
+    FROM users WHERE id = auth.jwt() ->> 'sub';
+  IF COALESCE(v_is_admin, false) THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP = 'INSERT' THEN
+    NEW.room_id       := NULL;
+    NEW.room_password := NULL;
+  ELSE
+    NEW.room_id       := OLD.room_id;
+    NEW.room_password := OLD.room_password;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+-- guard_notification_insert() [ADDED]
+CREATE OR REPLACE FUNCTION public.guard_notification_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_is_admin BOOLEAN;
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'notifications: authenticated callers only';
+  END IF;
+  SELECT COALESCE(is_admin, false) INTO v_is_admin FROM users WHERE id = v_caller;
+  IF v_is_admin THEN RETURN NEW; END IF;
+
+  IF COALESCE(NEW.target_all, false) THEN
+    RAISE EXCEPTION 'notifications: broadcast target_all is admin-only';
+  END IF;
+  IF NEW.user_id IS NULL THEN
+    RAISE EXCEPTION 'notifications: user_id is required';
+  END IF;
+  IF NEW.user_id = v_caller THEN
+    RETURN NEW;  -- self notification
+  END IF;
+
+  -- Cross-user: verify the peer relationship actually exists
+  CASE NEW.type
+    WHEN 'friend_add' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM friendships
+        WHERE (user_a = v_caller AND user_b = NEW.user_id)
+           OR (user_b = v_caller AND user_a = NEW.user_id)
+      ) THEN RAISE EXCEPTION 'notifications: no friendship between caller and target'; END IF;
+
+    WHEN 'duel_challenge','duel_accepted' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM duel_challenges
+        WHERE (challenger_uid = v_caller AND opponent_uid = NEW.user_id)
+           OR (challenger_uid = NEW.user_id AND opponent_uid = v_caller)
+      ) THEN RAISE EXCEPTION 'notifications: no duel between caller and target'; END IF;
+
+    WHEN 'mentor_request','mentor_accepted','mentor_reward' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM mentor_requests
+        WHERE (student_uid = v_caller AND mentor_uid = NEW.user_id)
+           OR (student_uid = NEW.user_id AND mentor_uid = v_caller)
+      ) THEN RAISE EXCEPTION 'notifications: no mentorship between caller and target'; END IF;
+
+    WHEN 'clan_war_challenge' THEN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM clan_war_challenges cw
+        JOIN clan_members m1 ON m1.clan_id = cw.from_clan AND m1.user_id = v_caller     AND m1.role = 'leader'
+        JOIN clan_members m2 ON m2.clan_id = cw.to_clan   AND m2.user_id = NEW.user_id AND m2.role = 'leader'
+      ) THEN RAISE EXCEPTION 'notifications: clan_war_challenge requires a real war challenge between the two clan leaders'; END IF;
+
+    WHEN 'clan_cosmetic' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM clan_members c1
+        JOIN clan_members c2 ON c1.clan_id = c2.clan_id
+        WHERE c1.user_id = v_caller AND c2.user_id = NEW.user_id
+      ) THEN RAISE EXCEPTION 'notifications: clan_cosmetic requires shared clan membership'; END IF;
+
+    WHEN 'team_formed' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM auto_squad_queue c1
+        JOIN auto_squad_queue c2 ON c1.team_id = c2.team_id
+        WHERE c1.user_id = v_caller AND c2.user_id = NEW.user_id
+          AND c1.team_id IS NOT NULL AND c1.status = 'matched'
+      ) THEN RAISE EXCEPTION 'notifications: team_formed requires same matched auto-squad team'; END IF;
+
+    WHEN 'squad_request' THEN
+      IF NOT EXISTS (
+        SELECT 1 FROM squad_finder
+        WHERE user_id = NEW.user_id AND COALESCE(is_active, false)
+      ) THEN RAISE EXCEPTION 'notifications: squad_request requires an active squad-finder listing'; END IF;
+
+    ELSE
+      RAISE EXCEPTION 'notifications: type % is not permitted as a client cross-user insert', NEW.type;
+  END CASE;
+
+  RETURN NEW;
+END;
+$function$;
+
+-- guard_users_insert() [ADDED]
+CREATE OR REPLACE FUNCTION public.guard_users_insert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_is_admin BOOLEAN;
+BEGIN
+  IF current_user IN ('postgres','supabase_admin','service_role','authenticator') THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NOT NULL AND v_caller = NEW.id THEN
+    SELECT COALESCE(is_admin, false) INTO v_is_admin FROM users WHERE id = v_caller;
+    IF v_is_admin THEN RETURN NEW; END IF;
+  END IF;
+
+  -- Wallet / economy / status hard-reset (self-signup can never mint)
+  NEW.coins          := 0;
+  NEW.sky_diamonds   := 0;
+  NEW.green_diamonds := 0;
+  NEW.rank_points    := 0;
+  NEW.total_winnings := 0;
+  NEW.sponsored_winnings := 0;
+  NEW.total_wins     := 0;
+  NEW.total_kills    := 0;
+  NEW.total_matches  := 0;
+  NEW.win_streak     := 0;
+  NEW.clean_matches  := 0;
+  NEW.has_clean_badge := false;
+  NEW.streak_days    := 0;
+  NEW.last_checkin_date := NULL;
+  NEW.premium_level  := 0;
+  NEW.premium_expires := NULL;
+  NEW.trial_used     := false;
+  NEW.rp_today       := 0;
+  NEW.rp_day         := NULL;
+  NEW.mpm_today      := 0;
+  NEW.mpm_day        := NULL;
+  NEW.level          := 1;
+  NEW.exp            := 0;
+  NEW.rank_tier      := 'Bronze';
+
+  -- Admin / moderation columns (self-promotion impossible)
+  NEW.is_admin       := false;
+  NEW.is_banned      := false;
+  NEW.ban_reason     := NULL;
+  NEW.is_vip         := false;
+  NEW.vip_granted_at := NULL;
+  NEW.vip_reason     := NULL;
+  NEW.is_creator     := false;
+  NEW.fraud_score    := 0;
+  NEW.email_verified := false;
+  NEW.is_deleted     := false;
+  NEW.penalty_points := 0;
+  NEW.leaderboard_hidden := false;
+
+  -- Creator economy columns
+  NEW.creator_code               := NULL;
+  NEW.creator_rating             := 5.0;
+  NEW.creator_rating_count       := 0;
+  NEW.creator_strikes            := 0;
+  NEW.creator_suspended_until    := NULL;
+  NEW.creator_suspended_permanently := false;
+
+  -- Referral / identity-verification columns
+  NEW.referred_by        := NULL;
+  NEW.referral_applied_at := NULL;
+  NEW.age_verified       := false;
+  NEW.age_verified_at    := NULL;
+  NEW.fraud_checked_at   := NULL;
+
+  -- Membership / team columns
+  NEW.clan_id           := NULL;
+  NEW.duo_team          := '{}'::jsonb;
+  NEW.squad_team        := '{}'::jsonb;
+  NEW.squad_uids        := '[]'::jsonb;
+  NEW.streak_milestones_claimed := '{}'::jsonb;
+
+  RETURN NEW;
+END;
+$function$;
+
+-- guard_users_self_update() [UPDATED]
+CREATE OR REPLACE FUNCTION public.guard_users_self_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role')
+      OR (current_user IN ('postgres','supabase_admin','service_role'));
+  v_allowed TEXT[] := ARRAY[
+    'avatar_url','avatar_bg_color','banner_url','bio','city','phone',
+    'is_live','stream_link','stream_title','rival_uid','fcm_token',
+    'fcm_updated_at','device_fp','clan_id','referral_code',
+    'referral_popup_done','profile_status','pending_ign',
+    'profile_request_count','duo_team','squad_team','partner_uid',
+    'squad_uids','updated_at','last_seen',
+    'state'
+  ];
+  v_col  TEXT;
+  v_old  JSONB := to_jsonb(OLD);
+  v_new  JSONB := to_jsonb(NEW);
+BEGIN
+  IF v_is_service OR (v_caller IS NOT NULL AND COALESCE((SELECT is_admin FROM users WHERE id = v_caller), false)) THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NULL OR v_caller <> OLD.id THEN
+    RAISE EXCEPTION 'Not authorized to update this user row';
+  END IF;
+  FOR v_col IN SELECT jsonb_object_keys(v_new) LOOP
+    IF NOT (v_col = ANY(v_allowed)) THEN
+      IF v_old -> v_col IS DISTINCT FROM v_new -> v_col THEN
+        RAISE EXCEPTION 'Column % is not self-editable', v_col;
+      END IF;
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$function$;
+
+-- join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) [UPDATED]
+CREATE OR REPLACE FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text DEFAULT 'member'::text, p_ign text DEFAULT NULL::text, p_max_members integer DEFAULT NULL::integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_already BOOLEAN;
+  v_caller  TEXT := auth.jwt() ->> 'sub';
+  v_count   INT;
+  v_cap     INT;
+BEGIN
+  -- R3 P1 FIX + R8: caller identity fail-closed; p_user_id must be caller.
+  IF v_caller IS NULL OR v_caller <> p_user_id THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+  p_role := 'member'; -- self-promotion impossible
+
+  IF NOT EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Clan not found');
+  END IF;
+  IF EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id AND status = 'disbanded') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'clan_disbanded');
+  END IF;
+
+  SELECT COUNT(*) INTO v_count FROM clan_members WHERE clan_id = p_clan_id;
+  -- Server-side cap: NEVER trust client p_max_members beyond the product
+  -- ceiling (v30 MAX_MEMBERS = 10); clamp into [1..10], default 10.
+  v_cap := LEAST(GREATEST(COALESCE(p_max_members, 10), 1), 10);
+  IF v_count >= v_cap THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'clan_full');
+  END IF;
+
+  SELECT EXISTS(
+    SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_user_id
+  ) INTO v_already;
+  IF v_already THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Already in clan');
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM clan_members WHERE user_id = p_user_id) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_in_clan');
+  END IF;
+
+  INSERT INTO clan_members(clan_id, user_id, role) VALUES(p_clan_id, p_user_id, p_role);
+  UPDATE clans SET total_members = COALESCE(total_members, 0) + 1 WHERE id = p_clan_id;
+  UPDATE users SET clan_id = p_clan_id::TEXT WHERE id = p_user_id;
+  RETURN jsonb_build_object('ok', true);
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Already in clan');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error',
+      CASE SQLERRM WHEN 'NOT_AUTHORIZED' THEN 'Not authorized' ELSE SQLERRM END);
+END;
+$function$;
+
+-- publish_match_results(p_match_id text, p_results jsonb) [UPDATED]
+CREATE OR REPLACE FUNCTION public.publish_match_results(p_match_id text, p_results jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller      TEXT := auth.jwt() ->> 'sub';
+  v_is_service  BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_is_admin    BOOLEAN;
+  v_m           RECORD;
+  v_name        TEXT;
+  v_currency    TEXT;          -- coins | sky_diamonds | green_diamonds
+  v_curr_label  TEXT;
+  v_is_corr     BOOLEAN;
+  v_first       NUMERIC; v_second NUMERIC; v_third NUMERIC; v_perk NUMERIC; v_entry NUMERIC;
+  item          jsonb;
+  v_uid         TEXT; v_rank INT; v_kills INT;
+  v_join        RECORD;
+  v_rank_prize  NUMERIC; v_kill_prize NUMERIC; v_total NUMERIC;
+  v_cap         TEXT;          -- jisko paisa credit hoga (captain_pays member → captain)
+  v_earn        NUMERIC;       -- is uid ka effective money
+  v_capagg      jsonb := '{}'::jsonb;  -- target_uid -> total money
+  v_plist       jsonb := '[]'::jsonb;  -- [{uid,rank,kills,cap}]
+  v_old         jsonb := '{}'::jsonb;  -- target -> old prize_earned
+  v_oldkills    jsonb := '{}'::jsonb;  -- uid -> old kills
+  k             TEXT;
+  v_delta       NUMERIC;
+  v_kill_delta  INT;
+  v_rp          INT;
+  v_is_winner   BOOLEAN;
+  v_month       TEXT := to_char((now() AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY_MM');
+  v_pub         INT := 0; v_corr INT := 0; v_skip INT := 0; v_win_n INT := 0;
+BEGIN
+  /* ── Authorization ── */
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'Admin only');
+    END IF;
+    SELECT is_admin INTO v_is_admin FROM users WHERE id = v_caller;
+    IF NOT COALESCE(v_is_admin, false) THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'Admin only');
+    END IF;
+  END IF;
+
+  IF jsonb_typeof(p_results) <> 'array' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'p_results must be an array');
+  END IF;
+
+  SELECT * INTO v_m FROM matches WHERE id = p_match_id FOR UPDATE;
+  IF v_m.id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'MATCH_NOT_FOUND');
+  END IF;
+
+  v_name       := COALESCE(v_m.name, v_m.title, p_match_id);
+  v_is_corr    := (v_m.result_published_at IS NOT NULL);
+  v_first      := COALESCE(v_m.first_prize, 0);
+  v_second     := COALESCE(v_m.second_prize, 0);
+  v_third      := COALESCE(v_m.third_prize, 0);
+  v_perk       := COALESCE(v_m.per_kill_prize, 0);
+  v_entry      := COALESCE(v_m.entry_fee, 0);
+
+  /* currency: prize_type first, then entry_type inference, then coins */
+  IF COALESCE(v_m.prize_type,'') IN ('green_diamond','greenDiamond') THEN
+    v_currency := 'green_diamonds'; v_curr_label := 'Green Diamonds';
+  ELSIF COALESCE(v_m.prize_type,'') IN ('sky','sky_diamond','skyDiamond') THEN
+    v_currency := 'sky_diamonds'; v_curr_label := 'Sky Diamonds';
+  ELSIF COALESCE(v_m.prize_type,'') IN ('coin','cash') THEN
+    v_currency := 'coins'; v_curr_label := 'Coins';
+  ELSE
+    IF v_m.entry_type IN ('paid','sky_diamond','skyDiamond') THEN
+      v_currency := 'green_diamonds'; v_curr_label := 'Green Diamonds';
+    ELSE
+      v_currency := 'coins'; v_curr_label := 'Coins';
+    END IF;
+  END IF;
+
+  /* ── Pass 1: compute prizes + captain aggregation (server-authoritative) ── */
+  FOR item IN SELECT jsonb_array_elements(p_results) LOOP
+    v_uid  := item->>'user_id';
+    v_rank := GREATEST(COALESCE((item->>'rank')::int, 0), 0);
+    v_kills := GREATEST(COALESCE((item->>'kills')::int, 0), 0);
+    IF v_uid IS NULL OR v_uid = '' THEN v_skip := v_skip + 1; CONTINUE; END IF;
+
+    SELECT * INTO v_join FROM join_requests
+    WHERE match_id = p_match_id AND user_id = v_uid;
+    IF v_join IS NULL THEN v_skip := v_skip + 1; CONTINUE; END IF;
+
+    v_rank_prize := CASE WHEN v_rank = 1 THEN v_first
+                         WHEN v_rank = 2 THEN v_second
+                         WHEN v_rank = 3 THEN v_third
+                         ELSE 0 END;
+    v_kill_prize := v_kills * v_perk;
+    v_total      := v_rank_prize + v_kill_prize;
+
+    /* captain_pays member → paisa captain ko */
+    v_cap := v_uid;
+    IF v_join.fee_type = 'captain_pays'
+       AND v_join.captain_uid IS NOT NULL
+       AND v_join.captain_uid <> v_uid THEN
+      v_cap := v_join.captain_uid;
+    END IF;
+
+    v_capagg := jsonb_set(v_capagg, ARRAY[v_cap],
+      to_jsonb(COALESCE((v_capagg->>v_cap)::numeric, 0) + v_total), true);
+
+    v_plist := v_plist || jsonb_build_object(
+      'uid', v_uid, 'rank', v_rank, 'kills', v_kills, 'cap', v_cap);
+  END LOOP;
+
+  /* ── Pass 0 (read olds BEFORE any write) ── */
+  FOR k IN SELECT jsonb_object_keys(v_capagg) LOOP
+    SELECT COALESCE(prize_earned, 0) INTO v_delta
+      FROM match_results WHERE match_id = p_match_id AND user_id = k;
+    v_old := jsonb_set(v_old, ARRAY[k], to_jsonb(v_delta), true);
+  END LOOP;
+  FOR item IN SELECT * FROM jsonb_array_elements(v_plist) LOOP
+    SELECT COALESCE(kills, 0) INTO v_kill_delta
+      FROM match_results WHERE match_id = p_match_id AND user_id = (item->>'uid');
+    v_oldkills := jsonb_set(v_oldkills, ARRAY[item->>'uid'], to_jsonb(v_kill_delta), true);
+  END LOOP;
+
+  /* ── Pass 2: money per target (credit / correction delta) ── */
+  FOR k IN SELECT jsonb_object_keys(v_capagg) LOOP
+    v_total := (v_capagg->>k)::numeric;
+    v_delta := v_total - COALESCE((v_old->>k)::numeric, 0);
+
+    IF v_is_corr THEN
+      IF v_delta <> 0 THEN
+        IF v_currency = 'coins' THEN
+          UPDATE users SET coins = GREATEST(COALESCE(coins,0) + v_delta, 0),
+                           total_winnings = GREATEST(COALESCE(total_winnings,0) + v_delta, 0)
+          WHERE id = k;
+        ELSIF v_currency = 'sky_diamonds' THEN
+          UPDATE users SET sky_diamonds = GREATEST(COALESCE(sky_diamonds,0) + v_delta, 0),
+                           total_winnings = GREATEST(COALESCE(total_winnings,0) + v_delta, 0)
+          WHERE id = k;
+        ELSE
+          UPDATE users SET green_diamonds = GREATEST(COALESCE(green_diamonds,0) + v_delta, 0),
+                           total_winnings = GREATEST(COALESCE(total_winnings,0) + v_delta, 0)
+          WHERE id = k;
+        END IF;
+        INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, status, ref_id, created_at)
+        VALUES (k, v_currency,
+                CASE WHEN v_delta > 0 THEN 'correction_credit' ELSE 'correction_debit' END,
+                ABS(v_delta), 'result_correction', 'approved', p_match_id, NOW());
+
+        INSERT INTO notifications(user_id, type, title, body, is_read, created_at, ref_id)
+        VALUES (k, 'correction',
+                '🔧 Result Correction',
+                v_name || ' — ' || ABS(v_delta) || ' ' || v_curr_label || ' ' ||
+                CASE WHEN v_delta > 0 THEN 'add kiya gaya.' ELSE 'adjust kiya gaya.' END,
+                false, NOW(), p_match_id);
+        v_corr := v_corr + 1;
+      END IF;
+    ELSE
+      IF v_total > 0 THEN
+        IF v_currency = 'coins' THEN
+          UPDATE users SET coins = COALESCE(coins,0) + v_total,
+                           total_winnings = COALESCE(total_winnings,0) + v_total
+          WHERE id = k;
+        ELSIF v_currency = 'sky_diamonds' THEN
+          UPDATE users SET sky_diamonds = COALESCE(sky_diamonds,0) + v_total,
+                           total_winnings = COALESCE(total_winnings,0) + v_total
+          WHERE id = k;
+        ELSE
+          UPDATE users SET green_diamonds = COALESCE(green_diamonds,0) + v_total,
+                           total_winnings = COALESCE(total_winnings,0) + v_total
+          WHERE id = k;
+        END IF;
+        INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, status, ref_id, created_at)
+        VALUES (k, v_currency, 'match_win', v_total, 'match_prize', 'approved', p_match_id, NOW());
+        v_win_n := v_win_n + 1;
+      END IF;
+    END IF;
+  END LOOP;
+
+  /* ── Pass 3: per-player stats + match_results + join_requests + notifications ── */
+  FOR item IN SELECT * FROM jsonb_array_elements(v_plist) LOOP
+    v_uid   := item->>'uid';
+    v_rank  := (item->>'rank')::int;
+    v_kills := (item->>'kills')::int;
+    v_earn  := COALESCE((v_capagg->>v_uid)::numeric, 0);   -- member -> 0
+    v_is_winner := v_earn > 0;
+
+    IF NOT v_is_corr THEN
+      v_rp := CASE WHEN v_rank = 1 THEN 25 WHEN v_rank = 2 THEN 15
+                   WHEN v_rank = 3 THEN 10 WHEN v_rank <= 10 THEN 5 ELSE 1 END
+              + LEAST(v_kills, 3);
+      IF NOT v_is_winner THEN v_rp := 1; END IF;
+
+      UPDATE users SET
+        total_kills   = COALESCE(total_kills,0) + v_kills,
+        total_matches = COALESCE(total_matches,0) + 1,
+        total_wins    = COALESCE(total_wins,0) + CASE WHEN v_is_winner AND v_rank = 1 THEN 1 ELSE 0 END,
+        win_streak    = CASE WHEN v_is_winner THEN COALESCE(win_streak,0) + 1 ELSE 0 END,
+        rank_points   = COALESCE(rank_points,0) + v_rp
+      WHERE id = v_uid;
+
+      INSERT INTO season_stats(month_key, user_id, kills, matches, wins)
+      VALUES (v_month, v_uid, v_kills, 1, CASE WHEN v_rank = 1 THEN 1 ELSE 0 END)
+      ON CONFLICT (month_key, user_id) DO UPDATE SET
+        kills   = season_stats.kills + EXCLUDED.kills,
+        matches = season_stats.matches + 1,
+        wins    = season_stats.wins + EXCLUDED.wins,
+        updated_at = NOW();
+
+      IF v_is_winner THEN
+        INSERT INTO notifications(user_id, type, title, body, is_read, created_at, ref_id)
+        VALUES (v_uid, 'result', '🏆 Match Result!',
+                v_name || ' — jeete! ' || v_earn || ' ' || v_curr_label ||
+                ' wallet mein add ho gaye. (Rank #' || v_rank || ', ' || v_kills || ' kills)',
+                false, NOW(), p_match_id);
+      ELSE
+        INSERT INTO notifications(user_id, type, title, body, is_read, created_at, ref_id)
+        VALUES (v_uid, 'result', '📋 Match Result',
+                v_name || ' ka result publish ho gaya! Rank: #' || v_rank ||
+                ', Kills: ' || v_kills || '.',
+                false, NOW(), p_match_id);
+      END IF;
+
+      /* platform earnings (first publish only) — entry fee server-side */
+      INSERT INTO platform_earnings(match_id, entry_fee, prize_given, profit, user_id)
+      VALUES (p_match_id, v_entry, v_earn, v_entry - v_earn, v_uid);
+
+    ELSE
+      /* correction: sirf kills delta (money delta upar target-loop me) */
+      v_kill_delta := v_kills - COALESCE((v_oldkills->>v_uid)::int, 0);
+      IF v_kill_delta <> 0 THEN
+        UPDATE users SET total_kills = GREATEST(COALESCE(total_kills,0) + v_kill_delta, 0)
+        WHERE id = v_uid;
+      END IF;
+    END IF;
+
+    /* match_results (authoritative result row) */
+    INSERT INTO match_results(match_id, user_id, placement, kills, rank,
+                              kill_prize, rank_prize, prize_earned, prize)
+    VALUES (p_match_id, v_uid, v_rank, v_kills, v_rank,
+            v_kills * v_perk,
+            CASE WHEN v_rank = 1 THEN v_first WHEN v_rank = 2 THEN v_second
+                 WHEN v_rank = 3 THEN v_third ELSE 0 END,
+            v_earn, v_earn)
+    ON CONFLICT (match_id, user_id) DO UPDATE SET
+      placement   = EXCLUDED.placement,
+      kills       = EXCLUDED.kills,
+      rank        = EXCLUDED.rank,
+      kill_prize  = EXCLUDED.kill_prize,
+      rank_prize  = EXCLUDED.rank_prize,
+      prize_earned = EXCLUDED.prize_earned,
+      prize       = EXCLUDED.prize;
+
+    /* join_requests final state */
+    UPDATE join_requests SET status = 'completed', placement = v_rank,
+                             prize_earned = v_earn, kills = v_kills
+    WHERE match_id = p_match_id AND user_id = v_uid;
+
+    v_pub := v_pub + 1;
+  END LOOP;
+
+  /* matches → completed + result_published_at (idempotent) */
+  UPDATE matches SET status = 'completed', updated_at = NOW(),
+                     result_published_at = COALESCE(result_published_at, NOW())
+  WHERE id = p_match_id;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'players', v_pub,
+    'winners', v_win_n,
+    'corrections', v_corr,
+    'currency', v_currency,
+    'was_correction', v_is_corr,
+    'skipped', v_skip);
+END;
+$function$;
+
+-- ── 60.5b  Stale functions: defined earlier in this file but NOT live — dropped ──
+DROP FUNCTION IF EXISTS public.claim_creator_payout CASCADE;  -- superseded (no live counterpart)
+DROP FUNCTION IF EXISTS public.increment_match_slots CASCADE;  -- superseded (no live counterpart)
+
+-- ── 60.6  Triggers added after the last hand-edit ──
+DROP TRIGGER IF EXISTS trg_clans_insert_guard ON public.clans;
+CREATE TRIGGER trg_clans_insert_guard BEFORE INSERT ON public.clans FOR EACH ROW EXECUTE FUNCTION guard_clans_insert();
+DROP TRIGGER IF EXISTS trg_clans_update_guard ON public.clans;
+CREATE TRIGGER trg_clans_update_guard BEFORE UPDATE ON public.clans FOR EACH ROW EXECUTE FUNCTION guard_clans_update();
+DROP TRIGGER IF EXISTS trg_matches_room_secrets ON public.matches;
+CREATE TRIGGER trg_matches_room_secrets BEFORE INSERT OR UPDATE ON public.matches FOR EACH ROW EXECUTE FUNCTION guard_matches_room_secrets();
+DROP TRIGGER IF EXISTS trg_notifications_spoof_guard ON public.notifications;
+CREATE TRIGGER trg_notifications_spoof_guard BEFORE INSERT ON public.notifications FOR EACH ROW EXECUTE FUNCTION guard_notification_insert();
+DROP TRIGGER IF EXISTS trg_guard_users_self_update ON public.users;
+CREATE TRIGGER trg_guard_users_self_update BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION guard_users_self_update();
+DROP TRIGGER IF EXISTS trg_users_insert_guard ON public.users;
+CREATE TRIGGER trg_users_insert_guard BEFORE INSERT ON public.users FOR EACH ROW EXECUTE FUNCTION guard_users_insert();
+
+-- ── 60.7  Indexes added after the last hand-edit ──
+CREATE INDEX IF NOT EXISTS idx_ad_reward_user_date ON public.ad_reward_log USING btree (user_id, log_date);
+
+-- ── 60.8  Row Level Security: final state ──
+ALTER TABLE public.ad_reward_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_actions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_activity_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_watchlist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.auto_squad_queue ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ban_appeals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.battle_pass_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.battle_passes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.blacklist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cheat_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.city_championship ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clan_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clan_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clan_war_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clan_wars ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coin_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_commissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_match_ratings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_payouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_result_flags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.creator_videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_checkins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.disputes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.duel_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.duel_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.early_access_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ff_uid_index ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fraud_cases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gift_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.join_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kill_proofs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kyc_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leaderboard ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leaderboard_archive ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.live_streams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.match_feedback ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.match_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.match_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.match_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mentor_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mentor_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mission_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.platform_earnings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.platform_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.poll_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.premium_monthly_bonus_claims ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.premium_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profile_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profile_updates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_hook_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rank_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rank_seasons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.refund_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reward_redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reward_store_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.scheduled_broadcasts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sd_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.season_finalizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.season_pass_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.season_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.seasonal_league_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sponsored_prize_claims ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sponsored_prizes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sponsored_tournaments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.squad_finder ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.suggestion_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.suggestions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tds_held ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tds_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tournament_brackets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trial_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_cosmetics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_suggestions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.video_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.video_watches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.voucher_redemptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vouchers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.wallet_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.watch_earn_log ENABLE ROW LEVEL SECURITY;
+
+-- policies (drop + create = re-applies cleanly; roles: anon, authenticated, public)
+DROP POLICY IF EXISTS arl_select_own ON public.ad_reward_log;
+CREATE POLICY arl_select_own ON public.ad_reward_log AS PERMISSIVE FOR SELECT TO public USING ((user_id = (auth.jwt() ->> 'sub'::text)));
+DROP POLICY IF EXISTS adminactions_admin_all ON public.admin_actions;
+CREATE POLICY adminactions_admin_all ON public.admin_actions AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS aal_admin_all ON public.admin_activity_log;
+CREATE POLICY aal_admin_all ON public.admin_activity_log AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS aa_admin_all ON public.admin_alerts;
+CREATE POLICY aa_admin_all ON public.admin_alerts AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS an_admin_all ON public.admin_notes;
+CREATE POLICY an_admin_all ON public.admin_notes AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS aw_admin_all ON public.admin_watchlist;
+CREATE POLICY aw_admin_all ON public.admin_watchlist AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS adm_admin_write ON public.admins;
+CREATE POLICY adm_admin_write ON public.admins AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS adm_select_own ON public.admins;
+CREATE POLICY adm_select_own ON public.admins AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = uid) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS as_admin_write ON public.app_settings;
+CREATE POLICY as_admin_write ON public.app_settings AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS as_select_all ON public.app_settings;
+CREATE POLICY as_select_all ON public.app_settings AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS asq_delete_own ON public.auto_squad_queue;
+CREATE POLICY asq_delete_own ON public.auto_squad_queue AS PERMISSIVE FOR DELETE TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS asq_select_all ON public.auto_squad_queue;
+CREATE POLICY asq_select_all ON public.auto_squad_queue AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS ba_insert_own ON public.ban_appeals;
+CREATE POLICY ba_insert_own ON public.ban_appeals AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS ba_select_own ON public.ban_appeals;
+CREATE POLICY ba_select_own ON public.ban_appeals AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS bpp_admin_all ON public.battle_pass_progress;
+CREATE POLICY bpp_admin_all ON public.battle_pass_progress AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS bpp_insert_zero ON public.battle_pass_progress;
+CREATE POLICY bpp_insert_zero ON public.battle_pass_progress AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (COALESCE(current_tier, 0) = 0) AND (COALESCE(current_xp, 0) = 0) AND (COALESCE(has_premium, false) = false) AND (COALESCE(claimed_free, '{}'::jsonb) = '{}'::jsonb) AND (COALESCE(claimed_prem, '{}'::jsonb) = '{}'::jsonb)));
+DROP POLICY IF EXISTS bpp_select_own ON public.battle_pass_progress;
+CREATE POLICY bpp_select_own ON public.battle_pass_progress AS PERMISSIVE FOR SELECT TO anon, authenticated USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS bpp_update_zero ON public.battle_pass_progress;
+CREATE POLICY bpp_update_zero ON public.battle_pass_progress AS PERMISSIVE FOR UPDATE TO anon, authenticated USING (((auth.jwt() ->> 'sub'::text) = user_id)) WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (COALESCE(current_tier, 0) = 0) AND (COALESCE(current_xp, 0) = 0) AND (COALESCE(has_premium, false) = false) AND (COALESCE(claimed_free, '{}'::jsonb) = '{}'::jsonb) AND (COALESCE(claimed_prem, '{}'::jsonb) = '{}'::jsonb)));
+DROP POLICY IF EXISTS bp_admin_write ON public.battle_passes;
+CREATE POLICY bp_admin_write ON public.battle_passes AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS bp_select_all ON public.battle_passes;
+CREATE POLICY bp_select_all ON public.battle_passes AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS bl_admin_all ON public.blacklist;
+CREATE POLICY bl_admin_all ON public.blacklist AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS bl_select_auth ON public.blacklist;
+CREATE POLICY bl_select_auth ON public.blacklist AS PERMISSIVE FOR SELECT TO public USING (((auth.jwt() ->> 'sub'::text) IS NOT NULL));
+DROP POLICY IF EXISTS chr_insert_auth ON public.cheat_reports;
+CREATE POLICY chr_insert_auth ON public.cheat_reports AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = reporter_uid));
+DROP POLICY IF EXISTS chr_select_admin ON public.cheat_reports;
+CREATE POLICY chr_select_admin ON public.cheat_reports AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = reporter_uid) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS cc_select_all ON public.city_championship;
+CREATE POLICY cc_select_all ON public.city_championship AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS cm_delete_own ON public.clan_members;
+CREATE POLICY cm_delete_own ON public.clan_members AS PERMISSIVE FOR DELETE TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS cm_insert_self ON public.clan_members;
+CREATE POLICY cm_insert_self ON public.clan_members AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND ((role = 'member'::text) OR ((role = 'leader'::text) AND (EXISTS ( SELECT 1
+   FROM clans c
+  WHERE ((c.id = clan_members.clan_id) AND (c.leader_uid = (auth.jwt() ->> 'sub'::text)))))))));
+DROP POLICY IF EXISTS cm_select_all ON public.clan_members;
+CREATE POLICY cm_select_all ON public.clan_members AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS cmsg_insert_member ON public.clan_messages;
+CREATE POLICY cmsg_insert_member ON public.clan_messages AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = sender_id));
+DROP POLICY IF EXISTS cmsg_select_member ON public.clan_messages;
+CREATE POLICY cmsg_select_member ON public.clan_messages AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS cwc_insert_leader ON public.clan_war_challenges;
+CREATE POLICY cwc_insert_leader ON public.clan_war_challenges AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK (((from_clan <> to_clan) AND (EXISTS ( SELECT 1
+   FROM clan_members m
+  WHERE ((m.clan_id = clan_war_challenges.from_clan) AND (m.user_id = (auth.jwt() ->> 'sub'::text)) AND (m.role = 'leader'::text))))));
+DROP POLICY IF EXISTS cwc_select_all ON public.clan_war_challenges;
+CREATE POLICY cwc_select_all ON public.clan_war_challenges AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS cwc_update_leader ON public.clan_war_challenges;
+CREATE POLICY cwc_update_leader ON public.clan_war_challenges AS PERMISSIVE FOR UPDATE TO anon, authenticated USING ((EXISTS ( SELECT 1
+   FROM clan_members m
+  WHERE (((m.clan_id = clan_war_challenges.from_clan) OR (m.clan_id = clan_war_challenges.to_clan)) AND (m.user_id = (auth.jwt() ->> 'sub'::text)) AND (m.role = 'leader'::text)))));
+DROP POLICY IF EXISTS cw_select_all ON public.clan_wars;
+CREATE POLICY cw_select_all ON public.clan_wars AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS clans_insert_auth ON public.clans;
+CREATE POLICY clans_insert_auth ON public.clans AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) IS NOT NULL));
+DROP POLICY IF EXISTS clans_select_all ON public.clans;
+CREATE POLICY clans_select_all ON public.clans AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS clans_update_leader ON public.clans;
+CREATE POLICY clans_update_leader ON public.clans AS PERMISSIVE FOR UPDATE TO public USING ((((auth.jwt() ->> 'sub'::text) = leader_uid) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))))) WITH CHECK ((id IN ( SELECT clans_1.id
+   FROM clans clans_1
+  WHERE (((auth.jwt() ->> 'sub'::text) = clans_1.leader_uid) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+           FROM users
+          WHERE (users.is_admin = true)))))));
+DROP POLICY IF EXISTS cr_insert_own ON public.coin_requests;
+CREATE POLICY cr_insert_own ON public.coin_requests AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS cr_select_own ON public.coin_requests;
+CREATE POLICY cr_select_own ON public.coin_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS ca_insert_own ON public.creator_applications;
+CREATE POLICY ca_insert_own ON public.creator_applications AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS ca_select_own ON public.creator_applications;
+CREATE POLICY ca_select_own ON public.creator_applications AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS ca_update_admin ON public.creator_applications;
+CREATE POLICY ca_update_admin ON public.creator_applications AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS cc2_own ON public.creator_codes;
+CREATE POLICY cc2_own ON public.creator_codes AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS cc2_select_all ON public.creator_codes;
+CREATE POLICY cc2_select_all ON public.creator_codes AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS cc_admin_all ON public.creator_commissions;
+CREATE POLICY cc_admin_all ON public.creator_commissions AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS cc_select_creator ON public.creator_commissions;
+CREATE POLICY cc_select_creator ON public.creator_commissions AS PERMISSIVE FOR SELECT TO public USING (((auth.jwt() ->> 'sub'::text) = creator_uid));
+DROP POLICY IF EXISTS creator_follows_own_write ON public.creator_follows;
+CREATE POLICY creator_follows_own_write ON public.creator_follows AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = follower_uid)) WITH CHECK (((auth.jwt() ->> 'sub'::text) = follower_uid));
+DROP POLICY IF EXISTS creator_follows_select_all ON public.creator_follows;
+CREATE POLICY creator_follows_select_all ON public.creator_follows AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS cmr_select_all ON public.creator_match_ratings;
+CREATE POLICY cmr_select_all ON public.creator_match_ratings AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS cm_admin_all ON public.creator_matches;
+CREATE POLICY cm_admin_all ON public.creator_matches AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS cm_insert_creator ON public.creator_matches;
+CREATE POLICY cm_insert_creator ON public.creator_matches AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = creator_uid));
+DROP POLICY IF EXISTS cm_select_creator ON public.creator_matches;
+CREATE POLICY cm_select_creator ON public.creator_matches AS PERMISSIVE FOR SELECT TO public USING (((auth.jwt() ->> 'sub'::text) = creator_uid));
+DROP POLICY IF EXISTS cp_admin_write ON public.creator_payouts;
+CREATE POLICY cp_admin_write ON public.creator_payouts AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS cp_select_own ON public.creator_payouts;
+CREATE POLICY cp_select_own ON public.creator_payouts AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = uid) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS crf_admin_all ON public.creator_result_flags;
+CREATE POLICY crf_admin_all ON public.creator_result_flags AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS cs_insert_own ON public.creator_stats;
+CREATE POLICY cs_insert_own ON public.creator_stats AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS cs_select_own ON public.creator_stats;
+CREATE POLICY cs_select_own ON public.creator_stats AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS cs_update_own ON public.creator_stats;
+CREATE POLICY cs_update_own ON public.creator_stats AS PERMISSIVE FOR UPDATE TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS cv_admin_all ON public.creator_videos;
+CREATE POLICY cv_admin_all ON public.creator_videos AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS cv_insert_creator ON public.creator_videos;
+CREATE POLICY cv_insert_creator ON public.creator_videos AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = creator_uid));
+DROP POLICY IF EXISTS cv_select_live ON public.creator_videos;
+CREATE POLICY cv_select_live ON public.creator_videos AS PERMISSIVE FOR SELECT TO public USING (((status = 'live'::text) OR ((auth.jwt() ->> 'sub'::text) = creator_uid)));
+DROP POLICY IF EXISTS cv_update_own ON public.creator_videos;
+CREATE POLICY cv_update_own ON public.creator_videos AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) = creator_uid));
+DROP POLICY IF EXISTS dc_own ON public.daily_checkins;
+CREATE POLICY dc_own ON public.daily_checkins AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS dp_insert_own ON public.disputes;
+CREATE POLICY dp_insert_own ON public.disputes AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'open'::text)));
+DROP POLICY IF EXISTS dp_select_own ON public.disputes;
+CREATE POLICY dp_select_own ON public.disputes AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS dc_insert_own ON public.duel_challenges;
+CREATE POLICY dc_insert_own ON public.duel_challenges AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = challenger_uid));
+DROP POLICY IF EXISTS dc_select_own ON public.duel_challenges;
+CREATE POLICY dc_select_own ON public.duel_challenges AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = challenger_uid) OR ((auth.jwt() ->> 'sub'::text) = opponent_uid)));
+DROP POLICY IF EXISTS dc_update_own ON public.duel_challenges;
+CREATE POLICY dc_update_own ON public.duel_challenges AS PERMISSIVE FOR UPDATE TO public USING ((((auth.jwt() ->> 'sub'::text) = challenger_uid) OR ((auth.jwt() ->> 'sub'::text) = opponent_uid)));
+DROP POLICY IF EXISTS dr_select_all ON public.duel_records;
+CREATE POLICY dr_select_all ON public.duel_records AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS eau_admin_all ON public.early_access_users;
+CREATE POLICY eau_admin_all ON public.early_access_users AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS eau_self_insert ON public.early_access_users;
+CREATE POLICY eau_self_insert ON public.early_access_users AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS eau_self_select ON public.early_access_users;
+CREATE POLICY eau_self_select ON public.early_access_users AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS ffi_insert_auth ON public.ff_uid_index;
+CREATE POLICY ffi_insert_auth ON public.ff_uid_index AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) IS NOT NULL));
+DROP POLICY IF EXISTS ffi_select_all ON public.ff_uid_index;
+CREATE POLICY ffi_select_all ON public.ff_uid_index AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS fc_admin_all ON public.fraud_cases;
+CREATE POLICY fc_admin_all ON public.fraud_cases AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS fr_delete_own ON public.friendships;
+CREATE POLICY fr_delete_own ON public.friendships AS PERMISSIVE FOR DELETE TO anon, authenticated USING ((((auth.jwt() ->> 'sub'::text) = user_a) OR ((auth.jwt() ->> 'sub'::text) = user_b)));
+DROP POLICY IF EXISTS fr_insert_pair ON public.friendships;
+CREATE POLICY fr_insert_pair ON public.friendships AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_a) OR ((auth.jwt() ->> 'sub'::text) = user_b)));
+DROP POLICY IF EXISTS fr_select_own ON public.friendships;
+CREATE POLICY fr_select_own ON public.friendships AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_a) OR ((auth.jwt() ->> 'sub'::text) = user_b)));
+DROP POLICY IF EXISTS fr_update_own ON public.friendships;
+CREATE POLICY fr_update_own ON public.friendships AS PERMISSIVE FOR UPDATE TO public USING ((((auth.jwt() ->> 'sub'::text) = user_a) OR ((auth.jwt() ->> 'sub'::text) = user_b)));
+DROP POLICY IF EXISTS gt_select_own ON public.gift_tickets;
+CREATE POLICY gt_select_own ON public.gift_tickets AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = from_uid) OR ((auth.jwt() ->> 'sub'::text) = to_uid) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS jr_insert_free_only ON public.join_requests;
+CREATE POLICY jr_insert_free_only ON public.join_requests AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (COALESCE(entry_fee_paid, (0)::numeric) = (0)::numeric) AND (COALESCE(entry_type, 'free'::text) = ANY (ARRAY['free'::text, 'ad'::text])) AND (status = 'joined'::text)));
+DROP POLICY IF EXISTS jr_select_own ON public.join_requests;
+CREATE POLICY jr_select_own ON public.join_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS jr_update_admin ON public.join_requests;
+CREATE POLICY jr_update_admin ON public.join_requests AS PERMISSIVE FOR UPDATE TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))))) WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS kp_insert_own ON public.kill_proofs;
+CREATE POLICY kp_insert_own ON public.kill_proofs AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS kp_select_own ON public.kill_proofs;
+CREATE POLICY kp_select_own ON public.kill_proofs AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS kyc_insert_own ON public.kyc_requests;
+CREATE POLICY kyc_insert_own ON public.kyc_requests AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS kyc_select_own ON public.kyc_requests;
+CREATE POLICY kyc_select_own ON public.kyc_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS lb_admin_write ON public.leaderboard;
+CREATE POLICY lb_admin_write ON public.leaderboard AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS lb_select_all ON public.leaderboard;
+CREATE POLICY lb_select_all ON public.leaderboard AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS la_admin_write ON public.leaderboard_archive;
+CREATE POLICY la_admin_write ON public.leaderboard_archive AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS la_select_all ON public.leaderboard_archive;
+CREATE POLICY la_select_all ON public.leaderboard_archive AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS ls_own ON public.live_streams;
+CREATE POLICY ls_own ON public.live_streams AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = user_id)) WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS ls_select_all ON public.live_streams;
+CREATE POLICY ls_select_all ON public.live_streams AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS mf_insert_own ON public.match_feedback;
+CREATE POLICY mf_insert_own ON public.match_feedback AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS mf_select_admin ON public.match_feedback;
+CREATE POLICY mf_select_admin ON public.match_feedback AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS mr_insert_admin ON public.match_results;
+CREATE POLICY mr_insert_admin ON public.match_results AS PERMISSIVE FOR INSERT TO public WITH CHECK (COALESCE(is_caller_admin(), false));
+DROP POLICY IF EXISTS mr_insert_own ON public.match_results;
+CREATE POLICY mr_insert_own ON public.match_results AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS mr_select_all ON public.match_results;
+CREATE POLICY mr_select_all ON public.match_results AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS mr_update_admin ON public.match_results;
+CREATE POLICY mr_update_admin ON public.match_results AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS match_rooms_admin_read ON public.match_rooms;
+CREATE POLICY match_rooms_admin_read ON public.match_rooms AS PERMISSIVE FOR SELECT TO anon, authenticated USING ((EXISTS ( SELECT 1
+   FROM users
+  WHERE ((users.id = (auth.jwt() ->> 'sub'::text)) AND COALESCE(users.is_admin, false)))));
+DROP POLICY IF EXISTS mt_admin_all ON public.match_templates;
+CREATE POLICY mt_admin_all ON public.match_templates AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS matches_admin_write ON public.matches;
+CREATE POLICY matches_admin_write ON public.matches AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS matches_select_all ON public.matches;
+CREATE POLICY matches_select_all ON public.matches AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS mnp_own ON public.mentor_profiles;
+CREATE POLICY mnp_own ON public.mentor_profiles AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS mnp_select_all ON public.mentor_profiles;
+CREATE POLICY mnp_select_all ON public.mentor_profiles AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS mnr_insert_own ON public.mentor_requests;
+CREATE POLICY mnr_insert_own ON public.mentor_requests AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = student_uid));
+DROP POLICY IF EXISTS mnr_select_own ON public.mentor_requests;
+CREATE POLICY mnr_select_own ON public.mentor_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = student_uid) OR ((auth.jwt() ->> 'sub'::text) = mentor_uid)));
+DROP POLICY IF EXISTS mp_insert_incomplete ON public.mission_progress;
+CREATE POLICY mp_insert_incomplete ON public.mission_progress AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (COALESCE(is_completed, false) = false) AND (COALESCE(reward_claimed, false) = false)));
+DROP POLICY IF EXISTS mp_select_own ON public.mission_progress;
+CREATE POLICY mp_select_own ON public.mission_progress AS PERMISSIVE FOR SELECT TO anon, authenticated USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS mp_update_incomplete ON public.mission_progress;
+CREATE POLICY mp_update_incomplete ON public.mission_progress AS PERMISSIVE FOR UPDATE TO anon, authenticated USING (((auth.jwt() ->> 'sub'::text) = user_id)) WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (COALESCE(is_completed, false) = false) AND (COALESCE(reward_claimed, false) = false)));
+DROP POLICY IF EXISTS notif_insert ON public.notifications;
+CREATE POLICY notif_insert ON public.notifications AS PERMISSIVE FOR INSERT TO public WITH CHECK ((((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))) OR (((auth.jwt() ->> 'sub'::text) IS NOT NULL) AND ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_banned = false))) AND (type = ANY (ARRAY['clan_cosmetic'::text, 'clan_war_challenge'::text, 'duel_accepted'::text, 'duel_challenge'::text, 'friend_add'::text, 'gift_ticket'::text, 'mentor_accepted'::text, 'mentor_request'::text, 'mentor_reward'::text, 'premium'::text, 'premium_request'::text, 'squad_request'::text, 'team_formed'::text])) AND (char_length(COALESCE(title, ''::text)) <= 120) AND (char_length(COALESCE(body, ''::text)) <= 400))));
+DROP POLICY IF EXISTS notif_select_own ON public.notifications;
+CREATE POLICY notif_select_own ON public.notifications AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR (target_all = true) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS notif_update_own ON public.notifications;
+CREATE POLICY notif_update_own ON public.notifications AS PERMISSIVE FOR UPDATE TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS pe_admin_all ON public.platform_earnings;
+CREATE POLICY pe_admin_all ON public.platform_earnings AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS ps_admin_all ON public.platform_stats;
+CREATE POLICY ps_admin_all ON public.platform_stats AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS pv_insert_own ON public.poll_votes;
+CREATE POLICY pv_insert_own ON public.poll_votes AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS pv_select_all ON public.poll_votes;
+CREATE POLICY pv_select_all ON public.poll_votes AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS pv_upsert_own ON public.poll_votes;
+CREATE POLICY pv_upsert_own ON public.poll_votes AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS poll_admin_write ON public.polls;
+CREATE POLICY poll_admin_write ON public.polls AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS poll_select_all ON public.polls;
+CREATE POLICY poll_select_all ON public.polls AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS pmbc_insert_own ON public.premium_monthly_bonus_claims;
+CREATE POLICY pmbc_insert_own ON public.premium_monthly_bonus_claims AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS pmbc_select_own ON public.premium_monthly_bonus_claims;
+CREATE POLICY pmbc_select_own ON public.premium_monthly_bonus_claims AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR is_caller_admin()));
+DROP POLICY IF EXISTS pr_insert_own ON public.premium_requests;
+CREATE POLICY pr_insert_own ON public.premium_requests AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS pr_select_own ON public.premium_requests;
+CREATE POLICY pr_select_own ON public.premium_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS pr_update_admin ON public.premium_requests;
+CREATE POLICY pr_update_admin ON public.premium_requests AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS prf_insert_own ON public.profile_requests;
+CREATE POLICY prf_insert_own ON public.profile_requests AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS prf_select_own ON public.profile_requests;
+CREATE POLICY prf_select_own ON public.profile_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS prf_update_own ON public.profile_requests;
+CREATE POLICY prf_update_own ON public.profile_requests AS PERMISSIVE FOR UPDATE TO anon, authenticated USING (((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))))) WITH CHECK (((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS pu_insert_own ON public.profile_updates;
+CREATE POLICY pu_insert_own ON public.profile_updates AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS pu_select_own ON public.profile_updates;
+CREATE POLICY pu_select_own ON public.profile_updates AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS pu_update_admin ON public.profile_updates;
+CREATE POLICY pu_update_admin ON public.profile_updates AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS phc_admin_all ON public.push_hook_config;
+CREATE POLICY phc_admin_all ON public.push_hook_config AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))) WITH CHECK (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS rh_insert_own ON public.rank_history;
+CREATE POLICY rh_insert_own ON public.rank_history AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS rh_select_own ON public.rank_history;
+CREATE POLICY rh_select_own ON public.rank_history AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS rs_admin_write ON public.rank_seasons;
+CREATE POLICY rs_admin_write ON public.rank_seasons AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS rs_select_all ON public.rank_seasons;
+CREATE POLICY rs_select_all ON public.rank_seasons AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS ref_insert_own ON public.referrals;
+CREATE POLICY ref_insert_own ON public.referrals AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = referred_id));
+DROP POLICY IF EXISTS ref_select_own ON public.referrals;
+CREATE POLICY ref_select_own ON public.referrals AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = referrer_id) OR ((auth.jwt() ->> 'sub'::text) = referred_id)));
+DROP POLICY IF EXISTS ref_update_own ON public.referrals;
+CREATE POLICY ref_update_own ON public.referrals AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) = referrer_id)) WITH CHECK (((auth.jwt() ->> 'sub'::text) = referrer_id));
+DROP POLICY IF EXISTS rr_insert_own ON public.refund_requests;
+CREATE POLICY rr_insert_own ON public.refund_requests AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS rr_select_own ON public.refund_requests;
+CREATE POLICY rr_select_own ON public.refund_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS rp_insert_own ON public.reports;
+CREATE POLICY rp_insert_own ON public.reports AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = reporter_id));
+DROP POLICY IF EXISTS rp_select_own ON public.reports;
+CREATE POLICY rp_select_own ON public.reports AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = reporter_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS rr_select_own_or_admin ON public.reward_redemptions;
+CREATE POLICY rr_select_own_or_admin ON public.reward_redemptions AS PERMISSIVE FOR SELECT TO public USING (((uid = (auth.jwt() ->> 'sub'::text)) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS rr_update_admin ON public.reward_redemptions;
+CREATE POLICY rr_update_admin ON public.reward_redemptions AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS rsi_read_all ON public.reward_store_items;
+CREATE POLICY rsi_read_all ON public.reward_store_items AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS sb_admin_all ON public.scheduled_broadcasts;
+CREATE POLICY sb_admin_all ON public.scheduled_broadcasts AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS sd_insert_pending ON public.sd_requests;
+CREATE POLICY sd_insert_pending ON public.sd_requests AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS sd_select_own ON public.sd_requests;
+CREATE POLICY sd_select_own ON public.sd_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS sd_update_admin ON public.sd_requests;
+CREATE POLICY sd_update_admin ON public.sd_requests AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS spr_insert_own ON public.season_pass_requests;
+CREATE POLICY spr_insert_own ON public.season_pass_requests AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS spr_select_own ON public.season_pass_requests;
+CREATE POLICY spr_select_own ON public.season_pass_requests AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS ss_admin_write ON public.season_stats;
+CREATE POLICY ss_admin_write ON public.season_stats AS PERMISSIVE FOR ALL TO anon, authenticated USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))) WITH CHECK (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS ss_select_all ON public.season_stats;
+CREATE POLICY ss_select_all ON public.season_stats AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS slh_admin_write ON public.seasonal_league_history;
+CREATE POLICY slh_admin_write ON public.seasonal_league_history AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS slh_select_own ON public.seasonal_league_history;
+CREATE POLICY slh_select_own ON public.seasonal_league_history AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS spc_insert_own ON public.sponsored_prize_claims;
+CREATE POLICY spc_insert_own ON public.sponsored_prize_claims AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS spc_select_own ON public.sponsored_prize_claims;
+CREATE POLICY spc_select_own ON public.sponsored_prize_claims AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS spc_update_admin ON public.sponsored_prize_claims;
+CREATE POLICY spc_update_admin ON public.sponsored_prize_claims AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS sp_admin_write ON public.sponsored_prizes;
+CREATE POLICY sp_admin_write ON public.sponsored_prizes AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS sp_select_all ON public.sponsored_prizes;
+CREATE POLICY sp_select_all ON public.sponsored_prizes AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS st_admin_write ON public.sponsored_tournaments;
+CREATE POLICY st_admin_write ON public.sponsored_tournaments AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS st_select_all ON public.sponsored_tournaments;
+CREATE POLICY st_select_all ON public.sponsored_tournaments AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS sf_own ON public.squad_finder;
+CREATE POLICY sf_own ON public.squad_finder AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS sf_select_all ON public.squad_finder;
+CREATE POLICY sf_select_all ON public.squad_finder AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS sug_admin_write ON public.suggestions;
+CREATE POLICY sug_admin_write ON public.suggestions AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS sug_insert_own ON public.suggestions;
+CREATE POLICY sug_insert_own ON public.suggestions AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS sug_select_all ON public.suggestions;
+CREATE POLICY sug_select_all ON public.suggestions AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS sm_insert_related ON public.support_messages;
+CREATE POLICY sm_insert_related ON public.support_messages AS PERMISSIVE FOR INSERT TO public WITH CHECK ((((auth.jwt() ->> 'sub'::text) = sender_id) AND (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))) OR (ticket_id IN ( SELECT support_tickets.id
+   FROM support_tickets
+  WHERE (support_tickets.user_id = (auth.jwt() ->> 'sub'::text)))))));
+DROP POLICY IF EXISTS sm_select_related ON public.support_messages;
+CREATE POLICY sm_select_related ON public.support_messages AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))) OR (ticket_id IN ( SELECT support_tickets.id
+   FROM support_tickets
+  WHERE (support_tickets.user_id = (auth.jwt() ->> 'sub'::text))))));
+DROP POLICY IF EXISTS st_insert_own ON public.support_tickets;
+CREATE POLICY st_insert_own ON public.support_tickets AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'open'::text)));
+DROP POLICY IF EXISTS st_select_own ON public.support_tickets;
+CREATE POLICY st_select_own ON public.support_tickets AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS st_update_admin ON public.support_tickets;
+CREATE POLICY st_update_admin ON public.support_tickets AS PERMISSIVE FOR UPDATE TO anon, authenticated USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))) WITH CHECK (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS tdsheld_admin_all ON public.tds_held;
+CREATE POLICY tdsheld_admin_all ON public.tds_held AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS tdsheld_self_insert ON public.tds_held;
+CREATE POLICY tdsheld_self_insert ON public.tds_held AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS tds_admin_all ON public.tds_records;
+CREATE POLICY tds_admin_all ON public.tds_records AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS tds_self_insert ON public.tds_records;
+CREATE POLICY tds_self_insert ON public.tds_records AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS tds_self_select ON public.tds_records;
+CREATE POLICY tds_self_select ON public.tds_records AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS ti_select_related ON public.team_invitations;
+CREATE POLICY ti_select_related ON public.team_invitations AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = member_uid) OR ((auth.jwt() ->> 'sub'::text) = captain_uid) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS tr_insert_own ON public.team_requests;
+CREATE POLICY tr_insert_own ON public.team_requests AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = leader_uid));
+DROP POLICY IF EXISTS tr_select_all ON public.team_requests;
+CREATE POLICY tr_select_all ON public.team_requests AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS tr_update_own ON public.team_requests;
+CREATE POLICY tr_update_own ON public.team_requests AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) = leader_uid));
+DROP POLICY IF EXISTS tb_admin_write ON public.tournament_brackets;
+CREATE POLICY tb_admin_write ON public.tournament_brackets AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS tb_select_all ON public.tournament_brackets;
+CREATE POLICY tb_select_all ON public.tournament_brackets AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS trial_log_admin_all ON public.trial_log;
+CREATE POLICY trial_log_admin_all ON public.trial_log AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS trial_log_insert_own ON public.trial_log;
+CREATE POLICY trial_log_insert_own ON public.trial_log AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS ua_insert_own ON public.user_achievements;
+CREATE POLICY ua_insert_own ON public.user_achievements AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS ua_select_all ON public.user_achievements;
+CREATE POLICY ua_select_all ON public.user_achievements AS PERMISSIVE FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS act_insert_own ON public.user_activities;
+CREATE POLICY act_insert_own ON public.user_activities AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS act_select_own ON public.user_activities;
+CREATE POLICY act_select_own ON public.user_activities AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS uc_own ON public.user_cosmetics;
+CREATE POLICY uc_own ON public.user_cosmetics AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = user_id)) WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS um_admin_write ON public.user_matches;
+CREATE POLICY um_admin_write ON public.user_matches AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS um_select_own ON public.user_matches;
+CREATE POLICY um_select_own ON public.user_matches AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS ur_admin_write ON public.user_roles;
+CREATE POLICY ur_admin_write ON public.user_roles AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS ur_select_own ON public.user_roles;
+CREATE POLICY ur_select_own ON public.user_roles AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS us_own ON public.user_sessions;
+CREATE POLICY us_own ON public.user_sessions AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS usug_admin_all ON public.user_suggestions;
+CREATE POLICY usug_admin_all ON public.user_suggestions AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS usug_insert_own ON public.user_suggestions;
+CREATE POLICY usug_insert_own ON public.user_suggestions AS PERMISSIVE FOR INSERT TO anon, authenticated WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) AND (status = 'pending'::text)));
+DROP POLICY IF EXISTS usug_select_own ON public.user_suggestions;
+CREATE POLICY usug_select_own ON public.user_suggestions AS PERMISSIVE FOR SELECT TO public USING (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS users_insert_own ON public.users;
+CREATE POLICY users_insert_own ON public.users AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = id));
+DROP POLICY IF EXISTS users_select_own ON public.users;
+CREATE POLICY users_select_own ON public.users AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = id) OR is_caller_admin()));
+DROP POLICY IF EXISTS users_update_own ON public.users;
+CREATE POLICY users_update_own ON public.users AS PERMISSIVE FOR UPDATE TO public USING ((((auth.jwt() ->> 'sub'::text) = id) OR is_caller_admin())) WITH CHECK ((((auth.jwt() ->> 'sub'::text) = id) OR is_caller_admin()));
+DROP POLICY IF EXISTS vr_admin_all ON public.video_reports;
+CREATE POLICY vr_admin_all ON public.video_reports AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS vr_insert_self ON public.video_reports;
+CREATE POLICY vr_insert_self ON public.video_reports AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = reporter_uid));
+DROP POLICY IF EXISTS vr_select_self ON public.video_reports;
+CREATE POLICY vr_select_self ON public.video_reports AS PERMISSIVE FOR SELECT TO public USING (((auth.jwt() ->> 'sub'::text) = reporter_uid));
+DROP POLICY IF EXISTS vw_insert_self ON public.video_watches;
+CREATE POLICY vw_insert_self ON public.video_watches AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_uid));
+DROP POLICY IF EXISTS vw_select_self ON public.video_watches;
+CREATE POLICY vw_select_self ON public.video_watches AS PERMISSIVE FOR SELECT TO public USING (((auth.jwt() ->> 'sub'::text) = user_uid));
+DROP POLICY IF EXISTS vr_select_own ON public.voucher_redemptions;
+CREATE POLICY vr_select_own ON public.voucher_redemptions AS PERMISSIVE FOR SELECT TO public USING ((user_id = (auth.jwt() ->> 'sub'::text)));
+DROP POLICY IF EXISTS v_admin_select ON public.vouchers;
+CREATE POLICY v_admin_select ON public.vouchers AS PERMISSIVE FOR SELECT TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS v_admin_update ON public.vouchers;
+CREATE POLICY v_admin_update ON public.vouchers AS PERMISSIVE FOR UPDATE TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))) WITH CHECK (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS v_admin_write ON public.vouchers;
+CREATE POLICY v_admin_write ON public.vouchers AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS wal_admin_all ON public.wallet_audit_log;
+CREATE POLICY wal_admin_all ON public.wallet_audit_log AS PERMISSIVE FOR ALL TO public USING (((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true))));
+DROP POLICY IF EXISTS wt_insert_own ON public.wallet_transactions;
+CREATE POLICY wt_insert_own ON public.wallet_transactions AS PERMISSIVE FOR INSERT TO public WITH CHECK ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS wt_select_own ON public.wallet_transactions;
+CREATE POLICY wt_select_own ON public.wallet_transactions AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+DROP POLICY IF EXISTS wel_insert_own ON public.watch_earn_log;
+CREATE POLICY wel_insert_own ON public.watch_earn_log AS PERMISSIVE FOR INSERT TO public WITH CHECK (((auth.jwt() ->> 'sub'::text) = user_id));
+DROP POLICY IF EXISTS wel_select_own ON public.watch_earn_log;
+CREATE POLICY wel_select_own ON public.watch_earn_log AS PERMISSIVE FOR SELECT TO public USING ((((auth.jwt() ->> 'sub'::text) = user_id) OR ((auth.jwt() ->> 'sub'::text) IN ( SELECT users.id
+   FROM users
+  WHERE (users.is_admin = true)))));
+
+-- ── 60.9  Privileges: functions (final live ACL, R8 FIX#2 classes included) ──
+REVOKE ALL ON FUNCTION public.admin_adjust_wallet(p_uid text, p_col text, p_amount numeric, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_adjust_wallet(p_uid text, p_col text, p_amount numeric, p_reason text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_approve_profile(p_request_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_approve_profile(p_request_id uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_confirm_creator_cheat(p_flag_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_confirm_creator_cheat(p_flag_id uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_create_sponsored_match(p_title text, p_sponsor_name text, p_mode text, p_max_slots integer, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric, p_prize_type text, p_description text, p_map text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_create_sponsored_match(p_title text, p_sponsor_name text, p_mode text, p_max_slots integer, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric, p_prize_type text, p_description text, p_map text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_dismiss_creator_flag(p_flag_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_dismiss_creator_flag(p_flag_id uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_distribute_sponsored_prize(p_uid text, p_amount numeric, p_tour_id text, p_rank text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_end_current_season(p_season_name text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_end_current_season(p_season_name text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_gateway_exec(p_fn text, p_args jsonb, p_actor text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_gateway_exec(p_fn text, p_args jsonb, p_actor text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_reject_profile(p_request_id uuid, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_reject_profile(p_request_id uuid, p_reason text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_revoke_referral_bonus(p_uid text, p_amount numeric, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_revoke_referral_bonus(p_uid text, p_amount numeric, p_reason text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_reward_suggestion(p_key text, p_reward_type text, p_amount numeric, p_user_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_reward_suggestion(p_key text, p_reward_type text, p_amount numeric, p_user_id text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_roll_battle_pass_season() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_roll_battle_pass_season() TO service_role;
+REVOKE ALL ON FUNCTION public.admin_send_broadcast_notification(p_type text, p_title text, p_body text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_send_broadcast_notification(p_type text, p_title text, p_body text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_send_notification(p_user_id text, p_type text, p_title text, p_body text, p_ref_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_send_notification(p_user_id text, p_type text, p_title text, p_body text, p_ref_id text) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_set_coins(p_uid text, p_action text, p_amount numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_set_coins(p_uid text, p_action text, p_amount numeric) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_set_fraud_score(p_uid text, p_score integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_set_fraud_score(p_uid text, p_score integer) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_sync_user_balance(p_uid text, p_coins numeric, p_sky_diamonds numeric, p_green_diamonds numeric, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_sync_user_balance(p_uid text, p_coins numeric, p_sky_diamonds numeric, p_green_diamonds numeric, p_reason text) TO service_role;
+REVOKE ALL ON FUNCTION public.apply_referral_code(p_code text, p_reward numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.apply_referral_code(p_code text, p_reward numeric) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.approve_creator_application(p_uid text, p_code text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.approve_creator_application(p_uid text, p_code text) TO service_role;
+REVOKE ALL ON FUNCTION public.approve_premium(p_uid text, p_tier integer, p_days integer, p_grant_bp boolean) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.approve_premium(p_uid text, p_tier integer, p_days integer, p_grant_bp boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.audit_wallet_balance_changes() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.audit_wallet_balance_changes() TO service_role;
+REVOKE ALL ON FUNCTION public.award_battle_pass_xp(p_uid text, p_season text, p_xp integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.award_battle_pass_xp(p_uid text, p_season text, p_xp integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.award_mentor_reward(p_student_uid text, p_mentor_uid text, p_gd_amount integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.award_mentor_reward(p_student_uid text, p_mentor_uid text, p_gd_amount integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.block_creator_self_play() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.block_creator_self_play() TO service_role;
+REVOKE ALL ON FUNCTION public.block_creator_self_play_check(p_uid text, p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.block_creator_self_play_check(p_uid text, p_match_id text) TO service_role;
+REVOKE ALL ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.cancel_match_with_refunds(p_match_id text, p_admin_uid text) TO service_role;
+REVOKE ALL ON FUNCTION public.cancel_premium(p_uid text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.cancel_premium(p_uid text) TO service_role;
+REVOKE ALL ON FUNCTION public.cast_poll_vote(p_poll_id uuid, p_option text, p_option_idx integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.cast_poll_vote(p_poll_id uuid, p_option text, p_option_idx integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.check_in_match(p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.check_in_match(p_match_id text) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.check_in_match(p_match_id text) TO PUBLIC;
+REVOKE ALL ON FUNCTION public.claim_ad_reward() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_ad_reward() TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_battle_pass_tier(p_season text, p_tier integer, p_track text, p_gd_reward numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_battle_pass_tier(p_season text, p_tier integer, p_track text, p_gd_reward numeric) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_match_commission_payout() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_match_commission_payout() TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_match_refund(p_join_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_match_refund(p_join_id uuid) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_mission_reward(p_mission_key text, p_period text, p_coins integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_mission_reward(p_mission_key text, p_period text, p_coins integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_no_show_refund(p_join_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_no_show_refund(p_join_id uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.claim_premium_monthly_bonus(p_tier integer, p_bonus_coins integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_premium_monthly_bonus(p_tier integer, p_bonus_coins integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_referral_reward(p_code text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_referral_reward(p_code text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_streak_milestone(p_day integer, p_coins integer, p_badge text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_streak_milestone(p_day integer, p_coins integer, p_badge text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.claim_watch_earn_reward(p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_watch_earn_reward(p_match_id text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.clamp_join_requests_client_update() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.clamp_join_requests_client_update() TO service_role;
+REVOKE ALL ON FUNCTION public.confirm_in_room(p_join_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.confirm_in_room(p_join_id uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.contribute_to_squad_bank(p_clan_id uuid, p_uid text, p_amount numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.contribute_to_squad_bank(p_clan_id uuid, p_uid text, p_amount numeric) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.correct_match_result(p_match_id text, p_user_id text, p_rank integer, p_kills integer, p_manual_amount numeric, p_user_name text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.correct_match_result(p_match_id text, p_user_id text, p_rank integer, p_kills integer, p_manual_amount numeric, p_user_name text) TO service_role;
+REVOKE ALL ON FUNCTION public.creator_create_match(p_title text, p_mode text, p_entry_type text, p_entry_fee numeric, p_max_slots integer, p_per_kill_prize numeric, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.creator_create_match(p_title text, p_mode text, p_entry_type text, p_entry_fee numeric, p_max_slots integer, p_per_kill_prize numeric, p_scheduled_at timestamp with time zone, p_first_prize numeric, p_second_prize numeric, p_third_prize numeric) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.creator_publish_result(p_match_id text, p_results jsonb) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.creator_publish_result(p_match_id text, p_results jsonb) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.creator_set_room(p_match_id text, p_room_id text, p_room_password text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.creator_set_room(p_match_id text, p_room_id text, p_room_password text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.f_referral_leaderboard() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.f_referral_leaderboard() TO anon, service_role;
+REVOKE ALL ON FUNCTION public.f_user_public_profiles() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.f_user_public_profiles() TO anon, service_role;
+REVOKE ALL ON FUNCTION public.fft_guard_match_results_write() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.fft_guard_match_results_write() TO service_role;
+REVOKE ALL ON FUNCTION public.fft_guard_wallet_insert() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.fft_guard_wallet_insert() TO service_role;
+REVOKE ALL ON FUNCTION public.finalize_creator_commission(p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.finalize_creator_commission(p_match_id text) TO service_role;
+REVOKE ALL ON FUNCTION public.finalize_creator_commission(p_match_id text, p_internal boolean) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.finalize_creator_commission(p_match_id text, p_internal boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.form_auto_squad_team(p_match_id text, p_mode text, p_needed integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.form_auto_squad_team(p_match_id text, p_mode text, p_needed integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.get_my_poll_vote(p_poll_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_my_poll_vote(p_poll_id uuid) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.get_room_credentials(p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_room_credentials(p_match_id text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.gift_match_entry(p_match_id text, p_to_uid text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.guard_clans_insert() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_clans_insert() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_clans_insert() TO PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_clans_update() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_clans_update() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_clans_update() TO PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_matches_room_secrets() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_matches_room_secrets() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_matches_room_secrets() TO PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_notification_insert() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_notification_insert() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_notification_insert() TO PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_users_insert() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_users_insert() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_users_insert() TO PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_users_self_update() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.guard_users_self_update() TO service_role;
+REVOKE ALL ON FUNCTION public.increment_balance(p_uid text, p_col text, p_amount numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_balance(p_uid text, p_col text, p_amount numeric) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.increment_city_score(p_city text, p_month text, p_score integer, p_wins integer, p_kills integer, p_uid text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_city_score(p_city text, p_month text, p_score integer, p_wins integer, p_kills integer, p_uid text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.increment_clan_score(p_clan_id uuid, p_score integer, p_kills integer, p_wins integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_clan_score(p_clan_id uuid, p_score integer, p_kills integer, p_wins integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.increment_match_filled_slots(p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_match_filled_slots(p_match_id text) TO service_role;
+REVOKE ALL ON FUNCTION public.increment_own_match_played() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_own_match_played() TO service_role;
+REVOKE ALL ON FUNCTION public.increment_poll_vote(p_poll_id uuid, p_option text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_poll_vote(p_poll_id uuid, p_option text) TO service_role;
+REVOKE ALL ON FUNCTION public.increment_rank_points(p_uid text, p_points integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_rank_points(p_uid text, p_points integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.increment_season_stats(p_month_key text, p_user_id text, p_ign text, p_display_name text, p_profile_image text, p_wins numeric, p_kills numeric, p_matches numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.increment_season_stats(p_month_key text, p_user_id text, p_ign text, p_display_name text, p_profile_image text, p_wins numeric, p_kills numeric, p_matches numeric) TO service_role;
+REVOKE ALL ON FUNCTION public.internal_process_no_show_refunds() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.internal_process_no_show_refunds() TO service_role;
+REVOKE ALL ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.invite_team_members(p_match_id text, p_mode text, p_fee_type text, p_member_uids text[]) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.is_caller_admin() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_caller_admin() TO anon, service_role;
+REVOKE ALL ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.leave_clan(p_user_id text, p_clan_id uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.leave_clan(p_user_id text, p_clan_id uuid) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.lock_creator_commission(p_creator_uid text, p_amount numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.lock_creator_commission(p_creator_uid text, p_amount numeric) TO service_role;
+REVOKE ALL ON FUNCTION public.notifications_push_hook() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.notifications_push_hook() TO service_role;
+REVOKE ALL ON FUNCTION public.post_squad_finder_listing(p_mode text, p_playstyle text, p_note text, p_role text, p_lang text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.post_squad_finder_listing(p_mode text, p_playstyle text, p_note text, p_role text, p_lang text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.process_daily_checkin(p_tier_rewards numeric[], p_milestone_bonus numeric, p_milestone_days integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.process_daily_checkin(p_tier_rewards numeric[], p_milestone_bonus numeric, p_milestone_days integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.publish_match_results(p_match_id text, p_results jsonb) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.publish_match_results(p_match_id text, p_results jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.purchase_cosmetic(p_cosmetic_key text, p_price integer, p_display_name text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.purchase_cosmetic(p_cosmetic_key text, p_price integer, p_display_name text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.rate_creator_match(p_match_id text, p_stars integer, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.rate_creator_match(p_match_id text, p_stars integer, p_reason text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.reassign_clan_leader() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reassign_clan_leader() TO service_role;
+REVOKE ALL ON FUNCTION public.record_duel_result(p_caller_uid text, p_opponent_uid text, p_caller_won boolean) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_duel_result(p_caller_uid text, p_opponent_uid text, p_caller_won boolean) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.redeem_reward_item(p_name text, p_address text, p_phone text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.redeem_reward_item(p_name text, p_address text, p_phone text) TO service_role;
+REVOKE ALL ON FUNCTION public.redeem_voucher(p_code text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.redeem_voucher(p_code text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.redirect_match_room_secrets() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.redirect_match_room_secrets() TO service_role;
+REVOKE ALL ON FUNCTION public.reject_creator_application(p_uid text, p_note text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reject_creator_application(p_uid text, p_note text) TO service_role;
+REVOKE ALL ON FUNCTION public.release_creator_commission(p_creator_uid text, p_amount numeric) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.release_creator_commission(p_creator_uid text, p_amount numeric) TO service_role;
+REVOKE ALL ON FUNCTION public.release_eligible_commissions() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.release_eligible_commissions() TO service_role;
+REVOKE ALL ON FUNCTION public.resolve_sd_request(p_request_id uuid, p_action text, p_note text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.resolve_sd_request(p_request_id uuid, p_action text, p_note text) TO service_role;
+REVOKE ALL ON FUNCTION public.resolve_sponsored_withdrawal(p_txn_id uuid, p_action text, p_note text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.resolve_sponsored_withdrawal(p_txn_id uuid, p_action text, p_note text) TO service_role;
+REVOKE ALL ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.respond_team_invite(p_invite_id uuid, p_accept boolean) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.review_creator_video(p_video_id uuid, p_action text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.review_creator_video(p_video_id uuid, p_action text) TO service_role;
+REVOKE ALL ON FUNCTION public.set_user_ban_status(p_uid text, p_banned boolean, p_reason text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.set_user_ban_status(p_uid text, p_banned boolean, p_reason text) TO service_role;
+REVOKE ALL ON FUNCTION public.set_user_location_once(p_city text, p_state text, p_lat double precision, p_lng double precision) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.set_user_location_once(p_city text, p_state text, p_lat double precision, p_lng double precision) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.start_free_trial() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.start_free_trial() TO anon, service_role;
+REVOKE ALL ON FUNCTION public.submit_age_verification(p_date_of_birth date) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.submit_age_verification(p_date_of_birth date) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.submit_gd_withdrawal(p_gd_amount numeric, p_amount_inr numeric, p_upi text, p_notes text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.submit_gd_withdrawal(p_gd_amount numeric, p_amount_inr numeric, p_upi text, p_notes text) TO service_role;
+REVOKE ALL ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.submit_sponsored_withdrawal(p_amount numeric, p_upi text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.sync_admin_tables() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.sync_admin_tables() TO service_role;
+REVOKE ALL ON FUNCTION public.sync_leaderboard() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.sync_leaderboard() TO service_role;
+REVOKE ALL ON FUNCTION public.track_mission_progress(p_mission_key text, p_period text, p_progress integer, p_target integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.track_mission_progress(p_mission_key text, p_period text, p_progress integer, p_target integer) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.trg_team_invitation_immutable() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.trg_team_invitation_immutable() TO service_role;
+REVOKE ALL ON FUNCTION public.unlock_squad_bank_cosmetic(p_clan_id uuid, p_item_id text, p_cost integer, p_uid text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.unlock_squad_bank_cosmetic(p_clan_id uuid, p_item_id text, p_cost integer, p_uid text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.user_has_phone(p_phone text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.user_has_phone(p_phone text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.validate_and_join_match(p_uid text, p_match_id text, p_entry_fee numeric, p_currency text, p_join_data jsonb) TO anon, service_role;
+
+-- ── 60.10  Privileges: tables + columns (final live ACL) ──
+
+-- ad_reward_log
+REVOKE ALL ON TABLE public.ad_reward_log FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.ad_reward_log TO service_role;
+
+-- admin_actions
+REVOKE ALL ON TABLE public.admin_actions FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT, SELECT, UPDATE ON TABLE public.admin_actions TO anon;
+GRANT INSERT, SELECT, UPDATE ON TABLE public.admin_actions TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_actions TO service_role;
+
+-- admin_activity_log
+REVOKE ALL ON TABLE public.admin_activity_log FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_activity_log TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_activity_log TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_activity_log TO service_role;
+
+-- admin_alerts
+REVOKE ALL ON TABLE public.admin_alerts FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_alerts TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_alerts TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_alerts TO service_role;
+
+-- admin_notes
+REVOKE ALL ON TABLE public.admin_notes FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_notes TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_notes TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_notes TO service_role;
+
+-- admin_watchlist
+REVOKE ALL ON TABLE public.admin_watchlist FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_watchlist TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_watchlist TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admin_watchlist TO service_role;
+
+-- admins
+REVOKE ALL ON TABLE public.admins FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admins TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admins TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.admins TO service_role;
+
+-- app_settings
+REVOKE ALL ON TABLE public.app_settings FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.app_settings TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.app_settings TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.app_settings TO service_role;
+
+-- auto_squad_queue
+REVOKE ALL ON TABLE public.auto_squad_queue FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, SELECT ON TABLE public.auto_squad_queue TO anon;
+GRANT DELETE, SELECT ON TABLE public.auto_squad_queue TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.auto_squad_queue TO service_role;
+
+-- ban_appeals
+REVOKE ALL ON TABLE public.ban_appeals FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.ban_appeals TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.ban_appeals TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.ban_appeals TO service_role;
+
+-- battle_pass_progress
+REVOKE ALL ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.battle_pass_progress TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.battle_pass_progress TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.battle_pass_progress TO service_role;
+REVOKE ALL (claimed_free) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (claimed_free), UPDATE (claimed_free) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (claimed_free), UPDATE (claimed_free) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (claimed_prem) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (claimed_prem), UPDATE (claimed_prem) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (claimed_prem), UPDATE (claimed_prem) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (claimed_tiers) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (claimed_tiers), UPDATE (claimed_tiers) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (claimed_tiers), UPDATE (claimed_tiers) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (current_tier) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (current_tier), UPDATE (current_tier) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (current_tier), UPDATE (current_tier) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (current_xp) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (current_xp), UPDATE (current_xp) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (current_xp), UPDATE (current_xp) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (has_premium) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (has_premium), UPDATE (has_premium) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (has_premium), UPDATE (has_premium) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (id) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (id) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (id) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (season_key) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (season_key), UPDATE (season_key) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (season_key), UPDATE (season_key) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (updated_at) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (updated_at), UPDATE (updated_at) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (updated_at), UPDATE (updated_at) ON TABLE public.battle_pass_progress TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.battle_pass_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.battle_pass_progress TO anon;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.battle_pass_progress TO authenticated;
+
+-- battle_passes
+REVOKE ALL ON TABLE public.battle_passes FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.battle_passes TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.battle_passes TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.battle_passes TO service_role;
+
+-- blacklist
+REVOKE ALL ON TABLE public.blacklist FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.blacklist TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.blacklist TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.blacklist TO service_role;
+
+-- cheat_reports
+REVOKE ALL ON TABLE public.cheat_reports FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.cheat_reports TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.cheat_reports TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.cheat_reports TO service_role;
+
+-- city_championship
+REVOKE ALL ON TABLE public.city_championship FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.city_championship TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.city_championship TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.city_championship TO service_role;
+
+-- clan_members
+REVOKE ALL ON TABLE public.clan_members FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_members TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_members TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_members TO service_role;
+
+-- clan_messages
+REVOKE ALL ON TABLE public.clan_messages FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_messages TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_messages TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_messages TO service_role;
+
+-- clan_war_challenges
+REVOKE ALL ON TABLE public.clan_war_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_war_challenges TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_war_challenges TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_war_challenges TO service_role;
+
+-- clan_wars
+REVOKE ALL ON TABLE public.clan_wars FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_wars TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_wars TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clan_wars TO service_role;
+
+-- clans
+REVOKE ALL ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clans TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clans TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.clans TO service_role;
+REVOKE ALL (badge) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (badge), UPDATE (badge) ON TABLE public.clans TO anon;
+GRANT INSERT (badge), UPDATE (badge) ON TABLE public.clans TO authenticated;
+REVOKE ALL (created_at) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.clans TO anon;
+GRANT INSERT (created_at) ON TABLE public.clans TO authenticated;
+REVOKE ALL (description) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (description), UPDATE (description) ON TABLE public.clans TO anon;
+GRANT INSERT (description), UPDATE (description) ON TABLE public.clans TO authenticated;
+REVOKE ALL (emblem) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (emblem), UPDATE (emblem) ON TABLE public.clans TO anon;
+GRANT INSERT (emblem), UPDATE (emblem) ON TABLE public.clans TO authenticated;
+REVOKE ALL (id) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (id), UPDATE (id) ON TABLE public.clans TO anon;
+GRANT INSERT (id), UPDATE (id) ON TABLE public.clans TO authenticated;
+REVOKE ALL (is_private) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (is_private), UPDATE (is_private) ON TABLE public.clans TO anon;
+GRANT INSERT (is_private), UPDATE (is_private) ON TABLE public.clans TO authenticated;
+REVOKE ALL (join_code) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (join_code), UPDATE (join_code) ON TABLE public.clans TO anon;
+GRANT INSERT (join_code), UPDATE (join_code) ON TABLE public.clans TO authenticated;
+REVOKE ALL (leader_uid) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (leader_uid), UPDATE (leader_uid) ON TABLE public.clans TO anon;
+GRANT INSERT (leader_uid), UPDATE (leader_uid) ON TABLE public.clans TO authenticated;
+REVOKE ALL (name) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (name), UPDATE (name) ON TABLE public.clans TO anon;
+GRANT INSERT (name), UPDATE (name) ON TABLE public.clans TO authenticated;
+REVOKE ALL (squad_bank_contributors) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (squad_bank_contributors) ON TABLE public.clans TO anon;
+GRANT UPDATE (squad_bank_contributors) ON TABLE public.clans TO authenticated;
+REVOKE ALL (squad_bank_gd) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (squad_bank_gd) ON TABLE public.clans TO anon;
+GRANT UPDATE (squad_bank_gd) ON TABLE public.clans TO authenticated;
+REVOKE ALL (squad_bank_unlocked) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (squad_bank_unlocked) ON TABLE public.clans TO anon;
+GRANT UPDATE (squad_bank_unlocked) ON TABLE public.clans TO authenticated;
+REVOKE ALL (tag) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (tag), UPDATE (tag) ON TABLE public.clans TO anon;
+GRANT INSERT (tag), UPDATE (tag) ON TABLE public.clans TO authenticated;
+REVOKE ALL (total_kills) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (total_kills), UPDATE (total_kills) ON TABLE public.clans TO anon;
+GRANT INSERT (total_kills), UPDATE (total_kills) ON TABLE public.clans TO authenticated;
+REVOKE ALL (total_members) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (total_members), UPDATE (total_members) ON TABLE public.clans TO anon;
+GRANT INSERT (total_members), UPDATE (total_members) ON TABLE public.clans TO authenticated;
+REVOKE ALL (total_wins) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (total_wins), UPDATE (total_wins) ON TABLE public.clans TO anon;
+GRANT INSERT (total_wins), UPDATE (total_wins) ON TABLE public.clans TO authenticated;
+REVOKE ALL (weekly_score) ON TABLE public.clans FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (weekly_score), UPDATE (weekly_score) ON TABLE public.clans TO anon;
+GRANT INSERT (weekly_score), UPDATE (weekly_score) ON TABLE public.clans TO authenticated;
+
+-- coin_requests
+REVOKE ALL ON TABLE public.coin_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.coin_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.coin_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.coin_requests TO service_role;
+
+-- creator_applications
+REVOKE ALL ON TABLE public.creator_applications FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_applications TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_applications TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_applications TO service_role;
+
+-- creator_codes
+REVOKE ALL ON TABLE public.creator_codes FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_codes TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_codes TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_codes TO service_role;
+REVOKE ALL (code) ON TABLE public.creator_codes FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (code) ON TABLE public.creator_codes TO anon;
+GRANT INSERT (code) ON TABLE public.creator_codes TO authenticated;
+REVOKE ALL (created_at) ON TABLE public.creator_codes FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.creator_codes TO anon;
+GRANT INSERT (created_at) ON TABLE public.creator_codes TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.creator_codes FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id) ON TABLE public.creator_codes TO anon;
+GRANT INSERT (user_id) ON TABLE public.creator_codes TO authenticated;
+
+-- creator_commissions
+REVOKE ALL ON TABLE public.creator_commissions FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_commissions TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_commissions TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_commissions TO service_role;
+
+-- creator_follows
+REVOKE ALL ON TABLE public.creator_follows FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT ON TABLE public.creator_follows TO anon;
+GRANT DELETE, INSERT, SELECT ON TABLE public.creator_follows TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_follows TO service_role;
+
+-- creator_match_ratings
+REVOKE ALL ON TABLE public.creator_match_ratings FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.creator_match_ratings TO anon;
+GRANT SELECT ON TABLE public.creator_match_ratings TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_match_ratings TO service_role;
+
+-- creator_matches
+REVOKE ALL ON TABLE public.creator_matches FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_matches TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_matches TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_matches TO service_role;
+
+-- creator_payouts
+REVOKE ALL ON TABLE public.creator_payouts FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_payouts TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_payouts TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_payouts TO service_role;
+
+-- creator_result_flags
+REVOKE ALL ON TABLE public.creator_result_flags FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT, UPDATE ON TABLE public.creator_result_flags TO anon;
+GRANT SELECT, UPDATE ON TABLE public.creator_result_flags TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_result_flags TO service_role;
+
+-- creator_stats
+REVOKE ALL ON TABLE public.creator_stats FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_stats TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_stats TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_stats TO service_role;
+
+-- creator_videos
+REVOKE ALL ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_videos TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_videos TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.creator_videos TO service_role;
+REVOKE ALL (created_at) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (created_at) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (creator_uid) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (creator_uid) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (creator_uid) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (description) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (description), UPDATE (description) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (description), UPDATE (description) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (firebase_id) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (firebase_id) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (firebase_id) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (link) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (link), UPDATE (link) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (link), UPDATE (link) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (platform) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (platform), UPDATE (platform) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (platform), UPDATE (platform) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (report_count) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (report_count), UPDATE (report_count) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (report_count), UPDATE (report_count) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (status) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.creator_videos TO authenticated;
+REVOKE ALL (title) ON TABLE public.creator_videos FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (title), UPDATE (title) ON TABLE public.creator_videos TO anon;
+GRANT INSERT (title), UPDATE (title) ON TABLE public.creator_videos TO authenticated;
+
+-- daily_checkins
+REVOKE ALL ON TABLE public.daily_checkins FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.daily_checkins TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.daily_checkins TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.daily_checkins TO service_role;
+
+-- disputes
+REVOKE ALL ON TABLE public.disputes FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.disputes TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.disputes TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.disputes TO service_role;
+
+-- duel_challenges
+REVOKE ALL ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.duel_challenges TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.duel_challenges TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.duel_challenges TO service_role;
+REVOKE ALL (challengee_ign) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (challengee_ign) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (challengee_ign) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (challenger_ign) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (challenger_ign) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (challenger_ign) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (challenger_uid) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (challenger_uid) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (challenger_uid) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (created_at) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (created_at) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (match_id) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (match_id) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (match_id) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (mode) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (mode) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (mode) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (opponent_uid) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (opponent_uid) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (opponent_uid) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (result) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (result) ON TABLE public.duel_challenges TO anon;
+GRANT UPDATE (result) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (status) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.duel_challenges TO authenticated;
+REVOKE ALL (taunt) ON TABLE public.duel_challenges FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (taunt) ON TABLE public.duel_challenges TO anon;
+GRANT INSERT (taunt) ON TABLE public.duel_challenges TO authenticated;
+
+-- duel_records
+REVOKE ALL ON TABLE public.duel_records FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.duel_records TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.duel_records TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.duel_records TO service_role;
+
+-- early_access_users
+REVOKE ALL ON TABLE public.early_access_users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT, SELECT ON TABLE public.early_access_users TO anon;
+GRANT INSERT, SELECT ON TABLE public.early_access_users TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.early_access_users TO service_role;
+
+-- ff_uid_index
+REVOKE ALL ON TABLE public.ff_uid_index FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.ff_uid_index TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.ff_uid_index TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.ff_uid_index TO service_role;
+
+-- fraud_cases
+REVOKE ALL ON TABLE public.fraud_cases FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.fraud_cases TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.fraud_cases TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.fraud_cases TO service_role;
+
+-- friendships
+REVOKE ALL ON TABLE public.friendships FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.friendships TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.friendships TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.friendships TO service_role;
+
+-- gift_tickets
+REVOKE ALL ON TABLE public.gift_tickets FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.gift_tickets TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.gift_tickets TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.gift_tickets TO service_role;
+
+-- join_requests
+REVOKE ALL ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.join_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.join_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.join_requests TO service_role;
+REVOKE ALL (ad_watched) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (ad_watched) ON TABLE public.join_requests TO anon;
+GRANT INSERT (ad_watched) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (captain_uid) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (captain_uid), UPDATE (captain_uid) ON TABLE public.join_requests TO anon;
+GRANT INSERT (captain_uid), UPDATE (captain_uid) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (checked_in) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (checked_in), UPDATE (checked_in) ON TABLE public.join_requests TO anon;
+GRANT INSERT (checked_in), UPDATE (checked_in) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (created_at) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at), UPDATE (created_at) ON TABLE public.join_requests TO anon;
+GRANT INSERT (created_at), UPDATE (created_at) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (entry_fee) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (entry_fee) ON TABLE public.join_requests TO anon;
+GRANT INSERT (entry_fee) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (entry_fee_paid) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (entry_fee_paid), UPDATE (entry_fee_paid) ON TABLE public.join_requests TO anon;
+GRANT INSERT (entry_fee_paid), UPDATE (entry_fee_paid) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (entry_type) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (entry_type), UPDATE (entry_type) ON TABLE public.join_requests TO anon;
+GRANT INSERT (entry_type), UPDATE (entry_type) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (fee_type) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (fee_type), UPDATE (fee_type) ON TABLE public.join_requests TO anon;
+GRANT INSERT (fee_type), UPDATE (fee_type) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (id) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (id) ON TABLE public.join_requests TO anon;
+GRANT UPDATE (id) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (ign_at_join) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (ign_at_join), UPDATE (ign_at_join) ON TABLE public.join_requests TO anon;
+GRANT INSERT (ign_at_join), UPDATE (ign_at_join) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (in_room) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (in_room), UPDATE (in_room) ON TABLE public.join_requests TO anon;
+GRANT INSERT (in_room), UPDATE (in_room) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (in_room_at) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (in_room_at) ON TABLE public.join_requests TO anon;
+GRANT UPDATE (in_room_at) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (kills) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (kills) ON TABLE public.join_requests TO anon;
+GRANT UPDATE (kills) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (match_id) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (match_id), UPDATE (match_id) ON TABLE public.join_requests TO anon;
+GRANT INSERT (match_id), UPDATE (match_id) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (mode) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (mode), UPDATE (mode) ON TABLE public.join_requests TO anon;
+GRANT INSERT (mode), UPDATE (mode) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (placement) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (placement) ON TABLE public.join_requests TO anon;
+GRANT UPDATE (placement) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (prize_earned) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (prize_earned) ON TABLE public.join_requests TO anon;
+GRANT UPDATE (prize_earned) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (rejection_note) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (rejection_note) ON TABLE public.join_requests TO anon;
+GRANT UPDATE (rejection_note) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (slot_number) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (slot_number), UPDATE (slot_number) ON TABLE public.join_requests TO anon;
+GRANT INSERT (slot_number), UPDATE (slot_number) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (squad_members) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (squad_members), UPDATE (squad_members) ON TABLE public.join_requests TO anon;
+GRANT INSERT (squad_members), UPDATE (squad_members) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (status) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.join_requests TO anon;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.join_requests TO anon;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.join_requests TO authenticated;
+REVOKE ALL (user_ign) ON TABLE public.join_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_ign), UPDATE (user_ign) ON TABLE public.join_requests TO anon;
+GRANT INSERT (user_ign), UPDATE (user_ign) ON TABLE public.join_requests TO authenticated;
+
+-- kill_proofs
+REVOKE ALL ON TABLE public.kill_proofs FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.kill_proofs TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.kill_proofs TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.kill_proofs TO service_role;
+
+-- kyc_requests
+REVOKE ALL ON TABLE public.kyc_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.kyc_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.kyc_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.kyc_requests TO service_role;
+
+-- leaderboard
+REVOKE ALL ON TABLE public.leaderboard FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.leaderboard TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.leaderboard TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.leaderboard TO service_role;
+
+-- leaderboard_archive
+REVOKE ALL ON TABLE public.leaderboard_archive FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.leaderboard_archive TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.leaderboard_archive TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.leaderboard_archive TO service_role;
+
+-- live_streams
+REVOKE ALL ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.live_streams TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.live_streams TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.live_streams TO service_role;
+REVOKE ALL (created_at) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.live_streams TO anon;
+GRANT INSERT (created_at) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (id) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (id) ON TABLE public.live_streams TO anon;
+GRANT UPDATE (id) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (is_live) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (is_live), UPDATE (is_live) ON TABLE public.live_streams TO anon;
+GRANT INSERT (is_live), UPDATE (is_live) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (match_id) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (match_id) ON TABLE public.live_streams TO anon;
+GRANT UPDATE (match_id) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (stream_url) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (stream_url), UPDATE (stream_url) ON TABLE public.live_streams TO anon;
+GRANT INSERT (stream_url), UPDATE (stream_url) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (title) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (title), UPDATE (title) ON TABLE public.live_streams TO anon;
+GRANT INSERT (title), UPDATE (title) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (updated_at) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (updated_at) ON TABLE public.live_streams TO anon;
+GRANT UPDATE (updated_at) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.live_streams TO anon;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.live_streams TO authenticated;
+REVOKE ALL (viewer_count) ON TABLE public.live_streams FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (viewer_count), UPDATE (viewer_count) ON TABLE public.live_streams TO anon;
+GRANT INSERT (viewer_count), UPDATE (viewer_count) ON TABLE public.live_streams TO authenticated;
+
+-- match_feedback
+REVOKE ALL ON TABLE public.match_feedback FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_feedback TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_feedback TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_feedback TO service_role;
+
+-- match_results
+REVOKE ALL ON TABLE public.match_results FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_results TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_results TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_results TO service_role;
+
+-- match_rooms
+REVOKE ALL ON TABLE public.match_rooms FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.match_rooms TO anon;
+GRANT SELECT ON TABLE public.match_rooms TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_rooms TO service_role;
+
+-- match_templates
+REVOKE ALL ON TABLE public.match_templates FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_templates TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_templates TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.match_templates TO service_role;
+
+-- matches
+REVOKE ALL ON TABLE public.matches FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.matches TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.matches TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.matches TO service_role;
+
+-- mentor_profiles
+REVOKE ALL ON TABLE public.mentor_profiles FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mentor_profiles TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mentor_profiles TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mentor_profiles TO service_role;
+
+-- mentor_requests
+REVOKE ALL ON TABLE public.mentor_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mentor_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mentor_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mentor_requests TO service_role;
+
+-- mission_progress
+REVOKE ALL ON TABLE public.mission_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mission_progress TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mission_progress TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.mission_progress TO service_role;
+REVOKE ALL (mission_key) ON TABLE public.mission_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (mission_key) ON TABLE public.mission_progress TO anon;
+GRANT INSERT (mission_key) ON TABLE public.mission_progress TO authenticated;
+REVOKE ALL (period) ON TABLE public.mission_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (period) ON TABLE public.mission_progress TO anon;
+GRANT INSERT (period) ON TABLE public.mission_progress TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.mission_progress FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id) ON TABLE public.mission_progress TO anon;
+GRANT INSERT (user_id) ON TABLE public.mission_progress TO authenticated;
+
+-- notifications
+REVOKE ALL ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.notifications TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.notifications TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.notifications TO service_role;
+REVOKE ALL (body) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (body) ON TABLE public.notifications TO anon;
+GRANT INSERT (body) ON TABLE public.notifications TO authenticated;
+REVOKE ALL (created_at) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.notifications TO anon;
+GRANT INSERT (created_at) ON TABLE public.notifications TO authenticated;
+REVOKE ALL (is_read) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (is_read), UPDATE (is_read) ON TABLE public.notifications TO anon;
+GRANT INSERT (is_read), UPDATE (is_read) ON TABLE public.notifications TO authenticated;
+REVOKE ALL (ref_id) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (ref_id) ON TABLE public.notifications TO anon;
+GRANT INSERT (ref_id) ON TABLE public.notifications TO authenticated;
+REVOKE ALL (target_all) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (target_all) ON TABLE public.notifications TO anon;
+GRANT INSERT (target_all) ON TABLE public.notifications TO authenticated;
+REVOKE ALL (title) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (title) ON TABLE public.notifications TO anon;
+GRANT INSERT (title) ON TABLE public.notifications TO authenticated;
+REVOKE ALL (type) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (type) ON TABLE public.notifications TO anon;
+GRANT INSERT (type) ON TABLE public.notifications TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.notifications FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id) ON TABLE public.notifications TO anon;
+GRANT INSERT (user_id) ON TABLE public.notifications TO authenticated;
+
+-- platform_earnings
+REVOKE ALL ON TABLE public.platform_earnings FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT, SELECT ON TABLE public.platform_earnings TO anon;
+GRANT INSERT, SELECT ON TABLE public.platform_earnings TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.platform_earnings TO service_role;
+
+-- platform_stats
+REVOKE ALL ON TABLE public.platform_stats FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.platform_stats TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.platform_stats TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.platform_stats TO service_role;
+
+-- poll_votes
+REVOKE ALL ON TABLE public.poll_votes FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.poll_votes TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.poll_votes TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.poll_votes TO service_role;
+
+-- polls
+REVOKE ALL ON TABLE public.polls FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.polls TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.polls TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.polls TO service_role;
+
+-- premium_monthly_bonus_claims
+REVOKE ALL ON TABLE public.premium_monthly_bonus_claims FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT, SELECT ON TABLE public.premium_monthly_bonus_claims TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.premium_monthly_bonus_claims TO service_role;
+
+-- premium_requests
+REVOKE ALL ON TABLE public.premium_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.premium_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.premium_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.premium_requests TO service_role;
+
+-- profile_requests
+REVOKE ALL ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.profile_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.profile_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.profile_requests TO service_role;
+REVOKE ALL (bio) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (bio), UPDATE (bio) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (bio), UPDATE (bio) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (created_at) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (created_at) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (is_banned) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (is_banned), UPDATE (is_banned) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (is_banned), UPDATE (is_banned) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (phone) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (phone), UPDATE (phone) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (phone), UPDATE (phone) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (request_count) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (request_count), UPDATE (request_count) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (request_count), UPDATE (request_count) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (request_type) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (request_type), UPDATE (request_type) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (request_type), UPDATE (request_type) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (requested_ign) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (requested_ign), UPDATE (requested_ign) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (requested_ign), UPDATE (requested_ign) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (requested_uid) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (requested_uid), UPDATE (requested_uid) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (requested_uid), UPDATE (requested_uid) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (status) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (status), UPDATE (status) ON TABLE public.profile_requests TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.profile_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.profile_requests TO anon;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.profile_requests TO authenticated;
+
+-- profile_updates
+REVOKE ALL ON TABLE public.profile_updates FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.profile_updates TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.profile_updates TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.profile_updates TO service_role;
+
+-- push_hook_config
+REVOKE ALL ON TABLE public.push_hook_config FROM PUBLIC, anon, authenticated, service_role;
+
+-- rank_history
+REVOKE ALL ON TABLE public.rank_history FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.rank_history TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.rank_history TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.rank_history TO service_role;
+
+-- rank_seasons
+REVOKE ALL ON TABLE public.rank_seasons FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.rank_seasons TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.rank_seasons TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.rank_seasons TO service_role;
+
+-- referrals
+REVOKE ALL ON TABLE public.referrals FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.referrals TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.referrals TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.referrals TO service_role;
+REVOKE ALL (id) ON TABLE public.referrals FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (id) ON TABLE public.referrals TO anon;
+GRANT UPDATE (id) ON TABLE public.referrals TO authenticated;
+REVOKE ALL (join_bonus_paid) ON TABLE public.referrals FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (join_bonus_paid), UPDATE (join_bonus_paid) ON TABLE public.referrals TO anon;
+GRANT INSERT (join_bonus_paid), UPDATE (join_bonus_paid) ON TABLE public.referrals TO authenticated;
+REVOKE ALL (referred_id) ON TABLE public.referrals FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (referred_id), UPDATE (referred_id) ON TABLE public.referrals TO anon;
+GRANT INSERT (referred_id), UPDATE (referred_id) ON TABLE public.referrals TO authenticated;
+REVOKE ALL (referrer_id) ON TABLE public.referrals FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (referrer_id), UPDATE (referrer_id) ON TABLE public.referrals TO anon;
+GRANT INSERT (referrer_id), UPDATE (referrer_id) ON TABLE public.referrals TO authenticated;
+
+-- refund_requests
+REVOKE ALL ON TABLE public.refund_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.refund_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.refund_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.refund_requests TO service_role;
+
+-- reports
+REVOKE ALL ON TABLE public.reports FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.reports TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.reports TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.reports TO service_role;
+
+-- reward_redemptions
+REVOKE ALL ON TABLE public.reward_redemptions FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.reward_redemptions TO service_role;
+
+-- reward_store_items
+REVOKE ALL ON TABLE public.reward_store_items FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.reward_store_items TO anon;
+GRANT SELECT ON TABLE public.reward_store_items TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.reward_store_items TO service_role;
+
+-- scheduled_broadcasts
+REVOKE ALL ON TABLE public.scheduled_broadcasts FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.scheduled_broadcasts TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.scheduled_broadcasts TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.scheduled_broadcasts TO service_role;
+
+-- sd_requests
+REVOKE ALL ON TABLE public.sd_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sd_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sd_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sd_requests TO service_role;
+
+-- season_finalizations
+REVOKE ALL ON TABLE public.season_finalizations FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.season_finalizations TO service_role;
+
+-- season_pass_requests
+REVOKE ALL ON TABLE public.season_pass_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.season_pass_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.season_pass_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.season_pass_requests TO service_role;
+
+-- season_stats
+REVOKE ALL ON TABLE public.season_stats FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT, SELECT, UPDATE ON TABLE public.season_stats TO anon;
+GRANT INSERT, SELECT, UPDATE ON TABLE public.season_stats TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.season_stats TO service_role;
+
+-- seasonal_league_history
+REVOKE ALL ON TABLE public.seasonal_league_history FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.seasonal_league_history TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.seasonal_league_history TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.seasonal_league_history TO service_role;
+
+-- sponsored_prize_claims
+REVOKE ALL ON TABLE public.sponsored_prize_claims FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_prize_claims TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_prize_claims TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_prize_claims TO service_role;
+
+-- sponsored_prizes
+REVOKE ALL ON TABLE public.sponsored_prizes FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_prizes TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_prizes TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_prizes TO service_role;
+
+-- sponsored_tournaments
+REVOKE ALL ON TABLE public.sponsored_tournaments FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_tournaments TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_tournaments TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.sponsored_tournaments TO service_role;
+
+-- squad_finder
+REVOKE ALL ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.squad_finder TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.squad_finder TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.squad_finder TO service_role;
+REVOKE ALL (created_at) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (created_at) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (expires_at) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (expires_at), UPDATE (expires_at) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (expires_at), UPDATE (expires_at) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (ign) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (ign) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (ign) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (is_active) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (is_active), UPDATE (is_active) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (is_active), UPDATE (is_active) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (lang) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (lang), UPDATE (lang) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (lang), UPDATE (lang) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (mode) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (mode), UPDATE (mode) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (mode), UPDATE (mode) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (note) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (note), UPDATE (note) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (note), UPDATE (note) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (playstyle) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (playstyle), UPDATE (playstyle) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (playstyle), UPDATE (playstyle) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (role) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (role), UPDATE (role) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (role), UPDATE (role) ON TABLE public.squad_finder TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.squad_finder FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id) ON TABLE public.squad_finder TO anon;
+GRANT INSERT (user_id) ON TABLE public.squad_finder TO authenticated;
+
+-- suggestion_rewards
+REVOKE ALL ON TABLE public.suggestion_rewards FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.suggestion_rewards TO service_role;
+
+-- suggestions
+REVOKE ALL ON TABLE public.suggestions FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.suggestions TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.suggestions TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.suggestions TO service_role;
+
+-- support_messages
+REVOKE ALL ON TABLE public.support_messages FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.support_messages TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.support_messages TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.support_messages TO service_role;
+
+-- support_tickets
+REVOKE ALL ON TABLE public.support_tickets FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.support_tickets TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.support_tickets TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.support_tickets TO service_role;
+
+-- tds_held
+REVOKE ALL ON TABLE public.tds_held FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT, SELECT ON TABLE public.tds_held TO anon;
+GRANT INSERT, SELECT ON TABLE public.tds_held TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.tds_held TO service_role;
+
+-- tds_records
+REVOKE ALL ON TABLE public.tds_records FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT, SELECT ON TABLE public.tds_records TO anon;
+GRANT INSERT, SELECT ON TABLE public.tds_records TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.tds_records TO service_role;
+
+-- team_invitations
+REVOKE ALL ON TABLE public.team_invitations FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON TABLE public.team_invitations TO anon;
+GRANT SELECT ON TABLE public.team_invitations TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.team_invitations TO service_role;
+
+-- team_requests
+REVOKE ALL ON TABLE public.team_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.team_requests TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.team_requests TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.team_requests TO service_role;
+REVOKE ALL (created_at) ON TABLE public.team_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.team_requests TO anon;
+GRANT INSERT (created_at) ON TABLE public.team_requests TO authenticated;
+REVOKE ALL (leader_uid) ON TABLE public.team_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (leader_uid) ON TABLE public.team_requests TO anon;
+GRANT INSERT (leader_uid) ON TABLE public.team_requests TO authenticated;
+REVOKE ALL (match_id) ON TABLE public.team_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (match_id) ON TABLE public.team_requests TO anon;
+GRANT INSERT (match_id) ON TABLE public.team_requests TO authenticated;
+REVOKE ALL (mode) ON TABLE public.team_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (mode), UPDATE (mode) ON TABLE public.team_requests TO anon;
+GRANT INSERT (mode), UPDATE (mode) ON TABLE public.team_requests TO authenticated;
+REVOKE ALL (team_members) ON TABLE public.team_requests FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (team_members), UPDATE (team_members) ON TABLE public.team_requests TO anon;
+GRANT INSERT (team_members), UPDATE (team_members) ON TABLE public.team_requests TO authenticated;
+
+-- tournament_brackets
+REVOKE ALL ON TABLE public.tournament_brackets FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.tournament_brackets TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.tournament_brackets TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.tournament_brackets TO service_role;
+
+-- trial_log
+REVOKE ALL ON TABLE public.trial_log FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.trial_log TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.trial_log TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.trial_log TO service_role;
+
+-- user_achievements
+REVOKE ALL ON TABLE public.user_achievements FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_achievements TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_achievements TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_achievements TO service_role;
+
+-- user_activities
+REVOKE ALL ON TABLE public.user_activities FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_activities TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_activities TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_activities TO service_role;
+
+-- user_cosmetics
+REVOKE ALL ON TABLE public.user_cosmetics FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_cosmetics TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_cosmetics TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_cosmetics TO service_role;
+REVOKE ALL (cosmetic_key) ON TABLE public.user_cosmetics FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (cosmetic_key), UPDATE (cosmetic_key) ON TABLE public.user_cosmetics TO anon;
+GRANT INSERT (cosmetic_key), UPDATE (cosmetic_key) ON TABLE public.user_cosmetics TO authenticated;
+REVOKE ALL (is_equipped) ON TABLE public.user_cosmetics FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (is_equipped) ON TABLE public.user_cosmetics TO anon;
+GRANT UPDATE (is_equipped) ON TABLE public.user_cosmetics TO authenticated;
+REVOKE ALL (purchased_at) ON TABLE public.user_cosmetics FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (purchased_at), UPDATE (purchased_at) ON TABLE public.user_cosmetics TO anon;
+GRANT INSERT (purchased_at), UPDATE (purchased_at) ON TABLE public.user_cosmetics TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.user_cosmetics FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.user_cosmetics TO anon;
+GRANT INSERT (user_id), UPDATE (user_id) ON TABLE public.user_cosmetics TO authenticated;
+
+-- user_matches
+REVOKE ALL ON TABLE public.user_matches FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_matches TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_matches TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_matches TO service_role;
+
+-- user_roles
+REVOKE ALL ON TABLE public.user_roles FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_roles TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_roles TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_roles TO service_role;
+
+-- user_sessions
+REVOKE ALL ON TABLE public.user_sessions FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_sessions TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_sessions TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_sessions TO service_role;
+REVOKE ALL (created_at) ON TABLE public.user_sessions FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.user_sessions TO anon;
+GRANT INSERT (created_at) ON TABLE public.user_sessions TO authenticated;
+REVOKE ALL (last_seen) ON TABLE public.user_sessions FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (last_seen), UPDATE (last_seen) ON TABLE public.user_sessions TO anon;
+GRANT INSERT (last_seen), UPDATE (last_seen) ON TABLE public.user_sessions TO authenticated;
+REVOKE ALL (user_id) ON TABLE public.user_sessions FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (user_id) ON TABLE public.user_sessions TO anon;
+GRANT INSERT (user_id) ON TABLE public.user_sessions TO authenticated;
+
+-- user_suggestions
+REVOKE ALL ON TABLE public.user_suggestions FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_suggestions TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_suggestions TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.user_suggestions TO service_role;
+
+-- users
+REVOKE ALL ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.users TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.users TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.users TO service_role;
+REVOKE ALL (accepted_policy) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (accepted_policy), UPDATE (accepted_policy) ON TABLE public.users TO authenticated;
+REVOKE ALL (accepted_policy_at) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (accepted_policy_at), UPDATE (accepted_policy_at) ON TABLE public.users TO authenticated;
+REVOKE ALL (avatar_bg_color) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (avatar_bg_color), UPDATE (avatar_bg_color) ON TABLE public.users TO authenticated;
+REVOKE ALL (avatar_url) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (avatar_url), UPDATE (avatar_url) ON TABLE public.users TO authenticated;
+REVOKE ALL (bio) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (bio), UPDATE (bio) ON TABLE public.users TO authenticated;
+REVOKE ALL (city) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (city), UPDATE (city) ON TABLE public.users TO authenticated;
+REVOKE ALL (clan_id) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (clan_id) ON TABLE public.users TO authenticated;
+REVOKE ALL (clean_matches) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (clean_matches) ON TABLE public.users TO authenticated;
+REVOKE ALL (created_at) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (created_at) ON TABLE public.users TO authenticated;
+REVOKE ALL (device_fp) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (device_fp), UPDATE (device_fp) ON TABLE public.users TO authenticated;
+REVOKE ALL (email) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (email), UPDATE (email) ON TABLE public.users TO authenticated;
+REVOKE ALL (fcm_token) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (fcm_token), UPDATE (fcm_token) ON TABLE public.users TO authenticated;
+REVOKE ALL (fcm_updated_at) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (fcm_updated_at) ON TABLE public.users TO authenticated;
+REVOKE ALL (ff_uid) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (ff_uid), UPDATE (ff_uid) ON TABLE public.users TO authenticated;
+REVOKE ALL (id) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (id), UPDATE (id) ON TABLE public.users TO authenticated;
+REVOKE ALL (ign) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (ign), UPDATE (ign) ON TABLE public.users TO authenticated;
+REVOKE ALL (is_live) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (is_live) ON TABLE public.users TO authenticated;
+REVOKE ALL (last_checkin_date) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (last_checkin_date) ON TABLE public.users TO authenticated;
+REVOKE ALL (pending_ign) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (pending_ign), UPDATE (pending_ign) ON TABLE public.users TO authenticated;
+REVOKE ALL (phone) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (phone), UPDATE (phone) ON TABLE public.users TO authenticated;
+REVOKE ALL (profile_request_count) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (profile_request_count) ON TABLE public.users TO authenticated;
+REVOKE ALL (profile_status) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (profile_status) ON TABLE public.users TO authenticated;
+REVOKE ALL (referral_code) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (referral_code), UPDATE (referral_code) ON TABLE public.users TO authenticated;
+REVOKE ALL (referral_popup_done) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (referral_popup_done) ON TABLE public.users TO authenticated;
+REVOKE ALL (referred_by) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT INSERT (referred_by) ON TABLE public.users TO authenticated;
+REVOKE ALL (rival_uid) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (rival_uid) ON TABLE public.users TO authenticated;
+REVOKE ALL (streak_days) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (streak_days) ON TABLE public.users TO authenticated;
+REVOKE ALL (stream_link) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (stream_link) ON TABLE public.users TO authenticated;
+REVOKE ALL (stream_title) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (stream_title) ON TABLE public.users TO authenticated;
+REVOKE ALL (updated_at) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (updated_at) ON TABLE public.users TO authenticated;
+REVOKE ALL (vip_granted_at) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (vip_granted_at) ON TABLE public.users TO authenticated;
+REVOKE ALL (vip_reason) ON TABLE public.users FROM PUBLIC, anon, authenticated, service_role;
+GRANT UPDATE (vip_reason) ON TABLE public.users TO authenticated;
+
+-- video_reports
+REVOKE ALL ON TABLE public.video_reports FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.video_reports TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.video_reports TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.video_reports TO service_role;
+
+-- video_watches
+REVOKE ALL ON TABLE public.video_watches FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.video_watches TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.video_watches TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.video_watches TO service_role;
+
+-- voucher_redemptions
+REVOKE ALL ON TABLE public.voucher_redemptions FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.voucher_redemptions TO service_role;
+
+-- vouchers
+REVOKE ALL ON TABLE public.vouchers FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.vouchers TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.vouchers TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.vouchers TO service_role;
+
+-- wallet_audit_log
+REVOKE ALL ON TABLE public.wallet_audit_log FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.wallet_audit_log TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.wallet_audit_log TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.wallet_audit_log TO service_role;
+
+-- wallet_transactions
+REVOKE ALL ON TABLE public.wallet_transactions FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.wallet_transactions TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.wallet_transactions TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.wallet_transactions TO service_role;
+
+-- watch_earn_log
+REVOKE ALL ON TABLE public.watch_earn_log FROM PUBLIC, anon, authenticated, service_role;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.watch_earn_log TO anon;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.watch_earn_log TO authenticated;
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE public.watch_earn_log TO service_role;
+
+-- ── 60.11  Constraints present live but not declared earlier in this file ──
+-- Guarded: added only when NO equivalent constraint exists on that table, so
+-- re-running is a no-op and no duplicate/renamed constraint is ever created.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='ad_reward_log'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.ad_reward_log ADD CONSTRAINT ad_reward_log_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_actions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.admin_actions ADD CONSTRAINT admin_actions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_activity_log'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.admin_activity_log ADD CONSTRAINT admin_activity_log_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_alerts'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.admin_alerts ADD CONSTRAINT admin_alerts_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_alerts'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id)')
+  THEN ALTER TABLE public.admin_alerts ADD CONSTRAINT admin_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_notes'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.admin_notes ADD CONSTRAINT admin_notes_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_notes'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.admin_notes ADD CONSTRAINT admin_notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_watchlist'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.admin_watchlist ADD CONSTRAINT admin_watchlist_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_watchlist'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.admin_watchlist ADD CONSTRAINT admin_watchlist_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admin_watchlist'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id)')
+  THEN ALTER TABLE public.admin_watchlist ADD CONSTRAINT admin_watchlist_user_id_key UNIQUE (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admins'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (uid)')
+  THEN ALTER TABLE public.admins ADD CONSTRAINT admins_pkey PRIMARY KEY (uid); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='admins'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.admins ADD CONSTRAINT admins_uid_fkey FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='app_settings'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (key)')
+  THEN ALTER TABLE public.app_settings ADD CONSTRAINT app_settings_pkey PRIMARY KEY (key); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='auto_squad_queue'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.auto_squad_queue ADD CONSTRAINT auto_squad_queue_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='auto_squad_queue'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (match_id, user_id)')
+  THEN ALTER TABLE public.auto_squad_queue ADD CONSTRAINT auto_squad_queue_match_id_user_id_key UNIQUE (match_id, user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='auto_squad_queue'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.auto_squad_queue ADD CONSTRAINT auto_squad_queue_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='auto_squad_queue'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.auto_squad_queue ADD CONSTRAINT auto_squad_queue_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='ban_appeals'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.ban_appeals ADD CONSTRAINT ban_appeals_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='ban_appeals'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.ban_appeals ADD CONSTRAINT ban_appeals_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='battle_pass_progress'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.battle_pass_progress ADD CONSTRAINT battle_pass_progress_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='battle_pass_progress'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.battle_pass_progress ADD CONSTRAINT battle_pass_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='battle_pass_progress'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, season_key)')
+  THEN ALTER TABLE public.battle_pass_progress ADD CONSTRAINT battle_pass_progress_user_id_season_key_key UNIQUE (user_id, season_key); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='battle_passes'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.battle_passes ADD CONSTRAINT battle_passes_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='blacklist'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.blacklist ADD CONSTRAINT blacklist_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='blacklist'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (value)')
+  THEN ALTER TABLE public.blacklist ADD CONSTRAINT blacklist_value_key UNIQUE (value); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='cheat_reports'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.cheat_reports ADD CONSTRAINT cheat_reports_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='cheat_reports'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reported_uid) REFERENCES users(id)')
+  THEN ALTER TABLE public.cheat_reports ADD CONSTRAINT cheat_reports_reported_uid_fkey FOREIGN KEY (reported_uid) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='cheat_reports'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reporter_uid) REFERENCES users(id)')
+  THEN ALTER TABLE public.cheat_reports ADD CONSTRAINT cheat_reports_reporter_uid_fkey FOREIGN KEY (reporter_uid) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='city_championship'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (city, month)')
+  THEN ALTER TABLE public.city_championship ADD CONSTRAINT city_championship_city_month_key UNIQUE (city, month); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='city_championship'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.city_championship ADD CONSTRAINT city_championship_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_members'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_members ADD CONSTRAINT clan_members_clan_id_fkey FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_members'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (clan_id, user_id)')
+  THEN ALTER TABLE public.clan_members ADD CONSTRAINT clan_members_clan_id_user_id_key UNIQUE (clan_id, user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_members'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.clan_members ADD CONSTRAINT clan_members_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_members'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_members ADD CONSTRAINT clan_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_messages'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_messages ADD CONSTRAINT clan_messages_clan_id_fkey FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_messages'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.clan_messages ADD CONSTRAINT clan_messages_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_messages'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_messages ADD CONSTRAINT clan_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_war_challenges'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (from_clan) REFERENCES clans(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_war_challenges ADD CONSTRAINT clan_war_challenges_from_clan_fkey FOREIGN KEY (from_clan) REFERENCES clans(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_war_challenges'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.clan_war_challenges ADD CONSTRAINT clan_war_challenges_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_war_challenges'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (to_clan) REFERENCES clans(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_war_challenges ADD CONSTRAINT clan_war_challenges_to_clan_fkey FOREIGN KEY (to_clan) REFERENCES clans(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_wars'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (clan_a_id) REFERENCES clans(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_wars ADD CONSTRAINT clan_wars_clan_a_id_fkey FOREIGN KEY (clan_a_id) REFERENCES clans(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_wars'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (clan_b_id) REFERENCES clans(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.clan_wars ADD CONSTRAINT clan_wars_clan_b_id_fkey FOREIGN KEY (clan_b_id) REFERENCES clans(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clan_wars'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.clan_wars ADD CONSTRAINT clan_wars_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clans'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (join_code)')
+  THEN ALTER TABLE public.clans ADD CONSTRAINT clans_join_code_key UNIQUE (join_code); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clans'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (leader_uid) REFERENCES users(id)')
+  THEN ALTER TABLE public.clans ADD CONSTRAINT clans_leader_uid_fkey FOREIGN KEY (leader_uid) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clans'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (name)')
+  THEN ALTER TABLE public.clans ADD CONSTRAINT clans_name_key UNIQUE (name); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='clans'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.clans ADD CONSTRAINT clans_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='coin_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.coin_requests ADD CONSTRAINT coin_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='coin_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.coin_requests ADD CONSTRAINT coin_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_applications'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_applications ADD CONSTRAINT creator_applications_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_applications'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_applications ADD CONSTRAINT creator_applications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_applications'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id)')
+  THEN ALTER TABLE public.creator_applications ADD CONSTRAINT creator_applications_user_id_key UNIQUE (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_codes'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (code)')
+  THEN ALTER TABLE public.creator_codes ADD CONSTRAINT creator_codes_pkey PRIMARY KEY (code); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_codes'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_codes ADD CONSTRAINT creator_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_commissions'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_commissions ADD CONSTRAINT creator_commissions_creator_uid_fkey FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_commissions'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE SET NULL')
+  THEN ALTER TABLE public.creator_commissions ADD CONSTRAINT creator_commissions_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE SET NULL; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_commissions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_commissions ADD CONSTRAINT creator_commissions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_follows'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_follows ADD CONSTRAINT creator_follows_creator_uid_fkey FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_follows'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (creator_uid, follower_uid)')
+  THEN ALTER TABLE public.creator_follows ADD CONSTRAINT creator_follows_creator_uid_follower_uid_key UNIQUE (creator_uid, follower_uid); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_follows'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (follower_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_follows ADD CONSTRAINT creator_follows_follower_uid_fkey FOREIGN KEY (follower_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_follows'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_follows ADD CONSTRAINT creator_follows_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_match_ratings'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_match_ratings ADD CONSTRAINT creator_match_ratings_creator_uid_fkey FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_match_ratings'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (match_id, rater_uid)')
+  THEN ALTER TABLE public.creator_match_ratings ADD CONSTRAINT creator_match_ratings_match_id_rater_uid_key UNIQUE (match_id, rater_uid); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_match_ratings'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_match_ratings ADD CONSTRAINT creator_match_ratings_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_match_ratings'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (rater_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_match_ratings ADD CONSTRAINT creator_match_ratings_rater_uid_fkey FOREIGN KEY (rater_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_match_ratings'
+                   AND co.contype='c' AND pg_get_constraintdef(co.oid)='CHECK (((stars >= 1) AND (stars <= 5)))')
+  THEN ALTER TABLE public.creator_match_ratings ADD CONSTRAINT creator_match_ratings_stars_check CHECK (((stars >= 1) AND (stars <= 5))); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_matches'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_matches ADD CONSTRAINT creator_matches_creator_uid_fkey FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_matches'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_matches ADD CONSTRAINT creator_matches_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_matches'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (match_id)')
+  THEN ALTER TABLE public.creator_matches ADD CONSTRAINT creator_matches_match_id_key UNIQUE (match_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_matches'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_matches ADD CONSTRAINT creator_matches_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_payouts'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_payouts ADD CONSTRAINT creator_payouts_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_payouts'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_payouts ADD CONSTRAINT creator_payouts_uid_fkey FOREIGN KEY (uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_result_flags'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_result_flags ADD CONSTRAINT creator_result_flags_creator_uid_fkey FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_result_flags'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_result_flags ADD CONSTRAINT creator_result_flags_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_stats'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (user_id)')
+  THEN ALTER TABLE public.creator_stats ADD CONSTRAINT creator_stats_pkey PRIMARY KEY (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_stats'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_stats ADD CONSTRAINT creator_stats_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_videos'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.creator_videos ADD CONSTRAINT creator_videos_creator_uid_fkey FOREIGN KEY (creator_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_videos'
+                   AND co.contype='c' AND pg_get_constraintdef(co.oid)='CHECK ((char_length(description) <= 200))')
+  THEN ALTER TABLE public.creator_videos ADD CONSTRAINT creator_videos_description_check CHECK ((char_length(description) <= 200)); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_videos'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (firebase_id)')
+  THEN ALTER TABLE public.creator_videos ADD CONSTRAINT creator_videos_firebase_id_key UNIQUE (firebase_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_videos'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.creator_videos ADD CONSTRAINT creator_videos_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='creator_videos'
+                   AND co.contype='c' AND pg_get_constraintdef(co.oid)='CHECK ((char_length(title) <= 60))')
+  THEN ALTER TABLE public.creator_videos ADD CONSTRAINT creator_videos_title_check CHECK ((char_length(title) <= 60)); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='daily_checkins'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.daily_checkins ADD CONSTRAINT daily_checkins_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='daily_checkins'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, checkin_date)')
+  THEN ALTER TABLE public.daily_checkins ADD CONSTRAINT daily_checkins_user_id_checkin_date_key UNIQUE (user_id, checkin_date); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='daily_checkins'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.daily_checkins ADD CONSTRAINT daily_checkins_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='disputes'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.disputes ADD CONSTRAINT disputes_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='disputes'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.disputes ADD CONSTRAINT disputes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='duel_challenges'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (challenger_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.duel_challenges ADD CONSTRAINT duel_challenges_challenger_uid_fkey FOREIGN KEY (challenger_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='duel_challenges'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (opponent_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.duel_challenges ADD CONSTRAINT duel_challenges_opponent_uid_fkey FOREIGN KEY (opponent_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='duel_challenges'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.duel_challenges ADD CONSTRAINT duel_challenges_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='duel_records'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (opponent_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.duel_records ADD CONSTRAINT duel_records_opponent_id_fkey FOREIGN KEY (opponent_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='duel_records'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.duel_records ADD CONSTRAINT duel_records_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='duel_records'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.duel_records ADD CONSTRAINT duel_records_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='duel_records'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, opponent_id)')
+  THEN ALTER TABLE public.duel_records ADD CONSTRAINT duel_records_user_id_opponent_id_key UNIQUE (user_id, opponent_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='early_access_users'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (user_id)')
+  THEN ALTER TABLE public.early_access_users ADD CONSTRAINT early_access_users_pkey PRIMARY KEY (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='ff_uid_index'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (ff_uid)')
+  THEN ALTER TABLE public.ff_uid_index ADD CONSTRAINT ff_uid_index_pkey PRIMARY KEY (ff_uid); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='ff_uid_index'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.ff_uid_index ADD CONSTRAINT ff_uid_index_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='fraud_cases'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.fraud_cases ADD CONSTRAINT fraud_cases_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='fraud_cases'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.fraud_cases ADD CONSTRAINT fraud_cases_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='friendships'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.friendships ADD CONSTRAINT friendships_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='friendships'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_a) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.friendships ADD CONSTRAINT friendships_user_a_fkey FOREIGN KEY (user_a) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='friendships'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_a, user_b)')
+  THEN ALTER TABLE public.friendships ADD CONSTRAINT friendships_user_a_user_b_key UNIQUE (user_a, user_b); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='friendships'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_b) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.friendships ADD CONSTRAINT friendships_user_b_fkey FOREIGN KEY (user_b) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='gift_tickets'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (from_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.gift_tickets ADD CONSTRAINT gift_tickets_from_uid_fkey FOREIGN KEY (from_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='gift_tickets'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.gift_tickets ADD CONSTRAINT gift_tickets_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='gift_tickets'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.gift_tickets ADD CONSTRAINT gift_tickets_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='gift_tickets'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (to_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.gift_tickets ADD CONSTRAINT gift_tickets_to_uid_fkey FOREIGN KEY (to_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='join_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.join_requests ADD CONSTRAINT join_requests_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='join_requests'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (match_id, user_id)')
+  THEN ALTER TABLE public.join_requests ADD CONSTRAINT join_requests_match_id_user_id_key UNIQUE (match_id, user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='join_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.join_requests ADD CONSTRAINT join_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='join_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.join_requests ADD CONSTRAINT join_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='kill_proofs'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.kill_proofs ADD CONSTRAINT kill_proofs_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='kill_proofs'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.kill_proofs ADD CONSTRAINT kill_proofs_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='kyc_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.kyc_requests ADD CONSTRAINT kyc_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='kyc_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.kyc_requests ADD CONSTRAINT kyc_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='leaderboard'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.leaderboard ADD CONSTRAINT leaderboard_id_fkey FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='leaderboard'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.leaderboard ADD CONSTRAINT leaderboard_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='leaderboard_archive'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.leaderboard_archive ADD CONSTRAINT leaderboard_archive_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='leaderboard_archive'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL')
+  THEN ALTER TABLE public.leaderboard_archive ADD CONSTRAINT leaderboard_archive_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='live_streams'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.live_streams ADD CONSTRAINT live_streams_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='live_streams'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.live_streams ADD CONSTRAINT live_streams_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_feedback'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.match_feedback ADD CONSTRAINT match_feedback_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_feedback'
+                   AND co.contype='c' AND pg_get_constraintdef(co.oid)='CHECK (((rating >= 1) AND (rating <= 5)))')
+  THEN ALTER TABLE public.match_feedback ADD CONSTRAINT match_feedback_rating_check CHECK (((rating >= 1) AND (rating <= 5))); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_feedback'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.match_feedback ADD CONSTRAINT match_feedback_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_feedback'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, match_id)')
+  THEN ALTER TABLE public.match_feedback ADD CONSTRAINT match_feedback_user_id_match_id_key UNIQUE (user_id, match_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_results'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.match_results ADD CONSTRAINT match_results_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_results'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.match_results ADD CONSTRAINT match_results_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_results'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.match_results ADD CONSTRAINT match_results_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_rooms'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.match_rooms ADD CONSTRAINT match_rooms_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_rooms'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (match_id)')
+  THEN ALTER TABLE public.match_rooms ADD CONSTRAINT match_rooms_pkey PRIMARY KEY (match_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_templates'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (created_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.match_templates ADD CONSTRAINT match_templates_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='match_templates'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.match_templates ADD CONSTRAINT match_templates_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='matches'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (creator_uid) REFERENCES users(id)')
+  THEN ALTER TABLE public.matches ADD CONSTRAINT matches_creator_uid_fkey FOREIGN KEY (creator_uid) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='matches'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.matches ADD CONSTRAINT matches_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mentor_profiles'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.mentor_profiles ADD CONSTRAINT mentor_profiles_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mentor_profiles'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.mentor_profiles ADD CONSTRAINT mentor_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mentor_profiles'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id)')
+  THEN ALTER TABLE public.mentor_profiles ADD CONSTRAINT mentor_profiles_user_id_key UNIQUE (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mentor_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (mentor_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.mentor_requests ADD CONSTRAINT mentor_requests_mentor_uid_fkey FOREIGN KEY (mentor_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mentor_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.mentor_requests ADD CONSTRAINT mentor_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mentor_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (student_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.mentor_requests ADD CONSTRAINT mentor_requests_student_uid_fkey FOREIGN KEY (student_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mission_progress'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.mission_progress ADD CONSTRAINT mission_progress_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mission_progress'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.mission_progress ADD CONSTRAINT mission_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='mission_progress'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, mission_key, period)')
+  THEN ALTER TABLE public.mission_progress ADD CONSTRAINT mission_progress_user_id_mission_key_period_key UNIQUE (user_id, mission_key, period); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='notifications'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.notifications ADD CONSTRAINT notifications_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='notifications'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.notifications ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='platform_earnings'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.platform_earnings ADD CONSTRAINT platform_earnings_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='platform_stats'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (date)')
+  THEN ALTER TABLE public.platform_stats ADD CONSTRAINT platform_stats_date_key UNIQUE (date); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='platform_stats'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.platform_stats ADD CONSTRAINT platform_stats_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='poll_votes'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.poll_votes ADD CONSTRAINT poll_votes_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='poll_votes'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.poll_votes ADD CONSTRAINT poll_votes_poll_id_fkey FOREIGN KEY (poll_id) REFERENCES polls(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='poll_votes'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (poll_id, user_id)')
+  THEN ALTER TABLE public.poll_votes ADD CONSTRAINT poll_votes_poll_id_user_id_key UNIQUE (poll_id, user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='poll_votes'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.poll_votes ADD CONSTRAINT poll_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='polls'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.polls ADD CONSTRAINT polls_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='premium_monthly_bonus_claims'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.premium_monthly_bonus_claims ADD CONSTRAINT premium_monthly_bonus_claims_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='premium_monthly_bonus_claims'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id)')
+  THEN ALTER TABLE public.premium_monthly_bonus_claims ADD CONSTRAINT premium_monthly_bonus_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='premium_monthly_bonus_claims'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, month_key)')
+  THEN ALTER TABLE public.premium_monthly_bonus_claims ADD CONSTRAINT premium_monthly_bonus_claims_user_id_month_key_key UNIQUE (user_id, month_key); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='premium_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (approved_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.premium_requests ADD CONSTRAINT premium_requests_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='premium_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.premium_requests ADD CONSTRAINT premium_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='premium_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reviewed_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.premium_requests ADD CONSTRAINT premium_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='premium_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.premium_requests ADD CONSTRAINT premium_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='profile_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.profile_requests ADD CONSTRAINT profile_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='profile_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (processed_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.profile_requests ADD CONSTRAINT profile_requests_processed_by_fkey FOREIGN KEY (processed_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='profile_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reviewed_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.profile_requests ADD CONSTRAINT profile_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='profile_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.profile_requests ADD CONSTRAINT profile_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='profile_requests'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id)')
+  THEN ALTER TABLE public.profile_requests ADD CONSTRAINT profile_requests_user_id_key UNIQUE (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='profile_updates'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.profile_updates ADD CONSTRAINT profile_updates_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='profile_updates'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.profile_updates ADD CONSTRAINT profile_updates_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='push_hook_config'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.push_hook_config ADD CONSTRAINT push_hook_config_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='rank_history'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.rank_history ADD CONSTRAINT rank_history_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='rank_history'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (season_id) REFERENCES rank_seasons(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.rank_history ADD CONSTRAINT rank_history_season_id_fkey FOREIGN KEY (season_id) REFERENCES rank_seasons(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='rank_history'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.rank_history ADD CONSTRAINT rank_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='rank_seasons'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.rank_seasons ADD CONSTRAINT rank_seasons_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='referrals'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.referrals ADD CONSTRAINT referrals_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='referrals'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.referrals ADD CONSTRAINT referrals_referred_id_fkey FOREIGN KEY (referred_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='referrals'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (referred_id)')
+  THEN ALTER TABLE public.referrals ADD CONSTRAINT referrals_referred_id_key UNIQUE (referred_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='referrals'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.referrals ADD CONSTRAINT referrals_referrer_id_fkey FOREIGN KEY (referrer_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='refund_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.refund_requests ADD CONSTRAINT refund_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='refund_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.refund_requests ADD CONSTRAINT refund_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='reports'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.reports ADD CONSTRAINT reports_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='reports'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reported_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.reports ADD CONSTRAINT reports_reported_id_fkey FOREIGN KEY (reported_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='reports'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.reports ADD CONSTRAINT reports_reporter_id_fkey FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='reward_redemptions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.reward_redemptions ADD CONSTRAINT reward_redemptions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='reward_store_items'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (name)')
+  THEN ALTER TABLE public.reward_store_items ADD CONSTRAINT reward_store_items_pkey PRIMARY KEY (name); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='scheduled_broadcasts'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.scheduled_broadcasts ADD CONSTRAINT scheduled_broadcasts_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sd_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (approved_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.sd_requests ADD CONSTRAINT sd_requests_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sd_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.sd_requests ADD CONSTRAINT sd_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sd_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reviewed_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.sd_requests ADD CONSTRAINT sd_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sd_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.sd_requests ADD CONSTRAINT sd_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='season_finalizations'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (season_name)')
+  THEN ALTER TABLE public.season_finalizations ADD CONSTRAINT season_finalizations_pkey PRIMARY KEY (season_name); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='season_pass_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.season_pass_requests ADD CONSTRAINT season_pass_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='season_pass_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.season_pass_requests ADD CONSTRAINT season_pass_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='season_stats'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (month_key, user_id)')
+  THEN ALTER TABLE public.season_stats ADD CONSTRAINT season_stats_pkey PRIMARY KEY (month_key, user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='seasonal_league_history'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.seasonal_league_history ADD CONSTRAINT seasonal_league_history_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='seasonal_league_history'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.seasonal_league_history ADD CONSTRAINT seasonal_league_history_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sponsored_prize_claims'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.sponsored_prize_claims ADD CONSTRAINT sponsored_prize_claims_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sponsored_prize_claims'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (prize_id) REFERENCES sponsored_prizes(id) ON DELETE SET NULL')
+  THEN ALTER TABLE public.sponsored_prize_claims ADD CONSTRAINT sponsored_prize_claims_prize_id_fkey FOREIGN KEY (prize_id) REFERENCES sponsored_prizes(id) ON DELETE SET NULL; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sponsored_prize_claims'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (sponsored_id) REFERENCES sponsored_prizes(id) ON DELETE SET NULL')
+  THEN ALTER TABLE public.sponsored_prize_claims ADD CONSTRAINT sponsored_prize_claims_sponsored_id_fkey FOREIGN KEY (sponsored_id) REFERENCES sponsored_prizes(id) ON DELETE SET NULL; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sponsored_prize_claims'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.sponsored_prize_claims ADD CONSTRAINT sponsored_prize_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sponsored_prizes'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.sponsored_prizes ADD CONSTRAINT sponsored_prizes_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='sponsored_tournaments'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.sponsored_tournaments ADD CONSTRAINT sponsored_tournaments_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='squad_finder'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.squad_finder ADD CONSTRAINT squad_finder_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='squad_finder'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.squad_finder ADD CONSTRAINT squad_finder_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='squad_finder'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id)')
+  THEN ALTER TABLE public.squad_finder ADD CONSTRAINT squad_finder_user_id_key UNIQUE (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='suggestion_rewards'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (suggestion_ref)')
+  THEN ALTER TABLE public.suggestion_rewards ADD CONSTRAINT suggestion_rewards_pkey PRIMARY KEY (suggestion_ref); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='suggestions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.suggestions ADD CONSTRAINT suggestions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='suggestions'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.suggestions ADD CONSTRAINT suggestions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='support_messages'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.support_messages ADD CONSTRAINT support_messages_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='support_messages'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.support_messages ADD CONSTRAINT support_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='support_messages'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.support_messages ADD CONSTRAINT support_messages_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='support_tickets'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.support_tickets ADD CONSTRAINT support_tickets_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='support_tickets'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.support_tickets ADD CONSTRAINT support_tickets_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='tds_held'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.tds_held ADD CONSTRAINT tds_held_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='tds_records'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.tds_records ADD CONSTRAINT tds_records_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='team_invitations'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (captain_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.team_invitations ADD CONSTRAINT team_invitations_captain_uid_fkey FOREIGN KEY (captain_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='team_invitations'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.team_invitations ADD CONSTRAINT team_invitations_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='team_invitations'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (member_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.team_invitations ADD CONSTRAINT team_invitations_member_uid_fkey FOREIGN KEY (member_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='team_invitations'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.team_invitations ADD CONSTRAINT team_invitations_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='team_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (leader_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.team_requests ADD CONSTRAINT team_requests_leader_uid_fkey FOREIGN KEY (leader_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='team_requests'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.team_requests ADD CONSTRAINT team_requests_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='team_requests'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.team_requests ADD CONSTRAINT team_requests_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='tournament_brackets'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.tournament_brackets ADD CONSTRAINT tournament_brackets_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='trial_log'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.trial_log ADD CONSTRAINT trial_log_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='trial_log'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.trial_log ADD CONSTRAINT trial_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_achievements'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.user_achievements ADD CONSTRAINT user_achievements_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_achievements'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, achievement_key)')
+  THEN ALTER TABLE public.user_achievements ADD CONSTRAINT user_achievements_user_id_achievement_key_key UNIQUE (user_id, achievement_key); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_achievements'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_achievements ADD CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_activities'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.user_activities ADD CONSTRAINT user_activities_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_activities'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_activities ADD CONSTRAINT user_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_cosmetics'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.user_cosmetics ADD CONSTRAINT user_cosmetics_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_cosmetics'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (user_id, cosmetic_key)')
+  THEN ALTER TABLE public.user_cosmetics ADD CONSTRAINT user_cosmetics_user_id_cosmetic_key_key UNIQUE (user_id, cosmetic_key); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_cosmetics'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_cosmetics ADD CONSTRAINT user_cosmetics_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_matches'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_matches ADD CONSTRAINT user_matches_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_matches'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.user_matches ADD CONSTRAINT user_matches_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_matches'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_matches ADD CONSTRAINT user_matches_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_roles'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (user_id)')
+  THEN ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_pkey PRIMARY KEY (user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_roles'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_sessions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.user_sessions ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_sessions'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_sessions ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_suggestions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.user_suggestions ADD CONSTRAINT user_suggestions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='user_suggestions'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.user_suggestions ADD CONSTRAINT user_suggestions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='users'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (ff_uid)')
+  THEN ALTER TABLE public.users ADD CONSTRAINT users_ff_uid_key UNIQUE (ff_uid); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='users'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (partner_uid) REFERENCES users(id)')
+  THEN ALTER TABLE public.users ADD CONSTRAINT users_partner_uid_fkey FOREIGN KEY (partner_uid) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='users'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='users'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (referral_code)')
+  THEN ALTER TABLE public.users ADD CONSTRAINT users_referral_code_key UNIQUE (referral_code); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='users'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (referred_by) REFERENCES users(id)')
+  THEN ALTER TABLE public.users ADD CONSTRAINT users_referred_by_fkey FOREIGN KEY (referred_by) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='users'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (rival_uid) REFERENCES users(id)')
+  THEN ALTER TABLE public.users ADD CONSTRAINT users_rival_uid_fkey FOREIGN KEY (rival_uid) REFERENCES users(id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='video_reports'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.video_reports ADD CONSTRAINT video_reports_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='video_reports'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (reporter_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.video_reports ADD CONSTRAINT video_reports_reporter_uid_fkey FOREIGN KEY (reporter_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='video_reports'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (video_id, reporter_uid)')
+  THEN ALTER TABLE public.video_reports ADD CONSTRAINT video_reports_video_id_reporter_uid_key UNIQUE (video_id, reporter_uid); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='video_watches'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.video_watches ADD CONSTRAINT video_watches_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='video_watches'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_uid) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.video_watches ADD CONSTRAINT video_watches_user_uid_fkey FOREIGN KEY (user_uid) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='voucher_redemptions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.voucher_redemptions ADD CONSTRAINT voucher_redemptions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='voucher_redemptions'
+                   AND co.contype='u' AND pg_get_constraintdef(co.oid)='UNIQUE (voucher_code, user_id)')
+  THEN ALTER TABLE public.voucher_redemptions ADD CONSTRAINT voucher_redemptions_voucher_code_user_id_key UNIQUE (voucher_code, user_id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='vouchers'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (code)')
+  THEN ALTER TABLE public.vouchers ADD CONSTRAINT vouchers_pkey PRIMARY KEY (code); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='wallet_audit_log'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.wallet_audit_log ADD CONSTRAINT wallet_audit_log_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='wallet_audit_log'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.wallet_audit_log ADD CONSTRAINT wallet_audit_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='wallet_transactions'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.wallet_transactions ADD CONSTRAINT wallet_transactions_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='wallet_transactions'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.wallet_transactions ADD CONSTRAINT wallet_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='watch_earn_log'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE SET NULL')
+  THEN ALTER TABLE public.watch_earn_log ADD CONSTRAINT watch_earn_log_match_id_fkey FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE SET NULL; END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='watch_earn_log'
+                   AND co.contype='p' AND pg_get_constraintdef(co.oid)='PRIMARY KEY (id)')
+  THEN ALTER TABLE public.watch_earn_log ADD CONSTRAINT watch_earn_log_pkey PRIMARY KEY (id); END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint co JOIN pg_class cl ON cl.oid=co.conrelid
+                 JOIN pg_namespace ns ON ns.oid=cl.relnamespace
+                 WHERE ns.nspname='public' AND cl.relname='watch_earn_log'
+                   AND co.contype='f' AND pg_get_constraintdef(co.oid)='FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE')
+  THEN ALTER TABLE public.watch_earn_log ADD CONSTRAINT watch_earn_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE; END IF;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+-- ══════════════ END SECTION 60 — consolidated final state ══════════════
 COMMIT;

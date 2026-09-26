@@ -7260,3 +7260,57 @@ touch them. Season finalization (`already_finalized`) and suggestion reward
 No UI redesign, no feature removal, no security weakening; Supabase remains the
 only financial authority; Firebase stays a request/status mirror; no
 service_role key in any frontend; financial RPC failure = operation failure.
+
+---
+
+## §61 — SCHEMA CONSOLIDATION + P0/P1/P2 FIXES (2026-09-26, evening round)
+
+### P0 — migration history sync (Supabase `supabase_migrations.schema_migrations`)
+The live DB carried hardening through R8, but the history table stopped at
+`20260920045314 add_users_self_update_column_guard`. **64 migrations
+that were applied but never recorded are now present in the history table**
+(105 → 169 rows, newest = `20260926000004 r8_final_db_hardening_merged_into_complete_schema_v33`).
+Every inserted row is explicitly named `*_merged_into_complete_schema_v33`,
+stores the original file's sha256 + full SQL in `statements`, and is idempotent
+(`ON CONFLICT (version) DO NOTHING`).
+Rollback if ever needed:
+`DELETE FROM supabase_migrations.schema_migrations WHERE name LIKE '%_merged_into_complete_schema_v33';`
+
+### COMPLETE_SCHEMA.sql v33 — all deltas merged, delta files deleted
+Every dated migration file that used to sit next to the schema (the list below)
+has been merged into **`COMPLETE_SCHEMA.sql` §60 “CONSOLIDATED FINAL STATE”** and
+deleted. §60 was generated from the **live database**, so the file reproduces the
+live schema exactly — verified by applying it twice and comparing a full schema
+fingerprint (functions+ACL, tables, columns, constraints, indexes, triggers,
+policies, RLS, views, sequences, raw relacl/attacl): identical hash both times.
+
+- Merged + removed: 64 files (2026-08-22-SESSION-DELTA.sql … 2026-09-26d-R8-FINAL-DB-HARDENING.sql).
+- Kept in the folder: `COMPLETE_SCHEMA.sql` (single source of truth),
+  `DEVELOPER_GUIDE.md`, `R8_FINAL_REPORT.md`.
+- §60 covers: 6 tables that existed only in deltas (ad_reward_log,
+  reward_redemptions, reward_store_items, season_finalizations,
+  suggestion_rewards, voucher_redemptions) · 107 columns added after the last
+  hand-edit · 21 functions whose final live body differed from the file (incl.
+  R8's `admin_adjust_wallet` row-lock, `admin_gateway_exec`, `check_in_match`,
+  `confirm_in_room`, `publish_match_results`, `decrement_balance`,
+  `clamp_join_requests_client_update`, `fft_guard_wallet_insert`, `join_clan`, …)
+  · 6 R8 guard triggers · 139 missing indexes · 216 live policies re-declared
+  (drop + create) · RLS on all 106 tables · 260 guarded constraint blocks ·
+  full function/table/column privilege (ACL) state incl. the 27 admin-only
+  service_role-only functions from R8 FIX#2.
+
+### P1 — `leaveClan()`: canonical RPC is the sole authority (user panel)
+`js/bugfix-v30-final.js`: the direct-Supabase fallback
+(`clan_members.delete()` → `users.update({clan_id:null})`) is **removed**.
+`leave_clan` is the only path: it verifies the caller server-side, moves
+membership + clan counter + user pointer atomically, and a failed RPC now
+surfaces the error and changes nothing locally (no silent direct write).
+Handles the RPC's `{ok:false,error}` contract explicitly.
+
+### P2 — clan self-heal variable-order fix (user panel)
+`js/bugfix-v30-final.js` `_doCreateClan`: the orphaned-pointer self-heal ran
+`await _s().from('users').update({clan_id:null}).eq('id', uid)` **before**
+`var uid = _uid();` was declared — var-hoisting made `uid` `undefined`, so the
+heal silently did nothing (exactly the lockout it was written to prevent).
+`uid` is now declared before the block; `joinClan`’s self-heal normalised the
+same way (no behaviour change there).

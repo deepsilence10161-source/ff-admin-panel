@@ -73,6 +73,8 @@ Re-run after the fix (`GET /v1/projects/<ref>/advisors/security`, snapshot in `t
 
 - **Migration (single, consolidated):** `sql and developer guide/2026-09-26d-R8-FINAL-DB-HARDENING.sql`
   - **Applied status:** applied in two phases (phase 1 = wrapper + FIX #1 + REVOKE/GRANT of the wrapper; phase 2 = FIX #2b revoke loop + FIX #3), then **re-applied twice in full** as one script — 0 errors, idempotent.
+
+> **Merge note (2026-09-26, later round):** this migration was merged into `COMPLETE_SCHEMA.sql` v33 §60 and the standalone file deleted; its history is recorded in `supabase_migrations.schema_migrations` as `20260926000004 r8_final_db_hardening_merged_into_complete_schema_v33`. See DEVELOPER_GUIDE.md §61.
   - Contents: FIX #1 row lock · FIX #2a `admin_gateway_exec` · FIX #2b 27-function EXECUTE cleanup loop · FIX #3 `CREATE TABLE IF NOT EXISTS` + `ENABLE ROW LEVEL SECURITY` + grants/revokes · read-only sanity SELECT. No secrets/credentials.
 - **Edge Function:** `admin-gateway` (id `7fd35b96-4839-4e35-8637-c3797d009a3d`, slug `admin-gateway`, `verify_jwt=false`, deployed **version 4**).
 - **Client:** `js/r8-admin-gateway-shim.js` (both panels), loaded after the supabase-js UMD/compat layer (admin) / before `core/db.js` (user); admin repo HEAD `4213dca`, user repo HEAD `fb3317b`.
