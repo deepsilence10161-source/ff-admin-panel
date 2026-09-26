@@ -17285,9 +17285,15 @@ BEGIN
     FOR v_i IN 1 .. array_length(v_names, 1) LOOP
       CONTINUE WHEN NOT (v_args ? v_names[v_i]);
       IF v_types[v_i] = 'jsonb' THEN
-        v_parts := v_parts || format('%I => $1', v_names[v_i]);
+        /* pass the ARGUMENT VALUE (not the whole args object) */
+        v_parts := v_parts || format('%I => ($1 -> %L)', v_names[v_i], v_names[v_i]);
+      ELSIF right(v_types[v_i], 2) = '[]' THEN
+        /* JSON array → typed array, element-cast, empty array safe */
+        v_parts := v_parts || format(
+          '%I => (SELECT COALESCE(array_agg(e::%s), ARRAY[]::%s[]) FROM jsonb_array_elements_text($1 -> %L) AS e)',
+          v_names[v_i], left(v_types[v_i], -2), left(v_types[v_i], -2), v_names[v_i]);
       ELSE
-        v_parts := v_parts || format('%I => ($2->>%L)::%s', v_names[v_i], v_names[v_i], v_types[v_i]);
+        v_parts := v_parts || format('%I => ($1 ->> %L)::%s', v_names[v_i], v_names[v_i], v_types[v_i]);
       END IF;
     END LOOP;
     v_sql := format('SELECT to_jsonb(public.%I(%s))', p_fn, array_to_string(v_parts, ', '));
@@ -17298,7 +17304,7 @@ BEGIN
     jsonb_build_object('sub', p_actor, 'role', 'authenticated', 'aud', 'authenticated')::text,
     true);
 
-  EXECUTE v_sql USING v_args, v_args INTO v_result;
+  EXECUTE v_sql USING v_args INTO v_result;
   RETURN COALESCE(v_result, '{}'::jsonb);
 
 EXCEPTION WHEN OTHERS THEN
@@ -17807,6 +17813,93 @@ BEGIN
 END;
 $function$;
 
+-- contribute_to_squad_bank(p_clan_id uuid, p_uid text, p_amount numeric) [UPDATED]
+CREATE OR REPLACE FUNCTION public.contribute_to_squad_bank(p_clan_id uuid, p_uid text, p_amount numeric)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller       TEXT := auth.jwt() ->> 'sub';
+  v_balance      NUMERIC;
+  v_ign          TEXT;
+  v_contributors JSONB;
+  v_prior        JSONB;
+  v_clan_ok      BOOLEAN;
+  v_is_member    BOOLEAN;
+BEGIN
+  -- 🔒 R3 P0 FIX (2026-09-23): SECDEF NULL-caller trap — fail-closed.
+  --    पहले `IS NOT NULL AND <>` था ⇒ anon (NULL caller) पर guard skip होकर
+  --    किसी भी user का GD काट सकता था (fake clan में burn). अब कोई identity
+  --    न हो तो तुरंत रोक। service_role इस RPC को बुलाता ही नहीं (client-केवल)।
+  IF v_caller IS NULL OR v_caller <> p_uid THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+
+  IF p_amount IS NULL OR p_amount < 1 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Invalid amount');
+  END IF;
+
+  -- 🔒 R3 P0 FIX (2026-09-23): clan exist + membership — पहले fake/nonexistent
+  --    clan_id से भी debit हो जाता था (join update no-op) और GD गायब (=burn).
+  SELECT EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id) INTO v_clan_ok;
+  IF NOT v_clan_ok THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Clan not found');
+  END IF;
+  -- R8 FINAL FIX: creator/leader is counted as a member WITHOUT a
+  -- clan_members row → leader apne clan ke squad bank me contribute nahi kar
+  -- sakta tha. Baaki sab guard (caller==p_uid, amount, balance, FOR UPDATE) same.
+  SELECT EXISTS (
+    SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_uid
+  ) OR EXISTS (
+    SELECT 1 FROM clans WHERE id = p_clan_id AND leader_uid = p_uid
+  ) INTO v_is_member;
+  IF NOT v_is_member THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not a member of this clan');
+  END IF;
+
+  SELECT green_diamonds, COALESCE(ign, 'Player') INTO v_balance, v_ign
+  FROM users WHERE id = p_uid FOR UPDATE;
+  IF v_balance IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'User not found');
+  END IF;
+  IF v_balance < p_amount THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Insufficient balance');
+  END IF;
+
+  -- Counterparty row lock — ab exist प्रमाणित है, race-safe read+update.
+  PERFORM 1 FROM clans WHERE id = p_clan_id FOR UPDATE;
+
+  UPDATE users
+     SET green_diamonds = green_diamonds - p_amount
+   WHERE id = p_uid;
+
+  -- 🔒 R3 P1 FIX (2026-09-23, observability/audit): ye debit ka koi
+  --    wallet_transactions ledger row nahi tha (baaki sab money RPCs की
+  --    तरह) — GD ab contribution trace hota hai.
+  INSERT INTO wallet_transactions(user_id, currency, txn_type, amount, reason, ref_id, status)
+  VALUES (p_uid, 'green_diamonds', 'debit', p_amount, 'squad_bank_contribution', p_clan_id::text, 'approved');
+
+  SELECT squad_bank_contributors INTO v_contributors FROM clans WHERE id = p_clan_id;
+  v_contributors := COALESCE(v_contributors, '{}'::JSONB);
+  v_prior := COALESCE(v_contributors -> p_uid, '{}'::JSONB);
+
+  UPDATE clans
+     SET squad_bank_gd = COALESCE(squad_bank_gd, 0) + p_amount,
+         squad_bank_contributors = v_contributors || jsonb_build_object(
+           p_uid, jsonb_build_object(
+             'ign', v_ign,
+             'gd', COALESCE((v_prior->>'gd')::NUMERIC, 0) + p_amount,
+             'last_contributed', NOW()
+           )
+         )
+   WHERE id = p_clan_id;
+
+  RETURN jsonb_build_object('ok', true, 'amount', p_amount);
+END;
+$function$;
+
 -- decrement_balance(p_uid text, p_col text, p_amount numeric) [UPDATED]
 CREATE OR REPLACE FUNCTION public.decrement_balance(p_uid text, p_col text, p_amount numeric)
  RETURNS jsonb
@@ -18202,6 +18295,99 @@ BEGIN
 END;
 $function$;
 
+-- increment_clan_score(p_clan_id uuid, p_score integer, p_kills integer, p_wins integer) [UPDATED]
+CREATE OR REPLACE FUNCTION public.increment_clan_score(p_clan_id uuid, p_score integer DEFAULT 1, p_kills integer DEFAULT 0, p_wins integer DEFAULT 0)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller     TEXT := auth.jwt() ->> 'sub';
+  v_is_service BOOLEAN := (current_setting('role', true) = 'service_role');
+  v_is_member  BOOLEAN;
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_caller IS NULL THEN
+      RAISE EXCEPTION 'Not authorized — no caller identity';
+    END IF;
+    -- R8 FINAL FIX: creator/leader is counted in total_members WITHOUT a
+    -- clan_members row → leader ke apne match ka score silently drop ho raha tha.
+    SELECT EXISTS (SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = v_caller)
+        OR EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id AND leader_uid = v_caller)
+      INTO v_is_member;
+    IF NOT v_is_member THEN
+      RAISE EXCEPTION 'Not a member of this clan';
+    END IF;
+  END IF;
+
+  IF p_score < 0 OR p_kills < 0 OR p_wins < 0 OR p_score > 30 OR p_kills > 30 OR p_wins > 1 THEN
+    RAISE EXCEPTION 'Score/kills/wins must be non-negative';
+  END IF;
+
+  UPDATE clans SET
+    weekly_score = COALESCE(weekly_score, 0) + p_score,
+    total_kills  = COALESCE(total_kills, 0)  + p_kills,
+    total_wins   = COALESCE(total_wins, 0)   + p_wins
+  WHERE id = p_clan_id;
+END;
+$function$;
+
+-- join_clan(p_user_id text, p_clan_id uuid, p_role text) [UPDATED]
+CREATE OR REPLACE FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text DEFAULT 'member'::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller TEXT := auth.jwt() ->> 'sub';
+  v_already BOOLEAN;
+  v_is_leader BOOLEAN;
+  v_count INT;
+BEGIN
+  IF v_caller IS NULL OR v_caller <> p_user_id THEN
+    RAISE EXCEPTION 'NOT_AUTHORIZED';
+  END IF;
+  p_role := 'member';
+  IF NOT EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Clan not found');
+  END IF;
+  SELECT EXISTS (SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_user_id) INTO v_already;
+  SELECT EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id AND leader_uid = p_user_id) INTO v_is_leader;
+  SELECT COUNT(*) + CASE WHEN EXISTS (
+           SELECT 1 FROM clans c
+            WHERE c.id = p_clan_id AND c.leader_uid IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM clan_members m2 WHERE m2.clan_id = c.id AND m2.user_id = c.leader_uid)
+         ) THEN 1 ELSE 0 END
+    INTO v_count FROM clan_members WHERE clan_id = p_clan_id;
+  IF NOT v_already AND NOT v_is_leader AND v_count >= 10 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'clan_full');
+  END IF;
+  IF v_already THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Already in clan');
+  END IF;
+  IF v_is_leader THEN
+    RETURN jsonb_build_object('ok', true, 'already_member', true, 'leader', true);
+  END IF;
+  INSERT INTO clan_members(clan_id, user_id, role) VALUES(p_clan_id, p_user_id, p_role);
+  UPDATE clans c
+     SET total_members = (SELECT count(*) FROM clan_members m WHERE m.clan_id = c.id)
+       + CASE WHEN c.leader_uid IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM clan_members m2 WHERE m2.clan_id = c.id AND m2.user_id = c.leader_uid)
+              THEN 1 ELSE 0 END
+   WHERE c.id = p_clan_id;
+  UPDATE users SET clan_id = p_clan_id::TEXT WHERE id = p_user_id;
+  RETURN jsonb_build_object('ok', true);
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Already in clan');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error',
+      CASE SQLERRM WHEN 'NOT_AUTHORIZED' THEN 'Not authorized' ELSE SQLERRM END);
+END;
+$function$;
+
 -- join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) [UPDATED]
 CREATE OR REPLACE FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text DEFAULT 'member'::text, p_ign text DEFAULT NULL::text, p_max_members integer DEFAULT NULL::integer)
  RETURNS jsonb
@@ -18211,6 +18397,7 @@ CREATE OR REPLACE FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_ro
 AS $function$
 DECLARE
   v_already BOOLEAN;
+  v_is_leader BOOLEAN;
   v_caller  TEXT := auth.jwt() ->> 'sub';
   v_count   INT;
   v_cap     INT;
@@ -18228,19 +18415,36 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'clan_disbanded');
   END IF;
 
-  SELECT COUNT(*) INTO v_count FROM clan_members WHERE clan_id = p_clan_id;
+  SELECT EXISTS (SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_user_id)
+    INTO v_already;
+  -- R8 FINAL FIX: the creator/leader is counted in total_members WITHOUT a
+  -- clan_members row — a leader re-join used to insert a row and bump the
+  -- counter again (drift). Leader = already a member, idempotent success.
+  SELECT EXISTS (SELECT 1 FROM clans WHERE id = p_clan_id AND leader_uid = p_user_id)
+    INTO v_is_leader;
+
+  -- membership_count = rows + (leader, agar uska row na ho)
+  SELECT COUNT(*) + CASE WHEN EXISTS (
+           SELECT 1 FROM clans c
+            WHERE c.id = p_clan_id AND c.leader_uid IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM clan_members m2
+                               WHERE m2.clan_id = c.id AND m2.user_id = c.leader_uid)
+         ) THEN 1 ELSE 0 END
+    INTO v_count
+    FROM clan_members WHERE clan_id = p_clan_id;
+
   -- Server-side cap: NEVER trust client p_max_members beyond the product
   -- ceiling (v30 MAX_MEMBERS = 10); clamp into [1..10], default 10.
   v_cap := LEAST(GREATEST(COALESCE(p_max_members, 10), 1), 10);
-  IF v_count >= v_cap THEN
+  IF NOT v_already AND NOT v_is_leader AND v_count >= v_cap THEN
     RETURN jsonb_build_object('ok', false, 'error', 'clan_full');
   END IF;
 
-  SELECT EXISTS(
-    SELECT 1 FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_user_id
-  ) INTO v_already;
   IF v_already THEN
     RETURN jsonb_build_object('ok', false, 'error', 'Already in clan');
+  END IF;
+  IF v_is_leader THEN
+    RETURN jsonb_build_object('ok', true, 'already_member', true, 'leader', true);
   END IF;
 
   IF EXISTS (SELECT 1 FROM clan_members WHERE user_id = p_user_id) THEN
@@ -18248,7 +18452,13 @@ BEGIN
   END IF;
 
   INSERT INTO clan_members(clan_id, user_id, role) VALUES(p_clan_id, p_user_id, p_role);
-  UPDATE clans SET total_members = COALESCE(total_members, 0) + 1 WHERE id = p_clan_id;
+  -- count-exact (never a blind +1 → no drift on retries/legacy rows)
+  UPDATE clans c
+     SET total_members = (SELECT count(*) FROM clan_members m WHERE m.clan_id = c.id)
+       + CASE WHEN c.leader_uid IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM clan_members m2 WHERE m2.clan_id = c.id AND m2.user_id = c.leader_uid)
+              THEN 1 ELSE 0 END
+   WHERE c.id = p_clan_id;
   UPDATE users SET clan_id = p_clan_id::TEXT WHERE id = p_user_id;
   RETURN jsonb_build_object('ok', true);
 EXCEPTION
@@ -18257,6 +18467,41 @@ EXCEPTION
   WHEN OTHERS THEN
     RETURN jsonb_build_object('ok', false, 'error',
       CASE SQLERRM WHEN 'NOT_AUTHORIZED' THEN 'Not authorized' ELSE SQLERRM END);
+END;
+$function$;
+
+-- leave_clan(p_user_id text, p_clan_id uuid) [UPDATED]
+CREATE OR REPLACE FUNCTION public.leave_clan(p_user_id text, p_clan_id uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_caller      TEXT := auth.jwt() ->> 'sub';
+  v_real_leader TEXT;
+BEGIN
+  -- 🔒 R3 P1 FIX (2026-09-23): NULL-caller fail-closed.
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+  END IF;
+  IF v_caller <> p_user_id THEN
+    SELECT leader_uid INTO v_real_leader FROM clans WHERE id = p_clan_id;
+    IF v_real_leader IS DISTINCT FROM v_caller THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'Not authorized');
+    END IF;
+  END IF;
+
+  DELETE FROM clan_members WHERE clan_id = p_clan_id AND user_id = p_user_id;
+  -- count-exact (member row gone → recompute; leader counted when row-less)
+  UPDATE clans c
+     SET total_members = (SELECT count(*) FROM clan_members m WHERE m.clan_id = c.id)
+       + CASE WHEN c.leader_uid IS NOT NULL
+               AND NOT EXISTS (SELECT 1 FROM clan_members m2 WHERE m2.clan_id = c.id AND m2.user_id = c.leader_uid)
+              THEN 1 ELSE 0 END
+   WHERE c.id = p_clan_id;
+  UPDATE users SET clan_id = NULL WHERE id = p_user_id;
+  RETURN jsonb_build_object('ok', true);
 END;
 $function$;
 
@@ -19425,10 +19670,10 @@ REVOKE ALL ON FUNCTION public.fft_guard_match_results_write() FROM PUBLIC, anon,
 GRANT EXECUTE ON FUNCTION public.fft_guard_match_results_write() TO service_role;
 REVOKE ALL ON FUNCTION public.fft_guard_wallet_insert() FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.fft_guard_wallet_insert() TO service_role;
-REVOKE ALL ON FUNCTION public.finalize_creator_commission(p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.finalize_creator_commission(p_match_id text) TO service_role;
 REVOKE ALL ON FUNCTION public.finalize_creator_commission(p_match_id text, p_internal boolean) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.finalize_creator_commission(p_match_id text, p_internal boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.finalize_creator_commission(p_match_id text) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.finalize_creator_commission(p_match_id text) TO service_role;
 REVOKE ALL ON FUNCTION public.form_auto_squad_team(p_match_id text, p_mode text, p_needed integer) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.form_auto_squad_team(p_match_id text, p_mode text, p_needed integer) TO anon, service_role;
 REVOKE ALL ON FUNCTION public.get_my_poll_vote(p_poll_id uuid) FROM PUBLIC, anon, authenticated, service_role;
@@ -19478,10 +19723,10 @@ REVOKE ALL ON FUNCTION public.is_caller_admin() FROM PUBLIC, anon, authenticated
 GRANT EXECUTE ON FUNCTION public.is_caller_admin() TO anon, service_role;
 REVOKE ALL ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.join_auto_squad_queue(p_match_id text, p_mode text) TO anon, service_role;
-REVOKE ALL ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) TO anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text) TO anon, service_role;
+REVOKE ALL ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.join_clan(p_user_id text, p_clan_id uuid, p_role text, p_ign text, p_max_members integer) TO anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.join_match_team(p_match_id text, p_mode text, p_fee_type text, p_team jsonb) TO anon, service_role;
 REVOKE ALL ON FUNCTION public.leave_clan(p_user_id text, p_clan_id uuid) FROM PUBLIC, anon, authenticated, service_role;

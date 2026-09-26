@@ -7314,3 +7314,48 @@ Handles the RPC's `{ok:false,error}` contract explicitly.
 heal silently did nothing (exactly the lockout it was written to prevent).
 `uid` is now declared before the block; `joinClan`’s self-heal normalised the
 same way (no behaviour change there).
+
+### §61.1 — Deep live-flow testing ke dauraan mile 3 asli bug (fix + verified)
+
+In the end-to-end live flow sweep (79 checks across profile/wallet/match/team/clan/
+notification/premium/suggestion/leaderboard/admin), three **real defects** surfaced
+that the unit-level suites had not caught. All three are fixed live, folded into
+`COMPLETE_SCHEMA.sql` §60, and re-verified:
+
+1. **`admin_gateway_exec` — jsonb arguments were mangled (trusted-path defect).**
+   The dispatcher emitted `"p_results" => $1` (the whole args object) for any
+   parameter declared `jsonb`, so `publish_match_results` always answered
+   *"p_results must be an array"* — i.e. **match results could not be published
+   through the R8 trusted gateway at all**. Fixed: `"p_results" => ($1 -> 'p_results')`;
+   array-typed params (`text[]` etc.) are now converted via `jsonb_array_elements_text`
+   with an element cast and empty-array safety (no `%s`-style JSON literal cast).
+   Verified: publish via gateway returns `{"ok":true,"players":1,"winners":1,...}`,
+   winner wallet credited (prize 65 = rank 50 + 3 kills × 5), ledger row written,
+   re-publish (correction) does **not** double-credit.
+2. **Clan counter drift — `join_clan` was not idempotent for the leader.**
+   The creator/leader is counted in `clans.total_members` **without** a
+   `clan_members` row, so a leader re-join inserted a row and bumped the counter
+   again (1→2 for a one-member clan; drift then propagated: member join 2→3,
+   leave 3→2). Fixed in both `join_clan` overloads: leader = already a member
+   (`{"ok":true,"already_member":true,"leader":true}`, no insert, no bump) and the
+   counter is now **count-exact** (`rows + (leader row-less ? 1 : 0)`) instead of a
+   blind `+1`; `leave_clan` recomputes the same way (never negative, retry-safe).
+   One-time data repair included for pre-existing drifted counters.
+   Verified step-by-step: create=1 · join=2 · duplicate join=2 · leader re-join=2 ·
+   leave=1 · double leave=1 — counter == truth at every step.
+3. **Clan leader could not earn clan score or contribute to the squad bank.**
+   `increment_clan_score` and `contribute_to_squad_bank` gated on a
+   `clan_members` row, which the leader does not have → the leader's own match
+   score was silently dropped and the bank refused the leader's GD. Fixed: leader
+   counts as a member (both RPCs). All other guards untouched — caller == `p_uid`,
+   amount validation, `FOR UPDATE` lock ordering, balance check.
+   Verified live: leader contributes 2 GD → GD 16→14, `squad_bank_gd` 0→2,
+   ledger row `green_diamonds / debit / squad_bank_contribution / approved`,
+   contributors jsonb keeps its `{gd, ign, last_contributed}` shape;
+   leader score +7 with kills/wins applied. Test data reverted, balance restored.
+
+**Privilege note (unchanged):** no `REVOKE`/`GRANT` was added or removed by these
+three fixes — they are body-only corrections, so the R8 FIX#2 EXECUTE matrix
+(anon ✗ / authenticated ✗ / admin-via-gateway ✓ / service_role ✓) is untouched.
+Re-verified after the fixes: schema fingerprint idempotent (`2054/2054` statements,
+pre == post), user smoke **56/0**, admin smoke **59/0**, deep flow suite **79/0**.
