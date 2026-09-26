@@ -7359,3 +7359,29 @@ three fixes — they are body-only corrections, so the R8 FIX#2 EXECUTE matrix
 (anon ✗ / authenticated ✗ / admin-via-gateway ✓ / service_role ✓) is untouched.
 Re-verified after the fixes: schema fingerprint idempotent (`2054/2054` statements,
 pre == post), user smoke **56/0**, admin smoke **59/0**, deep flow suite **79/0**.
+
+### §61.2 — Remaining-items closure (2026-09-26, later round)
+
+5 bacha hua items yahi round me close hue — evidence **artifacts ke saath**, sirf claims nahi:
+
+| Item | Status | Kahan dekho |
+|---|---|---|
+| 1. SECURITY DEFINER RPC final classification | ✅ **52/52 functions individually probed + classified** | `SECURITY_DEFINER_CLASSIFICATION.md` (+ `_r8e_results/classification.json`) |
+| 2. Adversarial / race testing | ✅ **17/17 PASS** — 6× parallel join, 5× clan join, 3× publish, 4× suggestion reward, 4× voucher, 4× withdrawal, 4× squad-bank spend, 3× check-in | `_r8e_results/adversarial.json` (+ `R8_FINAL_AUDIT_REPORT.md` §3) |
+| 3. Advisor cleanup / classification | ✅ Har lint classify hua (vulnerability vs intentional public RPC) — mapping table doc me | `SECURITY_DEFINER_CLASSIFICATION.md` §5 |
+| 4. Fresh final audit report | ✅ Admin `59/0` + User `56/0` + flow `79/0` + race `17/0`, live DB lock, artifact hashes | `R8_FINAL_AUDIT_REPORT.md` |
+| 5. Secrets | ✅ **Audited, koi fix karne ki zaroorat nahi thi** — 195 files scan, `service_role` JWT = 0; Paytm/service-role keys sirf edge-function env me rehte hain (documented) | `R8_FINAL_AUDIT_REPORT.md` §5 |
+
+**Classification summary:** 37 user-action self-service RPC · 7 user-action domain RPC · 8 restricted
+(service/role-gated) — sab par `search_path` pinned, sab ne no-JWT aur impersonation probe block kiya,
+sweep ke dauraan wallet/ledger/joins par **ek bhi side-effect nahi**. Admin-only 27 RPCs par anon
+EXECUTE = 0 (unchanged).
+
+**Ek honest note:** `user_has_phone(p_phone)` ek authenticated user ko ye bata sakta hai ki koi phone
+number registered hai ya nahi (enumeration oracle). Ye existing product behaviour hai (is scope ka part
+nahi tha), isliye as-is rakha — doc me explicitly likha gaya hai; aage chaho to check ko verification
+flow me server-side move karke band kar sakte ho.
+
+**Security note (chhota, operator ke liye):** ek shell error traceback me GitHub token ki value
+inadvertently echo ho gayi thi (local sandbox output). Koi third-party exposure nahi hui, lekin
+caution ke liye aap chahein to us token ko rotate kar sakte hain.
