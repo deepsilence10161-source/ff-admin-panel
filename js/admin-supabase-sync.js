@@ -467,9 +467,16 @@
          Split out into admin_sync_user_balance, a dedicated admin-checked
          RPC for exactly this "mirror Firebase's current value into
          Supabase" legacy-sync use case. */
-      var coinsVal = Number(u.coins) || 0;
-      var skyVal = Number(u.skyDiamonds || (u.realMoney && u.realMoney.deposited) || 0);
-      var greenVal = Number(u.greenDiamonds || (u.realMoney && u.realMoney.winnings) || 0);
+      /* R8 (2026-09-26c): Firebase→Supabase balance OVERWRITE retired.
+         Firebase ab authoritative balance source NAHI hai — Supabase wallet
+         economy authoritative hai, isliye ye blind p_coins/p_sky/p_green
+         mirror-set (jo Supabase ki sahi balance ko Firebase ki stale value se
+         overwrite kar sakta tha) ab disabled hai. Yahan sirf non-financial
+         ban/stats/ign/city mirror hota hai. Koi manual reconcile chahiye ho
+         to admin_sync_user_balance(p_uid, coins, sky, green, reason) kahin
+         se direct karo — wo DELTA + ledger + before/after audit karta hai,
+         kabhi blind overwrite nahi. */
+      var coinsVal = 0, skyVal = 0, greenVal = 0;
 
       /* Only sync key fields to avoid excessive writes */
       var upd = {
@@ -481,17 +488,12 @@
       if (u.ign) upd.ign = u.ign;
       if (u.city) upd.city = u.city;
 
-      var _fingerprint = JSON.stringify({ coinsVal: coinsVal, skyVal: skyVal, greenVal: greenVal, upd: upd });
+      var _fingerprint = JSON.stringify({ upd: upd });
       if (_lastSyncedUser[uid] === _fingerprint) return; /* our own echo */
       _lastSyncedUser[uid] = _fingerprint;
 
-      window._supa.rpc('admin_sync_user_balance', {
-        p_uid: uid, p_coins: coinsVal, p_sky_diamonds: skyVal, p_green_diamonds: greenVal
-      }).then(function(res) {
-        if (res && (res.error || (res.data && res.data.success === false))) {
-          console.error('[AdminSync] balance sync FAILED for', uid, ':', res.error ? res.error.message : res.data.error);
-        }
-      });
+      /* R8: NO admin_sync_user_balance call here anymore — Supabase balance
+         is authoritative and must not be overwritten from Firebase watchers. */
       window._supa.from('users').update(upd).eq('id', uid).then(function(res) {
         /* This is the main bans/stats sync path — a failure here means a
            user's Firebase-side ban status silently never reaches

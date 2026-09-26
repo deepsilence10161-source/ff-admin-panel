@@ -952,16 +952,14 @@ window.adminCancelPremium = async function (uid) {
 patchWhenReady('endCurrentSeason', function () {
   var _orig = window.endCurrentSeason;
   window.endCurrentSeason = async function () {
+    /* R8 (2026-09-26c): Bug#97 ka bulk client-side users.update({rank_points:0,
+       win_streak:0}) RETIRED — admin_end_current_season RPC ab rank_points +
+       win_streak reset bhi apni single txn me server-side karta hai (aur
+       idempotent hai — season_finalizations marker). Bulk client UPDATE
+       non-atomic tha aur RPC ke saath drift kar sakta tha. */
     await _orig.apply(this, arguments);
-    /* FIX Bug#97: Reset rankPoints/rank_points for all users in Supabase */
-    var supa = getSupa();
-    if (supa) {
-      supa.from('users').update({ rank_points: 0, win_streak: 0 }).neq('id', 'placeholder')
-        .catch(function (e) { console.warn('[v21 Bug#97] endCurrentSeason Supabase reset:', e.message); });
-    }
-    console.log('[v21 Bug#97] endCurrentSeason: rank_points reset in Supabase');
   };
-  console.log('[v21] Bug#97 fix: endCurrentSeason resets Supabase rank_points applied');
+  console.log('[v21] Bug#97 fix: endCurrentSeason now uses the atomic RPC (no client bulk reset)');
 });
 
 /* Manual season reset trigger (Bug#97) */

@@ -7140,3 +7140,54 @@ admin RPCs; authenticated stays 0). No legacy direct money-write remains in repo
 **Warning:** season-end reward formula/tier/promise values SHARED with client
 helpers (`supabase-init-early.js` calcRkScore/calcRk/calcSeasonReward) — server
 RPC must stay in lockstep with those if display changes.
+
+---
+
+## §59 — R8 ONE-CLICK FINAL SECURITY + FINANCIAL HARDENING (2026-09-26c)
+
+Consolidated delta: `sql and developer guide/2026-09-26c-R8-FINAL-HARDENING.sql`
+(already applied to Supabase; idempotent — safe to re-run).
+
+### What R8 closed (empirically-proven holes → fix)
+
+| Item | Was (exploit) | Now |
+|---|---|---|
+| P5 signup mint | `users_insert_own` let a new user preset `coins/green_diamonds/is_admin` | `guard_users_insert` BEFORE INSERT hard-resets economy/admin/status/creator/referral columns to safe defaults for any non-service, non-admin INSERT |
+| P6 clan mint | `clans_insert_auth` let preset `squad_bank_gd/leader_uid/score` | `guard_clans_insert` forces leader=caller, total_members=1, zero economy/unlocked/contributors |
+| P4 notification spoof | regular user could notify ANY target via whitelist types | `guard_notification_insert` BEFORE INSERT: self-OK; cross-user only when the peer relationship actually exists (friendship/duel/mentorship/clan-war/clan-cosmetic/matched-team/active-squad-listing); broadcast `target_all` admin-only. `team_formed` added to RLS whitelist (relationship-gated) |
+| P3c deposit inflation | `pending_deposit` self-rows with absurd amount / wrong currency | `fft_guard_wallet_insert` tightened: currency must be `sky_diamonds`, amount 1..100000, own row only |
+| P1 join_requests authority | client could UPDATE `status/kills/placement/prize_earned/entry_fee_paid` | `clamp_join_requests_client_update` now freezes ALL authoritative columns (id/match_id/user_id/status/entry_type/entry_fee/entry_fee_paid/fee_type/mode/captain_uid/squad_members/prize_earned/placement/kills/checked_in/checkin_at/in_room/in_room_at/attendance_status/slot_number) for non-admin clients |
+| P8 season double-reward | `admin_end_current_season` re-click → duplicate rewards | `season_finalizations(season_name PK)` marker + `ON CONFLICT DO NOTHING`; second call → `already_finalized`. rank_points/win_streak reset folded in server-side |
+| P7 suggestion double-credit | `admin_reward_suggestion` call twice → double credit | `suggestion_rewards` marker; pending→rewarded exactly once; `already_rewarded` on repeat; real_money→green_diamonds per owner decision |
+| P10 balance overwrite | `admin_sync_user_balance` blind Firebase→Supabase overwrite | audited reconciliation: before/after/delta ledger rows + reason; never a blind overwrite. `js/admin-supabase-sync.js` no longer calls it from Firebase watchers |
+| P10/P20 decrement_balance | read-then-write TOCTOU | `FOR UPDATE` row lock, no negative, own-uid only, allowed-columns whitelist |
+| P25 room creds leak | public `matches` SELECT could expose `room_id/room_password` | `guard_matches_room_secrets` trigger NULLs/freezes those vestigial columns for non-admin clients (authoritative creds live in `match_rooms`, admin-read-only RLS) |
+| P22 attendance | client wrote `checked_in/in_room` directly | new RPCs `check_in_match(p_match_id)` (server-validates open/close window) and `confirm_in_room(p_join_id)` (caller=own join, FOR UPDATE) |
+| Clan join | `join_clan` 3-arg signature mismatch vs v30 client 4-arg call + no member cap | new 5-arg overload (`p_ign` ignored, `p_max_members` clamped 1..10, default 10) + caller-identity + disbanded/full/duplicate checks; grants: anon/authenticated/service_role |
+
+### Client rewires (user repo)
+- `core/db.js` — `joinRequests.create` → `validate_and_join_match`; `checkIn` → `check_in_match`; `confirmInRoom` → `confirm_in_room`; `setStatus`/`setResult` RETIRED (loud no-op — user JWT never could).
+- `core/db-bridge.js` — joinRequests `refunded`/`inRoom`/`isUpdate` legacy writes retired; only display-only `ign_at_join` mirror remains. (RPC fail = operation fail; no direct-write fallback.)
+- `screens/room.js` `confirmInRoom` → `confirm_in_room` RPC with success/error handling.
+- `features/checkin-system.js` `doMatchCheckIn` → `check_in_match` RPC.
+- `features/streak.js` `updateWinStreak` → **local UI only**; `users.win_streak` is authored by `publish_match_results` (self-report write removed).
+- `features/clan.js` + `js/bugfix-v30-final.js` `updateClanScore` → `increment_clan_score` RPC (Firebase transaction fallback + direct-read-modify-write removed; member-guarded server-side).
+- `js/bugfix-v30-final.js` `_joinDirect` retired; `join_clan` result contract fixed (`ok` not `success`).
+- `js/bugfixes-v29-final.js` fund-squad-bank → `contribute_to_squad_bank` RPC (direct clans read-modify-write removed).
+
+### Admin rewires (admin repo)
+- `js/admin-supabase-sync.js` — Firebase→Supabase balance overwrite path REMOVED (P9/P10); non-financial ban/stats sync kept.
+- `js/admin-fixes-v21.js` — Bug#97 bulk `users.update({rank_points,win_streak})` removed (server RPC now does it atomically).
+
+### Verification (all live, rollback-only + real behavior)
+- Triggers live: `trg_users_insert_guard`, `trg_clans_insert_guard`, `trg_notifications_spoof_guard`, `clamp_join_requests_client_update`, `trg_matches_room_secrets`.
+- New tables: `season_finalizations`, `suggestion_rewards`.
+- Fail-closed probes: non-admin `admin_end_current_season`/`admin_reward_suggestion`/`admin_sync_user_balance` → `Admin only`.
+- E2E: client `in_room/checked_in/status` writes frozen; `confirm_in_room` RPC sets `in_room=true`; `join_clan` legit OK / spoof blocked / cap=1 full.
+- Smoke: user 44/44 · admin 33/33.
+
+### Rules preserved
+No UI redesign, no feature removal, no security weakening; Supabase authoritative for
+economy; Firebase mirror only; client never trusted for uid/balance/price/fee/
+currency/reward/commission/XP/rank-points/score/win-kills/tier/BP/mission/refund/payout;
+RPC failure = operation failure (no client/Firebase financial fallback).
