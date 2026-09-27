@@ -94,7 +94,19 @@ function preprocessImage(file,invert,opts){
         else { out=invert?(bright>145?0:255):(bright>145?255:0); }
         px[i]=px[i+1]=px[i+2]=out;px[i+3]=255;
       }
-      ctx.putImageData(id,0,0);
+      /* v3.0: naye contrast-robust modes (scene/theme change se bachne ke liye) */
+      if(invert==='otsu' || invert==='norm'){
+        var gpx = (invert==='norm') ? (function(){
+          var gid=ctx.getImageData(0,0,W,H), g2=gid.data, gi;
+          for(gi=0;gi<g2.length;gi+=4){ var gg=0.299*g2[gi]+0.587*g2[gi+1]+0.114*g2[gi+2]; g2[gi]=g2[gi+1]=g2[gi+2]=Math.max(0,Math.min(255,((gg-128)*2.0)+128)); }
+          ctx.putImageData(gid,0,0);
+          return ctx.getImageData(0,0,W,H).data;
+        })() : px;
+        _applyFilter(gpx, W, H, invert, false, false);
+        var gid2=ctx.getImageData(0,0,W,H); gid2.data.set(gpx); ctx.putImageData(gid2,0,0);
+      } else {
+        ctx.putImageData(id,0,0);
+      }
       cv.toBlob(function(blob){resolve(blob||file);},'image/png');
     };
     img.src=url;
@@ -264,14 +276,20 @@ function bestMatch(name,list,minSc){
      - name   = us word se LEFT ke words
    Multiple masks (white/maxch/soft) me se jo sabse zyada valid rows de wahi
    chunta hai. Purana parseResult fallback ke roop me bana rehta hai. */
-async function ocrWords(blob, psm){
+var _WL_NAME='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_ .@#$%&*()!?-';
+var _WL_DIGITS='0123456789';
+async function ocrWords(blob, psm, wl){
   var worker = await _getOCRWorker();
+  /* v3.0: region-specific whitelist -- digits = sirf 0-9 (junk khatam),
+     naam = kam punctuation -- Tesseract ka search-space chhota = accurate. */
+  var use = wl || "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.,!?@#$%&*()-+=|;:' ";
+  try { await worker.setParameters({ tessedit_char_whitelist: use, preserve_interword_spaces: '1', tessedit_pageseg_mode: String(psm||6) }); } catch(e) {}
   var out = await worker.recognize(blob, {}, { blocks: true });
   var lines = [];
   function walkLine(l){
     if (!l) return;
     var tx = (l.text || '').trim(); if (!tx) return;
-    lines.push({ text: tx, y: l.bbox ? (l.bbox.y0 + l.bbox.y1) / 2 : null,
+    lines.push({ text: tx, conf: (typeof l.confidence==='number'? l.confidence : null), y: l.bbox ? (l.bbox.y0 + l.bbox.y1) / 2 : null,
       words: (l.words || []).map(function (w) {
         return { t: (w.text || '').trim(), x0: w.bbox ? w.bbox.x0 : 0, x1: w.bbox ? w.bbox.x1 : 0,
                  x: w.bbox ? (w.bbox.x0 + w.bbox.x1) / 2 : 0,
@@ -338,35 +356,96 @@ function _adaBinary(px, w, h, C, invert){
     }
   }
 }
-function _stripBlob(im, x0, y0, x1, y1, thr, inv){
+/* == v3.0 ADVANCED IMAGE FILTERS (contrast-robust) ==
+   Game screenshots me brightness/contrast har match me badalta hai (day/night
+   map, effects, glow). Isliye fixed threshold par bharosa nahi -- 4 filters,
+   aur output par ENSEMBLE VOTING:
+     thr<number> : global min-channel threshold (bright text)
+     'ada'       : Bradley adaptive local-mean (glow/shadow ke liye)
+     'otsu'      : per-crop Otsu (contrast badle to bhi text/background ka
+                   best split khud dhoondta hai)
+     'norm'      : percentile contrast-stretch (p2->0, p98->255) -- binarize
+                   nahi, sirf contrast normalize
+   plus optional unsharp (sharpen) patle stroke ke liye. */
+function _unsharp(px, w, h){
+  if(w<3||h<3) return;
+  var n=w*h, src=new Uint8Array(n), i;
+  for(i=0;i<n;i++) src[i]=Math.min(px[i*4],px[i*4+1],px[i*4+2]);
+  for(var y=1;y<h-1;y++){
+    for(var x=1;x<w-1;x++){
+      var k=y*w+x, c=src[k];
+      var lap=5*c - src[k-w] - src[k+w] - src[k-1] - src[k+1];
+      var v=lap<0?0:(lap>255?255:lap);
+      var out2=Math.round(c*0.45 + v*0.55);
+      var idx=k*4; px[idx]=px[idx+1]=px[idx+2]=out2;
+    }
+  }
+}
+function _normStretch(px, w, h){
+  var n=w*h, i, vals=new Uint8Array(n);
+  for(i=0;i<n;i++) vals[i]=Math.min(px[i*4],px[i*4+1],px[i*4+2]);
+  var hist=new Int32Array(256);
+  for(i=0;i<n;i++) hist[vals[i]]++;
+  var lo=0, hi=255, acc=0, tgt=Math.max(1,Math.round(n*0.02));
+  for(i=0;i<256;i++){ acc+=hist[i]; if(acc>=tgt){ lo=i; break; } }
+  acc=0;
+  for(i=255;i>=0;i--){ acc+=hist[i]; if(acc>=tgt){ hi=i; break; } }
+  if(hi<=lo) hi=lo+1;
+  var m=255/(hi-lo);
+  for(i=0;i<n;i++){
+    var v=(vals[i]-lo)*m; v=v<0?0:(v>255?255:v);
+    px[i*4]=px[i*4+1]=px[i*4+2]=v;
+  }
+}
+function _otsuBinary(px, w, h, inv){
+  var n=w*h, i, hist=new Int32Array(256);
+  for(i=0;i<n;i++) hist[Math.min(px[i*4],px[i*4+1],px[i*4+2])]++;
+  var total=n, sum=0; for(i=0;i<256;i++) sum+=i*hist[i];
+  var sumB=0, wB=0, best=0, thr=128;
+  for(i=0;i<256;i++){
+    wB+=hist[i]; if(!wB) continue;
+    var wF=total-wB; if(!wF) break;
+    sumB+=i*hist[i];
+    var mB=sumB/wB, mF=(sum-sumB)/wF, between=wB*wF*(mB-mF)*(mB-mF);
+    if(between>best){ best=between; thr=i; }
+  }
+  for(i=0;i<n;i++){
+    var idx=i*4;
+    var on=(Math.min(px[idx],px[idx+1],px[idx+2])>thr);
+    if(inv) on=!on;
+    px[idx]=px[idx+1]=px[idx+2]=on?255:0; px[idx+3]=255;
+  }
+}
+/* ek hi jagah saare filters (strip + composite + full-image sab isi ko use karte hain) */
+function _applyFilter(px, w, h, thr, inv, sharp){
+  if(sharp) _unsharp(px, w, h);
+  if(thr==='ada'){ _adaBinary(px, w, h, 10, !!inv); return; }
+  if(thr==='otsu'){ _otsuBinary(px, w, h, !!inv); return; }
+  if(thr==='norm'){ _normStretch(px, w, h); return; }
+  var T = (typeof thr==='number') ? thr : 145;
+  for(var i=0;i<px.length;i+=4){
+    var r=px[i],g=px[i+1],b=px[i+2];
+    var on=(Math.min(r,g,b)>=T);
+    if(inv) on=!on;
+    px[i]=px[i+1]=px[i+2]=on?255:0; px[i+3]=255;
+  }
+}
+function _stripBlob(im, x0, y0, x1, y1, thr, inv, opts){
   var W=im.naturalWidth||im.width, H=im.naturalHeight||im.height;
   x0=Math.max(0,Math.round(x0)); y0=Math.max(0,Math.round(y0));
   x1=Math.min(W,Math.round(x1)); y1=Math.min(H,Math.round(y1));
   var cw=x1-x0, ch=y1-y0;
   if(cw<20||ch<8) return Promise.resolve(null);
-  /* v2.5c: 1400/cw (≈7.6x) par smooth+binary text blur ho jata tha aur OCR
-     junk deta tha; probe me ~4x (700 px target) sabse saaf nikla. */
-  var s=Math.max(1,Math.min(8, 700/cw));
+  var tgt = (opts && opts.targetW) ? opts.targetW : 700;
+  var s=Math.max(1,Math.min(8, tgt/cw));
   var cv=document.createElement('canvas'); cv.width=Math.round(cw*s); cv.height=Math.round(ch*s);
   var ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
   ctx.drawImage(im, x0,y0,cw,ch, 0,0, cv.width, cv.height);
   var id=ctx.getImageData(0,0,cv.width,cv.height), px=id.data;
-  if(thr==='ada'){
-    /* v2.7 ADVANCED: adaptive local-mean threshold (Bradley) — blurry/ghost
-       text ke liye. Global threshold in images me fail hota hai (glow/shadow),
-       local mean se har pixel apne aas-paas ke background se compare hota hai. */
-    _adaBinary(px, cv.width, cv.height, 10, !!inv);
-  } else {
-    for(var i=0;i<px.length;i+=4){
-      var r=px[i],g=px[i+1],b=px[i+2];
-      var on=(Math.min(r,g,b)>=thr);
-      if(inv) on=!on;
-      px[i]=px[i+1]=px[i+2]=on?255:0; px[i+3]=255;
-    }
-  }
+  /* v3.0: saare filters ek jagah (contrast-robust) + optional sharpen */
+  _applyFilter(px, cv.width, cv.height, thr, inv, !!(opts && opts.sharp));
   ctx.putImageData(id,0,0);
-  return new Promise(function(res){cv.toBlob(function(bl){res(bl);},'image/png');});
-}
+  return new Promise(function(res){cv.toBlob(function(bl){res(bl);},'image/png');});}
 /* v2.5g: per-row KILLS digit — data-driven rule (thr_matrix.json).
    Discovery: high threshold digit ki thin stroke kha jata tha ('7'→'5'),
    thr≈110 sabse stable nikla (img1 4/4, img2 row0 bhi). Ab: K-word bbox
@@ -377,9 +456,9 @@ function _digitVote(im, x0, y0, x1, y1, thr, offs, inv){
   var votes = {};
   for (var i = 0; i < offs.length; i++) {
     try {
-      var bl = await (_stripBlob(im, x0 + offs[i], y0, x1 + offs[i], y1, thr, inv));
+      var bl = await (_stripBlob(im, x0 + offs[i], y0, x1 + offs[i], y1, thr, inv, {sharp:true}));
       if (!bl) continue;
-      var pass = await (ocrWords(bl, 10));
+      var pass = await (ocrWords(bl, 10, _WL_DIGITS));
       var tx = ((pass.lines[0] && pass.lines[0].text) || '').replace(/[^0-9]/g, '');
       if (!tx) continue;
       var v = parseInt(tx, 10);
@@ -399,16 +478,343 @@ function _pickVote(votes){
   if (bestV == null || tie || bestC < 2) return null;
   return bestV;
 }
+/* == v3.0 COMPOSITE COLUMN ENSEMBLE =====================================
+   Idea: per-row alag-alag OCR karne ke bajaye, saari rows ki ek-ek "cell"
+   (jaise sirf K column ke digits, ya sirf naam plates) ko ek composite image
+   me vertically stack karo -> Tesseract ek hi pass me poori column padhta hai
+   (zyada context, kam noise), aur hum 4 filters par votes lete hain.
+   Fayda: (a) zyada accurate (ensemble), (b) tez (per-row 5 reads ki jagah
+   1 composite pass), (c) contrast-change par robust (Otsu/ada/norm variants). */
+function _composeCells(im, cells, targetH){
+  var cw=0, ch=0;
+  cells.forEach(function(c){ cw=Math.max(cw, c.x1-c.x0); ch=Math.max(ch, c.y1-c.y0); });
+  if(!cw||!ch) return null;
+  var s=Math.max(1, Math.min(8, Math.min(900/Math.max(cw,1), (targetH||120)/Math.max(ch,1))));
+  var cwS=Math.round(cw*s), chS=Math.round(ch*s);
+  var gap=Math.max(10, Math.round(chS*0.65));
+  var W2=cwS+8, H2=gap + cells.length*(chS+gap);
+  var cv=document.createElement('canvas'); cv.width=W2; cv.height=H2;
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W2,H2);
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  var map=[], y=gap;
+  cells.forEach(function(c){
+    var w0=Math.max(1,c.x1-c.x0), h0=Math.max(1,c.y1-c.y0);
+    ctx.drawImage(im, Math.max(0,c.x0), Math.max(0,c.y0), w0, h0, 4, y, Math.round(w0*s), Math.round(h0*s));
+    map.push({idx:c.idx, cy:y+Math.round(h0*s/2), h:Math.round(h0*s)});
+    y += chS + gap;
+  });
+  return {cv:cv, map:map, W:W2, H:H2, s:s, gap:gap};
+}
+/* v3.0e: COLUMN CONSENSUS — FF result screen ka table-grid fixed hota hai.
+   Kuch rows ka x-anchor (pehla word / kills-word) naam ya avatar ke upar gir
+   jata hai (Spiri / Hardik / ANSHU wali rows) — us strip me naam ki digits
+   ('69' -> '63') aa jati thi aur galat kills fill hote the. Majority rows ka
+   common x-window nikaal kar, deviating rows ke liye wahi window strict
+   re-read me use hota hai (2-of-3 clean reads chahiye, warna chhod dete hain). */
+function _consensusBox(cells, Wo){
+  /* majority rows ka common x-window (table grid) -> {x0,x1} | null */
+  /* v3.0l: 4-row screenshots (588x258 jaisi chhoti images) ke liye bhi chale —
+     pehle cells<5 par null return hota tha, isliye stage 2b wahan chalti hi nahi thi */
+  if(!cells || cells.length<3 || !Wo) return null;
+  var xs=cells.map(function(c){return (c.x0+c.x1)/2;}).sort(function(a,b){return a-b;});
+  var med=xs[Math.floor(xs.length/2)];
+  var tol=Math.max(0.030*Wo, 14);
+  var near=cells.filter(function(c){return Math.abs((c.x0+c.x1)/2-med)<=tol;});
+  /* chhoti images (4 rows) me 3-cluster kaafi hai; bade tables me 4 chahiye */
+  var need = Math.ceil(cells.length*0.6);
+  need = (cells.length>=6) ? Math.max(4, need) : Math.max(3, need);
+  if(near.length < need) return null;
+  var cx0=0,cx1=0;
+  near.forEach(function(c){cx0+=c.x0;cx1+=c.x1;});
+  return {x0:cx0/near.length, x1:cx1/near.length, tol:tol, n:near.length};
+}
+function _consensusWindow(cells, Wo){
+  var out={}, cb=_consensusBox(cells, Wo);
+  if(!cb) return out;
+  cells.forEach(function(c){
+    /* row ka x-window consensus se door hai -> is row ko consensus window
+       bhi dena hai (deviating index -> box) */
+    if(Math.abs((c.x0+c.x1)/2 - (cb.x0+cb.x1)/2) <= 1.1*cb.tol) return;
+    out[c.idx]={x0:cb.x0, y0:c.y0, x1:cb.x1, y1:c.y1, cons:true};
+  });
+  return out;
+}
+/* v3.0f: COLUMN INK-BAND DETECTOR.
+   K-column ke x-window me sirf SAFED/GREY text ko ink maan kar (min(R,G,B)
+   >=145 — isse laal annotation digits, orange team-line aur glow apne aap
+   bahar ho jate hain) ink-density bands nikaalte hain. Yeh bands asli digit
+   rows ke exact y-position dete hain — per-row word-anchor ka bharosa khatam
+   (kuch rows ka y-band digit ko kaat raha tha: '10' adha kat gaya tha). */
+function _colBands(im, x0, x1, y0, y1, Ho){
+  try{
+    var X0=Math.max(0,Math.round(x0)), X1=Math.round(x1);
+    var Y0=Math.max(0,Math.round(y0)), Y1=Math.round(y1);
+    var W=X1-X0, H=Y1-Y0;
+    if(W<4||H<12) return null;
+    var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    var ctx=cv.getContext('2d');
+    ctx.drawImage(im, X0,Y0,W,H, 0,0,W,H);
+    var d=ctx.getImageData(0,0,W,H).data;
+    /* v3.0m: ink-threshold ADAPTIVE — chhoti/low-res images me digit ki stroke
+       patli hoti hai aur 145 se neeche reh jati hai (bands miss ho jate the).
+       Window ke brightest pixels (95th percentile) se threshold nikalte hain;
+       laal annotation/orange line phir bhi bahar rehti hai kyunki unka
+       min(R,G,B) kam hota hai. */
+    var hist=new Array(256).fill(0), npx=W*H, i5, mn2;
+    for(i5=0;i5<npx;i5++){
+      mn2=Math.min(d[i5*4],d[i5*4+1],d[i5*4+2]);
+      hist[mn2]++;
+    }
+    var acc=0, p95=0;
+    for(i5=255;i5>=0;i5--){ acc+=hist[i5]; if(acc>=npx*0.02){ p95=i5; break; } }
+    var inkT=Math.max(115, Math.min(200, Math.round(p95*0.62)));
+    var bands=[], cur=null, x, y;
+    for(y=0;y<H;y++){
+      var c=0;
+      for(x=0;x<W;x++){
+        var i4=(y*W+x)*4;
+        if(Math.min(d[i4],d[i4+1],d[i4+2])>=inkT) c++;
+      }
+      if(c>=2){ if(!cur) cur={y0:y,y1:y}; else cur.y1=y; }
+      else if(cur && (y-cur.y1)>2){ bands.push(cur); cur=null; }
+    }
+    if(cur) bands.push(cur);
+    var minH=Math.max(6, 0.012*Ho), maxH=0.12*Ho;
+    bands=bands.filter(function(b){ var h=b.y1-b.y0+1; return h>=minH && h<=maxH; });
+    return bands.map(function(b){ return {y0:Y0+b.y0, y1:Y0+b.y1+1, cy:Y0+(b.y0+b.y1)/2}; });
+  }catch(e){ return null; }
+}
+
+/* v3.0f: rows ko ink-bands se match karo (greedy nearest, 1:1).
+   Bands me extra entries ho sakti hain (doosre team ka 'K' header bhi isi
+   column me white text hota hai) — nearest matching se phantom band apne aap
+   drop ho jata hai; koi row match na ho to us row ke liye band nahi (purana
+   anchor hi chalega). */
+function _matchBands(rows, bands, Ho){
+  if(!bands || !bands.length) return null;
+  var pairs=[], cap=Math.max(0.05*Ho, 26);
+  for(var i=0;i<rows.length;i++){
+    if(rows[i].y==null) continue;
+    for(var j=0;j<bands.length;j++){
+      var d=Math.abs(rows[i].y*Ho - bands[j].cy);
+      if(d<=cap) pairs.push({i:i, j:j, d:d});
+    }
+  }
+  pairs.sort(function(a,b){ return a.d-b.d; });
+  var ri={}, bj={}, out={}, n=0;
+  for(var k=0;k<pairs.length;k++){
+    var pp=pairs[k];
+    if(ri[pp.i]||bj[pp.j]) continue;
+    ri[pp.i]=1; bj[pp.j]=1; out[pp.i]=bands[pp.j]; n++;
+  }
+  /* v3.0m: SAFETY — matching sirf tab use karo jab HAR row ko apna band mila ho
+     (1:1 complete). Low-res images me ek band miss/misplace hone par mapping ek
+     row shift ho jati thi (row1 ka digit row2 ko) — us se acchi khaasi read bhi
+     galat player par chali jati. Incomplete mapping par purana anchor hi chalta hai. */
+  if(n !== rows.length) return null;
+  return out;
+}
+/* v3.0i: GLYPH SHAPE VERIFIER (low-contrast ka asli ilaaj).
+   Kam-contrast game screenshots me Tesseract '5'/'9', '9'/'0', '0'/'8',
+   '6'/'8' ko confuse karta hai — aur galat reading par bhi HIGH conf deta hai
+   (isliye sirf conf par bharosa karna kaafi nahi tha). Digit ka TOPOLOGY font
+   aur size se independent hota hai, isliye candidate ko shape se verify karte
+   hain:
+     * digits ki ginti = ink khaancha (width/height ratio + column-gaps)
+     * hole (bandar ka gap) ki jagah ->  0 = poori height ka hole,
+       9/4 = upar-aadha hole, 6 = neeche-aadha hole, 8 = do hole,
+       koi hole nahi = 0/6/8/9 ho hi nahi sakta (1,2,3,5,7).
+   Yeh image-specific tuning nahi hai (normalized ratios hain), geometry se
+   independent hai — isliye har font/scale par chalega. */
+function _holeClass(hT, hB, hH, nHoles){
+  if(nHoles>=2) return '8';
+  if(hH>=0.55) return '0';
+  if(hT<=0.34) return '94';
+  if(hB>=0.60) return '68';
+  return '6';
+}
+function _glyphShape(im, x0, y0, x1, y1){
+  try{
+    var cwI=Math.round(x1-x0), chI=Math.round(y1-y0);
+    if(cwI<8 || chI<8) return null;
+    var s=Math.max(1, Math.min(8, 260/cwI));
+    var cv=document.createElement('canvas');
+    cv.width=Math.max(4,Math.round(cwI*s)); cv.height=Math.max(4,Math.round(chI*s));
+    var ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.drawImage(im, Math.round(x0),Math.round(y0),cwI,chI, 0,0,cv.width,cv.height);
+    var id=ctx.getImageData(0,0,cv.width,cv.height), d=id.data;
+    _applyFilter(d, cv.width, cv.height, 110, false, false);
+    var W=cv.width, H=cv.height, i, x, y, ink=new Uint8Array(W*H);
+    for(i=0;i<W*H;i++) ink[i]= (d[i*4]>=128)?1:0;
+    var ix0=W,ix1=-1,iy0=H,iy1=-1;
+    for(y=0;y<H;y++) for(x=0;x<W;x++) if(ink[y*W+x]){ if(x<ix0)ix0=x; if(x>ix1)ix1=x; if(y<iy0)iy0=y; if(y>iy1)iy1=y; }
+    if(ix1<ix0 || iy1<iy0) return null;
+    var inkW=ix1-ix0+1, inkH=iy1-iy0+1;
+    /* vertical projection -> digit columns (column-gap se digits alag) */
+    var groups=[], cur=null, gapRun=0, maxGap=Math.max(2, Math.round(inkW*0.035));
+    for(x=ix0;x<=ix1;x++){
+      var c=0;
+      for(y=iy0;y<=iy1;y++) if(ink[y*W+x]) c++;
+      if(c>0){ if(cur==null) cur={x0:x,x1:x}; else cur.x1=x; gapRun=0; }
+      else if(cur){ gapRun++; if(gapRun>maxGap){ cur.x1=x-gapRun; groups.push(cur); cur=null; } }
+    }
+    if(cur){ cur.x1=ix1; groups.push(cur); }
+    groups=groups.filter(function(g){ return (g.x1-g.x0+1) >= Math.max(3, inkW*0.10); });
+    if(groups.length<1 || groups.length>2) return null;
+    var digits=[];
+    for(var gi=0; gi<groups.length; gi++){
+      var g=groups[gi], gw=g.x1-g.x0+1, gh=inkH, seen=new Uint8Array(gw*gh);
+      var stack=[], gx, gy;
+      for(gx=0;gx<gw;gx++){ stack.push(gx); stack.push(gx+(gh-1)*gw); }
+      for(gy=0;gy<gh;gy++){ stack.push(gy*gw); stack.push(gy*gw+gw-1); }
+      while(stack.length){
+        var ii=stack.pop();
+        if(ii<0 || ii>=gw*gh || seen[ii]) continue;
+        var px=(g.x0+ (ii%gw)), py=(iy0 + Math.floor(ii/gw));
+        if(ink[py*W+px]) { seen[ii]=1; continue; }
+        seen[ii]=1;
+        var cx2=ii%gw, cy2=Math.floor(ii/gw);
+        if(cx2>0) stack.push(ii-1);
+        if(cx2<gw-1) stack.push(ii+1);
+        if(cy2>0) stack.push(ii-gw);
+        if(cy2<gh-1) stack.push(ii+gw);
+      }
+      /* hole components (non-ink, visited nahi) */
+      var hs=[];
+      for(gy=0; gy<gh; gy++) for(gx=0; gx<gw; gx++){
+        var i3=gy*gw+gx;
+        if(seen[i3]) continue;
+        var px2=g.x0+gx, py2=iy0+gy;
+        if(ink[py2*W+px2]){ seen[i3]=1; continue; }
+        /* naya hole component: BFS */
+        var q=[i3], n=0, hx0=1e9,hx1=-1,hy0=1e9,hy1=-1;
+        seen[i3]=1;
+        while(q.length){
+          var j=q.pop(); n++;
+          var jx=j%gw, jy=Math.floor(j/gw);
+          if(jx<hx0)hx0=jx; if(jx>hx1)hx1=jx; if(jy<hy0)hy0=jy; if(jy>hy1)hy1=jy;
+          var nb=[[jx-1,jy],[jx+1,jy],[jx,jy-1],[jx,jy+1]];
+          for(var ni=0; ni<4; ni++){
+            var nx=nb[ni][0], ny=nb[ni][1];
+            if(nx<0||ny<0||nx>=gw||ny>=gh) continue;
+            var j2=ny*gw+nx;
+            if(seen[j2]) continue;
+            if(ink[(iy0+ny)*W + (g.x0+nx)]){ seen[j2]=1; continue; }
+            seen[j2]=1; q.push(j2);
+          }
+        }
+        hs.push({n:n, t:(hy0)/gh, b:(hy1)/gh, h:(hy1-hy0+1)/gh});
+      }
+      hs=hs.filter(function(h){ return h.n >= 0.015*gw*gh; });
+      hs.sort(function(a,b){ return b.n-a.n; });
+      digits.push({w:gw, h:gh, holes:hs});
+    }
+    return {nd:digits.length, digits:digits, inkW:inkW, inkH:inkH, aspect:inkW/Math.max(1,inkH)};
+  }catch(e){ return null; }
+}
+function _digitAllowed(d, cls){
+  if(d==='4') return true;                       /* 4 ka hole font-dependent */
+  if(cls==='none') return (d!=='0' && d!=='6' && d!=='8' && d!=='9');
+  if(cls==='0') return (d==='0');
+  if(cls==='8') return (d==='8' || d==='0');
+  if(cls==='94') return (d==='9' || d==='4');
+  if(cls==='68') return (d==='6' || d==='8' || d==='0');
+  if(cls==='6') return (d==='6');
+  return true;
+}
+function _shapeOK(v, sh){
+  if(!sh || v==null || v==='') return true;      /* FIX: v=0 falsy tha */
+  var ds=String(v).split('');
+  if(ds.length<1 || ds.length>2) return true;
+  var wide = (sh.aspect >= 0.64);                /* itna chauda = 2 digits */
+  if(sh.nd===ds.length){
+    if(wide && ds.length===1) return false;      /* wide ink single digit nahi */
+    for(var i=0;i<ds.length;i++){
+      var dg=sh.digits[i]; if(!dg) continue;
+      var asp=dg.w/Math.max(1,dg.h);
+      if(ds[i]==='1'){
+        /* v3.0k: '1' patla hota hai — 0.42+ aspect wala glyph '1' nahi ho sakta
+           (img1 row1 me '1'/'7' confusion isi se resolve hui) */
+        if(asp>=0.42) return false;
+        continue;
+      }
+      if(asp<0.26) return false;                 /* itna patla sirf '1' ho sakta hai */
+      var cls=dg.holes.length ? _holeClass(dg.holes[0].t, dg.holes[0].b, dg.holes[0].h, dg.holes.length) : 'none';
+      if(!_digitAllowed(ds[i], cls)) return false;
+    }
+    return true;
+  }
+  /* merged groups: dono digits ek hi group me jud gaye (wide ink) */
+  if(sh.nd===1 && ds.length===2 && wide){
+    var g=sh.digits[0];
+    var clsM=g.holes.length ? _holeClass(g.holes[0].t, g.holes[0].b, g.holes[0].h, g.holes.length) : 'none';
+    if(clsM==='none') return _digitAllowed(ds[0],'none') && _digitAllowed(ds[1],'none');
+    return _digitAllowed(ds[1], clsM) && _digitAllowed(ds[0],'none');
+  }
+  return false;
+}
+async function _compositeBlob(comp, thr, inv, sharp){
+  var cv=document.createElement('canvas'); cv.width=comp.W; cv.height=comp.H;
+  var ctx=cv.getContext('2d'); ctx.drawImage(comp.cv,0,0);
+  var id=ctx.getImageData(0,0,comp.W,comp.H);
+  _applyFilter(id.data, comp.W, comp.H, thr, inv, !!sharp);
+  ctx.putImageData(id,0,0);
+  return await new Promise(function(r){cv.toBlob(function(b){r(b);},'image/png');});
+}
+/* composite par kai filter-variants -> per-cell weighted votes
+   pick(lineText, conf) -> value | null */
+async function _colEnsemble(comp, variants, psm, wl, pick){
+  var votes={};
+  for(var v=0; v<variants.length; v++){
+    var vr=variants[v];
+    try{
+      var blob=await _compositeBlob(comp, vr.thr, vr.inv, vr.sharp);
+      if(!blob) continue;
+      var pass=await ocrWords(blob, psm, wl);
+      for(var li=0; li<pass.lines.length; li++){
+        var ln=pass.lines[li];
+        if(ln.y==null) continue;
+        var bestI=-1, bestD=1e9;
+        for(var mi=0; mi<comp.map.length; mi++){
+          var d=Math.abs(ln.y-comp.map[mi].cy);
+          if(d<bestD){ bestD=d; bestI=mi; }
+        }
+        if(bestI<0 || bestD > comp.map[bestI].h*0.8) continue;
+        var val=pick(ln.text, ln.conf);
+        if(val==null) continue;
+        var idx=comp.map[bestI].idx;
+        var bag=votes[idx]||(votes[idx]={});
+        /* weight = variant weight x Tesseract line-confidence (60+ par bonus) */
+        var cw2=(typeof ln.conf==='number')? ln.conf : 70;
+        var w=(vr.w||1) * (0.7 + Math.max(0, Math.min(0.6, (cw2-50)/100)));
+        bag[val]=(bag[val]||0)+w;
+      }
+    }catch(e){}
+  }
+  return votes;
+}
+function _voteWinner(bag, minW){
+  if(!bag) return null;
+  var best=null, bestW=0, second=0;
+  Object.keys(bag).forEach(function(k){
+    var w=bag[k];
+    if(w>bestW){ second=bestW; bestW=w; best=k; }
+    else if(w>second){ second=w; }
+  });
+  if(best==null || bestW < (minW||2)) return null;
+  if(second>0 && bestW < second*1.35) return null;   /* ambiguous -> chhod do */
+  return best;
+}
 async function _numStrips(im, rows, Wo, Ho, scale){
-  if(!im||!Wo||!Ho) return;
+  if(!im||!Wo||!Ho||!rows.length) return;
   scale = scale || 1;
   var off = Math.max(3, Math.round(0.004 * Wo));
-  var offs = [-off, -Math.round(off/2), 0, Math.round(off/2), off];
+  var cells=[];
   for(var i=0;i<rows.length;i++){
     var r=rows[i];
     if(r.y==null) continue;
     var yc = r.y * Ho;
-    /* window: K-word bbox + parser fx + padding (dono ka union) */
     var hw = Math.max(0.020 * Wo, 12);
     var x0 = r.fx != null ? (r.fx/scale - hw) : null, x1 = r.fx != null ? (r.fx/scale + hw) : null;
     if(r.kwx0 != null && r.kwx1 != null){
@@ -420,19 +826,116 @@ async function _numStrips(im, rows, Wo, Ho, scale){
     if(x0 == null || x1 == null) continue;
     var y0 = yc - Math.max(0.024 * Ho, (r.kwh ? r.kwh/scale * 0.8 : 8));
     var y1 = yc + Math.max(0.024 * Ho, (r.kwh ? r.kwh/scale * 0.8 : 8));
-    /* v2.7 ADVANCED: thr110 → ada (blurry ke liye) → thr200 fallback ladder */
-    var v = _pickVote(_digitVote(im, x0, y0, x1, y1, 110, offs));
-    if(v == null) v = _pickVote(_digitVote(im, x0, y0, x1, y1, 'ada', offs));
-    if(v == null) v = _pickVote(_digitVote(im, x0, y0, x1, y1, 200, offs));
-    if(v == null) v = _pickVote(_digitVote(im, x0, y0, x1, y1, 'ada', offs, true));
-    if(v != null) r.kills = v;
+    r._kbox = {x0:x0-off, y0:y0, x1:x1+off, y1:y1};
+    cells.push({idx:i, x0:x0-off, y0:y0, x1:x1+off, y1:y1});
+  }
+  if(!cells.length) return;
+  var _cons = _consensusWindow(cells, Wo);
+  Object.keys(_cons).forEach(function(k){ if(rows[k]) rows[k]._cons=_cons[k]; });
+  /* (1) composite digits pass — saari K-cells ek image me, 4 filters par vote */
+  try{
+    var comp = _composeCells(im, cells, 220);   /* v3.0b: 120->220 (2x -> ~5x upscale) */
+    if(comp){
+      var variants=[{thr:110,w:1.5},{thr:140,w:1.2},{thr:'otsu',w:1.3},{thr:'ada',w:1.1}];
+      var votes = await _colEnsemble(comp, variants, 6, _WL_DIGITS, function(t){
+        var d=String(t||'').replace(/[^0-9]/g,'');
+        if(!d) return null;
+        var v=parseInt(d,10);
+        return (isNaN(v)||v<0||v>99)?null:v;
+      });
+      Object.keys(votes).forEach(function(k){
+        var bag=votes[k], rr=rows[k];
+        if(!bag||!rr) return;
+        /* v3.0b: full-row parser ka value bhi ek ballot hai — kai baar parser
+           ne '17' theek padha tha jabki digit-strip ka thin '1' gum ho gaya
+           ('7'). Suffix-loss detect hone par parser value jeet jati hai. */
+        if(rr.kills!=null) bag[String(rr.kills)]=(bag[String(rr.kills)]||0)+1.3;
+        var w=_voteWinner(bag, 2.0);
+        if(w==null) return;
+        var wv=parseInt(w,10);
+        var pv=rr.kills;
+        if(pv!=null && wv!==pv && String(pv).length>String(wv).length && String(pv).slice(-String(wv).length)===String(wv)){
+          wv=pv;   /* strip ne digit khoya (17->7) — parser wala rakho */
+        }
+        rr.kills=wv; rr._numDone=true;
+      });
+    }
+  }catch(e){}
+  /* (2) fallback: jinko composite se value nahi mili — per-row sharpened reads */
+  var offs=[-off, 0, off];
+  for(var j=0;j<rows.length;j++){
+    var r2=rows[j];
+    if(r2._numDone || !r2._kbox) continue;
+    var b=r2._kbox, v=null;
+    try{ v=_pickVote(await _digitVote(im, b.x0, b.y0, b.x1, b.y1, 110, offs)); }catch(e){}
+    if(v==null){ try{ v=_pickVote(await _digitVote(im, b.x0, b.y0, b.x1, b.y1, 'otsu', offs)); }catch(e){} }
+    if(v==null){ try{ v=_pickVote(await _digitVote(im, b.x0, b.y0, b.x1, b.y1, 140, offs)); }catch(e){} }
+    if(v!=null) r2.kills=v;
+  }
+  /* (2b) v3.0f: GRID RE-READ (consensus x-window + ink-bands).
+     Majority rows ka common column-x, aur K-column ki white-ink bands se asli
+     digit rows. Phir har row ke liye 4 filters par reads; winner sirf tab
+     badalta hai jab max-conf >= 70 ho aur runner-up se >= 20 ka gap ho
+     (kamzor/ambiguous reads par purana value hi rehta hai). */
+  var _cb = _consensusBox(cells, Wo);
+  if(_cb){
+    var ymin=1e9, ymax=-1e9;
+    rows.forEach(function(r){ if(r.y!=null){ ymin=Math.min(ymin,r.y*Ho); ymax=Math.max(ymax,r.y*Ho); } });
+    if(ymax>ymin){
+      var bands=_colBands(im, _cb.x0, _cb.x1, ymin-0.05*Ho, ymax+0.14*Ho, Ho);
+      var bpad=Math.max(2, 0.005*Ho);
+      var bmap=_matchBands(rows, bands, Ho);
+      var ybox=null;
+      if(bmap){ ybox={}; Object.keys(bmap).forEach(function(kk){ ybox[kk]={y0:bmap[kk].y0-bpad, y1:bmap[kk].y1+bpad}; }); }
+      /* v3.0i: sirf white-on-black nahi — FF screens white-on-dark hote hain,
+         aur Tesseract dark-on-light par train hua hai, isliye INVERTED
+         variants bhi ballot me (ada/inverted ne kai rows 80-90 conf diya). */
+      var gtries=[{thr:110},{thr:110,sh:true},{thr:140},{thr:140,sh:true},
+                   {thr:'otsu'},{thr:'otsu',inv:true},{thr:'ada'},{thr:'ada',inv:true}];
+      for(var q2=0;q2<rows.length;q2++){
+        var r4=rows[q2];
+        var yb = (ybox && ybox[q2]) ? ybox[q2] : (r4._cons ? {y0:r4._cons.y0, y1:r4._cons.y1} : null);
+        if(!yb) continue;
+        var kdev = r4._kbox ? (Math.abs((r4._kbox.x0+r4._kbox.x1)/2-(_cb.x0+_cb.x1)/2) > 1.1*_cb.tol) : true;
+        var xb = (r4._cons || kdev || ybox) ? {x0:_cb.x0,x1:_cb.x1} : {x0:r4._kbox.x0,x1:r4._kbox.x1};
+        var rrd=[];
+        for(var z2=0;z2<gtries.length;z2++){
+          try{
+            var bl2=await _stripBlob(im, xb.x0, yb.y0, xb.x1, yb.y1, gtries[z2].thr, !!gtries[z2].inv, {sharp:!!gtries[z2].sh, targetW:520});
+            if(!bl2) continue;
+            var pc2=await ocrWords(bl2, 7, _WL_DIGITS);
+            var tx2=(pc2.lines[0]&&pc2.lines[0].text)||'';
+            var mm2=tx2.match(/\d{1,2}/);
+            if(!mm2) continue;
+            rrd.push({v:parseInt(mm2[0],10), c:Math.round(pc2.conf||0)});
+          }catch(e2){}
+        }
+        if(rrd.length<2) continue;
+        /* per-value max conf -> top-2 VALUES compare (same value ke multiple
+           reads runner-up nahi hain — pehle wahi bug tha) */
+        var bv={};
+        rrd.forEach(function(x2){ bv[x2.v]=Math.max(bv[x2.v]==null?-1:bv[x2.v], x2.c); });
+        var vlist=Object.keys(bv).map(function(kk){ return {v:parseInt(kk,10), c:bv[kk]}; })
+                        .sort(function(a,b){ return b.c-a.c; });
+        if(!vlist.length) continue;
+        var bestV=null, topv=vlist[0], secondC=(vlist.length>1)?vlist[1].c:-1;
+        /* shape (topology) verdict — low-contrast par yahi decisive hota hai */
+        var sh=null;
+        try{ sh=_glyphShape(im, xb.x0, yb.y0, xb.x1, yb.y1); }catch(e3){}
+        if(sh){
+          var cons=vlist.filter(function(z3){ return _shapeOK(z3.v, sh); });
+          if(cons.length){
+            var c1=cons[0], c2=(cons.length>1)?cons[1].c:-1;
+            if(c1.c>=45 && (c2<0 || (c1.c-c2)>=12)) bestV=c1.v;      /* shape-verified */
+            else if(topv.c>=70 && (secondC<0 || (topv.c-secondC)>=15)) bestV=topv.v;
+          } else if(topv.c>=70 && (secondC<0 || (topv.c-secondC)>=15)) bestV=topv.v;
+        } else if(topv.c>=70 && (secondC<0 || (topv.c-secondC)>=15)) bestV=topv.v;
+        if(bestV==null) continue;
+        r4.kills=bestV; r4._numDone=true; r4._colFixed=true;
+      }
+    }
   }
 }
-/* v2.6: name-strip variants + naam-jaisa heuristic.
-   Discovery (name_thr.json): thr 168/190 high the — 110/140 par naam saaf
-   padhte hain (img1 'Vanisherrr' 0.95 @140). Ab 4 variants (3 thresholds x
-   2 windows), aur runtime par heuristic se sabse 'naam-jaise' text chuna
-   jata hai (letters zyada, digits/symbols kam). */
 function _nameLikeScore(t){
   /* v2.7 fix: pehle absolute letters count se score tha — is se lamba GANDA
      text (adhoori neighbouring column mila hua) saaf chhote naam ko hara deta
@@ -447,41 +950,80 @@ function _nameLikeScore(t){
   return letters*0.6 + ratio*6 - digits*2 - junk*2;
 }
 async function _nameStrips(im, rows, killsXo, Wo, Ho, scale){
-  if(!im||!Wo||!Ho) return;
+  if(!im||!Wo||!Ho||!rows.length) return;
   scale = scale || 1;
-  var variants=[
-    {lx:0.205, rx:0.070, hh:0.038, thr:140},
-    {lx:0.205, rx:0.070, hh:0.038, thr:115},
-    {lx:0.185, rx:0.062, hh:0.038, thr:140},
-    {lx:0.205, rx:0.070, hh:0.038, thr:'ada'}
-  ];
+  var cells=[];
   for(var i=0;i<rows.length;i++){
     var r=rows[i];
     if(r.y==null) continue;
     var ax = (killsXo != null) ? killsXo : ((r.fx != null && r.fx > 0) ? (r.fx / scale) : null);
     if (!ax) continue;
-    var yc=r.y*Ho, texts=[];
-    for(var v=0; v<variants.length; v++){
-      var o=variants[v];
-      try{
-        var bl=await _stripBlob(im, ax-o.lx*Wo, yc-o.hh*Ho, ax-o.rx*Wo, yc+o.hh*Ho, o.thr, o.inv);
-        if(!bl) continue;
-        var pass=await ocrWords(bl, 7);
-        var tx=((pass.lines[0]&&pass.lines[0].text)||'').trim();
-        if(!tx) continue;
-        var cleaned=_cleanName(tx);
-        if(_nameLikeScore(cleaned) > -50) texts.push(cleaned);   /* sirf plausible naam */
-      }catch(e){}
+    var yc=r.y*Ho;
+    /* v3.0c: PEHLE tight word-box (full pass me jo naam ke words mile unka exact
+       bbox) — isse avatar/subtitle/glow sab crop se bahar rehta hai. Warna
+       purana ax-window wala box (patla band 0.031). */
+    var box = null;
+    if (r.nbx0 != null && r.nbx1 != null && r.nby0 != null && r.nby1 != null) {
+      box = { x0: r.nbx0/scale - 0.010*Wo, y0: r.nby0/scale - 0.014*Ho,
+              x1: r.nbx1/scale + 0.010*Wo, y1: r.nby1/scale + 0.014*Ho };
+      var bw=(box.x1-box.x0), bh=(box.y1-box.y0);
+      if (bw < 0.05*Wo || bh < 0.018*Ho || bh > 0.085*Ho || box.x1 > ax) box = null;  /* sanity */
     }
-    /* v2.7: ek hi "best" chunne se kabhi-kabhi kaam ka candidate gir jata tha —
-       ab TOP-2 distinct candidates store karte hain; auto-fill dono try karta hai. */
-    var cands=[];
-    for(var c=0;c<texts.length;c++){ if(cands.indexOf(texts[c])<0) cands.push(texts[c]); }
-    cands.sort(function(a,b){ return _nameLikeScore(b)-_nameLikeScore(a); });
-    if(cands.length){ r.name2=cands[0]; }
-    if(cands.length>1){ r.name3=cands[1]; }
+    if (!box) box={x0:ax-0.205*Wo, y0:yc-0.031*Ho, x1:ax-0.070*Wo, y1:yc+0.031*Ho};
+    r._nbox=box; r._ax=ax;
+    cells.push({idx:i, x0:box.x0, y0:box.y0, x1:box.x1, y1:box.y1});
+  }
+  if(!cells.length) return;
+  var bagAll={};
+  /* (1) composite naam pass — saari name-plates ek image me (psm 6), 4 filters */
+  try{
+    var comp=_composeCells(im, cells, 200);   /* v3.0b: 110->200 (2x -> ~4x upscale) */
+    if(comp){
+      var variants=[{thr:140,w:1.2},{thr:115,w:1},{thr:'otsu',w:1.3},{thr:'ada',w:1.1}];
+      var votes=await _colEnsemble(comp, variants, 6, _WL_NAME, function(t){
+        var c=_cleanName(t);
+        return (_nameLikeScore(c)>-50)?c:null;
+      });
+      Object.keys(votes).forEach(function(k){ bagAll[k]=votes[k]; });
+    }
+  }catch(e){}
+  /* (2) per-row sharpened extra reads — sirf jinki composite candidate kamzor hai */
+  for(var j=0;j<rows.length;j++){
+    var r2=rows[j];
+    if(!r2._ax || !r2._nbox) continue;
+    var bag=bagAll[j]||{};
+    var top=null, tw=0;
+    Object.keys(bag).forEach(function(t){ if(bag[t]>tw){tw=bag[t]; top=t;} });
+    var b=r2._nbox;
+    /* v3.0b: composite ke upar per-row reads HAMESHA (2 reads) — thr140
+       historically best raha, otsu+sharp contrast-change ke liye. */
+    var extras=[{thr:140},{thr:'otsu',sharp:true}];
+    for(var e=0;e<extras.length;e++){
+      try{
+        var bl=await _stripBlob(im, b.x0,b.y0,b.x1,b.y1, extras[e].thr, false, {sharp:!!extras[e].sharp, targetW:700});
+        if(!bl) continue;
+        var pass=await ocrWords(bl, 7, _WL_NAME);
+        var tx=_cleanName((pass.lines[0]&&pass.lines[0].text)||'');
+        if(_nameLikeScore(tx)>-50){ bag[tx]=(bag[tx]||0)+1; }
+      }catch(err){}
+    }
+    bagAll[j]=bag;
+  }
+  /* (3) final candidates: weight + naam-jaisa score */
+  for(var k=0;k<rows.length;k++){
+    var bag2=bagAll[k];
+    if(!bag2) continue;
+    var list=Object.keys(bag2).filter(function(t){ return _nameLikeScore(t)>-50; });
+    list.sort(function(a,b){
+      var sa=_nameLikeScore(a)+bag2[a]*0.9, sb=_nameLikeScore(b)+bag2[b]*0.9;
+      return sb-sa;
+    });
+    if(list[0]) rows[k].name2=list[0];
+    if(list[1]) rows[k].name3=list[1];
+    if(list[2]) rows[k].name4=list[2];
   }
 }
+
 /* gate-free best-candidate score (candidate pick karne ke liye; gate runResult me) */
 function _bestScore(name,list){
   var best=null,second=null;
@@ -525,6 +1067,13 @@ function _rowsFromWords(pass, W, H){
     var nums = w2.filter(function (w) { return /^\d{1,4}$/.test(w.t); })
                  .map(function (w) { return { v: parseInt(w.t, 10), w: w }; });
     if (!nums.length) return;
+    /* v3.0d: DOOSRE TEAM ka header row ('K D A DMG') OCR me 'K 0 A OMG' jaisa
+       aa jata hai — usme 2 se zyada header-jaise letter-token hote hain aur
+       sirf 1-2 numbers. Aisa row asli player row nahi hai; isse drop na karne
+       par neeche ki saari rows ka index/rank ek se shift ho jata tha (naam
+       galat row me, kills galat player ko). */
+    var hdrLike = w2.filter(function (w) { return /^(K|D|A|DMG|OMG|KILLS|REVIVAL|SURVIVAL|TIME)$/i.test(w.t); }).length;
+    if (hdrLike >= 2 && nums.length <= 2) return;
     /* v2.5d: FF result me har TEAM ka block alag indent hota hai — ek global
        killsX sirf ek team ke liye sahi hota hai. Isliye har row ka apna anchor
        'fx' = us row ka sabse LEFT wala number (K column). */
@@ -545,10 +1094,22 @@ function _rowsFromWords(pass, W, H){
     }
     if (kills == null && headerless && nums.length) { kills = nums[0].v; kw = nums[0].w; }  /* leftmost */
     if (kills == null) return;
-    var left = w2.filter(function (w) {
+    var leftWords = w2.filter(function (w) {
       return kw ? (w.x1 < kw.x0 - W * 0.004) : (w.x < W * 0.42);
-    }).filter(function (w) { return !/^(NAME|K|A|D|DMG|KILLS)$/i.test(w.t); })
-      .map(function (w) { return w.t; }).join(' ');
+    }).filter(function (w) { return !/^(NAME|K|A|D|DMG|KILLS)$/i.test(w.t); });
+    var left = leftWords.map(function (w) { return w.t; }).join(' ');
+    /* v3.0c: naam ke words ka TIGHT bbox (scaled space) — isse naam crop bilkul
+       exact hota hai (avatar/subtitle/glow sab bahar), naam padhne ka sabse bada
+       accuracy lever. */
+    var nb = null;
+    if (leftWords.length) {
+      var nx0=1e9, nx1=-1e9, ny0=1e9, ny1=-1e9;
+      leftWords.forEach(function (w) {
+        nx0=Math.min(nx0,w.x0); nx1=Math.max(nx1,w.x1);
+        ny0=Math.min(ny0,(w.y - (w.h||0)/2)); ny1=Math.max(ny1,(w.y + (w.h||0)/2));
+      });
+      if (nx1>nx0 && ny1>ny0) nb={x0:nx0,x1:nx1,y0:ny0,y1:ny1};
+    }
     var hasDmg = nums.some(function (n) { return n.v >= 100 && n.v <= 99999; });
     /* v2.5g: pre-filter ab sirf bilkul khaali junk hataata hai — asli validity
        naam-strip ke BAAD decide hoti hai (naam + numbers dono chahiye). */
@@ -557,7 +1118,8 @@ function _rowsFromWords(pass, W, H){
                                    : (fx != null && nums.some(function (n) { return n.v === kills && n.w.x === fx; }));
     rows.push({ kills: kills, y: Number((ln2.y / H).toFixed(3)), name: _cleanName(left), raw: ln2.text.slice(0, 80),
                 nums: nums.length, hasDmg: hasDmg, fromCol: fromCol, fx: fx,
-                kwx0: kw ? kw.x0 : null, kwx1: kw ? kw.x1 : null, kwy: kw ? kw.y : null, kwh: kw ? kw.h : null });
+                kwx0: kw ? kw.x0 : null, kwx1: kw ? kw.x1 : null, kwy: kw ? kw.y : null, kwh: kw ? kw.h : null,
+                nbx0: nb ? nb.x0 : null, nbx1: nb ? nb.x1 : null, nby0: nb ? nb.y0 : null, nby1: nb ? nb.y1 : null });
   });
   /* v2.5d: ek hi player ki do lines (split rows, e.g. 'ANSHU' + 'oy EE') ko
      y-proximity se merge karo — warna rank numbering shift ho jati hai. */
@@ -589,9 +1151,13 @@ async function parseResultV25(file, onPct){
   var imEl = await _loadImgFile(file);
   var dims = imEl ? { w: (imEl.naturalWidth || imEl.width), h: (imEl.naturalHeight || imEl.height) } : { w: 0, h: 0 };
   var small = (dims.w || 9999) < 900;
-  var sc = small ? Math.max(2.5, Math.min(8, 4200 / Math.max(dims.w || 1, 1))) : 0;   /* 0 = default */
-  var modes = [['white', 0], ['maxch', 0], ['soft', 0], [false, 175]];
-  if (small) modes = [['maxch', 0], ['white', 0], ['soft', 0]];
+  /* v3.0: small images ka scale 4200px canvas banata tha (OCR 20s+/mode);
+     ab 3000px target (~5x) — speed + accuracy ka balance. */
+  var sc = small ? Math.max(2.5, Math.min(8, 3000 / Math.max(dims.w || 1, 1))) : 0;   /* 0 = default */
+  /* v3.0: 'otsu' (contrast-adaptive threshold) add — game scene ka contrast
+     badalne par fixed thresholds fail hote hain, Otsu khud split dhoondta hai. */
+  var modes = [['white', 0], ['maxch', 0], ['soft', 0], ['otsu', 0]];
+  if (small) modes = [['maxch', 0], ['soft', 0], ['otsu', 0]];
   var best = null, dbg = [];
   for (var i = 0; i < modes.length; i++) {
     try {
@@ -764,24 +1330,39 @@ async function runResult(files){
     all=all.filter(function(p){var k=norm(p.name);if(!k||seen[k])return false;seen[k]=true;return true;});
     var tbl=[];
     rows.forEach(function(row){var el=row.querySelector('td:nth-child(2) div');if(el)tbl.push({name:el.textContent.trim(),row:row});});
-    var plans=[],skipped=0,lowConf=0;
-    all.forEach(function(op){
-      var anyName=(op.name&&op.name.length>=2)||(op.name2&&op.name2.length>=2)||(op.name3&&op.name3.length>=2);
-      if(!anyName){if(rows.length===1){plans.push({row:rows[0],op:op});}return;}
-      /* v2.5 SAFETY GATE: auto-fill sirf jab naam ka match solid ho.
-         72 se neeche = skip (galat row me kills bharne se prize galat ho sakta). */
-      var pick=null;
-      [op.name, op.name2, op.name3].forEach(function(nm){
-        if(!nm||nm.length<2)return;
+    var skipped=0,lowConf=0;
+    /* v3.0 GLOBAL ASSIGNMENT: pehle har OCR row ka best player nikalta hai, phir
+       ek player ko sirf EK hi OCR row mil sakti hai (greedy, best score pehle).
+       Pehle do OCR rows ek hi player par baith sakti thi -> dono ka data galat.
+       Candidates = [full-pass naam, composite naam2/name3/name4]. */
+    var scoredPairs=[];
+    all.forEach(function(op, oi){
+      var names=[op.name, op.name2, op.name3, op.name4].filter(function(x){ return x && x.length>=2; });
+      if(!names.length){ if(rows.length===1) scoredPairs.push({oi:oi, op:op, item:rows[0], score:100, second:null, strong:true}); return; }
+      var best=null;
+      names.forEach(function(nm){
         var s2=_bestScore(nm,tbl);
-        if(s2&&(!pick||s2.score>pick.score))pick=s2;
+        if(s2 && (!best || s2.score>best.score)) best=s2;
       });
-      if(!pick||pick.score<72){skipped++;return;}
-      if(pick.second!=null&&(pick.score-pick.second)<8){skipped++;return;}
-      /* quality: row real result-row jaisa ho (3+ numbers ya DMG ya kills K-column se) */
+      if(!best) return;
       var strong = (op.fromCol === true) || (op.hasDmg === true && (op.nums || 0) >= 3);
-      if (!strong) { lowConf++; return; }
-      plans.push({row:pick.item.row, op:op});
+      /* v3.0m: EXACT naam-match khud strong evidence hai — 92+ score aur 15+
+         ka gap ho to kills fill karo (kills ab per-row column-geometry se
+         aate hain, isliye 'strong' flag ki zaroorat nahi — par kamzor match
+         par purana strict rule hi chalega). */
+      if(!strong && best.score>=92 && (best.second==null || (best.score-best.second)>=15)) strong=true;
+      scoredPairs.push({oi:oi, op:op, item:best.item, score:best.score, second:best.second, strong:strong});
+    });
+    scoredPairs.sort(function(a,b){ return b.score-a.score; });
+    var usedOp={}, usedRow=[], plans=[];
+    scoredPairs.forEach(function(p){
+      if(usedOp[p.oi]) return;
+      if(p.score<72){ skipped++; usedOp[p.oi]=1; return; }
+      if(p.second!=null && (p.score-p.second)<8){ skipped++; usedOp[p.oi]=1; return; }
+      if(!p.strong){ lowConf++; usedOp[p.oi]=1; return; }
+      if(usedRow.indexOf(p.item.row)>=0){ skipped++; usedOp[p.oi]=1; return; }  /* player already le liya */
+      usedOp[p.oi]=1; usedRow.push(p.item.row);
+      plans.push({row:p.item.row, op:p.op});
     });
     /* ✅ SAFETY (2026-09-27): rank OCR row-ORDER par depend karta hai. Rank sirf
        tab bharo jab HAR panel row match ho gayi ho (complete 1:1 mapping) —
