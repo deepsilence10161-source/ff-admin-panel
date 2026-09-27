@@ -55,7 +55,7 @@ var TSR = { ready:false, loading:false, queue:[],
 TSR.load();
 
 /* ── 2. IMAGE PREPROCESSOR ── */
-function preprocessImage(file,invert){
+function preprocessImage(file,invert,opts){
   return new Promise(function(resolve){
     var url=URL.createObjectURL(file);
     var img=new Image();
@@ -64,6 +64,7 @@ function preprocessImage(file,invert){
       URL.revokeObjectURL(url);
       var scale=Math.min(2.5,2400/Math.max(img.width,img.height,1));
       if(scale<1)scale=1;
+      if(opts&&opts.scale)scale=opts.scale;   /* v2.5: chhoti screenshots ke liye zyada upscale */
       var W=Math.round(img.width*scale),H=Math.round(img.height*scale);
       var cv=document.createElement('canvas');cv.width=W;cv.height=H;
       var ctx=cv.getContext('2d');
@@ -78,7 +79,19 @@ function preprocessImage(file,invert){
         var bright=(isGold||isWhite||isCyan||isGreen)?255:boosted;
         /* v2.4 'soft' variant: koi hard threshold nahi — sirf upscale+contrast;
            glossy/dark screenshots par binarize patla text kha jata hai */
-        var out=invert==='soft'?bright:(invert?(bright>145?0:255):(bright>145?255:0));
+        var out;
+        if(invert==='soft'){ out=bright; }
+        else if(invert==='white'){
+          /* v2.5: sirf NEAR-WHITE pixels (teeno channel high) — FF result screens
+             me text white hota hai, plate/background colored. Purane threshold
+             (145) me bright plate bhi white ban jata tha aur text doob jata tha. */
+          out=(Math.min(r,g,b)>=175)?255:0;
+        }
+        else if(invert==='maxch'){
+          /* v2.5: koi bhi channel bright ho (gold/cyan text bhi) */
+          out=(Math.max(r,g,b)>=180)?255:0;
+        }
+        else { out=invert?(bright>145?0:255):(bright>145?255:0); }
         px[i]=px[i+1]=px[i+2]=out;px[i+3]=255;
       }
       ctx.putImageData(id,0,0);
@@ -241,6 +254,384 @@ function bestMatch(name,list,minSc){
   return top;
 }
 
+/* ── 4.5 WORD-BOX PARSER (v2.5, 2026-09-27) ──────────────────────────────
+   Problem (live panel par measured): line-based parser poore screenshot ki
+   lines par chalta tha, isliye (a) naam ke colored plate + background art
+   text ko kha jaate the, (b) K/D/A/DMG columns ek hi line me mix ho jaate the.
+   Fix: Tesseract se word-level bounding boxes lo, header row ("NAME ... K ...")
+   se kills-column ka x-center nikalo, phir HAR row ko uske boxes se banao:
+     - kills  = kills-column ke x-range me pada numeric word
+     - name   = us word se LEFT ke words
+   Multiple masks (white/maxch/soft) me se jo sabse zyada valid rows de wahi
+   chunta hai. Purana parseResult fallback ke roop me bana rehta hai. */
+async function ocrWords(blob, psm){
+  var worker = await _getOCRWorker();
+  var out = await worker.recognize(blob, {}, { blocks: true });
+  var lines = [];
+  function walkLine(l){
+    if (!l) return;
+    var tx = (l.text || '').trim(); if (!tx) return;
+    lines.push({ text: tx, y: l.bbox ? (l.bbox.y0 + l.bbox.y1) / 2 : null,
+      words: (l.words || []).map(function (w) {
+        return { t: (w.text || '').trim(), x0: w.bbox ? w.bbox.x0 : 0, x1: w.bbox ? w.bbox.x1 : 0,
+                 x: w.bbox ? (w.bbox.x0 + w.bbox.x1) / 2 : 0,
+                 h: w.bbox ? Math.abs(w.bbox.y1 - w.bbox.y0) : 0 };
+      }) });
+  }
+  (out.data.blocks || []).forEach(function (bl) {
+    (bl.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(walkLine); });
+    if (!bl.paragraphs && bl.lines) bl.lines.forEach(walkLine);
+  });
+  if (!lines.length) (out.data.text || '').split('\n').forEach(function (tt) {
+    if (tt.trim()) lines.push({ text: tt.trim(), y: null, words: [] });
+  });
+  return { lines: lines, conf: Number(out.data.confidence) || 0 };
+}
+
+function _cleanName(s){
+  var t = String(s || '').replace(/[|\[\]{}\/\\]+/g, ' ').replace(/\s+/g, ' ').trim();
+  var keep = t.split(' ').filter(function (p) { return /[A-Za-z0-9]{2,}/.test(p); });
+  t = (keep.length ? keep : t.split(' ')).join(' ').trim();
+  t = t.replace(/^[^A-Za-z0-9(]+/, '').replace(/[^A-Za-z0-9)!?]+$/, '').trim();
+  return t.slice(0, 22);
+}
+
+/* ek OCR pass (words+boxes) se rows nikalo — header se kills column milta hai */
+/* ── 4.6 NAME-STRIP REFINEMENT (v2.5b) ─────────────────────────────
+   Full-image pass me naam plate ke avatar + gradient graphics ke saath mil
+   jaata hai ('Ly NEES' jaise junk). FF result screen me kills column ka x
+   killsX se pata chalta hai aur naam hamesha uske LEFT hota hai — isliye
+   har row ke naam-area ka narrow strip alag se OCR hota hai (psm 7 = single
+   line). Additive hai: jo naam zyada match kare wahi use hota hai. */
+function _loadImgFile(file){
+  return new Promise(function(res){
+    var url=URL.createObjectURL(file), im=new Image();
+    im.onload=function(){res(im);};
+    im.onerror=function(){URL.revokeObjectURL(url);res(null);};
+    im.src=url;
+  });
+}
+/* v2.7: Bradley adaptive threshold — integral image se local mean, phir
+   pixel > (mean - C) ko text maano. Ghost/glow/blurry screenshots me global
+   threshold se kaafi behtar (free, pure JS, koi library nahi). */
+function _adaBinary(px, w, h, C, invert){
+  var n = w*h, i, x, y;
+  var gray = new Float32Array(n);
+  for (i=0;i<n;i++){ var r=px[i*4],g=px[i*4+1],b=px[i*4+2]; gray[i]=Math.min(r,g,b); }
+  var W1 = w+1;
+  var I = new Float64Array((w+1)*(h+1));
+  for (y=0;y<h;y++){
+    var rs=0;
+    for (x=0;x<w;x++){ rs += gray[y*w+x]; I[(y+1)*W1 + (x+1)] = I[y*W1 + (x+1)] + rs; }
+  }
+  var rad = Math.max(5, Math.round(Math.min(w,h)*0.18));
+  for (y=0;y<h;y++){
+    var y0=Math.max(0,y-rad), y1=Math.min(h-1,y+rad);
+    for (x=0;x<w;x++){
+      var x0=Math.max(0,x-rad), x1=Math.min(w-1,x+rad);
+      var area=(x1-x0+1)*(y1-y0+1);
+      var sum = I[(y1+1)*W1 + (x1+1)] - I[y0*W1 + (x1+1)] - I[(y1+1)*W1 + x0] + I[y0*W1 + x0];
+      var mean = sum/area;
+      var on = (gray[y*w+x] > (mean - C));
+      if (invert) on = !on;
+      var idx=(y*w+x)*4; px[idx]=px[idx+1]=px[idx+2]=on?255:0; px[idx+3]=255;
+    }
+  }
+}
+function _stripBlob(im, x0, y0, x1, y1, thr, inv){
+  var W=im.naturalWidth||im.width, H=im.naturalHeight||im.height;
+  x0=Math.max(0,Math.round(x0)); y0=Math.max(0,Math.round(y0));
+  x1=Math.min(W,Math.round(x1)); y1=Math.min(H,Math.round(y1));
+  var cw=x1-x0, ch=y1-y0;
+  if(cw<20||ch<8) return Promise.resolve(null);
+  /* v2.5c: 1400/cw (≈7.6x) par smooth+binary text blur ho jata tha aur OCR
+     junk deta tha; probe me ~4x (700 px target) sabse saaf nikla. */
+  var s=Math.max(1,Math.min(8, 700/cw));
+  var cv=document.createElement('canvas'); cv.width=Math.round(cw*s); cv.height=Math.round(ch*s);
+  var ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  ctx.drawImage(im, x0,y0,cw,ch, 0,0, cv.width, cv.height);
+  var id=ctx.getImageData(0,0,cv.width,cv.height), px=id.data;
+  if(thr==='ada'){
+    /* v2.7 ADVANCED: adaptive local-mean threshold (Bradley) — blurry/ghost
+       text ke liye. Global threshold in images me fail hota hai (glow/shadow),
+       local mean se har pixel apne aas-paas ke background se compare hota hai. */
+    _adaBinary(px, cv.width, cv.height, 10, !!inv);
+  } else {
+    for(var i=0;i<px.length;i+=4){
+      var r=px[i],g=px[i+1],b=px[i+2];
+      var on=(Math.min(r,g,b)>=thr);
+      if(inv) on=!on;
+      px[i]=px[i+1]=px[i+2]=on?255:0; px[i+3]=255;
+    }
+  }
+  ctx.putImageData(id,0,0);
+  return new Promise(function(res){cv.toBlob(function(bl){res(bl);},'image/png');});
+}
+/* v2.5g: per-row KILLS digit — data-driven rule (thr_matrix.json).
+   Discovery: high threshold digit ki thin stroke kha jata tha ('7'→'5'),
+   thr≈110 sabse stable nikla (img1 4/4, img2 row0 bhi). Ab: K-word bbox
+   (padding ke saath, jisse '17' ka '1' bhi aaye) x 5 offsets x thr110 —
+   majority vote; tie/none par thr200 se dobara; phir bhi nahi to parser
+   ka purana reading. psm 10 = single character. */
+function _digitVote(im, x0, y0, x1, y1, thr, offs, inv){
+  var votes = {};
+  for (var i = 0; i < offs.length; i++) {
+    try {
+      var bl = await (_stripBlob(im, x0 + offs[i], y0, x1 + offs[i], y1, thr, inv));
+      if (!bl) continue;
+      var pass = await (ocrWords(bl, 10));
+      var tx = ((pass.lines[0] && pass.lines[0].text) || '').replace(/[^0-9]/g, '');
+      if (!tx) continue;
+      var v = parseInt(tx, 10);
+      if (isNaN(v) || v < 0 || v > 99) continue;
+      votes[v] = (votes[v] || 0) + 1;
+    } catch (e) {}
+  }
+  return votes;
+}
+function _pickVote(votes){
+  var bestV = null, bestC = 0, tie = false;
+  Object.keys(votes).forEach(function (k) {
+    var c = votes[k];
+    if (c > bestC) { bestC = c; bestV = parseInt(k, 10); tie = false; }
+    else if (c === bestC) tie = true;
+  });
+  if (bestV == null || tie || bestC < 2) return null;
+  return bestV;
+}
+async function _numStrips(im, rows, Wo, Ho, scale){
+  if(!im||!Wo||!Ho) return;
+  scale = scale || 1;
+  var off = Math.max(3, Math.round(0.004 * Wo));
+  var offs = [-off, -Math.round(off/2), 0, Math.round(off/2), off];
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i];
+    if(r.y==null) continue;
+    var yc = r.y * Ho;
+    /* window: K-word bbox + parser fx + padding (dono ka union) */
+    var hw = Math.max(0.020 * Wo, 12);
+    var x0 = r.fx != null ? (r.fx/scale - hw) : null, x1 = r.fx != null ? (r.fx/scale + hw) : null;
+    if(r.kwx0 != null && r.kwx1 != null){
+      var pad = (r.kwh ? r.kwh * 0.55 : hw);
+      var bx0 = r.kwx0/scale - pad, bx1 = r.kwx1/scale + (r.kwh ? r.kwh * 0.15 : 0);
+      x0 = (x0 == null) ? bx0 : Math.min(x0, bx0);
+      x1 = (x1 == null) ? bx1 : Math.max(x1, bx1);
+    }
+    if(x0 == null || x1 == null) continue;
+    var y0 = yc - Math.max(0.024 * Ho, (r.kwh ? r.kwh/scale * 0.8 : 8));
+    var y1 = yc + Math.max(0.024 * Ho, (r.kwh ? r.kwh/scale * 0.8 : 8));
+    /* v2.7 ADVANCED: thr110 → ada (blurry ke liye) → thr200 fallback ladder */
+    var v = _pickVote(_digitVote(im, x0, y0, x1, y1, 110, offs));
+    if(v == null) v = _pickVote(_digitVote(im, x0, y0, x1, y1, 'ada', offs));
+    if(v == null) v = _pickVote(_digitVote(im, x0, y0, x1, y1, 200, offs));
+    if(v == null) v = _pickVote(_digitVote(im, x0, y0, x1, y1, 'ada', offs, true));
+    if(v != null) r.kills = v;
+  }
+}
+/* v2.6: name-strip variants + naam-jaisa heuristic.
+   Discovery (name_thr.json): thr 168/190 high the — 110/140 par naam saaf
+   padhte hain (img1 'Vanisherrr' 0.95 @140). Ab 4 variants (3 thresholds x
+   2 windows), aur runtime par heuristic se sabse 'naam-jaise' text chuna
+   jata hai (letters zyada, digits/symbols kam). */
+function _nameLikeScore(t){
+  /* v2.7 fix: pehle absolute letters count se score tha — is se lamba GANDA
+     text (adhoori neighbouring column mila hua) saaf chhote naam ko hara deta
+     tha (e.g. 'Boa Vanisherr z8)' > 'Vanisherrr'). Ab letter-RATIO bhi count
+     hota hai aur digits/junk par sakht penalty hai. */
+  var letters=(t.match(/[A-Za-z]/g)||[]).length;
+  var digits=(t.match(/[0-9]/g)||[]).length;
+  var junk=(t.match(/[^A-Za-z0-9 ]/g)||[]).length;
+  var tot=t.replace(/\s+/g,'').length || 1;
+  if(letters<3) return -99;
+  var ratio=letters/tot;
+  return letters*0.6 + ratio*6 - digits*2 - junk*2;
+}
+async function _nameStrips(im, rows, killsXo, Wo, Ho, scale){
+  if(!im||!Wo||!Ho) return;
+  scale = scale || 1;
+  var variants=[
+    {lx:0.205, rx:0.070, hh:0.038, thr:140},
+    {lx:0.205, rx:0.070, hh:0.038, thr:115},
+    {lx:0.185, rx:0.062, hh:0.038, thr:140},
+    {lx:0.205, rx:0.070, hh:0.038, thr:'ada'}
+  ];
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i];
+    if(r.y==null) continue;
+    var ax = (killsXo != null) ? killsXo : ((r.fx != null && r.fx > 0) ? (r.fx / scale) : null);
+    if (!ax) continue;
+    var yc=r.y*Ho, texts=[];
+    for(var v=0; v<variants.length; v++){
+      var o=variants[v];
+      try{
+        var bl=await _stripBlob(im, ax-o.lx*Wo, yc-o.hh*Ho, ax-o.rx*Wo, yc+o.hh*Ho, o.thr, o.inv);
+        if(!bl) continue;
+        var pass=await ocrWords(bl, 7);
+        var tx=((pass.lines[0]&&pass.lines[0].text)||'').trim();
+        if(!tx) continue;
+        var cleaned=_cleanName(tx);
+        if(_nameLikeScore(cleaned) > -50) texts.push(cleaned);   /* sirf plausible naam */
+      }catch(e){}
+    }
+    /* v2.7: ek hi "best" chunne se kabhi-kabhi kaam ka candidate gir jata tha —
+       ab TOP-2 distinct candidates store karte hain; auto-fill dono try karta hai. */
+    var cands=[];
+    for(var c=0;c<texts.length;c++){ if(cands.indexOf(texts[c])<0) cands.push(texts[c]); }
+    cands.sort(function(a,b){ return _nameLikeScore(b)-_nameLikeScore(a); });
+    if(cands.length){ r.name2=cands[0]; }
+    if(cands.length>1){ r.name3=cands[1]; }
+  }
+}
+/* gate-free best-candidate score (candidate pick karne ke liye; gate runResult me) */
+function _bestScore(name,list){
+  var best=null,second=null;
+  list.forEach(function(item){
+    var sc=fuzzyScore(name,item.name);
+    if(!best||sc>best.score){ second=best; best={item:item,score:sc}; }
+    else if(!second||sc>second.score){ second={item:item,score:sc}; }
+  });
+  if(!best) return null;
+  return {item:best.item, score:best.score, second:second?second.score:null};
+}
+
+function _rowsFromWords(pass, W, H){
+  var killsX = null, hdrY = null, nameX0 = null, i, ln, ws, k;
+  for (i = 0; i < pass.lines.length; i++) {
+    ln = pass.lines[i]; ws = ln.words || [];
+    if (!ws.length || ln.y == null) continue;
+    for (var j = 0; j < ws.length; j++) {
+      if (/^(K|KILLS?)$/i.test(ws[j].t) && ws[j].h > H * 0.008) { k = ws[j]; break; }
+      if (/^(K\/?D\/?A|K\/A)$/i.test(ws[j].t)) { k = ws[j]; k.__kda = true; break; }
+    }
+    if (k) {
+      killsX = k.__kda ? (k.x0 + (k.x1 - k.x0) * 0.12) : (k.x0 + k.x1) / 2;
+      hdrY = ln.y;
+      for (var m = 0; m < ws.length; m++) if (/^NAME$/i.test(ws[m].t)) { nameX0 = ws[m].x0; break; }
+      break;
+    }
+  }
+  var tol = killsX != null ? Math.max(W * 0.022, 10) : null;
+  /* v2.5e: HEADER-LESS fallback — chhoti screenshots me 'K' header alag se
+     nahi milta, pehle wahan rows hi 0 aati thi. Ab header ke bina bhi: har
+     line = ek row, kills = us line ka SABSE LEFT number (≤99). */
+  var headerless = (hdrY == null);
+  var rows = [];
+  pass.lines.forEach(function (ln2) {
+    if (ln2.y == null) return;
+    if (!headerless && ln2.y <= hdrY + H * 0.010) return;
+    if (/^(NAME|K|A|D|DMG|KILLS)\b/i.test(ln2.text) && !/\d/.test(ln2.text)) return;
+    if (/SURVIVAL|REVIVAL/i.test(ln2.text) && !/\d/.test(ln2.text)) return;
+    var w2 = (ln2.words || []).filter(function (w) { return w.t; });
+    var nums = w2.filter(function (w) { return /^\d{1,4}$/.test(w.t); })
+                 .map(function (w) { return { v: parseInt(w.t, 10), w: w }; });
+    if (!nums.length) return;
+    /* v2.5d: FF result me har TEAM ka block alag indent hota hai — ek global
+       killsX sirf ek team ke liye sahi hota hai. Isliye har row ka apna anchor
+       'fx' = us row ka sabse LEFT wala number (K column). */
+    var fx = null;
+    for (var q = 0; q < nums.length; q++) { if (fx == null || nums[q].w.x < fx) fx = nums[q].w.x; }
+    var kills = null, kw = null;
+    if (fx != null && killsX != null && Math.abs(fx - killsX) <= tol * 1.5) { fx = killsX; }
+    var anchor = (fx != null ? fx : killsX);
+    if (anchor != null) {
+      var tol2 = (fx != null ? tol : tol);
+      var cand = nums.filter(function (n) { return Math.abs(n.w.x - anchor) <= tol2 && n.v <= 99; });
+      if (cand.length) { kills = cand[0].v; kw = cand[0].w; }
+    }
+    if (kills == null) {
+      var lo = nameX0 != null ? nameX0 + W * 0.06 : W * 0.12;
+      var small = nums.filter(function (n) { return n.v <= 99 && n.w.x > lo && n.w.x < W * 0.62; });
+      if (small.length) { kills = small[0].v; kw = small[0].w; }
+    }
+    if (kills == null && headerless && nums.length) { kills = nums[0].v; kw = nums[0].w; }  /* leftmost */
+    if (kills == null) return;
+    var left = w2.filter(function (w) {
+      return kw ? (w.x1 < kw.x0 - W * 0.004) : (w.x < W * 0.42);
+    }).filter(function (w) { return !/^(NAME|K|A|D|DMG|KILLS)$/i.test(w.t); })
+      .map(function (w) { return w.t; }).join(' ');
+    var hasDmg = nums.some(function (n) { return n.v >= 100 && n.v <= 99999; });
+    /* v2.5g: pre-filter ab sirf bilkul khaali junk hataata hai — asli validity
+       naam-strip ke BAAD decide hoti hai (naam + numbers dono chahiye). */
+    if (!nums.length) return;
+    var fromCol = (killsX != null) ? nums.some(function (n) { return Math.abs(n.w.x - killsX) <= tol && n.v === kills; })
+                                   : (fx != null && nums.some(function (n) { return n.v === kills && n.w.x === fx; }));
+    rows.push({ kills: kills, y: Number((ln2.y / H).toFixed(3)), name: _cleanName(left), raw: ln2.text.slice(0, 80),
+                nums: nums.length, hasDmg: hasDmg, fromCol: fromCol, fx: fx,
+                kwx0: kw ? kw.x0 : null, kwx1: kw ? kw.x1 : null, kwy: kw ? kw.y : null, kwh: kw ? kw.h : null });
+  });
+  /* v2.5d: ek hi player ki do lines (split rows, e.g. 'ANSHU' + 'oy EE') ko
+     y-proximity se merge karo — warna rank numbering shift ho jati hai. */
+  rows.sort(function (a, b) { return a.y - b.y; });
+  var merged = [];
+  rows.forEach(function (r) {
+    var last = merged[merged.length - 1];
+    if (last && Math.abs(r.y - last.y) <= 0.018) {
+      var lc = ((last.name || '').match(/[A-Za-z]/g) || []).length;
+      var rc = ((r.name || '').match(/[A-Za-z]/g) || []).length;
+      if (rc > lc) merged[merged.length - 1] = r;
+      return;
+    }
+    merged.push(r);
+  });
+  rows = merged;
+  /* v2.5: rank = row ka order (FF result screen top-to-bottom 1..N hoti hai) */
+  rows.forEach(function (r, i) { r.rank = i + 1; });
+  return { rows: rows, killsX: killsX };
+}
+
+/* ek image par multi-mask word-box OCR; jo mask sabse zyada valid rows de wahi */
+async function parseResultV25(file, onPct){
+  /* ✅ FIX: original image ke dims chahiye (pehle preprocessed blob ke dims
+     use ho rahe the — 588px ki screenshot 1470px ban chuki hoti thi, isliye
+     'small' mode kabhi trigger hi nahi hota tha). */
+  /* v2.5b: image element ek hi baar load — dims ke liye bhi aur name-strip
+     refinement ke liye bhi (dobara decode karne ki zaroorat nahi). */
+  var imEl = await _loadImgFile(file);
+  var dims = imEl ? { w: (imEl.naturalWidth || imEl.width), h: (imEl.naturalHeight || imEl.height) } : { w: 0, h: 0 };
+  var small = (dims.w || 9999) < 900;
+  var sc = small ? Math.max(2.5, Math.min(8, 4200 / Math.max(dims.w || 1, 1))) : 0;   /* 0 = default */
+  var modes = [['white', 0], ['maxch', 0], ['soft', 0], [false, 175]];
+  if (small) modes = [['maxch', 0], ['white', 0], ['soft', 0]];
+  var best = null, dbg = [];
+  for (var i = 0; i < modes.length; i++) {
+    try {
+      var blob = await preprocessImage(file, modes[i][0], sc ? { scale: sc } : null);
+      var pass = await ocrWords(blob, 6);
+      /* ✅ FIX: word-box coordinates SCALED canvas ke hain — purane dims dene se
+         column x-thresholds galat ho jaate the (kills=63 jaise junk isi se aaya). */
+      var effScale = sc ? sc : Math.min(2.5, 2400 / Math.max(dims.w || 1, dims.h || 1));
+      if (effScale < 1) effScale = 1;
+      var W2 = Math.round((dims.w || 1000) * effScale), H2 = Math.round((dims.h || 1000) * effScale);
+      var pr = _rowsFromWords(pass, W2, H2);
+      var score = pr.rows.filter(function (r) { return r.kills != null && /[A-Za-z]{2,}/.test(r.name); }).length * 2 + pr.rows.length;
+      dbg.push({ mode: String(modes[i][0]), rows: pr.rows.length, score: score, conf: Math.round(pass.conf) });
+      if (!best || score > best.score) best = { score: score, rows: pr.rows, mode: String(modes[i][0]), conf: Math.round(pass.conf), killsX: pr.killsX, scale: effScale };
+      if (onPct) onPct(Math.round(((i + 1) / modes.length) * 100));
+    } catch (e) { dbg.push({ mode: String(modes[i][0]), err: String((e && e.message) || e).slice(0, 80) }); }
+  }
+  /* v2.5b: chune gaye pass ke rows par name-strip refinement */
+  if (best && best.rows.length && best.rows.length <= 20 && imEl) {
+    try { await _nameStrips(imEl, best.rows, (best.killsX != null ? best.killsX / (best.scale || 1) : null), dims.w || 1000, dims.h || 1000, best.scale || 1); } catch (e) {}
+    try { await _numStrips(imEl, best.rows, dims.w || 1000, dims.h || 1000, best.scale || 1); } catch (e) {}
+  }
+  /* v2.5g: ab final filter — row tabhi valid hai jab (a) naam me kam-se-kam
+     2 letters hon (full-pass ya name-strip se) AUR (b) numbers maujood hon.
+     Header/summary/'So close!' jaise junk rows isse hat jate hain; rank
+     phir dobara assign hota hai. */
+  if (best && best.rows.length) {
+    best.rows = best.rows.filter(function (r) {
+      var nm = (r.name || '') + ' ' + (r.name2 || '') + ' ' + (r.name3 || '');
+      var letters = (nm.match(/[A-Za-z]{2,}/g) || []).length;
+      var numeric = (r.nums || 0) >= 1 && r.kills != null;
+      return letters >= 1 && numeric;
+    });
+    best.rows.forEach(function (r, i) { r.rank = i + 1; });
+  }
+  if (imEl && imEl.src && imEl.src.indexOf('blob:') === 0) { try { URL.revokeObjectURL(imEl.src); } catch (e) {} }
+  return { rows: (best && best.rows) || [], mode: best ? best.mode : null,
+           score: best ? best.score : 0, conf: best ? best.conf : 0, killsX: best ? best.killsX : null, debug: dbg };
+}
+
 /* ── 5. PARSERS ── */
 
 /* Result parser
@@ -339,6 +730,12 @@ function bar(anchorId,msg,type){
 /* ── 7. RESULT AUTO-FILL ── */
 var _rBusy=false;
 async function runResult(files){
+  /* ✅ FIX (2026-09-27): ek hi upload ko multiple wrappers/buttons se dobara
+     process hone se roko (auto wrapper + v10 trigger + direct listener —
+     teenon same FileList bhejte hain; identity guard duplicate run khaata hai,
+     lekin naya upload = nayi FileList = normally chalta hai). */
+  if(files && files.length && window._ocrLastFilesRef===files) return;
+  if(files && files.length) window._ocrLastFilesRef=files;
   if(_rBusy){bar('mrSsPreview','⏳ OCR chal raha hai...','warn');return;}
   var rows=document.querySelectorAll('#mrPlayerTable tr[data-uid], #participantsList tr[data-uid]');
   if(!rows.length){bar('mrSsPreview','⚠️ Pehle match select karo aur players load karo','warn');return;}
@@ -350,35 +747,66 @@ async function runResult(files){
     var all=[];
     for(var i=0;i<fileArr.length;i++){
       if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;Image '+(i+1)+'/'+fileArr.length+' scan...';
-      var text=await runOCR(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';});
-      all=all.concat(parseResult(text));
+      /* v2.5 pehla rasta: word-box parsing (columns alag, crosses nahi) */
+      var boxed=null;
+      try{ boxed=await parseResultV25(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
+      if(boxed && boxed.rows && boxed.rows.length){
+        all=all.concat(boxed.rows);
+        window._ocrLastParse=window._ocrLastParse||{}; window._ocrLastParse[fileArr[i].name||i]=boxed.debug;
+      } else {
+        /* fallback: purana line-parser (agar boxes na mile) */
+        var text=await runOCR(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';});
+        all=all.concat(parseResult(text));
+      }
     }
     if(!all.length){bar('mrSsPreview','⚠️ Player data detect nahi hua — clearer screenshot upload karo','warn');_rBusy=false;return;}
     var seen={};
     all=all.filter(function(p){var k=norm(p.name);if(!k||seen[k])return false;seen[k]=true;return true;});
     var tbl=[];
     rows.forEach(function(row){var el=row.querySelector('td:nth-child(2) div');if(el)tbl.push({name:el.textContent.trim(),row:row});});
-    var filled=0,skipped=0;
+    var plans=[],skipped=0,lowConf=0;
     all.forEach(function(op){
-      if(!op.name||op.name.length<2){if(rows.length===1){_fillRow(rows[0],op);filled++;}return;}
-      var res=bestMatch(op.name,tbl,55);
-      if(!res){skipped++;return;}
-      _fillRow(res.item.row,op);filled++;
+      var anyName=(op.name&&op.name.length>=2)||(op.name2&&op.name2.length>=2)||(op.name3&&op.name3.length>=2);
+      if(!anyName){if(rows.length===1){plans.push({row:rows[0],op:op});}return;}
+      /* v2.5 SAFETY GATE: auto-fill sirf jab naam ka match solid ho.
+         72 se neeche = skip (galat row me kills bharne se prize galat ho sakta). */
+      var pick=null;
+      [op.name, op.name2, op.name3].forEach(function(nm){
+        if(!nm||nm.length<2)return;
+        var s2=_bestScore(nm,tbl);
+        if(s2&&(!pick||s2.score>pick.score))pick=s2;
+      });
+      if(!pick||pick.score<72){skipped++;return;}
+      if(pick.second!=null&&(pick.score-pick.second)<8){skipped++;return;}
+      /* quality: row real result-row jaisa ho (3+ numbers ya DMG ya kills K-column se) */
+      var strong = (op.fromCol === true) || (op.hasDmg === true && (op.nums || 0) >= 3);
+      if (!strong) { lowConf++; return; }
+      plans.push({row:pick.item.row, op:op});
     });
+    /* ✅ SAFETY (2026-09-27): rank OCR row-ORDER par depend karta hai. Rank sirf
+       tab bharo jab HAR panel row match ho gayi ho (complete 1:1 mapping) —
+       warna order shift ho sakta hai aur rank ghalat fill hoga (galat prize).
+       Kills per-player independent hain, wo har matched row me safe hain. */
+    var fillRank = (plans.length >= rows.length);
+    plans.forEach(function(p){ _fillRow(p.row,p.op,fillRank); });
+    var filled = plans.length;
     if(window.mrCalcPrize)rows.forEach(function(r){var inp=r.querySelector('.mr-rank-input');if(inp)window.mrCalcPrize(inp);});
     if(window.mrCheckDuplicateRanks)window.mrCheckDuplicateRanks();
     var msg='✅ Done! <b>'+filled+'/'+rows.length+' players</b> auto-filled';
     if(skipped>0)msg+=' <span style="opacity:.6;font-weight:400">('+skipped+' unmatched)</span>';
+    if(lowConf>0)msg+=' <span style="opacity:.6;font-weight:400">('+lowConf+' low-confidence — manually check karo)</span>';
+    if(!fillRank&&filled>0)msg+=' <span style="opacity:.7;font-weight:400">— kills fill hue; rank manually verify karo (kuch rows read nahi hui)</span>';
     bar('mrSsPreview',msg,filled>0?'success':'warn');
   }catch(e){bar('mrSsPreview','❌ Error: '+((e&&e.message)||e||'unknown'),'error');}
   _rBusy=false;
 }
 
-function _fillRow(row,op){
+function _fillRow(row,op,allowRank){
   /* R19: active result-table (participantsList) के inputs .rank-input/.kills-input
      हैं — पुराना mrPlayerTable (.mr-*-input) कभी populate होता ही नहीं था, इसलिए
      OCR auto-fill मरा हुआ था। दोनों selectors पकड़ो, जो मिले भर दो। */
   var ri=row.querySelector('.mr-rank-input,.rank-input'),ki=row.querySelector('.mr-kills-input,.kills-input');
+  if(allowRank===false)ri=null;   /* safety: adhoori rows par rank mat bharo */
   if(ri&&op.rank>0){ri.value=op.rank;ri.dispatchEvent(new Event('input',{bubbles:true}));_flash(ri,'rgba(255,215,0,.08)');}
   if(ki&&op.kills>=0){ki.value=op.kills;ki.dispatchEvent(new Event('input',{bubbles:true}));_flash(ki,'rgba(255,107,107,.08)');}
 }
@@ -474,21 +902,49 @@ function _lbar(msg,type){
    Manual button reads existing base64 from _mrScreenshots → no double trigger. ── */
 var _rHooked=false,_rBtn=false,_lBtn=false;
 
+var _lastHooked=null;
 function hookResult(){
-  if(_rHooked||!window.mrAddScreenshots)return;
-  _rHooked=true;
+  if(!window.mrAddScreenshots)return;
+  /* ✅ FIX (2026-09-27): purana guard function-identity compare karta tha.
+     fa-admin-v10 ka wrapper beech me aane par hum use dobara wrap karte the
+     aur dono scripts ping-pong karte rehte the (chain har 500ms gehri hoti
+     jati thi). Ab: hamara wrapper already outermost hai to kuch na karo. */
+  if(window.mrAddScreenshots._fa53Hook) return;
   var orig=window.mrAddScreenshots;
-  window.mrAddScreenshots=function(inp){
+  var wrapped=function(inp){
+    /* ✅ FIX (2026-09-27 — auto-path ka ASLI bug): base handler
+       (fa22-match-result.js `mrAddScreenshots`) aakhir me `input.value=''`
+       karta hai — uske BAAD `inp.files` khaali ho jati hai. Pehle hum orig()
+       ke baad `inp.files` use karte the → OCR ko khaali list milti thi →
+       auto path chupchaap marta tha. Ab files ko orig() se PEHLE local
+       variable me pakadte hain aur wahi (FileList ref) runResult ko dete hain
+       (ref input clear hone ke baad bhi valid rehta hai). */
+    var files = (inp && inp.files && inp.files.length) ? inp.files : null;
+    if(files) window._mrLastFiles = files;
     orig(inp);
-    // Auto-run ONLY on actual new file upload
-    if(inp.files&&inp.files.length)setTimeout(function(){runResult(inp.files);},200);
+    var use = files || window._mrLastFiles;
+    if(use && use.length){ runResult(use); }
   };
+  wrapped._fa53Hook=true;
+  window.mrAddScreenshots=wrapped;
 }
 
 function addResultBtn(){
   if(_rBtn||document.getElementById('_ocrRBtn'))return;
   var inp=document.getElementById('mrFileInput');if(!inp)return;
   _rBtn=true;
+  /* ✅ FIX (2026-09-27): wrapper chain par bharosa na karo — seedha input
+     element par bhi listener lagao (agar koi aur script wrappers badal de to
+     bhi auto-OCR chalega; runResult ka identity-guard duplicate kha jata hai). */
+  if(!inp._fa53Auto){
+    inp._fa53Auto=true;
+    /* capture:true — inline onchange (jo input.value='' kar deta hai) se PEHLE
+       chalta hai, isliye files yahan guaranteed milti hain. */
+    inp.addEventListener('change',function(){
+      var f=this.files;
+      if(f&&f.length){ window._mrLastFiles=f; runResult(f); }
+    },true);
+  }
   var btn=document.createElement('button');
   btn.id='_ocrRBtn';btn.type='button';
   btn.innerHTML='<i class="fas fa-magic"></i> OCR Auto-Fill';
@@ -528,6 +984,8 @@ function addLobbyBtn(){
 var _tries=0,_poll=setInterval(function(){
   _tries++;
   hookResult();addResultBtn();addLobbyBtn();
+  /* _rHooked flag ab kaam nahi karta (doosri script wrapper replace kar sakti hai)
+     — hookResult() khud compare karta hai ki current function hamara hai ya nahi */
   if(window.loadJoinedPlayers&&!window._ocrLHooked){
     window._ocrLHooked=true;
     var orig=window.loadJoinedPlayers;
@@ -540,5 +998,5 @@ var _tries=0,_poll=setInterval(function(){
   if(_tries>300)clearInterval(_poll);
 },500);
 
-window._FFREOCR={runResult:runResult,runLobby:runLobby};
+window._FFREOCR={runResult:runResult,runLobby:runLobby,parseResultV25:parseResultV25,parseResult:parseResult};
 })();

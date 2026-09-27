@@ -277,6 +277,9 @@
   var _origMrAdd = null;
   function _wrapMrAddScreenshots() {
     if (!window.mrAddScreenshots || window._mrOCRWrapped) return;
+    /* ✅ fa53 (maintained OCR engine) ka wrapper hi outermost rehne do —
+       warna hamara legacy wrapper usko dhak deta hai aur OCR chain toot jati hai. */
+    if (window.mrAddScreenshots._fa53Hook) { window._mrOCRWrapped = true; return; }
     window._mrOCRWrapped = true;
     _origMrAdd = window.mrAddScreenshots;
     window.mrAddScreenshots = function (input) {
@@ -289,6 +292,19 @@
   }
 
   function _triggerAutoOCR() {
+    /* ✅ FIX (2026-09-27, live-panel test se pakda gaya): neeche wala legacy
+       rasta `Tesseract.recognize()` call karta hai — yeh API Tesseract v5 me
+       nahi hai (page par v5 loaded hai, fa53-ocr-autofill.js se). Natija: file
+       upload par progress element "OCR running..." par atka rehta tha aur
+       kuch bhi fill nahi hota tha (confirmed: 0 OCR runs, 0 fills).
+       Ab maintained engine (fa53) ko call karte hain; wo File objects leta hai. */
+    var files = window._mrLastFiles;
+    if (window._FFREOCR && typeof window._FFREOCR.runResult === 'function' && files && files.length) {
+      /* duplicate-run guard fa53 ke runResult ke andar hai (FileList identity) —
+         yahan koi timer-guard nahi chahiye. */
+      window._FFREOCR.runResult(files);
+      return;
+    }
     var screenshots = window._mrScreenshots || [];
     if (!screenshots.length) return;
     var matchData = window._mrMatchData;
