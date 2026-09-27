@@ -7400,3 +7400,78 @@ caution ke liye aap chahein to us token ko rotate kar sakte hain.
 (`validate_and_join_match`: `IF v_fee_mode='sky_diamonds' AND v_charge_fee>0`, pct = `creator_system.sdMatchCommissionPct`,
 default 15; row `currency='inr'`, status `hold`, hold days = `commissionHoldDays` 7). Coin matches par commission nahi — ye
 server-side design hai, isliye coin-match test me commission row nahi bani (expected).
+
+## §62 — PREVIEW MODE (STRICT VIEW-ONLY) + MAINTENANCE SCREEN REDESIGN (2026-09-27)
+
+User request: (a) preview mode me user panel **sirf dekhne** ke liye ho — request bhejna, match join karna,
+"ya kuch bhi" action nahi; (b) maintenance screen ko **beautiful/attractive** redesign karo. Dono live app par,
+asli browser me test karke verify kiya gaya (`_r8f_results/`).
+
+### §62.1 — Preview Mode v6.1 (`ff-user-panel/js/preview-mode.js`)
+
+**Root gap (v5.1, fixed):** pehle sirf DOM `click` events block hote the — koi bhi programmatic write
+(`_supa.from(...).insert()`, `.rpc()`, `functions.invoke`) bypass kar sakta tha. Ab enforcement
+**Supabase client layer** par hai (network call client-side hi ruk jaati hai):
+
+| Layer | Kya block hota hai | Blocked result |
+|---|---|---|
+| `from()` chain | `insert` / `update` / `delete` / `upsert` | `{data:null, error:{code:'PREVIEW_READ_ONLY', message:'preview_mode_read_only:<op>:<table>'}}` |
+| `rpc()` | pure-read allowlist ke bahar har RPC | same shape, `preview_mode_read_only:rpc:<fn>` |
+| `storage.from()` | `upload/remove/move/copy/update/createSigned*` | `preview_mode_read_only:storage:<op>` |
+| `functions.invoke()` | har edge function (paytm-*, imgbb, gateway) | `preview_mode_read_only:invoke:<name>` |
+| `auth.updateUser()` | profile mutation | `preview_mode_read_only:auth` |
+
+**Do asli bug jo live test ne pakde (dono fixed + re-verified):**
+1. **`functions` getter trap** — supabase-js v2 me `get functions()` **har access par naya FunctionsClient**
+   return karta hai (`return new l(this.functionsUrl...)`), isliye instance par `invoke` patch karna bekaar tha —
+   probe server tak pahunch raha tha ("Edge Function returned a non-2xx"). Fix: **prototype ke getter ko wrap**
+   karke jo client mile uspar invoke lock + instance par shadow getter (cross-check `Object.getOwnPropertyDescriptor`
+   se bhi kiya). Patch ke baad 9/9 probes blocked.
+2. **Maintenance buttons block ho rahe the** — preview active hone par `#maintOverlay` ke
+   "Abhi Check Karo"/"Support" clicks bhi guard me aa jaate the. Fix: guard `#maintOverlay` ko exempt karta hai.
+
+**Read path safe:** `select()` kabhi block nahi hota; READ_ONLY_RPC allowlist =
+`get_my_poll_vote, get_room_credentials, user_has_phone, is_caller_admin, f_referral_leaderboard,
+f_user_public_profiles`; `early_access_users` insert (R29D enrollment) allowed.
+
+**Client reach:** `window.supabase.createClient` factory patched + 4s arm interval — `core/db.js` jab bhi
+`_supa` dobara banata hai (token refresh), lock lag chuka hota hai. User-facing: top ticker
+"👀 Preview Mode — View Only" + action click par toast; `window._previewMode.lastBlocked` telemetry.
+
+### §62.2 — Maintenance screen redesign (`ff-user-panel/js/features-user.js` → `applyMaintState(isMaint, cfg)`)
+
+- **Design:** dark aurora background (3 animated blobs) + masked grid + glass card (blur + border),
+  conic-gradient spinning ring ke andar wrench icon, "MAINTENANCE MODE" chip (pulsing dot), shimmer progress bar,
+  **30s auto-check countdown**, do buttons — "🔄 Abhi Check Karo" (primary gradient) aur "💬 Support se baat karo"
+  (WhatsApp), footer "🔒 Aapka data safe hai · Mini eSports". `prefers-reduced-motion` respected.
+- **Admin message:** `app_settings.maintenance.message` screen par dikhta hai (sanitized).
+- **Behavior (same as pehle):** full-screen overlay, `#mainContent` pointer-events none, bottom nav hidden —
+  ab `body.maint-on` + `!important` CSS se **hard-lock** (safe-loader/fixes-v8 boot par nav ko force-show
+  karte hain, is race se nav wapas visible ho jaata tha — live test M4 me pakda gaya).
+- **Recovery:** har 30s auto re-check; "Abhi Check Karo" turant `app_settings` dobara padhta hai aur
+  countdown **30s se restart** karta hai (pehle `if (_t) return` ki wajah se reset skip ho jata tha — M6 me pakda gaya).
+- **Idempotent re-render:** overlay/style dobara inject nahi hote; `window._maintRecheck` API same.
+
+### §62.3 — Live test evidence (`ff-*-panel` par asli browser, Playwright chromium)
+
+Script: `/home/user/testing/r8f_preview_maint_test.py` (asli QA login + asli app_settings toggle + per-run
+config snapshot + byte-identical restore). **Final: 17 PASS / 0 FAIL** — artifacts `_r8f_results/`
+(`preview_mode.png`, `maintenance_mode.png`, `normal_mode.png`, `preview_maintenance.json`,
+`preview_write_lock_probe.json`).
+
+| Check | Result |
+|---|---|
+| P1–P2 preview flag live + ticker visible | PASS |
+| P3 write-lock 9/9 blocked (rpc, insert, update, delete, join-clan, clan-insert, invoke, storage, auth) | PASS — 9/9, open-me: [] |
+| P4 reads chalu (matches + app_settings SELECT) / P5 read-only RPC unlocked | PASS |
+| P6 action click → view-only toast | PASS |
+| P7 koi DB write nahi (joins/notifs/wallet unchanged, probe row 0) | PASS |
+| M1–M4 redesigned screen render + admin message + content hard-locked | PASS |
+| M5/M6 countdown live + "Abhi Check Karo" se re-check (reset 30s) | PASS (11s → 29s, btn "😕 Abhi bhi maintenance me hai") |
+| M7 maintenance OFF → auto recovery | PASS (2s) |
+| N1–N3 normal state + no page errors + config byte-identical restore | PASS |
+
+**Operator note:** test live `app_settings` toggle karta hai (poori app), isliye har run ke baad restore
+(`/home/user/testing/r8f_restore_cfg.py`, snapshot se) — is round me values pre-task state par
+byte-identical restore hui (`preview_mode.active=false` + maintenance message `""`).
+Regression: user smoke **56/0** (admin panel is round me touch nahi hua).
