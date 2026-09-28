@@ -1327,7 +1327,17 @@ async function runResult(files){
     }
     if(!all.length){bar('mrSsPreview','⚠️ Player data detect nahi hua — clearer screenshot upload karo','warn');_rBusy=false;return;}
     var seen={};
-    all=all.filter(function(p){var k=norm(p.name);if(!k||seen[k])return false;seen[k]=true;return true;});
+    /* v3.4: single-image me rows ko kabhi drop nahi karo — warna index/order
+       badal jata hai (order-prior band) aur kills galat player par jate hain.
+       Multi-image me duplicate players merge hote hain (wahi naam 2 screenshot
+       me), par khaali-naam row kabhi nahi hatti. */
+    var _single=(fileArr.length===1);
+    all=all.filter(function(p){
+      var k=norm(p.name);
+      if(!k) return true;
+      if(!_single && seen[k]) return false;
+      seen[k]=true; return true;
+    });
     var tbl=[];
     rows.forEach(function(row){var el=row.querySelector('td:nth-child(2) div');if(el)tbl.push({name:el.textContent.trim(),row:row});});
     var skipped=0,lowConf=0;
@@ -1353,22 +1363,61 @@ async function runResult(files){
       if(!strong && best.score>=92 && (best.second==null || (best.score-best.second)>=15)) strong=true;
       scoredPairs.push({oi:oi, op:op, item:best.item, score:best.score, second:best.second, strong:strong});
     });
+    /* v3.1 ORDER-PRIOR (2026-09-28): screenshot ke rows aur panel ke rows aksar
+       SAME order me hote hain. Agar (a) OCR rows == panel rows, (b) kam se kam ek
+       naam 85+ score se APNI jagah (diagonal) match karta hai, aur (c) koi bhi OCR
+       row kisi DUSRI panel row se 60+ match nahi karta — to poora order verified
+       maana jata hai aur jo rows naam se match nahi hui, unke kills diagonal row se
+       fill ho jate hain (naam OCR junk padhe to bhi data sahi player par jata hai).
+       Ulta/galat order ya kisi aur match ki image par ye rule khud band ho jata
+       hai (anchor nahi milega ya conflict milega). Is mode me RANK kabhi nahi bharta. */
+    var orderOK=false, oAnchors=0;
+    if(all.length===rows.length && rows.length>1 && tbl.length===rows.length){
+      var conflict=false;
+      all.forEach(function(op,i){
+        /* v3.2: har candidate ko ALAG score karo (joined string se fuzzy score
+           gir jata tha — 'res RIPTER' vs 'RIPTER' = 67). */
+        var cnd=[op.name, op.name2, op.name3, op.name4].filter(function(x){ return x && x.length>=2; });
+        if(!cnd.length) return;                /* koi naam evidence nahi = neutral */
+        var diag=0, other=0;
+        cnd.forEach(function(nm){
+          tbl.forEach(function(it,j){
+            var sc=fuzzyScore(nm,it.name);
+            if(j===i){ if(sc>diag) diag=sc; }
+            else if(sc>other) other=sc;
+          });
+        });
+        if(diag>=80 || (diag>=65 && diag>=other+15)) oAnchors++;
+        if(other>=62) conflict=true;           /* row kisi DUSRE player se match kar rahi hai */
+      });
+      orderOK=(oAnchors>=2 && !conflict);
+    }
     scoredPairs.sort(function(a,b){ return b.score-a.score; });
     var usedOp={}, usedRow=[], plans=[];
     scoredPairs.forEach(function(p){
       if(usedOp[p.oi]) return;
-      if(p.score<72){ skipped++; usedOp[p.oi]=1; return; }
-      if(p.second!=null && (p.score-p.second)<8){ skipped++; usedOp[p.oi]=1; return; }
-      if(!p.strong){ lowConf++; usedOp[p.oi]=1; return; }
+      if(p.score<72){ skipped++; usedOp[p.oi]='skip'; return; }
+      if(p.second!=null && (p.score-p.second)<8){ skipped++; usedOp[p.oi]='skip'; return; }
+      if(!p.strong){ lowConf++; usedOp[p.oi]='skip'; return; }
       if(usedRow.indexOf(p.item.row)>=0){ skipped++; usedOp[p.oi]=1; return; }  /* player already le liya */
       usedOp[p.oi]=1; usedRow.push(p.item.row);
       plans.push({row:p.item.row, op:p.op});
     });
+    if(orderOK){
+      all.forEach(function(op,i){
+        if(usedOp[i]===1) return;                 /* 'skip' = naam se reject hui, order-prior le sakta hai */
+        var item=tbl[i]; if(!item || usedRow.indexOf(item.row)>=0) return;
+        if(op.kills==null || op.kills<0) return;   /* kills read hui tabhi fill */
+        usedOp[i]=1; usedRow.push(item.row); op.__idxScan=true;
+        plans.push({row:item.row, op:op, idx:true});
+      });
+    }
     /* ✅ SAFETY (2026-09-27): rank OCR row-ORDER par depend karta hai. Rank sirf
        tab bharo jab HAR panel row match ho gayi ho (complete 1:1 mapping) —
        warna order shift ho sakta hai aur rank ghalat fill hoga (galat prize).
        Kills per-player independent hain, wo har matched row me safe hain. */
-    var fillRank = (plans.length >= rows.length);
+    var _anyIdx=plans.some(function(p){ return p.idx===true; });
+    var fillRank = (plans.length >= rows.length) && !_anyIdx;
     plans.forEach(function(p){ _fillRow(p.row,p.op,fillRank); });
     var filled = plans.length;
     if(window.mrCalcPrize)rows.forEach(function(r){var inp=r.querySelector('.mr-rank-input');if(inp)window.mrCalcPrize(inp);});
@@ -1376,6 +1425,8 @@ async function runResult(files){
     var msg='✅ Done! <b>'+filled+'/'+rows.length+' players</b> auto-filled';
     if(skipped>0)msg+=' <span style="opacity:.6;font-weight:400">('+skipped+' unmatched)</span>';
     if(lowConf>0)msg+=' <span style="opacity:.6;font-weight:400">('+lowConf+' low-confidence — manually check karo)</span>';
+    var _idxN=plans.filter(function(p){ return p.idx===true; }).length;
+    if(_idxN>0)msg+=' <span style="opacity:.7;font-weight:400">('+_idxN+' rows order-verified — amber kills ek nazar verify kar lo)</span>';
     if(!fillRank&&filled>0)msg+=' <span style="opacity:.7;font-weight:400">— kills fill hue; rank manually verify karo (kuch rows read nahi hui)</span>';
     bar('mrSsPreview',msg,filled>0?'success':'warn');
   }catch(e){bar('mrSsPreview','❌ Error: '+((e&&e.message)||e||'unknown'),'error');}
@@ -1389,7 +1440,8 @@ function _fillRow(row,op,allowRank){
   var ri=row.querySelector('.mr-rank-input,.rank-input'),ki=row.querySelector('.mr-kills-input,.kills-input');
   if(allowRank===false)ri=null;   /* safety: adhoori rows par rank mat bharo */
   if(ri&&op.rank>0){ri.value=op.rank;ri.dispatchEvent(new Event('input',{bubbles:true}));_flash(ri,'rgba(255,215,0,.08)');}
-  if(ki&&op.kills>=0){ki.value=op.kills;ki.dispatchEvent(new Event('input',{bubbles:true}));_flash(ki,'rgba(255,107,107,.08)');}
+  var _kreset=(op&&op.__idxScan)?'rgba(255,193,7,.16)':'rgba(255,107,107,.08)';
+  if(ki&&op.kills>=0){ki.value=op.kills;ki.dispatchEvent(new Event('input',{bubbles:true}));_flash(ki,_kreset);}
 }
 function _flash(el,reset){el.style.transition='background .5s';el.style.background='rgba(0,255,156,.45)';setTimeout(function(){el.style.background=reset;},900);}
 
@@ -1411,7 +1463,17 @@ async function runLobby(files){
     }
     if(!all.length){_lbar('⚠️ Koi player detect nahi hua — clearer lobby screenshot lo','warn');_lBusy=false;return;}
     var seen={};
-    all=all.filter(function(p){var k=norm(p.name);if(!k||seen[k])return false;seen[k]=true;return true;});
+    /* v3.4: single-image me rows ko kabhi drop nahi karo — warna index/order
+       badal jata hai (order-prior band) aur kills galat player par jate hain.
+       Multi-image me duplicate players merge hote hain (wahi naam 2 screenshot
+       me), par khaali-naam row kabhi nahi hatti. */
+    var _single=(fileArr.length===1);
+    all=all.filter(function(p){
+      var k=norm(p.name);
+      if(!k) return true;
+      if(!_single && seen[k]) return false;
+      seen[k]=true; return true;
+    });
     var ticked=0,promises=[];
     all.forEach(function(dp){
       if(!dp.name||dp.name.length<2)return;
