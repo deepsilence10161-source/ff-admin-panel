@@ -235,7 +235,11 @@ function fuzzyScore(a,b){
   var na=norm(a),nb=norm(b);
   if(!na||!nb)return 0;
   if(na===nb)return 100;
-  if(na.includes(nb)||nb.includes(na))return Math.max(0,88-Math.abs(na.length-nb.length));
+  /* v4.4 FIX: containment rule sirf tab jab chhota naam kam se kam 3 akshar ka ho —
+     warna junk candidate ('oo' vs 'Noob') ko 86 mil jata tha aur galat player
+     bhara jata tha (ek row kam wale panel par real test me pakda gaya). */
+  if((na.includes(nb)||nb.includes(na)) && Math.min(na.length,nb.length)>=3)
+    return Math.max(0,88-Math.abs(na.length-nb.length));
   var pfx=0;while(pfx<na.length&&pfx<nb.length&&na[pfx]===nb[pfx])pfx++;
   var pfxSc=Math.round((pfx/Math.max(na.length,nb.length))*70);
   function bigrams(s){var o={};for(var i=0;i<s.length-1;i++)o[s.slice(i,i+2)]=true;return o;}
@@ -1313,9 +1317,14 @@ async function runResult(files){
     var all=[];
     for(var i=0;i<fileArr.length;i++){
       if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;Image '+(i+1)+'/'+fileArr.length+' scan...';
-      /* v2.5 pehla rasta: word-box parsing (columns alag, crosses nahi) */
+      /* v4 (2026-09-28): table-aware engine — header row se table/columns, row bands,
+         per-row cell crops + votes. Clash ke 2 table bhi handle karta hai. */
       var boxed=null;
-      try{ boxed=await parseResultV25(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
+      try{ boxed=await parseResultV4(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
+      if(!boxed || !boxed.rows || !boxed.rows.length){
+        /* v2.5 fallback: word-box parsing (columns alag, crosses nahi) */
+        try{ boxed=await parseResultV25(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
+      }
       if(boxed && boxed.rows && boxed.rows.length){
         all=all.concat(boxed.rows);
         window._ocrLastParse=window._ocrLastParse||{}; window._ocrLastParse[fileArr[i].name||i]=boxed.debug;
@@ -1373,24 +1382,30 @@ async function runResult(files){
        hai (anchor nahi milega ya conflict milega). Is mode me RANK kabhi nahi bharta. */
     var orderOK=false, oAnchors=0;
     if(all.length===rows.length && rows.length>1 && tbl.length===rows.length){
-      var conflict=false;
+      var conflict=false, claim={};
       all.forEach(function(op,i){
-        /* v3.2: har candidate ko ALAG score karo (joined string se fuzzy score
-           gir jata tha — 'res RIPTER' vs 'RIPTER' = 67). */
+        /* har candidate ko ALAG score karo (joined string se fuzzy score gir jata tha) */
         var cnd=[op.name, op.name2, op.name3, op.name4].filter(function(x){ return x && x.length>=2; });
         if(!cnd.length) return;                /* koi naam evidence nahi = neutral */
-        var diag=0, other=0;
+        var diag=0, other=0, bestJ=-1, bestAll=0;
         cnd.forEach(function(nm){
           tbl.forEach(function(it,j){
             var sc=fuzzyScore(nm,it.name);
+            if(sc>bestAll){ bestAll=sc; bestJ=j; }
             if(j===i){ if(sc>diag) diag=sc; }
             else if(sc>other) other=sc;
           });
         });
+        /* v4.3: row ka APNA best match decisive hai (junk candidate kisi dusre naam
+           se match kar jaye to conflict nahi — 'oo' vs 'Noob' 86 ka false conflict) */
+        if(bestAll>=62){
+          if(bestJ!==i) conflict=true;                     /* row kisi DUSRE player par baith rahi hai */
+          if(claim[bestJ]!=null) conflict=true;            /* do rows ek hi player claim kar rahi hain */
+          claim[bestJ]=i;
+        }
         if(diag>=80 || (diag>=65 && diag>=other+15)) oAnchors++;
-        if(other>=62) conflict=true;           /* row kisi DUSRE player se match kar rahi hai */
       });
-      orderOK=(oAnchors>=2 && !conflict);
+      orderOK=((oAnchors>=2 || (rows.length<=2 && oAnchors>=1)) && !conflict);
     }
     scoredPairs.sort(function(a,b){ return b.score-a.score; });
     var usedOp={}, usedRow=[], plans=[];
@@ -1444,6 +1459,304 @@ function _fillRow(row,op,allowRank){
   if(ki&&op.kills>=0){ki.value=op.kills;ki.dispatchEvent(new Event('input',{bubbles:true}));_flash(ki,_kreset);}
 }
 function _flash(el,reset){el.style.transition='background .5s';el.style.background='rgba(0,255,156,.45)';setTimeout(function(){el.style.background=reset;},900);}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v4 TABLE-AWARE ENGINE (2026-09-28) — "layout ko samajh kar padho"
+   Kisi bhi FF result screen par kaam karta hai:
+     1) poore image ka OCR -> header row dhoondo (RATING/NAME/K/D/A/DMG/REVIVAL...)
+     2) header se TABLE + column boundaries nikalo (2 table = clash 4v4 bhi)
+     3) K column me bright-text profile se ROW bands (avatar/text anchor) + pitch
+     4) har row ka K/K-D-A cell tight crop -> 5-6 filter variants -> weighted vote
+     5) K/D/A group me sirf pehla digit (K) alag crop karke sub-cell verdict
+     6) naam ka cell -> top line = naam, neeche = clan (candidates)
+   Sab kuch image se derive hota hai — koi fixed pixel layout nahi.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function _v4Kind(t){
+  var s=String(t||'').toUpperCase().replace(/[^A-Z0-9\/]/g,'');
+  if(!s) return null;
+  if(s==='RATING'||s==='RATINGS'||s==='RT') return 'rating';
+  if(s==='NAME'||s==='NAMES'||s==='PLAYER'||s==='PLAYERS'||s==='IGN') return 'name';
+  if(s==='K'||s==='KILLS'||s==='KILL'||s==='KO') return 'k';
+  if(/^K.{0,2}D.{0,2}A$/.test(s)||s==='KDA'||s==='KDJA'||s==='K/D/A') return 'kda';
+  if(s==='A'||s==='ASSIST'||s==='ASSISTS'||s==='AST') return 'a';
+  if(s==='D'||s==='DEATH'||s==='DEATHS') return 'd';
+  if(s==='DMG'||s==='DAMAGE'||s==='DMGS') return 'dmg';
+  if(s.indexOf('REVIV')===0) return 'rev';
+  if(s.indexOf('SURVIV')===0) return 'surv';
+  if(s==='TIME') return 'time';
+  return null;
+}
+/* pixel access ek hi baar */
+function _imgPixels(im){
+  var W=im.naturalWidth||im.width, H=im.naturalHeight||im.height;
+  var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  var g=cv.getContext('2d'); g.drawImage(im,0,0);
+  return {W:W,H:H,D:g.getImageData(0,0,W,H).data};
+}
+/* ek row band me x-range ka "white ink" column profile (naam/ankde dhoondhne ke liye) */
+function _inkRuns(px, x0, x1, y0, y1, thr){
+  x0=Math.max(0,Math.round(x0)); x1=Math.min(px.W,Math.round(x1));
+  y0=Math.max(0,Math.round(y0)); y1=Math.min(px.H,Math.round(y1));
+  var W=px.W, D=px.D, cols=[];
+  for(var x=x0;x<x1;x++){ var c=0, t0=1e9, t1=-1;
+    for(var y=y0;y<y1;y++){ var i=(y*W+x)*4; var mn=Math.min(D[i],D[i+1],D[i+2]);
+      if(mn>=thr){ c++; if(y<t0)t0=y; if(y>t1)t1=y; } }
+    cols.push({x:x,c:c,t0:t0,t1:t1});
+  }
+  var runs=[], cur=null;
+  cols.forEach(function(cl){
+    if(cl.c>=1){
+      if(cur && cl.x-cur.x1<=3){ cur.x1=cl.x; cur.n+=cl.c; if(cl.t0<cur.t0)cur.t0=cl.t0; if(cl.t1>cur.t1)cur.t1=cl.t1; }
+      else { if(cur) runs.push(cur); cur={x0:cl.x,x1:cl.x,n:cl.c,t0:cl.t0,t1:cl.t1}; }
+    } else if(cur && cl.x-cur.x1>0){ runs.push(cur); cur=null; }
+  });
+  if(cur) runs.push(cur);
+  runs.forEach(function(r){ r.w=r.x1-r.x0+1; r.h=r.t1-r.t0+1; });
+  return runs;
+}
+/* cell crop -> OCR text (ek variant) */
+async function _v4Read(im, x0, y0, x1, y1, thr, inv, sharp, psm, wl, targetW){
+  var bl=null;
+  try{ bl=await _stripBlob(im, x0, y0, x1, y1, thr, inv, {targetW:targetW||520, sharp:!!sharp}); }catch(e){ return null; }
+  if(!bl) return null;
+  try{ return await ocrWords(bl, psm||7, wl); }catch(e){ return null; }
+}
+function _v4Text(o){ if(!o||!o.lines) return ''; return o.lines.map(function(l){return l.text;}).join(' ').trim(); }
+function _v4Nums(txt){ var m=String(txt||'').match(/\d+/g); return m? m.map(function(x){return parseInt(x,10);}) : []; }
+function _v4Vote(votes){
+  var best=null, tot=0;
+  for(var k in votes){ tot+=votes[k]; if(best==null||votes[k]>votes[best]) best=k; }
+  if(best==null||!tot) return {v:null,share:0,total:0};
+  return {v:parseInt(best,10), share:votes[best]/tot, total:tot};
+}
+/* ── main v4 parser ── */
+async function parseResultV4(blob, progress){
+  var im=await _loadImgFile(blob);
+  if(!im) return null;
+  var px=_imgPixels(im), W=px.W, H=px.H;
+  if(progress) progress(8);
+  var o=await ocrWords(blob, 6, '');
+  if(progress) progress(28);
+  var lines=(o.lines||[]);
+  /* 1) header line dhoondo: sabse zyada header-words wali line */
+  var bestLine=null, bestN=0;
+  lines.forEach(function(ln){
+    var items=[], kinds={};
+    (ln.words||[]).forEach(function(w){
+      var k=_v4Kind(w.t);
+      if(k){ items.push({k:k, t:w.t, x0:w.x0, x1:w.x1, h:w.h}); kinds[k]=1; }
+    });
+    if(items.length<3) return;
+    if(!kinds['name']||(!kinds['k']&&!kinds['kda'])||!kinds['dmg']) return;
+    if(items.length>bestN){ bestN=items.length; bestLine={y:(ln.y==null?0:ln.y), items:items}; }
+  });
+  if(!bestLine) return null;
+  bestLine.items.sort(function(a,b){ return a.x0-b.x0; });
+  /* 2) tables: header tokens ko x-gap se alag karo (clash = 2 table) */
+  var groups=[], cur=[];
+  bestLine.items.forEach(function(h){
+    var haveName=false, haveKill=false;
+    cur.forEach(function(c){ if(c.k==='name') haveName=true; if(c.k==='k'||c.k==='kda') haveKill=true; });
+    /* v4.1: nayi table tab shuru hoti hai jab current table me naam + kills column
+       already ho aur phir se RATING/NAME aaye (clash squad me 2 table hote hain).
+       Bada khaali gap bhi safety ke liye split karta hai. */
+    if(cur.length && (h.k==='rating'||h.k==='name') && haveName && haveKill){ groups.push(cur); cur=[]; }
+    else if(cur.length && (h.x0 - cur[cur.length-1].x1) > 0.22*W){ groups.push(cur); cur=[]; }
+    cur.push(h);
+  });
+  if(cur.length) groups.push(cur);
+  var tables=[], dbg={hdrY:Math.round(bestLine.y), groups:groups.length, tables:[]};
+  groups.forEach(function(grp){
+    var rating=null, name=null, dmgH=null, killsH=null;
+    grp.forEach(function(h){
+      if(h.k==='rating') rating=h;
+      if(h.k==='name') name=h;
+      if(h.k==='dmg') dmgH=h;
+      if((h.k==='kda'||h.k==='k') && !killsH) killsH=h;
+    });
+    if(!name||!killsH) return;
+    var stats=grp.filter(function(h){ return ['k','kda','a','d','dmg','rev','surv','time'].indexOf(h.k)>=0; })
+                  .sort(function(a,b){ return a.x0-b.x0; });
+    var idx=stats.indexOf(killsH), next=stats[idx+1];
+    var kx0=Math.max(0, killsH.x0-10);
+    var kx1=next? (next.x0-10) : Math.min(W-1, killsH.x1+0.05*W);
+    if(kx1-kx0<10) return;
+    var nl = rating ? (rating.x1 + 0.040*W) : (name.x0 - 0.012*W);
+    var nr = killsH.x0-10;
+    if(nr-nl<40){ nl=Math.max(0, name.x0-0.02*W); nr=killsH.x0-8; }
+    if(nr-nl<40 || kx1-kx0<8) return;                    /* v4.1 guard: geometry valid honi chahiye */
+    var d0=null, d1=null;
+    if(dmgH){
+      d0=Math.max(0, dmgH.x0-10);
+      var di=stats.indexOf(dmgH), nx2=stats[di+1];
+      d1=nx2? (nx2.x0-8) : Math.min(W, dmgH.x1+0.06*W);
+      if(d1-d0<8){ d0=null; d1=null; }
+    }
+    tables.push({mode:(killsH.k==='kda')?'kda':'k', kx0:kx0, kx1:kx1, nl:nl, nr:nr, dmg0:d0, dmg1:d1, khx:killsH.x0, khy:killsH.x1});
+  });
+  if(!tables.length) return null;
+  /* 3) har table: row bands + cell reads */
+  var outRows=[];
+  for(var ti=0; ti<tables.length; ti++){
+    var T=tables[ti];
+    /* 3a) row detection: K column me bright-text profile */
+    var prof=[];
+    for(var y=0;y<H;y++){ var c=0;
+      for(var x=Math.round(T.kx0);x<Math.round(T.kx1);x++){ var i=(y*W+x)*4; var mn=Math.min(px.D[i],px.D[i+1],px.D[i+2]);
+        if(mn>=195) c++; }
+      prof.push(c); }
+    var bands=[], st=-1;
+    for(var y2=0;y2<H;y2++){ var on=prof[y2]>=2;
+      if(on&&st<0) st=y2;
+      if(!on&&st>=0){ bands.push([st,y2-1]); st=-1; } }
+    if(st>=0) bands.push([st,H-1]);
+    var merged=[];
+    bands.forEach(function(b){ var last=merged[merged.length-1];
+      if(last && b[0]-last[1]<=4) last[1]=b[1]; else merged.push([b[0],b[1]]); });
+    var cand=merged.filter(function(b){ var h=b[1]-b[0]+1; return h>=7 && h<=34 && b[0]>bestLine.y; });
+    var ctr=cand.map(function(b){ return (b[0]+b[1])/2; });
+    var diffs=[]; for(var q=1;q<ctr.length;q++){ var d=ctr[q]-ctr[q-1]; if(d>=20) diffs.push(d); }
+    diffs.sort(function(a,b){ return a-b; });
+    var pitch = diffs.length? diffs[Math.floor(diffs.length/2)] : 0.083*H;
+    function brightAt(cc){ var y3=Math.max(0,Math.round(cc-0.35*pitch)), y4=Math.min(H,Math.round(cc+0.35*pitch)); var ssum=0;
+      for(var yy=y3;yy<y4;yy++) ssum+=prof[yy]; return ssum; }
+    if(ctr.length){
+      var full=ctr.slice();
+      for(var q2=0;q2<ctr.length-1;q2++){ var dd=ctr[q2+1]-ctr[q2];
+        if(dd>1.6*pitch){ var nn=Math.round(dd/pitch)-1;
+          for(var q3=1;q3<=nn;q3++) full.push(ctr[q2]+q3*(dd/(nn+1))); } }
+      full.sort(function(a,b){ return a-b; });
+      var lastC=full[full.length-1];
+      for(var q4=0;q4<3;q4++){ var c1=lastC+pitch; if(c1+0.42*pitch<H && brightAt(c1)>=6){ full.push(c1); lastC=c1; } else break; }
+      var firstC=full[0];
+      for(var q5=0;q5<2;q5++){ var c2=firstC-pitch; if(c2>bestLine.y+6 && brightAt(c2)>=6){ full.unshift(c2); firstC=c2; } else break; }
+      cand=full.map(function(cc){ return [Math.round(cc-0.42*pitch), Math.round(cc+0.42*pitch)]; });
+    }
+    /* 3b) per-row cell reads */
+    var tdbg={mode:T.mode, kx:[Math.round(T.kx0),Math.round(T.kx1)], rows:[]};
+    for(var ri=0; ri<cand.length; ri++){
+      var y0=cand[ri][0], y1=cand[ri][1];
+      var rdbg={y:[y0,y1]};
+      /* naam cell ka left bound: us row ki pehli white-ink cheez (avatar ke baad) */
+      var nl2=T.nl;
+      var runs=_inkRuns(px, Math.max(0,T.nl-0.02*W), T.nr, y0, y1, 185);
+      var textRun=null;
+      for(var r1=0;r1<runs.length;r1++){
+        var A=runs[r1];
+        if(A.w<4 || A.h<(y1-y0)*0.30) continue;
+        /* text-like = agla run 25px ke andar (avatar edge ki akele thin run skip) */
+        var nxt=runs[r1+1];
+        if(!nxt || (nxt.x0-A.x1)>25) continue;
+        textRun=A; break;
+      }
+      if(textRun && textRun.x0 > T.nl - 0.02*W) nl2=Math.max(0, textRun.x0-6);
+      rdbg.runs=runs.length+(textRun?(' pick='+textRun.x0+','+textRun.w+','+textRun.h):' none');
+      /* kills: K column */
+      var kv={}, ktxt=[];
+      var KVAR=[[150,true,true],[190,false,true],['otsu',false,true],[190,true,true],['ada',false,false],[200,false,false]];
+      for(var v1=0; v1<KVAR.length; v1++){
+        var KK=KVAR[v1];
+        var o2=await _v4Read(im, T.kx0, y0, T.kx1, y1, KK[0], KK[1], KK[2], 7, _WL_DIGITS+'/', 520);
+        if(!o2) continue;
+        var txt=_v4Text(o2), nums=_v4Nums(txt);
+        ktxt.push(String(KK[0])+(KK[1]?'i':'')+':'+txt);
+        if(!nums.length) continue;
+        var val=nums[0];
+        var w=0.3+((o2.conf||0)/100);
+        kv[val]=(kv[val]||0)+w;
+      }
+      var kres=_v4Vote(kv);
+      rdbg.k=[kres.v, Math.round(kres.share*100)];
+      rdbg.nx=[Math.round(nl2),Math.round(T.nr)];
+      /* kda mode: sub-cell (sirf K digit ka tight crop) se cross-check */
+      if(T.mode==='kda'){
+        /* v4.2: K cell ka PEHLA digit = leftmost text-like ink run (K cell me
+           '0 / 4 / 0' me sirf '0' chahiye — pehle pura left hissa crop hota tha
+           jisme '/' aur '4' bhi aa jate the aur '0' -> '4' padha jata tha) */
+        var kRuns=_inkRuns(px, Math.max(0,T.kx0-8), T.kx1, y0, y1, 170);
+        var g1=null, rH=y1-y0;
+        for(var rk=0; rk<kRuns.length; rk++){
+          var R=kRuns[rk];
+          if(R.h > 0.62*rH) continue;           /* rating-box edge / bade blobs skip */
+          if(R.w < 3) continue;
+          if(R.x0 < T.khx-6) continue;          /* header K column se left kuch nahi */
+          g1={x0:Math.max(0,R.x0-4), x1:Math.min(W,R.x1+5), h:R.h, w:R.w};
+          break;
+        }
+        if(g1 && (g1.x1-g1.x0)<6) g1=null;      /* bahut patla = shayad '/' */
+        if(g1){
+          var svotes={}, shp=null;
+          var SVAR=[[150,true,true],[190,false,true],['otsu',false,true],[190,true,true]];
+          for(var v2=0; v2<SVAR.length; v2++){
+            var SS=SVAR[v2];
+            var o3=await _v4Read(im, g1.x0-5, y0, g1.x1+6, y1, SS[0], SS[1], SS[2], 10, _WL_DIGITS, 200);
+            if(!o3) continue;
+            var t3=_v4Text(o3).replace(/[^0-9]/g,'');
+            if(!t3 || t3.length>2) continue;
+            svotes[parseInt(t3,10)]=(svotes[parseInt(t3,10)]||0)+ (0.3+((o3.conf||0)/100));
+          }
+          var sres=_v4Vote(svotes);
+          rdbg.sub=[sres.v, Math.round(sres.share*100)];
+          rdbg.subx=[g1.x0,g1.x1]; rdbg.subn=svotes;
+          if(sres.v!=null && sres.share>=0.6){
+            if(kres.v==null || kres.share<0.5){ kres={v:sres.v, share:sres.share, total:sres.total, sub:true}; }
+            else if(sres.v===kres.v){ kres.share=Math.max(kres.share, sres.share); kres.sub=true; }
+            /* v4.3: plain vote saare filters me EK-JUT tha (>=90%) to usi par bharosa
+               (img C: '5' par sab sehra tha, sub-crop ne galti se '8' padha) */
+            else if(kres.share>=0.9){ kres.sub=false; rdbg.kdis=[sres.v, Math.round(sres.share*100)]; }
+            else if(sres.share>=0.9 && kres.share<0.75){ kres={v:sres.v, share:sres.share, total:sres.total, sub:true, conflict:kres.v}; }
+            else { kres={v:null, share:0, total:0, conflict:kres.v}; }   /* ambiguous disagreement -> fill nahi (safe) */
+          }
+        }
+      }
+      rdbg.kf=[kres.v, Math.round(kres.share*100)];
+      /* naam cell */
+      var nvar=[[150,true,true],[185,false,true],['norm',false,false],['otsu',false,true]];
+      var cands=[], nlines=[];
+      for(var v3=0; v3<nvar.length; v3++){
+        var NN=nvar[v3];
+        var o4=await _v4Read(im, nl2, y0, T.nr, y1, NN[0], NN[1], NN[2], 6, _WL_NAME, 900);
+        if(!o4) continue;
+        var ls=(o4.lines||[]).filter(function(l){ return l.text && l.text.replace(/[^A-Za-z0-9]/g,'').length>=2; });
+        if(ls.length) nlines=nlines.concat(ls.map(function(l){ return {t:l.text.trim(), y:(l.y==null?0:l.y)}; }));
+      }
+      /* top crop (sirf naam ki line) */
+      var oTop=await _v4Read(im, nl2, y0, T.nr, y0+Math.round((y1-y0)*0.62), 165, true, true, 7, _WL_NAME, 900);
+      if(oTop){ var tt=_v4Text(oTop); if(tt) cands.push(tt); }
+      nlines.sort(function(a,b){ return a.y-b.y; });
+      var uniq={};
+      nlines.forEach(function(L){
+        var t=L.t.replace(/\s+/g,' ').trim();
+        var kk=norm(t); if(!kk||uniq[kk]) return; uniq[kk]=1; cands.push(t);
+        /* top-2 lines ka combo bhi candidate (naam + clan ek saath kabhi hota hai) */
+      });
+      var top2=nlines.slice(0,2).map(function(l){ return l.t; }).join(' ');
+      if(top2 && !uniq[norm(top2)]) cands.push(top2);
+      rdbg.n=cands.slice(0,3);
+      /* damage (evidence) */
+      var dmg=null;
+      if(T.dmg0!=null && T.dmg1!=null && T.dmg1-T.dmg0>8){
+        var o5=await _v4Read(im, T.dmg0, y0, T.dmg1, y1, 190, false, true, 7, _WL_DIGITS, 520);
+        if(o5){ var dn=_v4Nums(_v4Text(o5)); if(dn.length) dmg=dn[0]; }
+      }
+      rdbg.d=dmg;
+      outRows.push({name:(cands[0]||''), name2:(cands[1]||null), name3:(cands[2]||null), name4:(cands[3]||null),
+                    kills:(kres.v==null? null : kres.v), rank:outRows.length+1,
+                    fromCol:(kres.v!=null && T.mode!=='kda' ? true : (kres.v!=null&&kres.sub===true)),
+                    hasDmg:(dmg!=null && dmg>0), nums:(T.mode==='kda'?3:1), dmg:dmg,
+                    _v4conf:Math.round((kres.share||0)*100), _v4table:ti, _v4mode:T.mode});
+      tdbg.rows.push(rdbg);
+    }
+    dbg.tables.push(tdbg);
+  }
+  if(progress) progress(100);
+  var good=outRows.filter(function(r){ return r.kills!=null; });
+  return {rows:outRows, mode:'v4-'+dbg.tables.map(function(t){return t.mode;}).join('+'),
+          score:(good.length? Math.min(100, 60+good.length*4) : 0),
+          conf:(outRows.length? Math.round(100*good.length/outRows.length) : 0),
+          debug:dbg, lines:lines.length};
+}
 
 /* ── 8. LOBBY VERIFY ── */
 var _lBusy=false;
@@ -1641,5 +1954,5 @@ var _tries=0,_poll=setInterval(function(){
   if(_tries>300)clearInterval(_poll);
 },500);
 
-window._FFREOCR={runResult:runResult,runLobby:runLobby,parseResultV25:parseResultV25,parseResult:parseResult};
+window._FFREOCR={runResult:runResult,runLobby:runLobby,parseResultV4:parseResultV4,parseResultV25:parseResultV25,parseResult:parseResult};
 })();
