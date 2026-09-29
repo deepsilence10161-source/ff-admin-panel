@@ -153,6 +153,9 @@ async function _getOCRWorker(onPct) {
       corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js',
       logger: function(m) { if (onPct && m.status === 'recognizing text') onPct(Math.round(m.progress * 100)); }
     });
+      /* ── v4 PLUS hook (fa53-ocr-engine-plus.js): result-cache + DPI/dictionary
+         hardening. Guarded — PLUS layer load na ho to kuch nahi hota. ── */
+      try { if (window.fa53Plus && window.fa53Plus.instrument) window.fa53Plus.instrument(_ocrWorker); } catch(_fa53e) {}
     await _ocrWorker.setParameters({
       tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.,!?@#$%&*()-+=|;:\' ',
       preserve_interword_spaces: '1', tessedit_pageseg_mode: '6'
@@ -243,6 +246,9 @@ async function _unicodeNamePass(file,parsed,roster){
     var worker=null;
     try{
       worker=await Tesseract.createWorker(batch,1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js'});
+      /* ── v4 PLUS hook (fa53-ocr-engine-plus.js): result-cache + DPI/dictionary
+         hardening. Guarded — PLUS layer load na ho to kuch nahi hota. ── */
+      try { if (window.fa53Plus && window.fa53Plus.instrument) window.fa53Plus.instrument(worker); } catch(_fa53e) {}
       await worker.setParameters({tessedit_char_whitelist:'',tessedit_pageseg_mode:'7',preserve_interword_spaces:'1'});
       for(var row of targets){
         var b=row.nameBox;row.nameCandidates=row.nameCandidates||[];
