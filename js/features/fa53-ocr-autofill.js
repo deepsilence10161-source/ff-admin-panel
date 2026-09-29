@@ -203,7 +203,61 @@ async function runOCR(file,onPct){
 }
 
 /* ── 4. FUZZY MATCH ── */
-function norm(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}\p{M}]/gu,'');}
+function norm(s){
+  var small='ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡʏᴢ',latin='abcdefghijklmnopqrstuvwyz';
+  return String(s||'').normalize('NFKC').toLowerCase().replace(/[ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡʏᴢ]/gu,function(c){return latin[small.indexOf(c)];}).replace(/[^\p{L}\p{N}\p{M}]/gu,'');
+}
+/* v6: raw names stay intact. Matching keys are separate from display text. */
+function _nameKey(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[\u200B\uFEFF\u202A-\u202E\u2066-\u2069]/g,'').replace(/\s+/gu,' ').trim();}
+function _candidateNames(op){
+  var seen=new Set();return [op.name,op.name2,op.name3,op.name4].concat(op.nameCandidates||[]).filter(function(n){
+    var k=_nameKey(n);if(!k||seen.has(k))return false;seen.add(k);return true;
+  });
+}
+function _rosterLanguages(names){
+  var text=names.join(' '),out=['eng'];
+  [[/\p{Script=Devanagari}/u,'hin'],[/\p{Script=Bengali}/u,'ben'],[/\p{Script=Gurmukhi}/u,'pan'],
+   [/\p{Script=Gujarati}/u,'guj'],[/\p{Script=Tamil}/u,'tam'],[/\p{Script=Telugu}/u,'tel'],
+   [/\p{Script=Kannada}/u,'kan'],[/\p{Script=Malayalam}/u,'mal'],[/\p{Script=Arabic}/u,'ara'],
+   [/\p{Script=Cyrillic}/u,'rus'],[/\p{Script=Greek}/u,'ell'],[/\p{Script=Thai}/u,'tha'],
+   [/\p{Script=Hiragana}|\p{Script=Katakana}/u,'jpn'],[/\p{Script=Hangul}/u,'kor'],[/\p{Script=Han}/u,'chi_sim']
+  ].forEach(function(pair){if(pair[0].test(text))out.push(pair[1]);});
+  return out;
+}
+/* Per-result worker, one script model at a time; bounded memory and no model
+   changes to the shared legacy worker. Script selection uses the actual roster. */
+async function _unicodeNamePass(file,parsed,roster){
+  if(!parsed||!parsed.rows)return;
+  var langs=_rosterLanguages(roster),im=await _loadImgFile(file);if(!im)return;
+  var targets=parsed.rows.filter(function(r){return r.nameBox;});if(!targets.length)return;
+  targets.forEach(function(row){
+    var b=row.nameBox,x=Math.max(0,Math.floor(b[0])),y=Math.max(0,Math.floor(b[1]));
+    var w=Math.min(im.naturalWidth||im.width,b[2])-x,h=Math.min(im.naturalHeight||im.height,b[3])-y;
+    if(w<=0||h<=0)return;
+    var cv=document.createElement('canvas'),scale=Math.min(3,600/w);cv.width=Math.max(1,Math.round(w*scale));cv.height=Math.max(1,Math.round(h*scale));
+    cv.getContext('2d').drawImage(im,x,y,w,h,0,0,cv.width,cv.height);row.namePreview=cv.toDataURL('image/png');
+  });
+  parsed.unicode={languages:langs.slice(),completed:[],failed:[]};
+  var batches=langs.length>1?langs.slice(1).map(function(l){return ['eng',l];}):[['eng']];
+  for(var batch of batches){
+    var worker=null;
+    try{
+      worker=await Tesseract.createWorker(batch,1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js'});
+      await worker.setParameters({tessedit_char_whitelist:'',tessedit_pageseg_mode:'7',preserve_interword_spaces:'1'});
+      for(var row of targets){
+        var b=row.nameBox;row.nameCandidates=row.nameCandidates||[];
+        for(var mode of ['norm','otsu']){
+          var blob=await _stripBlob(im,b[0],b[1],b[2],b[3],mode,false,{targetW:1000});if(!blob)continue;
+          var out=await worker.recognize(blob),text=String(out.data.text||'').trim();
+          if(text)row.nameCandidates.push(text);
+        }
+      }
+      parsed.unicode.completed.push(batch.join('+'));
+    }catch(e){parsed.unicode.failed.push(batch.join('+'));}
+    finally{if(worker)try{await worker.terminate();}catch(e){}}
+  }
+}
+
 /* v2.3: line-normalizer — OCR text ke unicode/divider variants ek shape me */
 function normLine(s){
   return String(s||'')
@@ -232,6 +286,7 @@ function slotKills(raw){
   return n;
 }
 function fuzzyScore(a,b){
+  var ka=_nameKey(a),kb=_nameKey(b);if(ka&&ka===kb)return 100;
   var na=norm(a),nb=norm(b);
   if(!na||!nb)return 0;
   if(na===nb)return 100;
@@ -286,7 +341,7 @@ async function ocrWords(blob, psm, wl){
   var worker = await _getOCRWorker();
   /* v3.0: region-specific whitelist -- digits = sirf 0-9 (junk khatam),
      naam = kam punctuation -- Tesseract ka search-space chhota = accurate. */
-  var use = wl || "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.,!?@#$%&*()-+=|;:' ";
+  var use = wl==='unicode' ? '' : wl || "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.,!?@#$%&*()-+=|;:' ";
   try { await worker.setParameters({ tessedit_char_whitelist: use, preserve_interword_spaces: '1', tessedit_pageseg_mode: String(psm||6) }); } catch(e) {}
   var out = await worker.recognize(blob, {}, { blocks: true });
   var lines = [];
@@ -974,7 +1029,7 @@ async function _nameStrips(im, rows, killsXo, Wo, Ho, scale){
       if (bw < 0.05*Wo || bh < 0.018*Ho || bh > 0.085*Ho || box.x1 > ax) box = null;  /* sanity */
     }
     if (!box) box={x0:ax-0.205*Wo, y0:yc-0.031*Ho, x1:ax-0.070*Wo, y1:yc+0.031*Ho};
-    r._nbox=box; r._ax=ax;
+    r._nbox=box; r._ax=ax; r.nameBox=[box.x0,box.y0,box.x1,box.y1];
     cells.push({idx:i, x0:box.x0, y0:box.y0, x1:box.x1, y1:box.y1});
   }
   if(!cells.length) return;
@@ -1030,6 +1085,14 @@ async function _nameStrips(im, rows, killsXo, Wo, Ho, scale){
 
 /* gate-free best-candidate score (candidate pick karne ke liye; gate runResult me) */
 function _bestScore(name,list){
+  var key=_nameKey(name),exact=list.filter(function(it){return key&&_nameKey(it.name)===key;});
+  if(exact.length===1){
+    var siblings=list.filter(function(it){return norm(it.name)===norm(name);});
+    // Plain OCR text cannot prove a distinguishing decoration was absent.
+    if(siblings.length>1&&/^[a-z0-9 ]+$/i.test(key))return {item:exact[0],score:100,second:100,exact:true};
+    return {item:exact[0],score:100,second:list.length>1?84:null,exact:true};
+  }
+  if(exact.length>1)return {item:exact[0],score:100,second:100,exact:true};
   var best=null,second=null;
   list.forEach(function(item){
     var sc=fuzzyScore(name,item.name);
@@ -1302,15 +1365,16 @@ var _rBusy=false;
 /* Uncertain identities need an explicit admin decision, never positional guessing. */
 function _eliminationReview(all,tbl,plans){
   var prior=document.getElementById('_ocrEliminationReview');if(prior)prior.remove();
-  if(!all.some(function(r){return r.elimination;}))return;
+  if(!all.length)return;
   var host=document.getElementById('mrSsPreview');if(!host)return;
   var box=document.createElement('div');box.id='_ocrEliminationReview';
   box.style.cssText='padding:14px;margin-top:12px;border:1px solid #e2aa35;border-radius:10px;background:#151b29;color:#fff';
-  var title=document.createElement('strong');title.textContent='BR result review — verify screenshot before applying';box.appendChild(title);
+  var title=document.createElement('strong');title.textContent='Result OCR review — verify screenshot before applying';box.appendChild(title);
   var note=document.createElement('p');note.textContent='Unclear name? Select the actual player. Rank badges are not assumed from row order. Enter rank only after checking the screenshot. This fills the form; it does not publish results.';box.appendChild(note);
   var entries=[];
   all.forEach(function(op,i){
     var row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0';
+    if(op.namePreview){var preview=document.createElement('img');preview.src=op.namePreview;preview.alt='Original name crop for screenshot row '+(i+1);preview.style.cssText='max-width:220px;max-height:72px;object-fit:contain;border:1px solid #526079';row.appendChild(preview);}
     var label=document.createElement('span');label.textContent='Screenshot row '+(i+1)+' · OCR: '+(op.name3||op.name||'unreadable');row.appendChild(label);
     var sel=document.createElement('select');sel.setAttribute('aria-label','Player for screenshot row '+(i+1));
     var empty=document.createElement('option');empty.value='';empty.textContent='Choose player — not verified';sel.appendChild(empty);
@@ -1363,7 +1427,8 @@ async function runResult(files){
   var fileArr=Array.from(files).slice(0,5);
   var b=bar('mrSsPreview','<i class="fas fa-spinner fa-spin"></i> &nbsp;Scanning...','loading');
   try{
-    var all=[];
+    var all=[],unicodeWarnings=[];
+    var rosterNames=Array.from(rows).map(function(r){return ((r.querySelector('td:nth-child(2) div')||{}).textContent||'');});
     for(var i=0;i<fileArr.length;i++){
       if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;Image '+(i+1)+'/'+fileArr.length+' scan...';
       /* v4 (2026-09-28): table-aware engine — header row se table/columns, row bands,
@@ -1377,6 +1442,8 @@ async function runResult(files){
         try{ boxed=await parseResultV25(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
       }
       if(boxed && boxed.rows && boxed.rows.length){
+        await _unicodeNamePass(fileArr[i],boxed,rosterNames);
+        if(boxed.unicode&&boxed.unicode.failed.length)unicodeWarnings=unicodeWarnings.concat(boxed.unicode.failed);
         all=all.concat(boxed.rows);
         window._ocrLastParse=window._ocrLastParse||{}; window._ocrLastParse[fileArr[i].name||i]=boxed.debug;
       } else {
@@ -1407,12 +1474,12 @@ async function runResult(files){
        Candidates = [full-pass naam, composite naam2/name3/name4]. */
     var scoredPairs=[];
     all.forEach(function(op, oi){
-      var names=[op.name, op.name2, op.name3, op.name4].filter(function(x){ return x && x.length>=2; });
+      var names=_candidateNames(op);
       if(!names.length){ if(rows.length===1) scoredPairs.push({oi:oi, op:op, item:rows[0], score:100, second:null, strong:true}); return; }
       var best=null;
       names.forEach(function(nm){
         var s2=_bestScore(nm,tbl);
-        if(s2 && (!best || s2.score>best.score)) best=s2;
+        if(s2 && (!best || s2.score>best.score || (s2.score===best.score&&s2.exact&&!best.exact))) best=s2;
       });
       if(!best) return;
       if(op.elimination && op.kills==null && !op.explicitRank)return;
@@ -1434,11 +1501,12 @@ async function runResult(files){
        Ulta/galat order ya kisi aur match ki image par ye rule khud band ho jata
        hai (anchor nahi milega ya conflict milega). Is mode me RANK kabhi nahi bharta. */
     var orderOK=false, oAnchors=0;
-    if(!all.some(function(r){return r.noOrder;}) && all.length===rows.length && rows.length>1 && tbl.length===rows.length){
+    var symbolCollision=tbl.some(function(t,i){return tbl.some(function(u,j){return i!==j&&norm(t.name)===norm(u.name)&&_nameKey(t.name)!==_nameKey(u.name);});});
+    if(!symbolCollision && !all.some(function(r){return r.noOrder;}) && all.length===rows.length && rows.length>1 && tbl.length===rows.length){
       var conflict=false, claim={};
       all.forEach(function(op,i){
         /* har candidate ko ALAG score karo (joined string se fuzzy score gir jata tha) */
-        var cnd=[op.name, op.name2, op.name3, op.name4].filter(function(x){ return x && x.length>=2; });
+        var cnd=_candidateNames(op);
         if(!cnd.length) return;                /* koi naam evidence nahi = neutral */
         var diag=0, other=0, bestJ=-1, bestAll=0;
         cnd.forEach(function(nm){
@@ -1485,7 +1553,8 @@ async function runResult(files){
        warna order shift ho sakta hai aur rank ghalat fill hoga (galat prize).
        Kills per-player independent hain, wo har matched row me safe hain. */
     var _anyIdx=plans.some(function(p){ return p.idx===true; });
-    var fillRank = (plans.length >= rows.length) && !_anyIdx;
+    var fillRank = (plans.length >= rows.length) && !_anyIdx && plans.every(function(p){return p.op.explicitRank===true;});
+    /* v6: parser row indices are not visual proof of placement/rank. */
     plans.forEach(function(p){ _fillRow(p.row,p.op,fillRank || p.op.explicitRank===true); });
     var filled = plans.length;
     if(window.mrCalcPrize)rows.forEach(function(r){var inp=r.querySelector('.mr-rank-input');if(inp)window.mrCalcPrize(inp);});
@@ -1496,6 +1565,7 @@ async function runResult(files){
     var _idxN=plans.filter(function(p){ return p.idx===true; }).length;
     if(_idxN>0)msg+=' <span style="opacity:.7;font-weight:400">('+_idxN+' rows order-verified — amber kills ek nazar verify kar lo)</span>';
     if(!fillRank&&filled>0)msg+=' <span style="opacity:.7;font-weight:400">— kills fill hue; rank manually verify karo (kuch rows read nahi hui)</span>';
+    if(unicodeWarnings.length)msg+=' — some language models unavailable; verify names manually';
     if(all.some(function(r){return r.elimination&&!r.explicitRank;}))msg+=' — stylized ranks need screenshot review';
     bar('mrSsPreview',msg,filled>0?'success':'warn');
     _eliminationReview(all,tbl,plans);
@@ -1674,7 +1744,7 @@ async function parseEliminationList(file){
       }
       function consensus(v){var ks=Object.keys(v).sort(function(a,b){return v[b]-v[a];});return ks.length&&v[ks[0]]>=2&&(ks.length===1||v[ks[0]]>v[ks[1]])?+ks[0]:null;}
       var k=consensus(kv),r=consensus(rv);
-      rows.push({name:texts[0]||'',name2:texts[1]||'',name3:texts[2]||'',kills:k,rank:r||0,
+      rows.push({nameBox:[right+wh*2,cy-pitch*.34,a.w.x0-wh*3,cy+pitch*.34],nameCandidates:texts.slice(),name:texts[0]||'',name2:texts[1]||'',name3:texts[2]||'',kills:k,rank:r||0,
         y:cy/H,fromCol:true,explicitRank:r!==null,elimination:true,noOrder:true});
     }
   }finally{if(mw)try{await mw.terminate();}catch(e){}}
@@ -1881,7 +1951,7 @@ async function parseResultV4(blob, progress){
       var uniq={};
       nlines.forEach(function(L){
         var t=L.t.replace(/\s+/g,' ').trim();
-        var kk=norm(t); if(!kk||uniq[kk]) return; uniq[kk]=1; cands.push(t);
+        var kk=_nameKey(t); if(!kk||uniq[kk]) return; uniq[kk]=1; cands.push(t);
         /* top-2 lines ka combo bhi candidate (naam + clan ek saath kabhi hota hai) */
       });
       var top2=nlines.slice(0,2).map(function(l){ return l.t; }).join(' ');
@@ -1894,7 +1964,7 @@ async function parseResultV4(blob, progress){
         if(o5){ var dn=_v4Nums(_v4Text(o5)); if(dn.length) dmg=dn[0]; }
       }
       rdbg.d=dmg;
-      outRows.push({name:(cands[0]||''), name2:(cands[1]||null), name3:(cands[2]||null), name4:(cands[3]||null),
+      outRows.push({nameBox:[nl2,y0,T.nr,y0+Math.round((y1-y0)*0.62)],nameCandidates:cands.slice(),name:(cands[0]||''), name2:(cands[1]||null), name3:(cands[2]||null), name4:(cands[3]||null),
                     kills:(kres.v==null? null : kres.v), rank:outRows.length+1,
                     fromCol:(kres.v!=null && T.mode!=='kda' ? true : (kres.v!=null&&kres.sub===true)),
                     hasDmg:(dmg!=null && dmg>0), nums:(T.mode==='kda'?3:1), dmg:dmg,
