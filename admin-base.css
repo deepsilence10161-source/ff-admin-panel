@@ -450,3 +450,33 @@ th,td{padding:6px 8px}
   50% { box-shadow: 0 0 0 6px rgba(0,255,156,0); }
 }
 
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ✅ FIX (2026-09-30, live paint-audit) — SIDEBAR KE NEECHE WALE NAV ITEMS
+   UNREACHABLE THE.
+
+   Kya hua tha (measured): sidebar `position:fixed; top:0; bottom:0` hone ke
+   bawajood uski asli height viewport ke bajaye CONTENT ki thi — 1366x768 screen
+   par sidebarH=1058px jabki viewportH=768px. Isliye uske andar ka
+   `.sidebar-nav` (jo overflow-y:auto hai) scroll karne ke BAAD BHI aakhri nav
+   items viewport se neeche reh jaate the:
+        Activity Log(883) Brackets(962) Clan Wars(1000)
+        City Champ(1038) Mentors(1076) Clean Badges(1114)   [viewport 768]
+   Yaani admin in pages tak pahunch hi nahi sakta tha (na page scroll, na
+   sidebar scroll).
+
+   Fix: sidebar ko explicitly viewport-height do, taaki uska internal flex
+   layout theek kaam kare — `.sidebar-nav` (flex:1 + overflow-y:auto) scroll
+   kare aur `.sidebar-footer` neeche pinned rahe. 100dvh = mobile address-bar
+   ke saath bhi sahi, fallback 100vh purane browsers ke liye.
+   ═══════════════════════════════════════════════════════════════════════ */
+#sidebar,
+.sidebar {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+.sidebar-nav { min-height: 0; }          /* flex child ko shrink hone do */
+.sidebar-footer { flex: 0 0 auto; }      /* footer kabhi squeeze na ho */
