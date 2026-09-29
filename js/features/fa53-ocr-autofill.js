@@ -203,7 +203,7 @@ async function runOCR(file,onPct){
 }
 
 /* ── 4. FUZZY MATCH ── */
-function norm(s){return(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function norm(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}\p{M}]/gu,'');}
 /* v2.3: line-normalizer — OCR text ke unicode/divider variants ek shape me */
 function normLine(s){
   return String(s||'')
@@ -1299,6 +1299,54 @@ function bar(anchorId,msg,type){
 
 /* ── 7. RESULT AUTO-FILL ── */
 var _rBusy=false;
+/* Uncertain identities need an explicit admin decision, never positional guessing. */
+function _eliminationReview(all,tbl,plans){
+  var prior=document.getElementById('_ocrEliminationReview');if(prior)prior.remove();
+  if(!all.some(function(r){return r.elimination;}))return;
+  var host=document.getElementById('mrSsPreview');if(!host)return;
+  var box=document.createElement('div');box.id='_ocrEliminationReview';
+  box.style.cssText='padding:14px;margin-top:12px;border:1px solid #e2aa35;border-radius:10px;background:#151b29;color:#fff';
+  var title=document.createElement('strong');title.textContent='BR result review — verify screenshot before applying';box.appendChild(title);
+  var note=document.createElement('p');note.textContent='Unclear name? Select the actual player. Rank badges are not assumed from row order. Enter rank only after checking the screenshot. This fills the form; it does not publish results.';box.appendChild(note);
+  var entries=[];
+  all.forEach(function(op,i){
+    var row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0';
+    var label=document.createElement('span');label.textContent='Screenshot row '+(i+1)+' · OCR: '+(op.name3||op.name||'unreadable');row.appendChild(label);
+    var sel=document.createElement('select');sel.setAttribute('aria-label','Player for screenshot row '+(i+1));
+    var empty=document.createElement('option');empty.value='';empty.textContent='Choose player — not verified';sel.appendChild(empty);
+    tbl.forEach(function(t,j){var o=document.createElement('option');o.value=String(j);o.textContent=t.name;sel.appendChild(o);});
+    var plan=plans.find(function(p){return p.op===op;});if(plan)sel.value=String(tbl.findIndex(function(t){return t.row===plan.row;}));
+    var kills=document.createElement('input');kills.type='number';kills.min='0';kills.max='99';kills.placeholder='Kills';kills.setAttribute('aria-label','Kills for screenshot row '+(i+1));kills.value=op.kills==null?'':op.kills;
+    var rank=document.createElement('input');rank.type='number';rank.min='1';rank.max='48';rank.placeholder='Verify rank';rank.setAttribute('aria-label','Rank for screenshot row '+(i+1));rank.value=op.explicitRank?op.rank:'';
+    [sel,kills,rank].forEach(function(e){e.style.cssText='padding:8px;background:#222c40;color:white;border:1px solid #65718a;border-radius:5px;max-width:230px';row.appendChild(e);});
+    entries.push({sel:sel,kills:kills,rank:rank});box.appendChild(row);
+  });
+  var check=document.createElement('input');check.type='checkbox';check.id='_ocrReviewConfirm';
+  var cl=document.createElement('label');cl.appendChild(check);cl.appendChild(document.createTextNode(' I checked player identities, kills and any entered ranks against the screenshot.'));box.appendChild(cl);
+  var msg=document.createElement('p');msg.setAttribute('role','status');
+  var apply=document.createElement('button');apply.type='button';apply.id='_ocrReviewApply';apply.textContent='Apply reviewed values (no publish)';apply.style.cssText='margin:10px;padding:10px;background:#ffd052;color:#111;border:0;border-radius:6px';
+  apply.onclick=function(){
+    if(!check.checked){msg.textContent='Confirm the screenshot review first.';return;}
+    var selected={},ranks={},todo=[],error='';
+    entries.forEach(function(e){
+      if(e.sel.value==='')return;
+      var id=+e.sel.value,k=e.kills.value,r=e.rank.value;
+      if(selected[id])error='A player is selected twice. No values applied.';selected[id]=true;
+      if(!/^\d+$/.test(k)||+k>99)error='Enter valid kills (0–99). No values applied.';
+      if(r!==''&&(!/^\d+$/.test(r)||+r<1||+r>48))error='Enter valid rank (1–48), or leave it blank.';
+      if(r!==''&&ranks[+r])error='Duplicate ranks. No values applied.';if(r!=='')ranks[+r]=true;
+      if(!tbl[id]||!tbl[id].row.isConnected||((tbl[id].row.querySelector('td:nth-child(2) div')||{}).textContent||'').trim()!==tbl[id].name)error='Roster changed. Rescan before applying.';
+      todo.push({row:tbl[id]&&tbl[id].row,op:{kills:+k,rank:r===''?0:+r}});
+    });
+    if(error){msg.textContent=error;return;}
+    if(!todo.length){msg.textContent='Select at least one player.';return;}
+    todo.forEach(function(p){_fillRow(p.row,p.op,true);var ri=p.row.querySelector('.mr-rank-input');if(ri&&window.mrCalcPrize)window.mrCalcPrize(ri);});
+    if(window.mrCheckDuplicateRanks)window.mrCheckDuplicateRanks();
+    msg.textContent=todo.length+' reviewed player rows applied. Results have NOT been published.';
+  };
+  box.appendChild(apply);box.appendChild(msg);host.appendChild(box);
+}
+
 async function runResult(files){
   /* ✅ FIX (2026-09-27): ek hi upload ko multiple wrappers/buttons se dobara
      process hone se roko (auto wrapper + v10 trigger + direct listener —
@@ -1311,6 +1359,7 @@ async function runResult(files){
   if(!rows.length){bar('mrSsPreview','⚠️ Pehle match select karo aur players load karo','warn');return;}
   if(!TSR.ready){bar('mrSsPreview','⏳ OCR engine load ho raha hai...','info');await new Promise(function(r){TSR.load(r);});}
   _rBusy=true;
+  var oldReview=document.getElementById('_ocrEliminationReview');if(oldReview)oldReview.remove();
   var fileArr=Array.from(files).slice(0,5);
   var b=bar('mrSsPreview','<i class="fas fa-spinner fa-spin"></i> &nbsp;Scanning...','loading');
   try{
@@ -1320,7 +1369,9 @@ async function runResult(files){
       /* v4 (2026-09-28): table-aware engine — header row se table/columns, row bands,
          per-row cell crops + votes. Clash ke 2 table bhi handle karta hai. */
       var boxed=null;
-      try{ boxed=await parseResultV4(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
+      try{boxed=await parseEliminationList(fileArr[i]);}catch(e){}
+      if(boxed && boxed.recognizedLayout && !boxed.rows.length){continue;}
+      try{ if(!boxed) boxed=await parseResultV4(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
       if(!boxed || !boxed.rows || !boxed.rows.length){
         /* v2.5 fallback: word-box parsing (columns alag, crosses nahi) */
         try{ boxed=await parseResultV25(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';}); }catch(e){}
@@ -1364,6 +1415,8 @@ async function runResult(files){
         if(s2 && (!best || s2.score>best.score)) best=s2;
       });
       if(!best) return;
+      if(op.elimination && op.kills==null && !op.explicitRank)return;
+      if(op.elimination && (best.score<85 || (best.second!=null && best.score-best.second<15))) return;
       var strong = (op.fromCol === true) || (op.hasDmg === true && (op.nums || 0) >= 3);
       /* v3.0m: EXACT naam-match khud strong evidence hai — 92+ score aur 15+
          ka gap ho to kills fill karo (kills ab per-row column-geometry se
@@ -1381,7 +1434,7 @@ async function runResult(files){
        Ulta/galat order ya kisi aur match ki image par ye rule khud band ho jata
        hai (anchor nahi milega ya conflict milega). Is mode me RANK kabhi nahi bharta. */
     var orderOK=false, oAnchors=0;
-    if(all.length===rows.length && rows.length>1 && tbl.length===rows.length){
+    if(!all.some(function(r){return r.noOrder;}) && all.length===rows.length && rows.length>1 && tbl.length===rows.length){
       var conflict=false, claim={};
       all.forEach(function(op,i){
         /* har candidate ko ALAG score karo (joined string se fuzzy score gir jata tha) */
@@ -1433,17 +1486,19 @@ async function runResult(files){
        Kills per-player independent hain, wo har matched row me safe hain. */
     var _anyIdx=plans.some(function(p){ return p.idx===true; });
     var fillRank = (plans.length >= rows.length) && !_anyIdx;
-    plans.forEach(function(p){ _fillRow(p.row,p.op,fillRank); });
+    plans.forEach(function(p){ _fillRow(p.row,p.op,fillRank || p.op.explicitRank===true); });
     var filled = plans.length;
     if(window.mrCalcPrize)rows.forEach(function(r){var inp=r.querySelector('.mr-rank-input');if(inp)window.mrCalcPrize(inp);});
     if(window.mrCheckDuplicateRanks)window.mrCheckDuplicateRanks();
-    var msg='✅ Done! <b>'+filled+'/'+rows.length+' players</b> auto-filled';
+    var msg=(filled?'✅ Done! <b>':'⚠️ No verified matches — <b>')+filled+'/'+rows.length+' players</b> auto-filled';
     if(skipped>0)msg+=' <span style="opacity:.6;font-weight:400">('+skipped+' unmatched)</span>';
     if(lowConf>0)msg+=' <span style="opacity:.6;font-weight:400">('+lowConf+' low-confidence — manually check karo)</span>';
     var _idxN=plans.filter(function(p){ return p.idx===true; }).length;
     if(_idxN>0)msg+=' <span style="opacity:.7;font-weight:400">('+_idxN+' rows order-verified — amber kills ek nazar verify kar lo)</span>';
     if(!fillRank&&filled>0)msg+=' <span style="opacity:.7;font-weight:400">— kills fill hue; rank manually verify karo (kuch rows read nahi hui)</span>';
+    if(all.some(function(r){return r.elimination&&!r.explicitRank;}))msg+=' — stylized ranks need screenshot review';
     bar('mrSsPreview',msg,filled>0?'success':'warn');
+    _eliminationReview(all,tbl,plans);
   }catch(e){bar('mrSsPreview','❌ Error: '+((e&&e.message)||e||'unknown'),'error');}
   _rBusy=false;
 }
@@ -1456,7 +1511,7 @@ function _fillRow(row,op,allowRank){
   if(allowRank===false)ri=null;   /* safety: adhoori rows par rank mat bharo */
   if(ri&&op.rank>0){ri.value=op.rank;ri.dispatchEvent(new Event('input',{bubbles:true}));_flash(ri,'rgba(255,215,0,.08)');}
   var _kreset=(op&&op.__idxScan)?'rgba(255,193,7,.16)':'rgba(255,107,107,.08)';
-  if(ki&&op.kills>=0){ki.value=op.kills;ki.dispatchEvent(new Event('input',{bubbles:true}));_flash(ki,_kreset);}
+  if(ki&&op.kills!=null&&op.kills>=0){ki.value=op.kills;ki.dispatchEvent(new Event('input',{bubbles:true}));_flash(ki,_kreset);}
 }
 function _flash(el,reset){el.style.transition='background .5s';el.style.background='rgba(0,255,156,.45)';setTimeout(function(){el.style.background=reset;},900);}
 
@@ -1531,6 +1586,104 @@ function _v4Vote(votes){
   return {v:parseInt(best,10), share:votes[best]/tot, total:tot};
 }
 /* ── main v4 parser ── */
+
+/* v5: repeated Elimination labels are row anchors, never the phone HUD.
+   Geometry is derived from detected labels/words; no screenshot-specific values. */
+async function _eliminationRank(im,x0,y0,x1,y1,threshold){
+  x0=Math.max(0,Math.floor(x0));y0=Math.max(0,Math.floor(y0));
+  var c=document.createElement('canvas');c.width=Math.ceil(x1-x0);c.height=Math.ceil(y1-y0);
+  var ctx=c.getContext('2d');ctx.drawImage(im,x0,y0,c.width,c.height,0,0,c.width,c.height);
+  var px=ctx.getImageData(0,0,c.width,c.height).data,w=c.width,h=c.height,seen=new Uint8Array(w*h),best=null;
+  for(var pos=0;pos<w*h;pos++){
+    if(seen[pos])continue;seen[pos]=1;
+    if(Math.max(px[pos*4],px[pos*4+1],px[pos*4+2])<threshold)continue;
+    var stack=[pos],pts=[],lx=w,rx=0,ly=h,ry=0;
+    while(stack.length){var p=stack.pop(),x=p%w,y=Math.floor(p/w);pts.push(p);lx=Math.min(lx,x);rx=Math.max(rx,x);ly=Math.min(ly,y);ry=Math.max(ry,y);
+      var ns=[];if(x>0)ns.push(p-1);if(x<w-1)ns.push(p+1);if(y>0)ns.push(p-w);if(y<h-1)ns.push(p+w);
+      ns.forEach(function(n){if(!seen[n]){seen[n]=1;if(Math.max(px[n*4],px[n*4+1],px[n*4+2])>=threshold)stack.push(n);}});
+    }
+    if(lx<1||ly<1||rx>=w-1||ry>=h-1||ry-ly<h*.16||pts.length<10)continue;
+    if(!best||pts.length>best.pts.length)best={pts:pts,lx:lx,rx:rx,ly:ly,ry:ry};
+  }
+  if(!best)return null;
+  var out=document.createElement('canvas'),sc=6,pad=20;out.width=(best.rx-best.lx+1)*sc+pad*2;out.height=(best.ry-best.ly+1)*sc+pad*2;
+  var oc=out.getContext('2d');oc.fillStyle='white';oc.fillRect(0,0,out.width,out.height);oc.fillStyle='black';
+  best.pts.forEach(function(p){oc.fillRect(pad+(p%w-best.lx-.25*(best.ry-Math.floor(p/w)))*sc,pad+(Math.floor(p/w)-best.ly)*sc,sc,sc);});
+  return await new Promise(function(r){out.toBlob(r,'image/png');});
+}
+
+async function _eliminationCrop(im,x0,y0,x1,y1,thr){
+  var c=document.createElement('canvas'),scale=5,pad=20;
+  x0=Math.max(0,Math.round(x0));y0=Math.max(0,Math.round(y0));
+  x1=Math.min(im.naturalWidth||im.width,Math.round(x1));y1=Math.min(im.naturalHeight||im.height,Math.round(y1));
+  c.width=(x1-x0)*scale+pad*2;c.height=(y1-y0)*scale+pad*2;
+  var ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);
+  ctx.drawImage(im,x0,y0,x1-x0,y1-y0,pad,pad,c.width-pad*2,c.height-pad*2);
+  var d=ctx.getImageData(pad,pad,c.width-pad*2,c.height-pad*2),px=d.data;
+  for(var q=0;q<px.length;q+=4){var on=Math.max(px[q],px[q+1],px[q+2])>=thr;px[q]=px[q+1]=px[q+2]=on?0:255;}
+  ctx.putImageData(d,pad,pad);return await new Promise(function(r){c.toBlob(r,'image/png');});
+}
+async function parseEliminationList(file){
+  var im=await _loadImgFile(file); if(!im)return null;
+  var W=im.naturalWidth||im.width,H=im.naturalHeight||im.height;
+  var pass=await ocrWords(file,11,'');
+  var anchors=[];
+  pass.lines.forEach(function(l){(l.words||[]).forEach(function(w){
+    if(/^eliminations?$/i.test(w.t)) anchors.push({w:w,y:l.y,line:l});
+  });});
+  if(anchors.length<2)return null;
+  anchors.sort(function(a,b){return a.y-b.y;});
+  var x=anchors[0].w.x0,h=anchors[0].w.h;
+  if(anchors.some(function(a,i){return Math.abs(a.w.x0-x)>h*2 || (i&&a.y-anchors[i-1].y<h*2);}))
+    return {rows:[],recognizedLayout:true,debug:{layout:'eliminations',rejected:'unaligned labels'}};
+  var pitch=(anchors[anchors.length-1].y-anchors[0].y)/(anchors.length-1);
+  var near=[];
+  pass.lines.forEach(function(l){if(anchors.some(function(a){return Math.abs(l.y-a.y)<pitch*.30;}))
+    (l.words||[]).forEach(function(w){if(w.x1<x-h*3 && w.x0>0)near.push(w);});});
+  var left=near.length?Math.min.apply(null,near.map(function(w){return w.x0;})):0;
+  var ranks=near.filter(function(w){return w.x0<left+h*3;});
+  if(!ranks.length)return {rows:[],recognizedLayout:true,debug:{layout:'eliminations',rejected:'missing rank column'}};
+  var right=Math.max.apply(null,ranks.map(function(w){return w.x1;}));
+  var rows=[], mw=null;
+  try {
+    /* Isolated lazy multilingual worker: does not change existing English worker. */
+    mw=await Tesseract.createWorker(['eng','hin','ben'],1,{
+      workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+      corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js'
+    });
+    await mw.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'',preserve_interword_spaces:'1'});
+  }catch(e){if(mw){try{await mw.terminate();}catch(ee){}}mw=null;}
+  try {
+    for(var i=0;i<anchors.length;i++){
+      var a=anchors[i], cy=a.y, wh=Math.max(h,a.w.h), texts=[], kv={},rv={};
+      for(var j=0;j<3;j++){
+        var thr=[110,150,'otsu'][j];
+        var kb=await _eliminationCrop(im,a.w.x0-wh*2.7,cy-wh*1.2,a.w.x0-2,cy+wh*1.2,[90,110,130][j]);
+        var kp=await ocrWords(kb,7,_WL_DIGITS);
+        var kt=kp.lines.map(function(l){return l.text;}).join('').trim();
+        if(/^\d{1,2}$/.test(kt))kv[+kt]=(kv[+kt]||0)+1;
+        var rb=await _eliminationRank(im,left-5,cy-pitch*.48,right+15,cy+pitch*.42,[140,170,200][j]);
+        var rp=rb?await ocrWords(rb,10,_WL_DIGITS):{lines:[]}, rt=rp.lines.map(function(l){return l.text;}).join('').trim();
+        if(/^\d{1,2}$/.test(rt)&&+rt>0&&+rt<=48)rv[+rt]=(rv[+rt]||0)+1;
+        var rb2=await _stripBlob(im,left+wh*1.3,cy-pitch*.40,right+5,cy+pitch*.35,j===0?'norm':thr,j===2,{targetW:220});
+        var rp2=await ocrWords(rb2,10,_WL_DIGITS),rt2=rp2.lines.map(function(l){return l.text;}).join('').trim();
+        if(/^\d{1,2}$/.test(rt2)&&+rt2>0&&+rt2<=48)rv[+rt2]=(rv[+rt2]||0)+1;
+        var nb=await _stripBlob(im,right+wh*2,cy-pitch*.34,a.w.x0-wh*3,cy+pitch*.34,thr,false,{targetW:1000});
+        if(mw){var nr=await mw.recognize(nb);texts.push((nr.data.text||'').trim());}
+        else {var np=await ocrWords(nb,7,'');texts.push(np.lines.map(function(l){return l.text;}).join(' '));}
+      }
+      function consensus(v){var ks=Object.keys(v).sort(function(a,b){return v[b]-v[a];});return ks.length&&v[ks[0]]>=2&&(ks.length===1||v[ks[0]]>v[ks[1]])?+ks[0]:null;}
+      var k=consensus(kv),r=consensus(rv);
+      rows.push({name:texts[0]||'',name2:texts[1]||'',name3:texts[2]||'',kills:k,rank:r||0,
+        y:cy/H,fromCol:true,explicitRank:r!==null,elimination:true,noOrder:true});
+    }
+  }finally{if(mw)try{await mw.terminate();}catch(e){}}
+  /* Duplicate or non-monotonic digit reads are rejected, never replaced by row order. */
+  var prev=0,valid=true;rows.forEach(function(r){if(!r.rank||(prev&&r.rank!==prev+1))valid=false;prev=r.rank;});
+  if(!valid)rows.forEach(function(r){r.rank=0;r.explicitRank=false;});
+  return {rows:rows,recognizedLayout:true,debug:{layout:'eliminations',rows:rows.length,rankVerified:valid,multilingual:!!mw}};
+}
+
 async function parseResultV4(blob, progress){
   var im=await _loadImgFile(blob);
   if(!im) return null;
