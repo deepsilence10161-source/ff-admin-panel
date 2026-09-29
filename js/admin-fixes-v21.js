@@ -58,7 +58,16 @@ function patchWhenReady(name, patcher, delay) {
   var iv = setInterval(function () {
     attempts++;
     if (window[name] !== undefined) { clearInterval(iv); patcher(); }
-    if (attempts > 30) { clearInterval(iv); console.warn('[v21Fix] Could not patch', name, '— function never defined'); }
+    if (attempts > 30) {
+      clearInterval(iv);
+      /* ✅ FIX (2026-09-30): known-removed feature ka patch — warning nahi,
+         informative skip (list: supabase-init-early.js → _REMOVED_ADMIN_FNS). */
+      if ((window._REMOVED_ADMIN_FNS || []).indexOf(name) >= 0) {
+        console.log('[v21Fix] skip ' + name + ' — feature hata diya gaya hai, patch karne ke liye kuch nahi hai.');
+      } else {
+        console.warn('[v21Fix] Could not patch', name, '— function never defined');
+      }
+    }
   }, delay);
 }
 

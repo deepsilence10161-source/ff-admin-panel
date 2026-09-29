@@ -358,8 +358,21 @@ auth.onAuthStateChanged(async function(u){
       try{
         var supa=window._supa;
         if(supa){
-          var supaAdmin=await supa.from('admins').select('uid').eq('uid',u.uid).maybeSingle();
-          if(supaAdmin&&supaAdmin.data)isAdmin=true;
+          /* ✅ SECURITY FIX (2026-09-30): pehle sirf row ke EXIST hone se hi
+             isAdmin=true ho jaata tha — admins.is_active ko bilkul ignore
+             kiya jaata tha. Matlab jo admin jaan-boojh kar deactivate kiya
+             gaya ho (is_active=false) woh phir bhi poora admin panel khol
+             leta tha. Live verified: qauser1@fft.com ka admins row
+             is_active=false tha, lekin usse login karne par bhi panel khul
+             jaata. Ab explicitly false hone par access DENY hota hai. */
+          var supaAdmin=await supa.from('admins').select('uid,is_active,role').eq('uid',u.uid).maybeSingle();
+          if(supaAdmin&&supaAdmin.data){
+            if(supaAdmin.data.is_active===false){
+              console.warn('[Auth] Admin account is deactivated (admins.is_active=false) — access denied for',u.email);
+            }else{
+              isAdmin=true;
+            }
+          }
         }
       }catch(supaErr){console.log('Supabase admin check failed:',supaErr.message);}
 
@@ -371,11 +384,16 @@ auth.onAuthStateChanged(async function(u){
         }catch(rtErr){console.log('RTDB admin check failed:',rtErr.message);}
       }
 
-      /* 3. Email whitelist as final fallback */
-      if(!isAdmin&&(u.email==='admin@fft.com'||u.email==='admin@fftapp.com')){
-        isAdmin=true;
-        console.log('Admin verified by email whitelist');
-      }
+      /* 3. ✅ SECURITY FIX (2026-09-30): hardcoded email whitelist HATA diya.
+         Pehle yeh tha:
+             if(!isAdmin && (u.email==='admin@fft.com'||u.email==='admin@fftapp.com')){
+               isAdmin = true;
+             }
+         Iska matlab: agar woh email kabhi Firebase mein register ho jaaye
+         (ya account delete ho kar dobara banaya jaaye), to koi bhi us email
+         se signup karke POORA admin panel le sakta tha — bina admins table
+         mein hone ke. Admin access ab SIRF admins table + users.is_admin
+         (dono server-side) se aata hai. */
       if(isAdmin){
         document.getElementById('loginScreen').style.display='none';
         document.getElementById('loadingScreen').style.display='flex';
@@ -384,10 +402,28 @@ auth.onAuthStateChanged(async function(u){
            timeouts inside initializeAdminPanel(), race it against a hard
            15s ceiling here too, so the "INITIALIZING" spinner can NEVER
            spin forever no matter what breaks inside. */
+        /* ✅ FIX (2026-09-30, LIVE-PROVEN FALSE ALARM): ye 15s ceiling sirf ek
+           safety-net hai, par iska setTimeout KABHI clear nahi hota tha — aur
+           Promise.race losing promise ko cancel nahi karta. Isliye jab
+           initializeAdminPanel() normally 5–6s mein khatam ho jaata tha, tab
+           bhi theek 15s baad ye console.error chhapta rehta tha ("exceeded 15s
+           — forcing panel open anyway"), jabki panel to pehle hi khul chuka hota
+           tha. Live timeline (headless Chromium, real admin login): mainApp
+           visible t+5.8s, aur ye ERROR t+19.9s — yaani race jeetne ke BAAD bhi.
+           Ye har login par aane wali phantom error thi (sweep mein alag-alag
+           pages par dikhti thi kyunki login ke +15s par jo page khula hota tha
+           wahin capture hoti thi). Ab timer init complete hote hi clear ho
+           jaata hai, isliye ye message SIRF tab aayega jab init sach mein 15s
+           se zyada le raha ho. */
+        var _initCeilingTimer = null;
         await Promise.race([
-          initializeAdminPanel(),
+          initializeAdminPanel().then(function (v) {
+            if (_initCeilingTimer) { clearTimeout(_initCeilingTimer); _initCeilingTimer = null; }
+            return v;
+          }),
           new Promise(function(resolve){
-            setTimeout(function(){
+            _initCeilingTimer = setTimeout(function(){
+              _initCeilingTimer = null;
               console.error('[Auth] initializeAdminPanel() exceeded 15s — forcing panel open anyway.');
               resolve();
             }, 15000);
@@ -572,11 +608,25 @@ async function initializeAdminPanel(){
      contention बढ़ाते थे। बरकरार: refreshDashboard (डिफ़ॉल्ट खंड), loadTournaments
      (allTournaments/allJoinRequests globals — dashboard इन्हीं से खिलता है),
      loadSupportChats (20s-interval अलर्ट-स्कैनर — खंड-अपेक्षित नहीं)। */
-  await Promise.all([
-    _withTimeout(function(){return refreshDashboard();}, 'refreshDashboard', 3500),
-    _withTimeout(function(){return loadTournaments();}, 'loadTournaments', 3500),
-    /* ✅ REMOVED (2026-08-21): loadTeamRequests() call — function deleted, Team Requests section removed. */
-    _withTimeout(function(){return loadSupportChats();}, 'loadSupportChats', 3500)
+  /* ✅ FIX (2026-09-30, live-testing): ye 3 loaders (har ek ka apna 3.5s cap
+     hai) mainApp dikhne se PEHLE poori tarah await kiye jaate the — yani
+     slow network par loading spinner 3.5s tak extra khincha jaata tha, aur
+     CPU/network pressure mein ye 15s force-open ceiling ko paar kar jaata
+     tha (live-proven, intermittent: "[Auth] initializeAdminPanel() exceeded
+     15s — forcing panel open anyway"). Loaders khud self-contained hain
+     (apna timeout + apna error swallow, aur section kholte waqt showSection()
+     unhe dobara call karta hai), isliye ab inhe sirf 1.2s tak await kiya
+     jaata hai: jo section us dauran load ho gaya wo turant dikhta hai aur
+     baaki data peechhe-peechhe aa jaata hai — panel ~1.2s ke andar khul
+     jaata hai, 15s ceiling ka risk khatam. */
+  await Promise.race([
+    Promise.all([
+      _withTimeout(function(){return refreshDashboard();}, 'refreshDashboard', 3500),
+      _withTimeout(function(){return loadTournaments();}, 'loadTournaments', 3500),
+      /* ✅ REMOVED (2026-08-21): loadTeamRequests() call — function deleted, Team Requests section removed. */
+      _withTimeout(function(){return loadSupportChats();}, 'loadSupportChats', 3500)
+    ]),
+    new Promise(function(resolve){ setTimeout(resolve, 1200); })
   ]);
   setInterval(syncTournamentStatuses,30000);
   setInterval(sendScheduledReminders,300000);

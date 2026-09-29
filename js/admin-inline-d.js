@@ -724,7 +724,19 @@ window._ensureAppSettingsRealtime = function() {
   if (!window._supa) return;
   if (window._astChannel && window._astChannelState === 'joined') return;
   try {
-    window._astChannel = window._supa.channel('app-settings-live-admin')
+    /* ✅ FIX (2026-09-30): token-refresh ke baad syncFirebaseToken() naya
+       Supabase client banata hai — tab purana channel object stale ho jaata
+       hai. Usi naam ('app-settings-live-admin') ka channel dobara banane par
+       supabase-js wahi already-subscribed instance lauta deta tha, jisse
+       "cannot add 'postgres_changes' callbacks ... after subscribe()" error
+       aata tha (verified live in console). Ab: purana channel explicitly
+       remove karo, phir unique topic ke saath fresh channel banao. */
+    if (window._astChannel) {
+      try { window._supa.removeChannel(window._astChannel); } catch (e) {}
+      window._astChannel = null;
+      window._astChannelState = null;
+    }
+    window._astChannel = window._supa.channel('app-settings-live-admin-' + Date.now())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, function(payload) {
         var row = payload.new || {};
         var key = row.key;

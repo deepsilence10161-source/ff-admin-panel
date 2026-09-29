@@ -99,6 +99,24 @@
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   };
+  /* ✅ FIX (2026-09-30): _REMOVED_ADMIN_FNS — ye admin functions jaan-bujh kar
+     delete ho chuke hain (features remove: Team Requests, Wallet Requests/
+     Add-Money, Polls, Sponsored prize-distribute, Clan Bank). Repo mein inki
+     definition bhi nahi hai aur koi UI call-site bhi nahi. v21–v24 ke
+     patchWhenReady helpers inhe patch karne ki koshish karte rehte the aur har
+     page-load par "Could not patch" WARNING chhodte the — jo asli bug jaisi
+     lagti thi. Ab ye list un known names ko chup-chaap (informative log ke
+     saath) skip karne deti hai, jabki koi bhi NAYA undefined naam abhi bhi
+     warning deta hai. */
+  window._REMOVED_ADMIN_FNS = window._REMOVED_ADMIN_FNS || [
+    'approveTeam',
+    'approveAddMoney',
+    'submitPollVote',
+    'confirmWithdrawal',
+    'contributeToClanBank',
+    'distributeSponsoredPrizes'
+  ];
+
   window.patchWhenReady = window.patchWhenReady || function (name, patcher, delay) {
     delay = delay || 700;
     var attempts = 0;
@@ -107,7 +125,20 @@
       if (typeof window[name] !== 'undefined') { clearInterval(iv); patcher(); }
       if (attempts > 60) {
         clearInterval(iv);
-        console.warn('[patchWhenReady] Could not patch:', name);
+        /* ✅ FIX (2026-09-30, live-testing): in 6 “Could not patch” warnings ka
+           source ye hai ki jin functions ko patch kiya ja raha tha wo admin
+           panel se JAAN-BUJH KAR hata diye gaye features ke hain (Team
+           Requests, Wallet Requests/Add-Money, Polls, Sponsored
+           prize-distribute, Clan Bank) — repo mein inki koi definition nahi
+           bachti aur koi UI inhe call bhi nahi karta. Har page-load par aane
+           wali warning real bug jaisi lagti thi. Ab sirf inhi KNOWN names ke
+           liye ek informative log hota hai; koi bhi anjaana naam pehle jaise
+           WARN hi karta hai (taaki naya regression chhup na jaaye). */
+        if ((window._REMOVED_ADMIN_FNS || []).indexOf(name) >= 0) {
+          console.log('[patchWhenReady] skip ' + name + ' — ye feature admin panel se hata diya gaya hai, patch karne ke liye kuch nahi hai.');
+        } else {
+          console.warn('[patchWhenReady] Could not patch:', name);
+        }
       }
     }, delay);
   };

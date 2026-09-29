@@ -122,111 +122,30 @@
 <script defer src="js/supabase-init-early.js?v=20260919d"></script>
 <script defer src="js/security-hardening.js?v=20260919d"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
 <script>
-  /* ✅ DIAGNOSTIC (2026-09-19): "App Settings tab pe jaate hi loading
-     atak jaata hai, poora panel kaam nahi karta" — reported across
-     multiple rounds, root cause not yet conclusively found from static
-     code review + Node simulation alone (every individually-tested
-     code path in fa-app-settings.js, admin-inline.js's loadSettings(),
-     and the Supabase RTDB bridge came back crash-safe in isolation).
-     This catches any real, uncaught JS error live in the browser and
-     shows it directly on screen — the fastest way to get the exact
-     failing line without needing remote devtools access. Purely
-     diagnostic; does not change any app behavior. Safe to remove once
-     the real cause is found and fixed. */
-  window.addEventListener('error', function (e) {
-    var msg = '⚠️ JS ERROR: ' + e.message + '\n📍 ' + (e.filename || '?').split('/').pop() + ':' + e.lineno + ':' + e.colno;
-    console.error(msg, e.error);
-    var box = document.getElementById('_diagErrorBox');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = '_diagErrorBox';
-      box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#3a0000;color:#ff8080;font:11px monospace;padding:10px;white-space:pre-wrap;max-height:40vh;overflow:auto;border-top:2px solid #ff3c3c';
-      document.body.appendChild(box);
+  /* ✅ REPLACED (2026-09-30) — pehle yahan ek bada DIAGNOSTIC block tha:
+     green "🔧 build v54-diag" badge, poore page ka click tracer (har click
+     par ek purple bar), 12s baad ek STATUS CHECK panel, aur ek fixed
+     _diagErrorBox. Woh 2026-09-19 ko "App Settings tab atak jaata hai"
+     debug karne ke liye daala gaya tha, aur uske apne comment mein likha
+     tha: "Safe to remove once the real App Settings cause is found and
+     fixed." Woh kaam poora ho chuka hai par block production mein reh gaya,
+     jisse har admin ko yeh debug UI dikhta tha (live verified screenshots).
+     Ab iski jagah ek chhota, SIRF-CONSOLE error logger hai — production
+     diagnostics barkarar, par koi visible debug UI nahi. */
+  (function () {
+    'use strict';
+    function _log(tag, msg, extra) {
+      try { console.error('[diag] ' + tag + ': ' + msg, extra || ''); } catch (e) {}
     }
-    box.textContent += (box.textContent ? '\n\n' : '') + msg;
-  });
-  /* ✅ DIAGNOSTIC (2026-09-19, third pass): instant, no-wait build marker
-     — a tiny badge that appears the moment this script runs, before any
-     12s timer or error/rejection has a chance to fire. If this badge is
-     NOT visible immediately on page load, the browser/CDN is still
-     serving an OLD cached copy of index.html and none of the fixes in
-     this build (v54 diagnostics or any earlier fix) are actually
-     running yet — a hard refresh / cache clear is needed before any
-     further diagnosis makes sense. Safe to remove once the real
-     App Settings cause is found and fixed. */
-  window.addEventListener('DOMContentLoaded', function () {
-    var badge = document.createElement('div');
-    badge.textContent = '🔧 build v54-diag';
-    badge.style.cssText = 'position:fixed;top:0;right:0;z-index:999999;background:#00ff9c;color:#000;font:10px monospace;padding:2px 6px;border-bottom-left-radius:6px;opacity:.85';
-    document.body.appendChild(badge);
-  });
-  /* ✅ DIAGNOSTIC (2026-09-19, fourth pass): raw capture-phase click
-     listener on the whole document — fires for EVERY click before any
-     onclick attribute or other listener runs, and cannot be blocked by
-     stopPropagation() called later in the chain (capture fires first).
-     This proves definitively whether a click on the Settings nav-item
-     is even being received by the browser at all, and shows exactly
-     which element was actually clicked (in case a different, unrelated
-     element is intercepting the tap) — independent of whatever
-     showSection()/loadAppSettings() do afterward. Safe to remove once
-     the App Settings cause is found and fixed. */
-  document.addEventListener('click', function (e) {
-    var t = e.target;
-    var path = [];
-    for (var n = t; n && path.length < 4; n = n.parentElement) {
-      path.push(n.tagName + (n.id ? '#' + n.id : '') + (n.className && typeof n.className === 'string' ? '.' + n.className.split(' ').join('.') : ''));
-    }
-    var b = document.createElement('div');
-    b.textContent = '👆 click: ' + path.join(' < ');
-    b.style.cssText = 'position:fixed;top:40px;left:0;right:0;z-index:999999;background:#2a0a4a;color:#e0b3ff;font:9px monospace;padding:3px 6px;opacity:.9;word-break:break-all';
-    document.body.appendChild(b);
-    setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 6000);
-  }, true);
-  /* ✅ DIAGNOSTIC (2026-09-19, second pass): the plain 'error' listener
-     above never fired even while the settings spinner stayed stuck
-     forever — meaning the failure is NOT a thrown Error at all. The
-     other class of silent JS failure is an unhandled PROMISE
-     REJECTION (an async function/`.then()` chain that rejects with
-     nobody ever calling .catch() on it) — this needs its own separate
-     browser event, 'unhandledrejection', which the listener above
-     cannot catch. Adding it here to close that gap. */
-  window.addEventListener('unhandledrejection', function (e) {
-    var reason = e.reason;
-    var msg = '⚠️ UNHANDLED PROMISE REJECTION: ' + (reason && reason.message ? reason.message : String(reason));
-    if (reason && reason.stack) msg += '\n' + String(reason.stack).split('\n').slice(0, 4).join('\n');
-    console.error(msg, reason);
-    var box = document.getElementById('_diagErrorBox');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = '_diagErrorBox';
-      box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#3a0000;color:#ff8080;font:11px monospace;padding:10px;white-space:pre-wrap;max-height:40vh;overflow:auto;border-top:2px solid #ff3c3c';
-      document.body.appendChild(box);
-    }
-    box.textContent += (box.textContent ? '\n\n' : '') + msg;
-  });
-  /* ✅ DIAGNOSTIC (2026-09-19): if NEITHER of the above ever fires while
-     the spinner is stuck, the failure is a genuine hang — something
-     that's still pending and simply never resolves/rejects at all
-     (e.g. a network request the browser itself never completes, or a
-     Supabase realtime channel stuck in a connecting state). This timer
-     prints a live status snapshot 12s after page load so that case is
-     distinguishable too, without needing to guess. */
-  setTimeout(function () {
-    var box = document.getElementById('_diagErrorBox');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = '_diagErrorBox';
-      box.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#1a1a00;color:#ffe680;font:11px monospace;padding:10px;white-space:pre-wrap;max-height:40vh;overflow:auto;border-top:2px solid #ffd700';
-      document.body.appendChild(box);
-    }
-    var status = '🔎 12s STATUS CHECK:\n' +
-      '_supa exists: ' + (!!window._supa) + '\n' +
-      '_supaAuthed: ' + (!!window._supaAuthed) + '\n' +
-      'currentSection: ' + (window.currentSection || '?') + '\n' +
-      'appSettingsContent innerHTML length: ' + (document.getElementById('appSettingsContent') ? document.getElementById('appSettingsContent').innerHTML.length : 'ELEMENT NOT FOUND');
-    console.log(status);
-    box.textContent += (box.textContent ? '\n\n' : '') + status;
-  }, 12000);
+    window.addEventListener('error', function (e) {
+      _log('uncaught', (e && e.message) || 'unknown error',
+           (e && e.filename) ? (e.filename + ':' + e.lineno) : '');
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e && e.reason;
+      _log('unhandled rejection', (r && r.message) ? r.message : String(r), r && r.stack);
+    });
+  })();
 </script>
 </head>
 <body>

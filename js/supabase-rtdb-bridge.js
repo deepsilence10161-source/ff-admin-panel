@@ -191,10 +191,24 @@
      This resolver is used for BOTH the .order() call and the
      .gte/.gt/.lte/.lt range calls below, so ordering and range-filtering
      both point at the real column. */
-  function resolveOrderCol(field) {
+  function resolveOrderCol(field, table) {
     var col = toSnake(field);
     if (col === 'match_time') return 'scheduled_at';
     if (col === 'timestamp' || col === 'time') return 'created_at';
+    /* ✅ FIX (2026-09-30): Firebase-era field names jinka asli Postgres
+       column snake_case naam se ALAG hai. Pehle yeh sirf toSnake() karta
+       tha, isliye .orderByChild('loginStreak') se bani query
+       "order=login_streak" bhejti thi aur Postgres 42703 deta tha
+       ("column users.login_streak does not exist") — Growth Analytics ka
+       "Streak Leaderboard" isi wajah se HTTP 400 par crash hota tha
+       (verified live). */
+    if (col === 'login_streak')     return 'streak_days';
+    if (col === 'profile_verified') return 'profile_status';
+    /* clans table mein 'score' column nahi hai — weekly standings ka asli
+       column 'weekly_score' hai. city_championship mein 'score' ASLI column
+       hai, isliye yeh mapping sirf table==='clans' ke liye scoped rakhi
+       gayi hai taaki baaki tables ka ordering na badle. */
+    if (col === 'score' && table === 'clans') return 'weekly_score';
     return col;
   }
 
@@ -1218,7 +1232,17 @@
                                   var s = genericToSupa(d);
                                   delete s.uid;
                                   return s;
-                                }, from: genericFromSupa }
+                                }, from: genericFromSupa },
+
+    /* ✅ FIX (2026-09-30): app_settings.value ek JSONB config blob hai —
+       iske ANDAR ke keys bilkul waise hi rehne chahiye jaise app likhti hai
+       (live_config mein updatedAt / sdPackages / adDailyLimit camelCase mein
+       live hain aur user panel unhe usi naam se padhta hai:
+       app-config.js → CFG.battlePassPrice wagairah). Generic converter inhe
+       snake_case kar deta, jisse poora live config corrupt ho jaata. Isliye
+       is table ke liye conversion identity hai — sirf outer key/value
+       envelope bridge khud handle karta hai. */
+    'app_settings':          { to: function(d) { return d; }, from: function(d) { return d; } }
   };
 
   function getConverter(table) {
@@ -1416,6 +1440,42 @@
     if (!p.id) return null;
     var fieldPath = p.parts.slice(2).join('/');
 
+    /* ✅ FIX (2026-09-30, CRITICAL — documented-but-missing mapping):
+       File ke header mein likha tha “appSettings/ adminConfig/ appConfig/ →
+       app_settings table”, par TABLE_MAP mein in teeno ki entry KABHI bani
+       hi nahi. Live-proven nateeja: admin panel ke saare legacy appSettings
+       writes (Settings page ka payment/UPI, global message, banner/ticker,
+       spectate link, referral reward, TDS config, daily bonus, currentSeason
+       aur Growth Analytics ka hourlyPeak persistence) bridge se
+       “Path not mapped to any Supabase table, and not in FIREBASE_ONLY —
+       data NOT saved anywhere” warn karke chup-chaap gum ho jaate the —
+       kuch bhi save nahi hota tha. Ab ye app_settings(key TEXT PK,
+       value JSONB, updated_by, updated_at) par keyed read/write karte hain.
+
+       Key naming live table mein mixed hai: snake_case (live_config,
+       preview_mode, maintenance, creator_system) AUR camelCase
+       (currentSeason) — aur user panel dono conventions padhta hai
+       (core/listeners.js → live_config, features/seasonal-league.js →
+       currentSeason). Isliye ek single candidate fix nahi kiya ja sakta:
+       read dono candidates par ek hi query mein hota hai, aur write pehle
+       MAUJOOD row wali key ko prefer karta hai (warna currentSeason jaisi
+       camelCase row ke saath duplicate snake_case row ban jaati). */
+    if (p.root === 'appSettings' || p.root === 'appConfig' || p.root === 'adminConfig') {
+      var _cfgParts = p.parts.slice(1).filter(function(x){ return x !== undefined && x !== null && x !== ''; });
+      if (_cfgParts.length) {
+        var _cfgSnake = _cfgParts.map(toSnake).join('_');
+        var _cfgRaw   = _cfgParts.join('_');
+        var _cfgKeys  = (_cfgSnake === _cfgRaw) ? [_cfgSnake] : [_cfgSnake, _cfgRaw];
+        return {
+          table: 'app_settings',
+          field: 'value',
+          filter: { col: 'key', val: _cfgKeys[0] },
+          _cfgKeys: _cfgKeys,
+          insertPatch: { key: _cfgKeys[0] }
+        };
+      }
+    }
+
     if (p.root === 'users') {
       if (p.field === 'notifications') return { table: 'notifications', filter: { col: 'user_id', val: p.id }, insertPatch: { user_id: p.id } };
       if (p.field === 'transactions')  return { table: 'wallet_transactions', filter: { col: 'user_id', val: p.id }, insertPatch: { user_id: p.id } };
@@ -1462,7 +1522,16 @@
       if (!p.field) return { table: 'clan_wars', filter: { col: 'week', val: p.id }, insertPatch: { week: p.id } };
       if (p.field === 'challenges') return { table: 'clan_war_challenges', filter: { col: 'week', val: p.id }, insertPatch: { week: p.id } };
       if (p.field === 'matches')    return { table: 'clan_wars',           filter: { col: 'week', val: p.id }, insertPatch: { week: p.id } };
-      if (p.field === 'clans')      return { table: 'clans',               filter: { col: 'id',   val: p.sub || p.id } };
+      if (p.field === 'clans') {
+        /* ✅ FIX (2026-09-30): pehle 'p.sub || p.id' filter lagta tha. Path
+           'clanWars/{week}/clans' mein p.id us week ki DATE hai
+           (e.g. '2026-09-28'), clan ka UUID nahi — usse clans.id match
+           karne par Postgres HTTP 400 deta tha (verified live). Week sirf
+           grouping key hai aur clans table mein koi week column nahi hai,
+           isliye bina id sirf tab filter karo jab path mein asli clan id ho. */
+        if (p.sub) return { table: 'clans', filter: { col: 'id', val: p.sub } };
+        return { table: 'clans' };
+      }
     }
     if (p.root === 'cityChampionship') {
       if (!p.field) return { table: 'city_championship', filter: { col: 'month', val: p.id }, insertPatch: { month: p.id } };
@@ -1520,6 +1589,20 @@
   /* ✅ FIX (Audit H4): composite-key rows (battlePass, autoMatchQueue) ke
      liye ek dusra .eq() bhi chain karna padta hai — generic helper. */
   function applyFilter(query, nested) {
+    /* ✅ FIX (2026-09-30, CRITICAL): kuch nested handlers
+       (clanWars/{week}/clans without sub-id, seasonHistory/{season}/{uid})
+       ka koi single-row filter hota hi nahi. Pehle yahan
+       `nested.filter.col` par TypeError aata tha aur poori read reject ho
+       jaati thi (“Cannot read properties of undefined (reading 'col')”,
+       live-proven on the Growth Analytics page). Ab filter na hone par
+       query bina filter ke aage chalti hai (us collection ki poori read)
+       — crash ke bajaye valid result. */
+    if (!nested || !nested.filter) {
+      if (nested && nested.table) {
+        console.warn('[Bridge] applyFilter: koi filter nahi mila (table: '+nested.table+') — bina filter ke read/write chal raha hai. Agar ye galat lagta hai to getNestedTableHandler() mein is path ke liye filter add karo.');
+      }
+      return query;
+    }
     query = query.eq(nested.filter.col, nested.filter.val);
     if (nested.extraFilter) query = query.eq(nested.extraFilter.col, nested.extraFilter.val);
     return query;
@@ -1531,6 +1614,37 @@
 
   function getSupa() {
     return window._supa;
+  }
+
+  /* ✅ FIX (2026-09-30): app_settings ki key resolve karo — agar candidates
+     mein se koi row pehle se maujood hai to WAHI key use karo (jaise
+     currentSeason), warna snake_case candidate (live_config / preview_mode
+     convention). Isse ek hi logical setting ki do rows kabhi nahi banti. */
+  async function resolveAppSettingsKey(nested) {
+    var supa = getSupa();
+    var keys = (nested && nested._cfgKeys) ? nested._cfgKeys : [(nested && nested.filter && nested.filter.val) || null];
+    if (!supa || !keys.length || !keys[0]) return keys[0];
+    try {
+      var r = await supa.from('app_settings').select('key').in('key', keys);
+      if (!r.error && r.data && r.data.length) {
+        for (var i = 0; i < keys.length; i++) {
+          for (var j = 0; j < r.data.length; j++) {
+            if (r.data[j].key === keys[i]) return keys[i];
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Bridge] app_settings key lookup failed, default key use ho raha hai:', e && e.message);
+    }
+    return keys[0];
+  }
+
+  function _appSettingsUpdater() {
+    try {
+      if (window.currentAdminUid) return window.currentAdminUid;
+      if (window.auth && window.auth.currentUser) return window.auth.currentUser.uid;
+    } catch (e) {}
+    return null;
   }
 
   /* ── READ: table + optional filter ── */
@@ -1574,9 +1688,35 @@
     /* Nested handler (e.g. users/uid/coins) */
     var nested = getNestedTableHandler(p);
 
+    if (nested && nested.field && nested.table === 'app_settings' && nested._cfgKeys) {
+      /* ✅ FIX (2026-09-30): mixed naming — dono candidates ek hi query mein.
+         Pehle priority wale candidate se match karo, warna jo bhi mile. */
+      /* NOTE: 'key,value' dono select karna zaroori hai — sirf 'value'
+         select karne par har row mein .key hi nahi aata aur neeche ka
+         priority-matching loop kabhi match nahi karta (pehla attempt
+         isi wajah se hamesha null deta tha). */
+      var _cr = await supa.from('app_settings').select('key,value').in('key', nested._cfgKeys);
+      if (_cr.error) {
+        console.error('[Bridge] app_settings read FAILED (path: ' + p.raw + '):', _cr.error.message);
+        return null;
+      }
+      var _rows = _cr.data || [];
+      for (var _ci = 0; _ci < nested._cfgKeys.length; _ci++) {
+        for (var _rj = 0; _rj < _rows.length; _rj++) {
+          if (_rows[_rj].key === nested._cfgKeys[_ci]) return _rows[_rj].value;
+        }
+      }
+      return null;
+    }
+
     if (nested && nested.field) {
       /* Scalar field read from users table */
-      var r = await applyFilter(supa.from(nested.table).select(nested.field), nested).single();
+      /* ✅ FIX (2026-09-30): .single() 0 rows par PostgREST se HTTP 406
+         deta hai (aur browser usse console ERROR ki tarah log karta hai),
+         jabki .maybeSingle() 0 rows par saaf-saaf {data:null,error:null}
+         deta hai. Bahut se "Failed to load resource: 406" console errors
+         isi wajah se the (live verified). Behaviour same rehta hai. */
+      var r = await applyFilter(supa.from(nested.table).select(nested.field), nested).maybeSingle();
       return r.data ? r.data[nested.field] : null; /* Returns scalar */
     }
 
@@ -1584,7 +1724,7 @@
       /* Sub-table read (e.g. users/uid/notifications) */
       var q2 = applyFilter(supa.from(nested.table).select('*'), nested);
       if (query && query.limitN) q2 = q2.limit(query.limitN);
-      if (query && query.orderField) q2 = q2.order(toSnake(query.orderField), { ascending: false });
+      if (query && query.orderField) q2 = q2.order(resolveOrderCol(query.orderField, nested.table), { ascending: false });
       var r2 = await q2;
       return r2.data || [];
     }
@@ -1607,7 +1747,11 @@
     /* Collection or single row? */
     if (p.id) {
       /* Single row: matches/matchId */
-      var r3 = await supa.from(table).select('*').eq(mapping.id, p.id).single();
+      /* ✅ FIX (2026-09-30): .single() → .maybeSingle() — 0 rows par 406
+         console-error aata tha (e.g. admins/{uid} jaisi missing-row reads).
+         Primary-key filter hai isliye 2-row case possible nahi, behaviour
+         bilkul same rehta hai. */
+      var r3 = await supa.from(table).select('*').eq(mapping.id, p.id).maybeSingle();
       return r3.data || null;
     }
 
@@ -1616,9 +1760,9 @@
 
     /* Apply query modifiers */
     if (query) {
-      if (query.orderByField) q3 = q3.order(resolveOrderCol(query.orderByField), { ascending: true });
+      if (query.orderByField) q3 = q3.order(resolveOrderCol(query.orderByField, table), { ascending: true });
       if (query.equalToVal !== undefined && query.orderByField) {
-        var eqCol = resolveOrderCol(query.orderByField);
+        var eqCol = resolveOrderCol(query.orderByField, table);
         q3 = q3.eq(eqCol, normalizeRangeVal(eqCol, query.equalToVal));
       }
       /* ✅ AUDIT FIX (critical): range-query translation for startAt/endAt/
@@ -1626,7 +1770,7 @@
          why these are needed. All apply to the column .orderByChild()
          selected (matches real Firebase RTDB range-query semantics). */
       if (query.orderByField) {
-        var rangeCol = resolveOrderCol(query.orderByField);
+        var rangeCol = resolveOrderCol(query.orderByField, table);
         if (query.startAtVal !== undefined && query.startAtVal !== null) q3 = q3.gte(rangeCol, normalizeRangeVal(rangeCol, query.startAtVal));
         if (query.startAfterVal !== undefined && query.startAfterVal !== null) q3 = q3.gt(rangeCol, normalizeRangeVal(rangeCol, query.startAfterVal));
         if (query.endAtVal !== undefined && query.endAtVal !== null) q3 = q3.lte(rangeCol, normalizeRangeVal(rangeCol, query.endAtVal));
@@ -1730,7 +1874,49 @@
         var patch = {};
         patch[nested.field] = data;
         if (table === 'users') patch.updated_at = new Date().toISOString();
+        /* ✅ FIX (2026-09-30): app_settings key-value table mein row pehle se
+           exist karna zaroori nahi — plain .update() 0 rows ko chhoo kar
+           chup-chaap kuch bhi nahi likhta tha (live example: Growth
+           Analytics ka appSettings/analytics/hourlyPeak/<hour> bucket,
+           aur Settings page ka appSettings/referralReward scalar). Ab
+           upsert — naya key bhi ban jaata hai. */
+        if (table === 'app_settings' && nested._cfgKeys) {
+          var _kvKey = await resolveAppSettingsKey(nested);
+          var _kvRow = Object.assign({}, patch, { key: _kvKey, updated_at: new Date().toISOString() });
+          var _kvWho = _appSettingsUpdater();
+          if (_kvWho) _kvRow.updated_by = _kvWho;
+          var _kvRes = await supa.from('app_settings').upsert(_kvRow, { onConflict: 'key' });
+          if (_kvRes && _kvRes.error) {
+            console.error('[Bridge] app_settings write FAILED (path: ' + p.raw + '):', _kvRes.error.message);
+            throw new Error('Supabase upsert failed on app_settings: ' + _kvRes.error.message);
+          }
+          return;
+        }
         await applyFilter(supa.from(table).update(patch), nested);
+        return;
+      }
+
+      /* ✅ FIX (2026-09-30): Firebase ka .update({...}) shallow MERGE karta
+         hai, replace nahi — aur app_settings ki poori settings ek hi JSONB
+         value column mein rehti hai. Isliye app_settings ke liye pehle
+         current value padho, usme naye keys merge karo, phir upsert.
+         (Pehle ye path generic converter se guzarta tha aur
+         “column upiId does not exist” jaisi Postgres error deta.) */
+      if (table === 'app_settings' && nested._cfgKeys && data && typeof data === 'object') {
+        var _mKey = await resolveAppSettingsKey(nested);
+        var _mCur = await supaRead(p, null);
+        var _mNew = (Array.isArray(data)) ? data
+                  : (data && typeof data === 'object' && _mCur && typeof _mCur === 'object' && !Array.isArray(_mCur))
+                    ? Object.assign({}, _mCur, data)
+                    : data;
+        var _mRow = { key: _mKey, value: _mNew, updated_at: new Date().toISOString() };
+        var _mWho = _appSettingsUpdater();
+        if (_mWho) _mRow.updated_by = _mWho;
+        var _mRes = await supa.from('app_settings').upsert(_mRow, { onConflict: 'key' });
+        if (_mRes && _mRes.error) {
+          console.error('[Bridge] app_settings merge-write FAILED (path: ' + p.raw + '):', _mRes.error.message);
+          throw new Error('Supabase upsert failed on app_settings: ' + _mRes.error.message);
+        }
         return;
       }
 
@@ -1827,6 +2013,21 @@
       if (nested.insertPatch) {
         var upsertPatch = Object.assign({}, nested.insertPatch, patch);
         var conflictCols = Object.keys(nested.insertPatch).join(',');
+        /* ✅ FIX (2026-09-30): app_settings mein existing row ki key ko hi
+           reuse karo (currentSeason vs current_season duplicate na bane). */
+        if (nested.table === 'app_settings' && nested._cfgKeys) {
+          var _setKey = await resolveAppSettingsKey(nested);
+          upsertPatch.key = _setKey;
+          upsertPatch.updated_at = new Date().toISOString();
+          var _setWho = _appSettingsUpdater();
+          if (_setWho) upsertPatch.updated_by = _setWho;
+          var _setRes = await supa.from('app_settings').upsert(upsertPatch, { onConflict: 'key' });
+          if (_setRes && _setRes.error) {
+            console.error('[Bridge] app_settings set FAILED (path: ' + p.raw + '):', _setRes.error.message);
+            throw new Error('Supabase upsert failed on app_settings: ' + _setRes.error.message);
+          }
+          return;
+        }
         await supa.from(nested.table).upsert(upsertPatch, { onConflict: conflictCols });
         return;
       }
@@ -1891,7 +2092,12 @@
     var nested = getNestedTableHandler(p);
     if (nested) {
       /* If a specific sub-record id is given, delete only that record */
-      if (p.sub) {
+      if (nested.table === 'app_settings' && nested._cfgKeys && !p.sub) {
+        /* ✅ FIX (2026-09-30): app_settings row ki asli key resolve karke
+           delete karo (warna camelCase row chhoot jaati). */
+        var _delKey = await resolveAppSettingsKey(nested);
+        await supa.from('app_settings').delete().eq('key', _delKey);
+      } else if (p.sub) {
         await supa.from(nested.table).delete().eq('id', p.sub);
       } else {
         /* No sub-id: delete record(s) matching the filter (+ extraFilter
@@ -1915,7 +2121,8 @@
 
     if (nested && nested.field && nested.table === 'users') {
       /* Atomic balance update via RPC */
-      var readRes = await supa.from('users').select(nested.field).eq('id', nested.filter.val).single();
+      /* ✅ FIX (2026-09-30): .single() → .maybeSingle() (406 console-noise fix) */
+      var readRes = await supa.from('users').select(nested.field).eq('id', nested.filter.val).maybeSingle();
       var current = readRes.data ? (readRes.data[nested.field] || 0) : 0;
       var newVal = fn(current);
       if (newVal === undefined) return { committed: false, snapshot: makeSnapshot(current, p.field, null, true) };

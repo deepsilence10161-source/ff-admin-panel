@@ -59,7 +59,15 @@ function patchWhenReady(name, patcher, delay) {
   var iv = setInterval(function () {
     attempts++;
     if (typeof window[name] !== 'undefined') { clearInterval(iv); patcher(); }
-    if (attempts > 60) { clearInterval(iv); console.warn('[v23] Could not patch:', name); }
+    if (attempts > 60) {
+      clearInterval(iv);
+      /* ✅ FIX (2026-09-30): known-removed feature ka patch — noisy warning nahi. */
+      if ((window._REMOVED_ADMIN_FNS || []).indexOf(name) >= 0) {
+        console.log('[v23] skip ' + name + ' — feature hata diya gaya hai, patch karne ke liye kuch nahi hai.');
+      } else {
+        console.warn('[v23] Could not patch:', name);
+      }
+    }
   }, delay);
 }
 

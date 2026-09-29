@@ -36,7 +36,15 @@ function patchWhenReady(name, patcher, delay) {
   var iv = setInterval(function () {
     attempts++;
     if (window[name] !== undefined) { clearInterval(iv); patcher(); }
-    if (attempts > 40) { clearInterval(iv); console.warn('[v22] Could not patch ' + name); }
+    if (attempts > 40) {
+      clearInterval(iv);
+      /* ✅ FIX (2026-09-30): known-removed feature ka patch — noisy warning nahi. */
+      if ((window._REMOVED_ADMIN_FNS || []).indexOf(name) >= 0) {
+        console.log('[v22] skip ' + name + ' — feature hata diya gaya hai, patch karne ke liye kuch nahi hai.');
+      } else {
+        console.warn('[v22] Could not patch ' + name);
+      }
+    }
   }, delay);
 }
 
