@@ -42,17 +42,26 @@
     }).catch(function () { cb(false); });
   }
 
+  /* ✅ SECURITY FIX (2026-09-30, live-audit): yahan hardcoded EMAIL WHITELIST thi
+     — jo bhi us email se Firebase mein register kar leta, use client-side par
+     admin maan liya jaata tha (admins table mein hone ke bina). Ab admin status
+     SIRF server-side authority se aata hai: admins table (uid) ya user_roles.
+     Koi bhi email/password literal code mein nahi rakha gaya. */
   function _checkFirebaseAdmin(u, cb) {
     var rtdb = window.rtdb;
     if (!rtdb) {
-      // Last resort: email whitelist
-      if (u.email === 'admin@fft.com' || u.email === 'admin@fftapp.com') { cb(true); return; }
-      cb(false); return;
+      /* Bridge/RTDB available nahi — Supabase admins table se seedha check */
+      var _supa0 = window._supa;
+      if (_supa0) {
+        _supa0.from('admins').select('uid').eq('uid', u.uid).maybeSingle()
+          .then(function(r){ cb(!!(r && r.data)); })
+          .catch(function(){ cb(false); });
+      } else { cb(false); }
+      return;
     }
     /* Check RTDB admins (bridge → Supabase admins table) */
     rtdb.ref('admins/' + u.uid).once('value', function (s) {
       if (s.exists()) { cb(true); return; }
-      if (u.email === 'admin@fft.com' || u.email === 'admin@fftapp.com') { cb(true); return; }
       /* Supabase admins table direct check as final fallback */
       var supa = window._supa;
       if (supa) {

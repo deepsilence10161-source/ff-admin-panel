@@ -384,11 +384,9 @@ auth.onAuthStateChanged(async function(u){
         }catch(rtErr){console.log('RTDB admin check failed:',rtErr.message);}
       }
 
-      /* 3. ✅ SECURITY FIX (2026-09-30): hardcoded email whitelist HATA diya.
-         Pehle yeh tha:
-             if(!isAdmin && (u.email==='admin@fft.com'||u.email==='admin@fftapp.com')){
-               isAdmin = true;
-             }
+      /* 3. ✅ SECURITY FIX (2026-09-30): hardcoded email whitelist HATA diya
+         (pehle do specific email literals yahan hard-coded the — repo mein
+         koi email/password literal nahi rakha gaya).
          Iska matlab: agar woh email kabhi Firebase mein register ho jaaye
          (ya account delete ho kar dobara banaya jaaye), to koi bhi us email
          se signup karke POORA admin panel le sakta tha — bina admins table
