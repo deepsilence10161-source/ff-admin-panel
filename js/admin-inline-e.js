@@ -180,10 +180,15 @@ async function toggleVerify(reqKey, el) {
     });
     /* FIX Bug#25: Sync verified status to Supabase — user-app reads join_requests.checked_in */
     if(window._supa){
+      /* ✅ FIX (live-testing 2026-10-01): ye update pehle `checked_in_at` likhta
+         tha — join_requests me aisa koi column NAHI hai (asli column `checkin_at`),
+         isliye PostgREST poora statement 400 (PGRST204) se reject kar deta tha aur
+         checked_in/in_room bhi kabhi save nahi hote the — jabki admin ko
+         "✅ Player verified!" toast dikhta tha (silent failure). */
       window._supa.from('join_requests').update({
         checked_in:newState,
         in_room:newState,
-        checked_in_at:newState?new Date().toISOString():null
+        checkin_at:newState?new Date().toISOString():null
       }).eq('id',reqKey)
         .catch(function(e){console.warn('[Bug#25 Fix] toggleVerify Supabase sync:',e.message);});
     }

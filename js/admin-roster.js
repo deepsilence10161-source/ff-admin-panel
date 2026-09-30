@@ -50,6 +50,11 @@ function loadRoster() {
                     ffUid: j.userFFUID || j.ffUid || j.gameUid || 'N/A',
                     reqId: c.key
                 });
+                /* ✅ FIX (2026-10-01): pehle se save ki hui attendance wapas dikhao
+                   (warna reload par sab "Waiting" ho jata tha) */
+                var _att = j.attendanceStatus;
+                if (_att === 'present') rosterStatus[uid] = 'present';
+                else if (_att === 'absent') rosterStatus[uid] = 'kick';
             }
         });
         
@@ -123,12 +128,40 @@ function renderRosterTable() {
         '<div class="stat-card"><div class="stat-icon orange"><i class="fas fa-clock"></i></div><h3>Waiting</h3><div class="value text-warning">' + waiting + '</div></div>';
 }
 
+/* ✅ FIX (live-testing 2026-10-01): pehle ye marking sirf browser memory
+   (rosterStatus object) me thi — DB me KAHIN nahi jati thi, isliye page reload
+   (ya doosre device) par hamesha "Waiting" wapas aa jata tha. Ab har marking
+   `join_requests.attendance_status` me save hoti hai (wahi column jo
+   Live-Attendance modal bhi use karta hai), aur load par wapas padhi jati hai. */
+function _rosterPersist(uid, status, cb) {
+    var db = (typeof getDB === 'function') ? getDB() : (typeof rtdb !== 'undefined' ? rtdb : null);
+    var val = status === 'present' ? 'present' : status === 'kick' ? 'absent' : null;
+    var mid = document.getElementById('rosterMatchSelect');
+    mid = mid ? mid.value : null;
+    try {
+        if (window._supa) {
+            /* Supabase seedha (fk-safe): match + user dono se match karke */
+            var q = window._supa.from('join_requests').update({ attendance_status: val }).eq('user_id', uid);
+            if (mid) q = q.eq('match_id', mid);
+            q.then(function (r) {
+                if (r && r.error) { showToast('⚠️ Save nahi hua: ' + r.error.message, true); cb && cb(false); return; }
+                cb && cb(true);
+            }, function (e) { showToast('⚠️ Save nahi hua: ' + (e && e.message), true); cb && cb(false); });
+        } else if (db && db.ref) {
+            db.ref('joinRequests/' + uid).update({ attendanceStatus: val }, function () { cb && cb(true); });
+        } else cb && cb(false);
+    } catch (e) { cb && cb(false); }
+}
+
 function markRoster(uid, status) {
     rosterStatus[uid] = status;
     renderRosterTable();
-    
+
     var action = status === 'present' ? 'marked present' : status === 'kick' ? 'kicked' : 'reset';
     console.log('Roster: Player ' + uid + ' ' + action);
+    _rosterPersist(uid, status, function (ok) {
+        if (ok) showToast(status === 'present' ? '✅ Present saved' : status === 'kick' ? '⛔ Kicked saved' : '↩ Reset saved');
+    });
 }
 
 function exportRosterList() {
