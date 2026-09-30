@@ -556,14 +556,22 @@
       function saveArchive(cb) {
         if (window._supa && rows.length) {
           rows.forEach(function (r, i) { r.rank = i + 1; });
-          window._supa.from('leaderboard_archive').delete().eq('month', month)
-            .then(function () {
-              return window._supa.from('leaderboard_archive').insert(rows);
-            })
-            .then(function (res) {
-              if (res && res.error) { console.error('[fa68] archive save failed:', res.error.message); cb(false); return; }
-              console.log('[fa68] ✅ archive saved to Supabase (' + rows.length + ' rows, month ' + month + ')');
-              cb(true);
+          /* ✅ (2026-10-01) pehle "delete + insert" tha — us se us month ke pehle se
+             maujood archive rows (jaise manually preserve kiye gaye pre-reset
+             snapshot) ud jate the. Ab idempotent: agar us month ke rows already
+             hain to naya insert skip (force ke liye window.__fa68ForceReArchive). */
+          window._supa.from('leaderboard_archive').select('id').eq('month', month)
+            .then(function (ex) {
+              if (ex && ex.error) { console.error('[fa68] archive check failed:', ex.error.message); cb(false); return; }
+              if (ex && (ex.data || []).length && !window.__fa68ForceReArchive) {
+                console.log('[fa68] ℹ️ month ' + month + ' ka archive pehle se maujood (' + ex.data.length + ' rows) — insert skip');
+                cb(true); return;
+              }
+              return window._supa.from('leaderboard_archive').insert(rows).then(function (res) {
+                if (res && res.error) { console.error('[fa68] archive save failed:', res.error.message); cb(false); return; }
+                console.log('[fa68] ✅ archive saved to Supabase (' + rows.length + ' rows, month ' + month + ')');
+                cb(true);
+              });
             })
             .catch(function (e) { console.error('[fa68] archive save threw:', e && e.message); cb(false); });
         } else if (rows.length) {
