@@ -110,18 +110,27 @@
       var sel = document.getElementById('resultTournamentSelect');
       var prev = sel ? sel.value : null;
       var r = _orig.apply(this, arguments);
-      try {
-        if (sel && prev) {
-          var opt = null, os = sel.options || [];
-          for (var i = 0; i < os.length; i++) { if (os[i].value === prev) { opt = os[i]; break; } }
-          if (opt) {
-            sel.value = prev;
-            if (window.currentSection === 'results' && typeof window.loadParticipants === 'function') {
-              setTimeout(function () { try { window.loadParticipants(); } catch (e) {} }, 60);
-            }
-          }
-        }
-      } catch (e) {}
+      /* options async fill hote hain — isliye thoda retry karte hain */
+      if (sel && prev) {
+        (function restoreLeft(attempts) {
+          setTimeout(function () {
+            try {
+              var os = sel.options || [], found = false;
+              for (var i = 0; i < os.length; i++) { if (os[i].value === prev) { found = true; break; } }
+              if (found) {
+                if (sel.value !== prev) {
+                  sel.value = prev;
+                  if (window.currentSection === 'results' && typeof window.loadParticipants === 'function') {
+                    setTimeout(function () { try { window.loadParticipants(); } catch (e) {} }, 60);
+                  }
+                }
+              } else if (attempts > 0) {
+                restoreLeft(attempts - 1);
+              }
+            } catch (e) {}
+          }, 150);
+        })(16);   /* ~2.4 s tak retry */
+      }
       return r;
     };
     wrapped._qaSelectKeeper = true;
