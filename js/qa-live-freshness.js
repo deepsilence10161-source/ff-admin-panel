@@ -86,6 +86,8 @@
       if (_listBusy || document.hidden) return;
       var sec = window.currentSection || '';
       if (sec !== 'tournaments' && sec !== 'matches' && sec !== 'dashboard') return;
+      /* results section me list refresh mat karo — wahan admin kills/rank bhar
+         raha hota hai aur list-rebuild se resultTournamentSelect reset ho jata hai */
       if (typeof window.loadTournaments !== 'function') return;
       _listBusy = true;
       Promise.resolve(window.loadTournaments(true)).then(function () { _listBusy = false; },
@@ -94,5 +96,41 @@
   }
   setInterval(listTick, LIST_MS);
 
-  console.log('[QA-Freshness] roster 6s + list 15s fallback active (realtime join_requests RLS-blocked hai)');
+  /* ── IS SELECT ka asli bug-fix (WALK6G me pakda gaya) ──────────────────
+     Realtime `matches` event par v22 channel `loadTournaments(true)` chalata
+     hai, jo Results ka `#resultTournamentSelect` dobara fill karta hai aur
+     uska selected match KHO jata hai (value ''). Uske baad results section
+     kisi match ka roster hi nahi dikhata. Yahan hum refresh se pehle
+     selection yaad rakhte hain aur turant wapas lagate hain (+ roster reload).
+  */
+  function installSelectKeeper() {
+    if (typeof window.loadTournaments !== 'function' || window.loadTournaments._qaSelectKeeper) return false;
+    var _orig = window.loadTournaments;
+    var wrapped = function () {
+      var sel = document.getElementById('resultTournamentSelect');
+      var prev = sel ? sel.value : null;
+      var r = _orig.apply(this, arguments);
+      try {
+        if (sel && prev) {
+          var opt = null, os = sel.options || [];
+          for (var i = 0; i < os.length; i++) { if (os[i].value === prev) { opt = os[i]; break; } }
+          if (opt) {
+            sel.value = prev;
+            if (window.currentSection === 'results' && typeof window.loadParticipants === 'function') {
+              setTimeout(function () { try { window.loadParticipants(); } catch (e) {} }, 60);
+            }
+          }
+        }
+      } catch (e) {}
+      return r;
+    };
+    wrapped._qaSelectKeeper = true;
+    window.loadTournaments = wrapped;
+    return true;
+  }
+  if (!installSelectKeeper()) {
+    var _ik = 0, _ikT = setInterval(function () { _ik++; if (_ik > 60 || installSelectKeeper()) clearInterval(_ikT); }, 250);
+  }
+
+  console.log('[QA-Freshness] roster 6s + list 15s fallback + select-keeper active (realtime join_requests RLS-blocked hai)');
 })();
