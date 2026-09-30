@@ -70,9 +70,18 @@
 
   setInterval(rosterTick, ROSTER_MS);
 
+  /* Admin tab background me tha (document.hidden) to ticks skip hote hain —
+     jab wapas foreground aaye, usi second refresh karo (6s wait na ho) */
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { try { rosterTick(); listTick(); } catch (e) {} }
+  });
+
+  /* testing/manual ke liye handle */
+  window.__qaFreshTick = rosterTick;
+
   /* list freshness — 15s safety poll (realtime matches-events ke saath idempotent) */
   var _listBusy = false;
-  setInterval(function () {
+  function listTick() {
     try {
       if (_listBusy || document.hidden) return;
       var sec = window.currentSection || '';
@@ -82,7 +91,8 @@
       Promise.resolve(window.loadTournaments(true)).then(function () { _listBusy = false; },
                                                         function () { _listBusy = false; });
     } catch (e) { _listBusy = false; }
-  }, LIST_MS);
+  }
+  setInterval(listTick, LIST_MS);
 
   console.log('[QA-Freshness] roster 6s + list 15s fallback active (realtime join_requests RLS-blocked hai)');
 })();
