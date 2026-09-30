@@ -1136,7 +1136,19 @@ function _rowsFromWords(pass, W, H){
     if (!headerless && ln2.y <= hdrY + H * 0.010) return;
     if (/^(NAME|K|A|D|DMG|KILLS)\b/i.test(ln2.text) && !/\d/.test(ln2.text)) return;
     if (/SURVIVAL|REVIVAL/i.test(ln2.text) && !/\d/.test(ln2.text)) return;
+    /* ✅ v3.1: bottom-button text ko row na banao ('24 LOBBY' jaisi line pehle
+       ek phantom player-row ban jati thi). */
+    if (/(LOBBY|SHARE|DETAILS|PLAY AGAIN|TOP TIP|RECENT)/i.test(ln2.text) && (ln2.words || []).length <= 4) return;
     var w2 = (ln2.words || []).filter(function (w) { return w.t; });
+    /* ✅ v3.1 (2026-09-30): K/D/A layout me Tesseract kabhi '12/4/3' ek HI token
+       deta hai — pehle ye token numbers me count hi nahi hota tha, isliye
+       headerless fallback galti se ROW KA SABSE LEFT number (aksar RATING ya
+       placement) ko kills maan leta tha (SOLARA/Portuguese screenshots me yahi
+       hua). Ab aise token ka pehla hissa kills-candidate hai. */
+    var kdaTok = null;
+    w2.forEach(function (w) {
+      if (/^\d{1,2}\/\d{1,2}\/\d{1,2}$/.test(w.t)) { if (!kdaTok || w.x > kdaTok.x) kdaTok = w; }
+    });
     var nums = w2.filter(function (w) { return /^\d{1,4}$/.test(w.t); })
                  .map(function (w) { return { v: parseInt(w.t, 10), w: w }; });
     if (!nums.length) return;
@@ -1153,6 +1165,10 @@ function _rowsFromWords(pass, W, H){
     var fx = null;
     for (var q = 0; q < nums.length; q++) { if (fx == null || nums[q].w.x < fx) fx = nums[q].w.x; }
     var kills = null, kw = null;
+    /* v3.1 note (2026-09-30): pehle maine is branch ko killsX par force kiya tha —
+       wo REGRESSION tha: FF result me har TEAM ka block alag indent par hota hai,
+       ek global killsX sirf ek team ke liye sahi hai (760566 exact 8/8 se 7/7
+       galat ho gaya). Isliye original per-row anchor behaviour wapas. */
     if (fx != null && killsX != null && Math.abs(fx - killsX) <= tol * 1.5) { fx = killsX; }
     var anchor = (fx != null ? fx : killsX);
     if (anchor != null) {
@@ -1161,12 +1177,28 @@ function _rowsFromWords(pass, W, H){
       if (cand.length) { kills = cand[0].v; kw = cand[0].w; }
     }
     if (kills == null) {
-      var lo = nameX0 != null ? nameX0 + W * 0.06 : W * 0.12;
+      /* ✅ v3.1 (2026-09-30): headerless me kills ko NAAM KE RIGHT dhoondo.
+         Pehle "12% width ke baad sabse left number" rule tha — par rating/
+         placement column naam ke LEFT hota hai, isliye wo rule chup-chaap
+         galat values (jaise rating '9') kills bana deta tha. Ab row ke
+         letter-words ka right edge lekar uske aage ka pehla (leftmost) chhota
+         number kills hai — K/D/A layout me bhi K pehle hi aata hai. */
+      var lw = w2.filter(function (w) { return /[A-Za-z]{2,}/.test(w.t) && !/^(NAME|K|A|D|DMG|KILLS)$/i.test(w.t); });
+      var lx1 = null;
+      for (var z = 0; z < lw.length; z++) { if (lx1 == null || lw[z].x1 > lx1) lx1 = lw[z].x1; }
+      var lo = (lx1 != null) ? (lx1 + W * 0.008) : (nameX0 != null ? nameX0 + W * 0.06 : W * 0.12);
       var small = nums.filter(function (n) { return n.v <= 99 && n.w.x > lo && n.w.x < W * 0.62; });
       if (small.length) { kills = small[0].v; kw = small[0].w; }
     }
     if (kills == null && headerless && nums.length) { kills = nums[0].v; kw = nums[0].w; }  /* leftmost */
+    /* ✅ v3.1: '12/4/3' jaisa K/D/A token mila to uska PEHLA number hi kills hai
+       (slash-format me hamesha K/D/A order hota hai) — leftmost-guess se behtar. */
+    if (kdaTok) { kills = parseInt(kdaTok.t.split('/')[0], 10); kw = kdaTok; }
     if (kills == null) return;
+    /* v3.1: headerless me composite-digit crop ko us number par le jao jo humne
+       kills chuna — pehle wo leftmost (rating) cell par hota tha aur vote usi ko
+       wins karva deta tha. */
+    if (headerless && kw) { fx = kw.x; }
     var leftWords = w2.filter(function (w) {
       return kw ? (w.x1 < kw.x0 - W * 0.004) : (w.x < W * 0.42);
     }).filter(function (w) { return !/^(NAME|K|A|D|DMG|KILLS)$/i.test(w.t); });
@@ -1268,7 +1300,10 @@ async function parseResultV25(file, onPct){
   }
   if (imEl && imEl.src && imEl.src.indexOf('blob:') === 0) { try { URL.revokeObjectURL(imEl.src); } catch (e) {} }
   return { rows: (best && best.rows) || [], mode: best ? best.mode : null,
-           score: best ? best.score : 0, conf: best ? best.conf : 0, killsX: best ? best.killsX : null, debug: dbg };
+           score: best ? best.score : 0, conf: best ? best.conf : 0, killsX: best ? best.killsX : null,
+           /* v3.1: headerless pass = kills column auto-verify NAHI hua (labels ko
+              khud dekhna zaroori hai — silent galat-fill se bachne ke liye) */
+           headerless: !!(best && best.killsX == null), debug: dbg };
 }
 
 /* ── 5. PARSERS ── */
@@ -1376,6 +1411,15 @@ function _eliminationReview(all,tbl,plans){
   var box=document.createElement('div');box.id='_ocrEliminationReview';
   box.style.cssText='padding:14px;margin-top:12px;border:1px solid #e2aa35;border-radius:10px;background:#151b29;color:#fff';
   var title=document.createElement('strong');title.textContent='Result OCR review — verify screenshot before applying';box.appendChild(title);
+  /* ✅ v3.1 (2026-09-30): headerless pass me kills column auto-verify nahi hota —
+     bina warning ke admin galti se galat kills Apply kar sakta tha. */
+  if(window._ocrKillsUnverified){
+    var warn=document.createElement('p');
+    warn.setAttribute('role','alert');
+    warn.style.cssText='background:#3a2a12;border:1px solid #e2aa35;border-radius:8px;padding:8px 10px;margin:8px 0;color:#ffd052;font-weight:700';
+    warn.textContent='⚠️ Is screenshot me kills column auto-verify nahi ho paya (header nahi mila) — kills screenshot se KHUD mila kar Apply karo.';
+    box.appendChild(warn);
+  }
   var note=document.createElement('p');note.textContent='Unclear name? Select the actual player. Rank badges are not assumed from row order. Enter rank only after checking the screenshot. This fills the form; it does not publish results.';box.appendChild(note);
   var entries=[];
   all.forEach(function(op,i){
@@ -1452,10 +1496,13 @@ async function runResult(files){
         if(boxed.unicode&&boxed.unicode.failed.length)unicodeWarnings=unicodeWarnings.concat(boxed.unicode.failed);
         all=all.concat(boxed.rows);
         window._ocrLastParse=window._ocrLastParse||{}; window._ocrLastParse[fileArr[i].name||i]=boxed.debug;
+        /* v3.1: kills-column auto-verify hua ya nahi — review box ka warning banner */
+        window._ocrKillsUnverified = !!(boxed.headerless);
       } else {
         /* fallback: purana line-parser (agar boxes na mile) */
         var text=await runOCR(fileArr[i],function(p){if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;'+(i+1)+'/'+fileArr.length+': '+p+'%';});
         all=all.concat(parseResult(text));
+        window._ocrKillsUnverified = true;
       }
     }
     if(!all.length){bar('mrSsPreview','⚠️ Player data detect nahi hua — clearer screenshot upload karo','warn');_rBusy=false;return;}
@@ -1765,9 +1812,17 @@ async function parseResultV4(blob, progress){
   if(!im) return null;
   var px=_imgPixels(im), W=px.W, H=px.H;
   if(progress) progress(8);
-  var o=await ocrWords(blob, 6, '');
+  /* ✅ v3.1 (2026-09-30): chhoti screenshots par V4 ka header detection fail ho
+     jata tha (K/D/A tokens itne chhote ki tut jaate hain) aur poora engine
+     chup-chaap V25 fallback par chala jata tha. Ab OCR se PEHLE upscale hota
+     hai, phir word coords original pixel space me wapas (neeche row-bands aur
+     cell crops original px par hi chalte hain). */
+  var _v4sc = (W<900) ? Math.max(2.5, Math.min(8, 3200/Math.max(W,1))) : 1;
+  var o=await ocrWords((_v4sc>1) ? await preprocessImage(blob,'maxch',{scale:_v4sc}) : blob, 6, '');
   if(progress) progress(28);
   var lines=(o.lines||[]);
+  if(_v4sc>1){ lines.forEach(function(ln){ if(ln.y!=null) ln.y=ln.y/_v4sc;
+    (ln.words||[]).forEach(function(w){ w.x0=w.x0/_v4sc; w.x1=w.x1/_v4sc; w.x=w.x/_v4sc; w.h=w.h/_v4sc; }); }); }
   /* 1) header line dhoondo: sabse zyada header-words wali line */
   var bestLine=null, bestN=0;
   lines.forEach(function(ln){
@@ -1780,7 +1835,6 @@ async function parseResultV4(blob, progress){
     if(!kinds['name']||(!kinds['k']&&!kinds['kda'])||!kinds['dmg']) return;
     if(items.length>bestN){ bestN=items.length; bestLine={y:(ln.y==null?0:ln.y), items:items}; }
   });
-  if(!bestLine) return null;
   bestLine.items.sort(function(a,b){ return a.x0-b.x0; });
   /* 2) tables: header tokens ko x-gap se alag karo (clash = 2 table) */
   var groups=[], cur=[];
@@ -1824,7 +1878,6 @@ async function parseResultV4(blob, progress){
     }
     tables.push({mode:(killsH.k==='kda')?'kda':'k', kx0:kx0, kx1:kx1, nl:nl, nr:nr, dmg0:d0, dmg1:d1, khx:killsH.x0, khy:killsH.x1});
   });
-  if(!tables.length) return null;
   /* 3) har table: row bands + cell reads */
   var outRows=[];
   for(var ti=0; ti<tables.length; ti++){
