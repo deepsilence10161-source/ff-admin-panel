@@ -593,7 +593,16 @@ window.loadMatchHistorySection = async function() {
     sel.innerHTML = '<option value="">-- Select Match --</option>';
     if(snap.exists()) snap.forEach(function(c){
       var d=c.val();
-      if(d.status==='resultPublished'||d.resultPublished===true){
+      /* ✅ FIX (live-testing 2026-10-01): ye filter sirf 'resultPublished' (Firebase
+         era) check karta tha. Supabase bridge result_published_at ko
+         `resultPublishedAt` (ms) bhejta hai aur status 'completed' rehta hai —
+         isliye 5 published matches hone par bhi ye dropdown KHALI rehta tha aur
+         poora "Match History — Result Fix" feature pahunch me hi nahi aata tha.
+         Ab teeno shapes accept karte hain. */
+      var _published = (d.status==='resultPublished') || (d.resultPublished===true) ||
+                       (d.resultPublishedAt !== undefined && d.resultPublishedAt !== null && Number(d.resultPublishedAt) > 0) ||
+                       (d.result_published_at != null);
+      if(_published){
         var opt=document.createElement('option'); opt.value=c.key; opt.textContent=(d.name||c.key)+' ✅'; sel.appendChild(opt);
       }
     });

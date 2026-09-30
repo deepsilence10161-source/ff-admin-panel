@@ -164,12 +164,28 @@ window.adminConfirmCreatorCheat = function(flagId) {
 };
 
 /* ─── Creator Strike History ────────────────────────────────────── */
-window.loadCreatorStrikeHistory = function() {
+window.loadCreatorStrikeHistory = function (_retry) {
   var cont = document.getElementById('creatorStrikeHistoryContent');
   if (!cont) return;
   cont.innerHTML = '<div style="text-align:center;padding:20px;color:#666"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
 
-  if (!supa()) return;
+  /* ✅ FIX (live-testing 2026-10-01): pehle ye function page load ke 800ms baad
+     ek hi baar chalta tha — us waqt Supabase client ready na hota to `supa()`
+     null return karta tha aur ye static "Loading..." spinner HAMESHA ke liye
+     atka rehta tha (admin ko strike history kabhi nahi dikti). Ab client aa
+     jane tak retry karta hai, aur section kholne par bhi dobara load hota hai. */
+  if (!supa()) {
+    if (!_retry) {           /* pehli koshish — thoda intezaar karo */
+      var _n = 0;
+      var _iv = setInterval(function () {
+        _n++;
+        if (supa() || _n > 40) { clearInterval(_iv); window.loadCreatorStrikeHistory(true); }
+      }, 500);
+    } else {
+      cont.innerHTML = '<div style="text-align:center;padding:20px;color:#888">Supabase client ready nahi hua — page reload karo.</div>';
+    }
+    return;
+  }
 
   supa().from('users')
     .select('id,ign,creator_strikes,creator_suspended_until,creator_suspended_permanently,creator_rating,creator_rating_count')
@@ -179,6 +195,9 @@ window.loadCreatorStrikeHistory = function() {
     .then(function(r) {
       if (r.error) { cont.innerHTML = '<div style="color:#ff6b6b;padding:16px">Error: ' + _esc(r.error.message) + '</div>'; return; }
       _renderStrikeHistory(cont, r.data || []);
+    })
+    .catch(function (e) {
+      cont.innerHTML = '<div style="color:#ff6b6b;padding:16px">Error: ' + _esc(e && e.message) + '</div>';
     });
 };
 
