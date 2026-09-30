@@ -520,8 +520,21 @@ patchWhenReady('mrPublishResults', function () {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, function() {
           if (typeof window.loadTournaments === 'function') window.loadTournaments(true);
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'join_requests' }, function() {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'join_requests' }, function(payload) {
           if (typeof window.loadTournaments === 'function') window.loadTournaments(true);
+          /* ✅ 2026-09-30 (QA fix M-9): Results section me khuli hui participants
+             list naye join par TURANT refresh honi chahiye. Pehle sirf tournaments
+             LIST refresh hoti thi — admin Results me baithe hue naye joins nahi
+             dekhta tha (purani roster dekh kar publish kar sakta tha). */
+          try {
+            if (window.currentSection === 'results' && typeof window.loadParticipants === 'function') {
+              var sel = document.getElementById('resultTournamentSelect');
+              var mid = sel && sel.value;
+              var changed = (payload && payload.new && payload.new.match_id) ||
+                            (payload && payload.old && payload.old.match_id);
+              if (mid && (!changed || changed === mid)) window.loadParticipants();
+            }
+          } catch (e) {}
         })
         .subscribe();
     } catch(e) {}
