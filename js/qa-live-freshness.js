@@ -46,6 +46,7 @@
     try {
       if (_busy || document.hidden) return;
       if (window.currentSection !== 'results') return;
+      if (restoreSelectionIfWiped()) { /* dropdown khali kar diya gaya tha — bahal + roster reload */ }
       if (!window._supa || !window._supa.from) return;
       var sel = document.getElementById('resultTournamentSelect');
       var mid = sel && sel.value;
@@ -103,34 +104,62 @@
      kisi match ka roster hi nahi dikhata. Yahan hum refresh se pehle
      selection yaad rakhte hain aur turant wapas lagate hain (+ roster reload).
   */
+  /* ── IS SELECT ka asli bug (WALK6G/6H me pakda gaya) ──────────────────
+     Realtime `matches` event v22 channel se `loadTournaments(true)` chalata
+     hai, jo Results dropdown ko dobara bharta hai aur admin ka chuna hua
+     match KHO jata hai (value ''). Uske baad roster kisi match ka load hi
+     nahi hota — admin purani/khali list dekhta rehta hai.
+
+     Hal: admin ki chuni hui match yaad rakho (sirf asli user 'change' se,
+     programmatic reset se nahi) aur agar dropdown khali ho jaye to wapas
+     laga do + roster reload karo. */
+  var _resultMid = null;
+
+  function selOpts() {
+    var s = document.getElementById('resultTournamentSelect');
+    return (s && s.options) ? s.options : [];
+  }
+  function optionExists(mid) {
+    var os = selOpts();
+    for (var i = 0; i < os.length; i++) if (os[i].value === mid) return true;
+    return false;
+  }
+  /* user ka asli selection yaad rakho (programmatic value-set change event nahi bhagata) */
+  document.addEventListener('change', function (ev) {
+    try {
+      var t = ev.target;
+      if (t && t.id === 'resultTournamentSelect') _resultMid = t.value || null;
+    } catch (e) {}
+  }, true);
+  /* pehle se koi match selected hai to yaad rakho */
+  (function seed() {
+    var s = document.getElementById('resultTournamentSelect');
+    if (s && s.value) _resultMid = s.value;
+    else setTimeout(seed, 1000);
+  })();
+
+  function restoreSelectionIfWiped() {
+    try {
+      if (window.currentSection !== 'results' || !_resultMid) return false;
+      var s = document.getElementById('resultTournamentSelect');
+      if (!s || s.value === _resultMid || !optionExists(_resultMid)) return false;
+      s.value = _resultMid;
+      if (typeof window.loadParticipants === 'function') window.loadParticipants();
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* loadTournaments ke foran baad bhi check (options async bharte hain) */
   function installSelectKeeper() {
     if (typeof window.loadTournaments !== 'function' || window.loadTournaments._qaSelectKeeper) return false;
     var _orig = window.loadTournaments;
     var wrapped = function () {
-      var sel = document.getElementById('resultTournamentSelect');
-      var prev = sel ? sel.value : null;
       var r = _orig.apply(this, arguments);
-      /* options async fill hote hain — isliye thoda retry karte hain */
-      if (sel && prev) {
-        (function restoreLeft(attempts) {
-          setTimeout(function () {
-            try {
-              var os = sel.options || [], found = false;
-              for (var i = 0; i < os.length; i++) { if (os[i].value === prev) { found = true; break; } }
-              if (found) {
-                if (sel.value !== prev) {
-                  sel.value = prev;
-                  if (window.currentSection === 'results' && typeof window.loadParticipants === 'function') {
-                    setTimeout(function () { try { window.loadParticipants(); } catch (e) {} }, 60);
-                  }
-                }
-              } else if (attempts > 0) {
-                restoreLeft(attempts - 1);
-              }
-            } catch (e) {}
-          }, 150);
-        })(16);   /* ~2.4 s tak retry */
-      }
+      var tries = 0;
+      var iv = setInterval(function () {
+        tries++;
+        if (restoreSelectionIfWiped() || tries > 20 || !_resultMid) clearInterval(iv);
+      }, 150);
       return r;
     };
     wrapped._qaSelectKeeper = true;
