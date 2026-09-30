@@ -25,49 +25,160 @@
   /* =========================================================
      ─── FEATURE 1: REVENUE ANALYTICS + 7-DAY BAR CHART ───
      ========================================================= */
+  /* ✅ REWRITTEN (live-testing 2026-10-01): pehle ye Firebase-era
+     `walletRequests` node padhta tha — Supabase bridge me wo node
+     `sd_requests` par mapped hai aur usme type='deposit'/'withdraw' kabhi
+     hota hi nahi, isliye Analytics page HAMESHA "₹0 Deposits / ₹0 Payouts /
+     0 Pending" dikhata tha (screenshot-proven; DB me tab bhi 113 wallet
+     transactions + 8 sd_requests maujood the). Ab asli tables se calculate
+     hota hai: deposits = sd_requests (Sky Diamond sales, ₹), payouts =
+     creator_payouts. Saath me Top Matches + Top Earners bhi asli data se. */
   window.renderRevenueAnalytics = function () {
     var el = _$('section-analytics'); if (!el) return;
     el.innerHTML = '<div style="text-align:center;padding:30px"><i class="fas fa-spinner fa-spin" style="font-size:24px;color:var(--primary)"></i></div>';
-    rtdb.ref('walletRequests').once('value', function (s) {
-      var days = {}, totalRev = 0, totalWd = 0, pendingCount = 0, approvedCount = 0;
-      s.forEach(function (c) {
-        var d = c.val();
-        var day = new Date(d.createdAt || Date.now()).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
-        if (!days[day]) days[day] = { dep: 0, wd: 0 };
-        if (d.status === 'pending') pendingCount++;
-        if (d.type === 'deposit' && (d.status === 'approved' || d.status === 'done')) {
-          days[day].dep += d.amount || 0; totalRev += d.amount || 0; approvedCount++;
-        } else if (d.type === 'withdraw' && (d.status === 'approved' || d.status === 'done')) {
-          days[day].wd += d.amount || 0; totalWd += d.amount || 0;
+
+    var sb = window._supa;
+    if (!sb) {   /* client ready hone tak chhota retry (page load race) */
+      var _n = 0;
+      var _iv = setInterval(function () {
+        _n++;
+        if (window._supa || _n > 30) { clearInterval(_iv); if (window.renderRevenueAnalytics) window.renderRevenueAnalytics(); }
+      }, 300);
+      return;
+    }
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+    function inr(n) { return '₹' + (Number(n) || 0).toLocaleString('en-IN'); }
+    function dayKey(d) { return new Date(d).toISOString().slice(0, 10); }
+
+    Promise.all([
+      sb.from('sd_requests').select('status,amount_inr,sd_amount,created_at,approved_at,ign'),
+      sb.from('creator_payouts').select('status,amount,created_at,paid_at,ign'),
+      sb.from('matches').select('name,prize_pool,entry_fee,status,filled_slots,max_slots').order('prize_pool', { ascending: false }).limit(5),
+      sb.from('match_results').select('user_id,prize_earned,kills,placement').order('prize_earned', { ascending: false }).limit(20),
+      sb.from('users').select('id,ign')
+    ]).then(function (rows) {
+      var sd = rows[0].data || [], pay = rows[1].data || [], topM = rows[2].data || [], mr = rows[3].data || [], us = rows[4].data || [];
+      var errs = rows.filter(function (r) { return r.error; }).map(function (r) { return r.error.message; });
+
+      /* ── deposits (approved Sky Diamond sales) ── */
+      var depTotal = 0, pendingCount = 0, byDay = {};
+      sd.forEach(function (r) {
+        var amt = Number(r.amount_inr) || 0;
+        var st = (r.status || '').toLowerCase();
+        if (st === 'pending') pendingCount++;
+        if (st === 'approved' || st === 'done' || r.approved_at) {
+          depTotal += amt;
+          var k = dayKey(r.approved_at || r.created_at);
+          if (!byDay[k]) byDay[k] = { dep: 0, wd: 0 };
+          byDay[k].dep += amt;
         }
       });
-      var net = totalRev - totalWd;
-      var labels = Object.keys(days).slice(-7);
-      var maxVal = labels.reduce(function (m, k) { return Math.max(m, days[k].dep, days[k].wd); }, 1);
+
+      /* ── payouts (creator withdrawals) ── */
+      var payTotal = 0;
+      pay.forEach(function (r) {
+        var amt = Number(r.amount) || 0;
+        var st = (r.status || '').toLowerCase();
+        if (st === 'pending' || st === 'requested') pendingCount++;
+        if (st === 'paid' || st === 'approved' || st === 'done' || r.paid_at) {
+          payTotal += amt;
+          var k2 = dayKey(r.paid_at || r.created_at);
+          if (!byDay[k2]) byDay[k2] = { dep: 0, wd: 0 };
+          byDay[k2].wd += amt;
+        }
+      });
+
+      var net = depTotal - payTotal;
+
+      /* ── last 7 din ka chart ── */
+      var labels = [];
+      for (var i = 6; i >= 0; i--) {
+        var d = new Date(); d.setDate(d.getDate() - i);
+        labels.push(d);
+      }
+      var maxVal = labels.reduce(function (m, d) {
+        var v = byDay[dayKey(d)] || { dep: 0, wd: 0 };
+        return Math.max(m, v.dep, v.wd);
+      }, 1);
+
       var h = '<div class="stats-grid" style="margin-bottom:16px">';
       [
-        ['💰 Total Deposits', '₹' + totalRev, 'green'],
-        ['📤 Total Payouts', '₹' + totalWd, 'red'],
-        ['📊 Net Profit', '₹' + net, net >= 0 ? 'green' : 'red'],
+        ['💰 Total Deposits', inr(depTotal), 'green'],
+        ['📤 Total Payouts', inr(payTotal), 'red'],
+        ['📊 Net Profit', inr(net), net >= 0 ? 'green' : 'red'],
         ['⏳ Pending Requests', pendingCount, 'yellow']
-      ].forEach(function (d) {
-        h += '<div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="value text-' + d[2] + '" style="font-size:18px">' + d[1] + '</div><div class="label">' + d[0] + '</div></div>';
+      ].forEach(function (x) {
+        h += '<div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="value text-' + x[2] + '" style="font-size:18px">' + x[1] + '</div><div class="label">' + x[0] + '</div></div>';
       });
       h += '</div>';
+
       h += '<div class="card"><div class="card-header"><i class="fas fa-chart-bar"></i> Last 7 Days — Deposits (Green) vs Payouts (Red)</div><div class="card-body">';
       h += '<div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 8px">';
-      labels.forEach(function (l) {
-        var dPct = Math.round((days[l].dep / maxVal) * 100);
-        var wPct = Math.round((days[l].wd / maxVal) * 100);
+      labels.forEach(function (d) {
+        var v = byDay[dayKey(d)] || { dep: 0, wd: 0 };
+        var dPct = Math.round((v.dep / maxVal) * 100), wPct = Math.round((v.wd / maxVal) * 100);
+        var lbl = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
         h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">';
         h += '<div style="display:flex;align-items:flex-end;gap:2px;height:100px">';
-        h += '<div title="₹' + days[l].dep + '" style="width:14px;height:' + Math.max(dPct, 2) + '%;background:#00ff9c;border-radius:3px 3px 0 0"></div>';
-        h += '<div title="₹' + days[l].wd + '" style="width:14px;height:' + Math.max(wPct, 2) + '%;background:#ff6b6b;border-radius:3px 3px 0 0"></div>';
-        h += '</div><div style="font-size:9px;color:var(--text-muted);white-space:nowrap">' + l + '</div></div>';
+        h += '<div title="Deposit ₹' + v.dep + '" style="width:14px;height:' + Math.max(dPct, 2) + '%;background:#00ff9c;border-radius:3px 3px 0 0"></div>';
+        h += '<div title="Payout ₹' + v.wd + '" style="width:14px;height:' + Math.max(wPct, 2) + '%;background:#ff6b6b;border-radius:3px 3px 0 0"></div>';
+        h += '</div><div style="font-size:9px;color:var(--text-muted);white-space:nowrap">' + lbl + '</div></div>';
       });
       h += '</div></div></div>';
+
+      /* ── Top matches (by prize pool) ── */
+      h += '<div class="card mt-3"><div class="card-header"><i class="fas fa-trophy"></i> Top Matches (by Prize)</div><div class="card-body compact">';
+      if (!topM.length) { h += '<p class="text-muted text-xs">Koi match nahi mila.</p>'; }
+      else {
+        h += '<table><thead><tr><th>#</th><th>Match</th><th>Status</th><th>Entry</th><th>Slots</th><th>Prize Pool</th></tr></thead><tbody>';
+        topM.forEach(function (m, i) {
+          h += '<tr><td>' + (i + 1) + '</td><td><strong>' + esc(m.name || '?') + '</strong></td><td class="text-xs">' + esc(m.status || '-') + '</td><td>₹' + (Number(m.entry_fee) || 0) + '</td><td class="text-xs">' + (m.filled_slots == null ? '-' : m.filled_slots) + '/' + (m.max_slots == null ? '-' : m.max_slots) + '</td><td class="text-primary font-bold">₹' + (Number(m.prize_pool) || 0) + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div></div>';
+
+      /* ── Top earners (match_results se) ── */
+      var byUser = {};
+      mr.forEach(function (r) {
+        var amt = Number(r.prize_earned) || 0;
+        if (!byUser[r.user_id]) byUser[r.user_id] = { amt: 0, n: 0, kills: 0 };
+        byUser[r.user_id].amt += amt; byUser[r.user_id].n++; byUser[r.user_id].kills += Number(r.kills) || 0;
+      });
+      var earners = Object.keys(byUser).map(function (uid) {
+        var u = us.filter(function (x) { return x.id === uid || x.uid === uid; })[0];
+        return { uid: uid, ign: (u && u.ign) || 'Player', amt: byUser[uid].amt, n: byUser[uid].n, kills: byUser[uid].kills };
+      }).sort(function (a, b) { return b.amt - a.amt; }).slice(0, 5);
+
+      h += '<div class="card mt-3"><div class="card-header"><i class="fas fa-crown"></i> Top Earners</div><div class="card-body compact">';
+      if (!earners.length) { h += '<p class="text-muted text-xs">Koi result-data nahi mila.</p>'; }
+      else {
+        h += '<table><thead><tr><th>#</th><th>Player</th><th>Results</th><th>Kills</th><th>Earnings</th></tr></thead><tbody>';
+        earners.forEach(function (e, i) {
+          var medal = ['🥇', '🥈', '🥉'][i] || ('#' + (i + 1));
+          h += '<tr><td>' + medal + '</td><td><strong>' + esc(e.ign) + '</strong><div class="text-xxs text-muted font-mono">' + esc(String(e.uid).substring(0, 12)) + '</div></td><td>' + e.n + '</td><td>' + e.kills + '</td><td class="text-primary font-bold">₹' + e.amt + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div></div>';
+
+      if (errs.length) h += '<p class="text-xs" style="color:#ff6b6b;margin-top:8px">⚠️ Kuch queries fail hui: ' + esc(errs.join('; ')) + '</p>';
+
       el.innerHTML = h;
+    }).catch(function (e) {
+      el.innerHTML = '<div style="color:#ff6b6b;padding:20px">Analytics load error: ' + esc(e && e.message) + '</div>';
     });
+  };
+
+  /* ✅ Refresh button (admin-analytics.js ka purana refreshAnalytics dead tha —
+     wo hatae hue DOM ids (analChart etc.) dhundhta tha). Ab wahi naya renderer. */
+  window.refreshAnalytics = function () {
+    if (window.renderRevenueAnalytics) window.renderRevenueAnalytics();
+    if (window.showToast) showToast('Analytics refreshed!');
+  };
+  window.loadAnalytics = function () {
+    if (window.renderRevenueAnalytics) window.renderRevenueAnalytics();
   };
 
   /* ─── FEATURE 2: USER GROWTH TRACKER ─── */
