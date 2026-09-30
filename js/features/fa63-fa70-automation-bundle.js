@@ -610,19 +610,46 @@
         var seasonName = seasonCfg.name || ('Season ' + month);
         var seasonNum  = seasonCfg.seasonNum || seasonCfg.season_num || 1;
 
+        var _seasonWrote = {};
         function archiveUser(uid, u) {
+          /* ✅ (2026-10-01) duplicate guard: browser profile badalne par (ya
+             localStorage clear hone par) ye month-end job dobara chalta tha aur
+             usi user ki same season history rows DUPLICATE ban jati thin
+             (live testing me ek user ki 3 baar bani). Ab Supabase me check
+             karke skip karte hain; per-run memory bhi rakhte hain. */
+          if (_seasonWrote[uid]) return;
+          _seasonWrote[uid] = true;
+
           var rk = window.calcRk ? window.calcRk(u.stats || {}) : { badge: 'Bronze', emoji: '🏅', pts: 0 };
           var rewardInfo = window.calcSeasonReward ? window.calcSeasonReward(u.seasonRank) : null;
-          db.ref('seasonHistory/' + month + '/' + uid).set({
-            userId:     uid,
-            seasonName: seasonName,
-            seasonNum:  seasonNum,
-            finalTier:  rk.badge,
-            points:     rk.pts,
-            badge:      rewardInfo ? rewardInfo.badge : rk.badge,
-            reward:     rewardInfo ? rewardInfo.reward : null,
-            emoji:      rewardInfo ? rewardInfo.emoji : rk.emoji
-          });
+
+          function payload() {
+            return {
+              userId:     uid,
+              seasonName: seasonName,
+              seasonNum:  seasonNum,
+              finalTier:  rk.badge,
+              points:     rk.pts,
+              badge:      rewardInfo ? rewardInfo.badge : rk.badge,
+              reward:     rewardInfo ? rewardInfo.reward : null,
+              emoji:      rewardInfo ? rewardInfo.emoji : rk.emoji
+            };
+          }
+          function write() { db.ref('seasonHistory/' + month + '/' + uid).set(payload()); }
+
+          if (window._supa) {
+            window._supa.from('seasonal_league_history').select('id')
+              .eq('user_id', uid).eq('season_name', seasonName).limit(1)
+              .then(function (ex) {
+                if (ex && !ex.error && (ex.data || []).length) {
+                  console.log('[fa68] season history already hai — skip (' + String(uid).slice(0, 6) + ')');
+                  return;
+                }
+                write();
+              }, function () { write(); });
+          } else {
+            write();
+          }
         }
 
         db.ref('users').once('value', function (uSnap) {
