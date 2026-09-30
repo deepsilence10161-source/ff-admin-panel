@@ -532,14 +532,58 @@
     var lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     if (now.getDate() !== lastDay || now.getHours() < 22) return;
 
-    localStorage.setItem(key, '1');
+    /* ✅ FIX (live-testing 2026-10-01): flag pehle set ho jata tha, isliye archive
+       FAIL hone par bhi reset aage badh jata tha aur agle load pe dobara koshish
+       nahi hoti thi (data loss). Ab flag sirf safal archive ke baad lagta hai. */
 
     // Archive current leaderboard
     db.ref('leaderboard').once('value', function (snap) {
+      var archive = {};
+      var rows = [];
       if (snap.exists()) {
-        var archive = {};
-        snap.forEach(function (c) { archive[c.key] = c.val(); });
-        db.ref('leaderboardArchive/' + month).set(archive);
+        snap.forEach(function (c) {
+          var v = c.val() || {};
+          archive[c.key] = v;
+          rows.push({ month: month, user_id: c.key, ign: v.ign || v.name || null, rank: null,
+                      earnings: Number(v.earnings || v.coins || 0) || 0, data: v });
+        });
+      }
+      /* ✅ FIX (live-testing, 400 PGRST204): pehle `leaderboardArchive/<month>` RTDB
+         path likha jata tha — Supabase bridge us MAP ko ek single row samajh leta
+         tha (columns = uids) → "Could not find the '<uid>' column" 400 → month
+         ka archive kabhi save hi nahi hota tha. Ab Supabase par seedha proper
+         rows insert hote hain (month + user_id + ign + rank + earnings + data). */
+      function saveArchive(cb) {
+        if (window._supa && rows.length) {
+          rows.forEach(function (r, i) { r.rank = i + 1; });
+          window._supa.from('leaderboard_archive').delete().eq('month', month)
+            .then(function () {
+              return window._supa.from('leaderboard_archive').insert(rows);
+            })
+            .then(function (res) {
+              if (res && res.error) { console.error('[fa68] archive save failed:', res.error.message); cb(false); return; }
+              console.log('[fa68] ✅ archive saved to Supabase (' + rows.length + ' rows, month ' + month + ')');
+              cb(true);
+            })
+            .catch(function (e) { console.error('[fa68] archive save threw:', e && e.message); cb(false); });
+        } else if (rows.length) {
+          db.ref('leaderboardArchive/' + month).set(archive);   /* Firebase-only mode */
+          cb(true);
+        } else {
+          cb(true);   /* kuch archive karne ko hi nahi tha */
+        }
+      }
+      saveArchive(function (archived) {
+      if (!archived) {
+        console.error('[fa68] ❌ archive FAIL hua — season reset ROK diya (data safety). Agli admin load par dobara koshish hogi.');
+        if (window.toast) window.toast('⚠️ Season reset nahi hua — archive save fail (console dekho)', 'err');
+        return;
+      }
+      localStorage.setItem(key, '1');
+      if (window.__fa68DryRun) {
+        console.log('[fa68] 🧪 DRY RUN — archive ho gaya, reset skip (destructive step band)');
+        if (window.toast) window.toast('🧪 Dry run: archive save ✓, reset skip kiya', 'inf');
+        return;
       }
 
       /* ✅ FIX (Audit follow-up — season-history shape mismatch, confirmed
@@ -643,6 +687,7 @@
           if (window.toast) window.toast('🏆 Season reset complete! ' + month + ' archived. All ' + uSnap.numChildren() + ' players reset.', 'ok');
         });
       });
+      });   /* saveArchive callback */
     });
   };
 
