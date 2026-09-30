@@ -170,5 +170,56 @@
     var _ik = 0, _ikT = setInterval(function () { _ik++; if (_ik > 60 || installSelectKeeper()) clearInterval(_ikT); }, 250);
   }
 
-  console.log('[QA-Freshness] roster 6s + list 15s fallback + select-keeper active (realtime join_requests RLS-blocked hai)');
+  /* ── INSTANT path: live_join_events (public-read mirror table) ───────────
+     `join_requests` khud RLS-protected hai (jr_select_own), isliye uske
+     postgres_changes events admin ke socket tak nahi aate (live-proven —
+     socket anon reh jata hai kyunki auth Firebase se hoti hai).
+     Isliye DB me ek trigger `live_join_events` (chhoti, public-read, sirf
+     match_id + filled_slots — koi personal data nahi) me mirror likhta hai,
+     aur us table ke events anon socket ko TURANT milte hain (live-proven:
+     lag ~0.36s). Yahi asli instant path hai; 6s poll sirf safety-net rehta hai.
+  */
+  var _lastLiveRefresh = 0;
+  var _liveClientRef = null;
+
+  function subscribeLiveJoins() {
+    if (!window._supa || typeof window._supa.channel !== 'function') return false;
+    if (window._qaJoinLive && window._supa === _liveClientRef) return true;
+    try {
+      _liveClientRef = window._supa;
+      window._qaJoinLive = true;
+      window._supa.channel('qa_live_joins_' + Math.floor(Date.now() / 1000))
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_join_events' }, function (payload) {
+          try {
+            var row = (payload && payload.new) || {};
+            var mid = row.match_id;
+            var now = Date.now();
+            if (!mid || now - _lastLiveRefresh < 1200) return;
+            var sel = document.getElementById('resultTournamentSelect');
+            if (window.currentSection === 'results' && sel && String(sel.value) === String(mid)) {
+              _lastLiveRefresh = now;
+              if (rosterHasEdits()) {
+                if (typeof window.showToast === 'function') {
+                  window.showToast('🔄 Naya join aaya (ab ' + (row.filled_slots != null ? row.filled_slots : '?') + ' slots bhare). Values save karke Refresh karo.', 'inf');
+                }
+              } else if (typeof window.loadParticipants === 'function') {
+                window.loadParticipants();
+                console.log('[QA-Freshness] live event → roster refresh (' + String(mid).slice(0, 8) + ')');
+              }
+            }
+          } catch (e) {}
+        })
+        .subscribe(function (status) { console.log('[QA-Freshness] live_join_events channel:', status); });
+      return true;
+    } catch (e) { window._qaJoinLive = false; return false; }
+  }
+
+  if (!subscribeLiveJoins()) {
+    var _lsN = 0, _lsT = setInterval(function () { _lsN++; if (_lsN > 240 || subscribeLiveJoins()) clearInterval(_lsT); }, 500);
+  }
+  /* token sync ke baad _supa naya client ban sakta hai — naye client par dobara subscribe */
+  window.addEventListener('supabase:authenticated', function () { setTimeout(subscribeLiveJoins, 400); });
+  setInterval(subscribeLiveJoins, 5000);
+
+  console.log('[QA-Freshness] INSTANT live_join_events + roster 6s safety poll + list 15s + select-keeper active');
 })();
