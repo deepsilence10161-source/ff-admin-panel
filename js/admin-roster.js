@@ -62,10 +62,15 @@ function loadRoster() {
         rtdb.ref(DB_MATCHES + '/' + mid + '/joined').once('value', function(joinedSnap) {
             if (joinedSnap.exists()) {
                 joinedSnap.forEach(function(ps) {
-                    var puid = ps.key;
-                    var pdata = ps.val();
+                    var pdata = ps.val() || {};
+                    /* ✅ FIX (2026-10-01): is RTDB path ke keys JOIN-REQUEST id hote
+                       hain, user id nahi — isliye upar wale loop ka 'exists' check
+                       kabhi match nahi karta tha aur ek hi player roster me DO baar
+                       dikhta tha (live-proven: 2 rows, dono QAUser01). Ab user id
+                       hi use hoti hai (jo status-marking ke liye bhi chahiye). */
+                    var puid = pdata.uid || pdata.userId || ps.key;
                     // Check if already added
-                    var exists = rosterPlayers.some(function(p) { return p.uid === puid; });
+                    var exists = rosterPlayers.some(function(p) { return p.uid === puid || (p.reqId && p.reqId === ps.key); });
                     if (!exists) {
                         rosterPlayers.push({
                             uid: puid,
