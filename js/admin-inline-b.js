@@ -1435,11 +1435,28 @@ async function deleteUser(uid){
   try{
     var s=await rtdb.ref(DB_USERS+'/'+uid).once('value');
     var ff=s.val()?s.val().ffUid:null;
-    /* Firebase cleanup */
+    /* Firebase cleanup (legacy mirror paths) */
     await rtdb.ref(DB_USERS+'/'+uid).remove();
-    await rtdb.ref('userMatches/'+uid).remove();
-    await rtdb.ref('joinedMatches/'+uid).remove();
-    await rtdb.ref('userWallet/'+uid).remove();
+    /* ✅ FIX (2026-10-01, deep E2E me pakda — console me 4x HTTP 400 + cleanup
+       chup-chaap skip): ye teen legacy bridge-writes GALAT filter bhej rahi thi —
+       userMatches/joinedMatches/userWallet sab 'id=eq.<firebase-uid>' par, jabki
+       un tables me 'id' uuid hai (ya user col alag hai) => har write 400. Iska
+       asli asar: delete ke baad bhi user ki join rows / user_matches / leaderboard
+       entry DB me padi rehti thi (banned user leaderboard par!).
+       Ab ye cleanup seedha Supabase par, SAHI columns ke saath hoti hai.
+       NOTE: wallet_transactions JAAN-BOOJH kar nahi hataate — financial audit
+       history delete karna galat hai; balance users row ke soft-delete se hi
+       inactive ho jata hai. */
+    if(window._supa){
+      /* user_matches = user ki apni match-history list (purana userMatches/joinedMatches
+         mirror) → delete. leaderboard me 'id' hi user id hai → delete.
+         join_requests (canonical participation + prize/ledger-linked records) JAAN-BOOJH
+         kar nahi hataate: user pehle hi soft-deleted + banned hai (inactive), aur financial/
+         match history audit ke liye ye records preserve rehne chahiye. Agar policy ye ho ki
+         delete par participation history bhi hat jaye, to ek admin-purge RPC se ho sakta hai. */
+      window._supa.from('user_matches').delete().eq('user_id', uid).then(null, function(){});
+      window._supa.from('leaderboard').delete().eq('id', uid).then(null, function(){});
+    }
     if(ff) await rtdb.ref('ffUIDIndex/'+ff).remove();
     /* FIX Bug#10: Soft-delete in Supabase — hard delete breaks FK constraints.
        Mark deleted so user cannot re-appear in stats/leaderboard.
@@ -1456,8 +1473,9 @@ async function deleteUser(uid){
         deleted_at:new Date().toISOString(),ign:'[deleted]',ff_uid:null,phone:null
       }).eq('id',uid)
         .catch(function(e){console.warn('[Bug#10 Fix] deleteUser Supabase cleanup:',e.message);});
-      /* Remove from leaderboard */
-      window._supa.from('leaderboard').delete().eq('user_id',uid).then(null, function(){});
+      /* Remove from leaderboard — ✅ FIX: leaderboard me 'user_id' column hi nahi hai;
+         'id' column hi user id hai. Purana user_id filter 400 deta tha. (Ab upar,
+         delete ke shuru me sahi column se ho chuka hai.) */
     }
     /* Remove from local cache */
     if(window.usersCache) delete window.usersCache[uid];
