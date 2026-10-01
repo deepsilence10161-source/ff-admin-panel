@@ -649,6 +649,19 @@ async function sendCustomNotification(){
     showToast('✅ Notification sent to '+(us.val().ign||uid));
   }catch(e){setLoading(btn,false);showToast('Error: '+e.message,true);}
 }
+/* ✅ FIX (live-testing 2026-10-01, bug M): "Send to Players" aur 30-min
+   reminders dono `j.status==='approved'` par filter kar rahe the, lekin
+   join_requests ki ASLI status 'joined' hoti hai (supabase-rtdb-bridge.js
+   khud `status: row.status || 'joined'` bhejta hai). Nateeja: dono features
+   kabhi kisi ek player ko bhi notification nahi bhejte the — chup-chaap
+   "✅ Sent to 0 players" dikhta tha (live-proven: QA match + QA join hone
+   par bhi 0 notifications rows bani). Ab wahi vocabulary use hoti hai jo
+   admin-roster.js me already hai (approved/joined/confirmed/blank). */
+function _isActiveJoinAdmin(j){
+  var st=(j&&j.status||'').toString().toLowerCase().trim();
+  return st==='approved'||st==='joined'||st==='confirmed'||st===''||st==='active';
+}
+
 async function sendMatchNotification(){
   var mid=document.getElementById('notifTournamentSelect').value,t=document.getElementById('matchNotifTitle').value.trim(),m=document.getElementById('matchNotifMsg').value.trim();
   if(!mid||!t||!m)return showToast('All fields required',true);
@@ -656,7 +669,7 @@ async function sendMatchNotification(){
   setLoading(btn,true);
   try{
     var s=await rtdb.ref(DB_JOIN).once('value');var p=[];var c=0;
-    s.forEach(function(x){var j=x.val(),tid=j.tournamentId||j.matchId;if(tid===mid&&j.status==='approved'){var uid=getUid(j);if(uid){c++;p.push(rtdb.ref(DB_USERS+'/'+uid+'/notifications').push({title:t,message:m,timestamp:Date.now(),read:false,type:'match'}));}}});
+    s.forEach(function(x){var j=x.val(),tid=j.tournamentId||j.matchId;if(tid===mid&&_isActiveJoinAdmin(j)){var uid=getUid(j);if(uid){c++;p.push(rtdb.ref(DB_USERS+'/'+uid+'/notifications').push({title:t,message:m,timestamp:Date.now(),read:false,type:'match'}));}}});
     await Promise.all(p);
     /* FIX Bug#3 / BUG #26-followup (2026-07): loop through _adminNotifyUser
        (RPC-backed, admin-checked) instead of one bulk direct insert — the RPC
@@ -665,7 +678,7 @@ async function sendMatchNotification(){
     if(window._adminNotifyUser&&t&&m&&mid){
       s.forEach(function(x){
         var j=x.val(),tid=j.tournamentId||j.matchId;
-        if(tid===mid&&j.status==='approved'){
+        if(tid===mid&&_isActiveJoinAdmin(j)){
           var nuid=getUid(j);
           if(nuid) window._adminNotifyUser(nuid,{type:'match_notification',title:t,message:m,matchId:mid});
         }
@@ -676,7 +689,7 @@ async function sendMatchNotification(){
     showToast('✅ Sent to '+c+' players');
   }catch(e){setLoading(btn,false);showToast('Error: '+e.message,true);}
 }
-async function sendScheduledReminders(){try{var s=await rtdb.ref(DB_MATCHES).once('value');s.forEach(function(c){var t=c.val();if(t.status==='upcoming'&&!t.reminderSent&&t.matchTime){var diff=t.matchTime-Date.now();if(diff>0&&diff<=30*60*1000){rtdb.ref(DB_JOIN).once('value').then(function(js){js.forEach(function(jc){var j=jc.val(),tid=j.tournamentId||j.matchId;if(tid===c.key&&j.status==='approved'){var uid=getUid(j);if(uid)rtdb.ref(DB_USERS+'/'+uid+'/notifications').push({title:'⏰ Starting Soon!',message:t.name+' in 30 min!',timestamp:Date.now(),read:false});}});});rtdb.ref(DB_MATCHES+'/'+c.key).update({reminderSent:true});}}});}catch(e){}}
+async function sendScheduledReminders(){try{var s=await rtdb.ref(DB_MATCHES).once('value');s.forEach(function(c){var t=c.val();if(t.status==='upcoming'&&!t.reminderSent&&t.matchTime){var diff=t.matchTime-Date.now();if(diff>0&&diff<=30*60*1000){rtdb.ref(DB_JOIN).once('value').then(function(js){js.forEach(function(jc){var j=jc.val(),tid=j.tournamentId||j.matchId;if(tid===c.key&&_isActiveJoinAdmin(j)){var uid=getUid(j);if(uid)rtdb.ref(DB_USERS+'/'+uid+'/notifications').push({title:'⏰ Starting Soon!',message:t.name+' in 30 min!',timestamp:Date.now(),read:false});}});});rtdb.ref(DB_MATCHES+'/'+c.key).update({reminderSent:true});}}});}catch(e){}}
 
 /* =============================================
    SETTINGS
