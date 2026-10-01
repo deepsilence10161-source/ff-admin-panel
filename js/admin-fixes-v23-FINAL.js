@@ -425,6 +425,16 @@ patchWhenReady('approveTeam', function () {
    This covers both saveTournament's inline code AND sendRoomNotificationToMatch.
    ═══════════════════════════════════════════════════════════════════════════ */
 (function _installGlobalNotifDualWrite() {
+  /* ✅ BUG Z FIX (2026-10-02, live-proven): ye mirror AB DUAL-WRITE ban gaya
+     tha. Jab tak db.ref() asli Firebase tha, ye mirror zaroori tha — par ab
+     rtdb/db.ref() Supabase-bridge hai jo users/{uid}/notifications ka push
+     KHUD Supabase notifications table me likhta hai. Natija: har admin
+     notification (premium_activated, wallet_approved, room, tournament…)
+     do baar insert hoti thi — bridge-insert (created_at=DB default) +
+     mirror-insert (created_at=JS ISO). Live-probe se pakda gaya: ek approve
+     click → 2 rows (15-Sep ke real-user rows me bhi wahi pattern).
+     Mirror ab NO-OP — bridge hi single source of truth hai. */
+  return;
   var _installed = false;
   var iv = setInterval(function () {
     var db = getDB();
