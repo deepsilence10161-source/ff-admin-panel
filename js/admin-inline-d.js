@@ -1136,6 +1136,9 @@ function showSection(sec,el,skipHistory){
   if(sec==='analytics'){if(window.loadAnalytics)loadAnalytics();}
   if(sec==='activity'){if(window.loadActivityLog)loadActivityLog();}
   if(sec==='match-history'){if(window.loadMatchHistorySection)loadMatchHistorySection();}
+  /* ✅ FIX (bug D): Live Roster section ke liye loader hook — dono jagah se
+     khulne par (nav item ya purana bookmark) match dropdown khud bhar jata hai. */
+  if(sec==='roster'){if(window.loadRosterMatches)loadRosterMatches();}
   if(sec==='quicktools'){} // Quick Tools section
   if(sec==='disputes'){loadDisputes();}
 }

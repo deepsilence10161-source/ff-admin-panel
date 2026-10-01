@@ -204,6 +204,12 @@
      Players (opens the richer modal), removing the duplicate entry point. -->
 <div class="nav-item" onclick="showSection('results',this);if(window.loadMatchResultSection)loadMatchResultSection()"><i class="fas fa-trophy" style="color:#ffd700"></i><span class="nav-label">Match Result</span></div>
 <div class="nav-item" onclick="showSection('match-history',this);if(window.loadMatchHistorySection)loadMatchHistorySection()"><i class="fas fa-history"></i><span class="nav-label">Match History</span></div>
+<!-- ✅ FIX (live-testing 2026-10-01, bug D): "Live Roster" section poora bana
+     hua tha (section-roster + admin-roster.js ka loadRosterMatches/loadRoster/
+     markRoster) lekin na koi nav item tha na showSection switch me entry, isliye
+     ye feature UI se pahunch me hi nahi aata tha ("Select a match first" par
+     atka rehta tha). Ab sidebar se khulne par dropdown apne aap bhar jata hai. -->
+<div class="nav-item" onclick="showSection('roster',this);if(window.loadRosterMatches)loadRosterMatches()"><i class="fas fa-shield-alt"></i><span class="nav-label">Live Roster</span></div>
 
 <div class="nav-divider"></div>
 <div class="nav-section-label">Finance</div>
@@ -1440,7 +1446,7 @@
 ═══════════════════════════════════════════════ -->
 <script defer src="js/admin-inline-b.js?v=20260922e"></script>
 <script defer src="js/admin-inline-c.js?v=20260922e"></script>
-<script defer src="js/admin-inline-d.js?v=20260922e"></script>
+<script defer src="js/admin-inline-d.js?v=20261001a"></script>
 <script defer src="js/admin-inline-e.js?v=20261001a"></script>
 
 <!-- ═══════════════════════════════════════════════
