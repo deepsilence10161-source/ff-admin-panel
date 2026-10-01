@@ -1383,6 +1383,28 @@ function parseLobby(text){
 }
 
 /* ── 6. STATUS BAR ── */
+/* ✅ FIX Bug S (2026-10-01, walk7h live-test): live UI me sidebar "Match Result"
+   nav ab #section-results kholta hai (participantsList + .rank-input/.kills-input),
+   lekin is engine ke status-bar, review-box aur manual OCR button sab kuch
+   #mrSsPreview/#mrFileInput (dead #section-matchResult) me render hote the —
+   admin ko kabhi dikhte hi nahi the (engine chal raha tha, UI invisible).
+   Ab host choose hota hai: visible #mrSsPreview > results-screen ka visible
+   container > #mrSsPreview (jo mile). */
+function _ocrHostFallback(){
+  var g=document.getElementById('screenshotPreviewGrid');
+  if(g&&g.parentNode){
+    var h=document.getElementById('_ocrResultHost');
+    if(!h){h=document.createElement('div');h.id='_ocrResultHost';g.parentNode.insertBefore(h,g.nextSibling);}
+    return h;
+  }
+  var rc=document.getElementById('resultsContainer');if(rc)return rc;
+  return null;
+}
+function _ocrHost(){
+  var p=document.getElementById('mrSsPreview');
+  if(p&&(p.offsetWidth||p.offsetHeight||p.getClientRects().length)) return p;
+  return _ocrHostFallback()||p;
+}
 function bar(anchorId,msg,type){
   var C={loading:{bg:'rgba(0,180,255,.12)',br:'rgba(0,180,255,.4)',tx:'#00b4ff'},success:{bg:'rgba(0,255,156,.1)',br:'rgba(0,255,156,.4)',tx:'#00ff9c'},error:{bg:'rgba(255,68,68,.12)',br:'rgba(255,68,68,.4)',tx:'#ff6b6b'},warn:{bg:'rgba(255,200,0,.1)',br:'rgba(255,200,0,.4)',tx:'#ffc800'},info:{bg:'rgba(185,100,255,.1)',br:'rgba(185,100,255,.4)',tx:'#b964ff'}};
   var c=C[type]||C.loading;
@@ -1391,9 +1413,13 @@ function bar(anchorId,msg,type){
   if(!el){
     el=document.createElement('div');el.id=id;
     el.style.cssText='border-radius:8px;padding:9px 14px;margin:8px 0 4px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px;transition:opacity .4s';
-    var anc=document.getElementById(anchorId);
+    var anc=(anchorId==='mrSsPreview')?_ocrHost():document.getElementById(anchorId);
     if(anc&&anc.parentNode)anc.parentNode.insertBefore(el,anc.nextSibling);
-    else{var fb=document.getElementById('mrSsPreview')||document.getElementById('joinedPlayersTable');if(fb&&fb.parentNode)fb.parentNode.insertBefore(el,fb);}
+    else{var fb=_ocrHost()||document.getElementById('joinedPlayersTable');if(fb&&fb.parentNode)fb.parentNode.insertBefore(el,fb);}
+  }
+  if(anchorId==='mrSsPreview'){
+    var want=_ocrHost();
+    if(want&&el.parentNode!==want){var wa=want.firstChild;want.insertBefore(el,wa);}
   }
   el.style.opacity='1';el.style.background=c.bg;el.style.border='1px solid '+c.br;el.style.color=c.tx;
   el.innerHTML=msg;
@@ -1407,7 +1433,7 @@ var _rBusy=false;
 function _eliminationReview(all,tbl,plans){
   var prior=document.getElementById('_ocrEliminationReview');if(prior)prior.remove();
   if(!all.length)return;
-  var host=document.getElementById('mrSsPreview');if(!host)return;
+  var host=_ocrHost();if(!host)return;   /* Bug S: visible host chuno (results screen) */
   var box=document.createElement('div');box.id='_ocrEliminationReview';
   box.style.cssText='padding:14px;margin-top:12px;border:1px solid #e2aa35;border-radius:10px;background:#151b29;color:#fff';
   var title=document.createElement('strong');title.textContent='Result OCR review — verify screenshot before applying';box.appendChild(title);
@@ -2200,6 +2226,38 @@ function addResultBtn(){
   inp.parentNode.insertBefore(btn,inp);
 }
 
+/* ✅ FIX Bug S (2026-10-01): live "Match Result" screen (#section-results) ka
+   upload (#resultFileInput -> addResultScreenshots) OCR ko trigger hi nahi karta
+   tha. Ab wahin se bhi OCR chalta hai + ek visible "OCR Auto-Fill" button. */
+function hookResults(){
+  var inp=document.getElementById('resultFileInput');
+  if(inp&&!inp._fa53ResHook){
+    inp._fa53ResHook=true;
+    /* capture:true — inline onchange (jo input.value='' kar deta hai) se PEHLE */
+    inp.addEventListener('change',function(){
+      var f=this.files;
+      if(f&&f.length){window._mrLastFiles=f;runResult(f);}
+    },true);
+  }
+  var row=document.getElementById('resultFileInput');
+  if(row&&row.parentNode&&!document.getElementById('_ocrResultBtn')){
+    var btn=document.createElement('button');
+    btn.id='_ocrResultBtn';btn.type='button';
+    btn.innerHTML='<i class="fas fa-magic"></i> OCR Auto-Fill';
+    btn.title='Result screenshot → Rank/Kills auto-fill (review box yahin khulega; publish nahi hoga)';
+    btn.style.cssText='padding:7px 14px;border-radius:8px;background:rgba(255,215,0,.12);border:1.5px solid rgba(255,215,0,.35);color:#ffd700;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px';
+    btn.onclick=function(){
+      var ex=(window.resultScreenshots&&window.resultScreenshots.length)?window.resultScreenshots:[];
+      if(!ex.length){bar('mrSsPreview','⚠️ Pehle screenshots add karo','warn');return;}
+      var blobs=ex.map(function(src,i){
+        try{var a=src.split(','),mt=a[0].match(/:(.*?);/)[1],bs=atob(a[1]),n=bs.length,u=new Uint8Array(n);for(var j=0;j<n;j++)u[j]=bs.charCodeAt(j);var b=new Blob([u],{type:mt});b.name='ss'+i+'.jpg';return b;}catch(e){return null;}
+      }).filter(Boolean);
+      if(blobs.length)runResult(blobs);
+    };
+    row.parentNode.insertBefore(btn,row);
+  }
+}
+
 function addLobbyBtn(){
   if(_lBtn||document.getElementById('_ocrLBtn'))return;
   var sa=document.querySelector('#section-joinedPlayers .section-actions');if(!sa)return;
@@ -2221,7 +2279,7 @@ function addLobbyBtn(){
 /* ── 10. BOOT ── */
 var _tries=0,_poll=setInterval(function(){
   _tries++;
-  hookResult();addResultBtn();addLobbyBtn();
+  hookResult();addResultBtn();addLobbyBtn();hookResults();
   /* _rHooked flag ab kaam nahi karta (doosri script wrapper replace kar sakti hai)
      — hookResult() khud compare karta hai ki current function hamara hai ya nahi */
   if(window.loadJoinedPlayers&&!window._ocrLHooked){
