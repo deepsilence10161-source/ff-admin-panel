@@ -1702,6 +1702,21 @@ async function publishResults(){
   var mid=document.getElementById('resultTournamentSelect').value;
   if(!mid){ _pubUnlock(); return showToast('Select match',true); }
   var t=currentTournamentData;
+
+  /* ✅ FIX (2026-10-01, advanced-E2E): rows ko YAHIN (click ke turant baad) pakdo.
+     Pehle ye confirm-dialog + Supabase check ke BAAD padhi jati thi — aur us window
+     me page ka apna realtime refresh / loadParticipants() list ko dobara render kar
+     deta hai: (a) rows.length 0 ho jata tha -> chup-chaap "No participants", aur
+     (b) admin ki type ki hui kills/rank values naye (default 0) inputs se overwrite
+     ho jati thi -> galat data publish ho sakta tha. Ab wahi NodeList (jo click waqt
+     ke input elements pakde hue hai — detached hone par bhi .value padhi ja sakti
+     hai) poore function me use hoti hai, isliye admin ki values kabhi nahi khoti. */
+  var rows=document.querySelectorAll('#participantsList tr[data-uid]');
+  for(var _ri=0; _ri<2 && !rows.length; _ri++){
+    await new Promise(function(res){ setTimeout(res,400); });
+    rows=document.querySelectorAll('#participantsList tr[data-uid]');
+  }
+  if(!rows.length){ _pubUnlock(); return showToast('No participants',true); }
   
   // DOUBLE PAYMENT GUARD — check Supabase result_published_at (source of truth)
   var alreadyPublished = false;
@@ -1723,17 +1738,6 @@ async function publishResults(){
     if(!confirm('Publish & distribute prizes?')){ _pubUnlock(); return; }
   }
   
-  var rows=document.querySelectorAll('#participantsList tr[data-uid]');
-  /* ✅ FIX (2026-10-01): ye rows confirm-dialog ke BAAD padhi jati hain, aur itne me
-     page ka apna realtime refresh/loadParticipants list ko dobara render kar deta hai —
-     race me rows.length 0 aa jata tha aur publish chup-chaap "No participants" kehkar
-     ruk jata tha (jabki participant maujood tha; advanced-E2E me live-proven). Ab 2x
-     400ms retry hai. */
-  for(var _ri=0; _ri<2 && !rows.length; _ri++){
-    await new Promise(function(res){ setTimeout(res,400); });
-    rows=document.querySelectorAll('#participantsList tr[data-uid]');
-  }
-  if(!rows.length){ _pubUnlock(); return showToast('No participants',true); }
   
   /* ✅ Bug 8 Fix: DUPLICATE RANK CHECK — ALL ranks, ALL modes */
   var rankMap = {};
