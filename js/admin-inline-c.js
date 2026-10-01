@@ -1690,10 +1690,17 @@ async function publishResults(){
   if(_publishResultsInProgress){ showToast('Publishing already in progress...', true); return; }
   _publishResultsInProgress = true;
   var _pubBtn = document.getElementById('publishResultsBtn');
+  /* ✅ FIX (2026-10-01, advanced-E2E se pakda): pehle lock (`_publishResultsInProgress`)
+     sirf SUCCESS ya EXCEPTION par release hota tha. Cancel-confirm, "No participants"
+     aur duplicate-rank — in teeno early-returns par lock TRUE hi reh jata tha, yaani
+     ek baar Cancel dabane ya ek race-hit hone ke baad publish HAMESHA ke liye
+     "Publishing already in progress..." kehkar block ho jata tha (page reload tak).
+     Ab ek hi _pubUnlock() helper har rasta release karta hai. */
+  function _pubUnlock(){ _publishResultsInProgress=false; if(_pubBtn){ _pubBtn.disabled=false; _pubBtn.style.opacity=''; } }
   if(_pubBtn){ _pubBtn.disabled = true; _pubBtn.style.opacity = '0.6'; }
 
   var mid=document.getElementById('resultTournamentSelect').value;
-  if(!mid){ _publishResultsInProgress=false; if(_pubBtn){_pubBtn.disabled=false;_pubBtn.style.opacity='';} return showToast('Select match',true); }
+  if(!mid){ _pubUnlock(); return showToast('Select match',true); }
   var t=currentTournamentData;
   
   // DOUBLE PAYMENT GUARD — check Supabase result_published_at (source of truth)
@@ -1711,13 +1718,22 @@ async function publishResults(){
   } catch(e) { alreadyPublished = false; }
   
   if(alreadyPublished){
-    if(!confirm('⚠️ Results already published!\n\nKya aap results CORRECT karna chahte ho?\n\n• Zyada paise mile the → extra wapas katenge\n• Kam paise mile the → baaki add honge\n• Users ko notification milegi reason ke saath')) return;
+    if(!confirm('⚠️ Results already published!\n\nKya aap results CORRECT karna chahte ho?\n\n• Zyada paise mile the → extra wapas katenge\n• Kam paise mile the → baaki add honge\n• Users ko notification milegi reason ke saath')){ _pubUnlock(); return; }
   } else {
-    if(!confirm('Publish & distribute prizes?')) return;
+    if(!confirm('Publish & distribute prizes?')){ _pubUnlock(); return; }
   }
   
   var rows=document.querySelectorAll('#participantsList tr[data-uid]');
-  if(!rows.length) return showToast('No participants',true);
+  /* ✅ FIX (2026-10-01): ye rows confirm-dialog ke BAAD padhi jati hain, aur itne me
+     page ka apna realtime refresh/loadParticipants list ko dobara render kar deta hai —
+     race me rows.length 0 aa jata tha aur publish chup-chaap "No participants" kehkar
+     ruk jata tha (jabki participant maujood tha; advanced-E2E me live-proven). Ab 2x
+     400ms retry hai. */
+  for(var _ri=0; _ri<2 && !rows.length; _ri++){
+    await new Promise(function(res){ setTimeout(res,400); });
+    rows=document.querySelectorAll('#participantsList tr[data-uid]');
+  }
+  if(!rows.length){ _pubUnlock(); return showToast('No participants',true); }
   
   /* ✅ Bug 8 Fix: DUPLICATE RANK CHECK — ALL ranks, ALL modes */
   var rankMap = {};
@@ -1746,7 +1762,7 @@ async function publishResults(){
     var allRanks = Object.keys(rankMap).map(Number).filter(function(r){ return r >= 1; }).sort(function(a,b){return a-b;});
     /* Just check no duplicates — gaps allowed (not all players need to be ranked) */
   }
-  if(dupError) return;
+  if(dupError){ _pubUnlock(); return; }
   
   var pubBtn=document.getElementById('publishResultsBtn');
   setLoading(pubBtn,true);
@@ -1833,12 +1849,10 @@ async function publishResults(){
     
     setLoading(pubBtn,false);
     loadParticipants();
-    _publishResultsInProgress = false;
-    if(_pubBtn){ _pubBtn.disabled = false; _pubBtn.style.opacity = ''; }
+    _pubUnlock();
   }catch(err){
     setLoading(pubBtn,false);
-    _publishResultsInProgress = false;
-    if(_pubBtn){ _pubBtn.disabled = false; _pubBtn.style.opacity = ''; }
+    _pubUnlock();
     showToast('Error: '+err.message,true);
     console.error('publishResults error:',err);
   }
