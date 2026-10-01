@@ -111,11 +111,25 @@
         var st = bn ? '<span class="badge danger">Banned</span>' : u.profileVerified ? '<span class="badge green">Verified</span>' : '<span class="badge yellow">Pending</span>';
 
         if (window.idTag) {
-          html += '<tr><td>' + window.idTag(ign, uid) + '<div class="text-xxs mt-1" style="color:var(--primary);font-family:monospace">FF: ' + ff + '</div></td>' +
+          /* ✅ BUG P FIX (2026-10-01, deep E2E me pakda): smart-search results me
+             sirf View (👁) button render hota tha — Ban/Unban, Delete aur Note
+             actions GAYAB the (poori list me ye hote hain) => search se user dhundh
+             kar us par action lena asambhav tha. Ab base renderUsers wale chaar
+             actions yahan bhi + ign/ff HTML-escape (base jaisa). */
+          var _e2 = function(s2){ return String(s2==null?'':s2).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
+          var ignSafe = _e2(ign);
+          html += '<tr><td>' + window.idTag(ign, uid) + '<div class="text-xxs mt-1" style="color:var(--primary);font-family:monospace">FF: ' + _e2(ff) + '</div></td>' +
             '<td><span class="text-primary font-bold">₹' + bal + '</span><div class="text-xxs text-muted">D:₹' + db_ + ' W:₹' + wb + '</div></td>' +
             '<td>' + mt + '</td><td><span class="badge cyan">Lv' + lv + '</span></td>' +
             '<td>' + st + '</td>' +
-            '<td class="flex gap-1"><button class="btn btn-ghost btn-xs" onclick="openUserModal(\'' + uid + '\')"><i class="fas fa-eye"></i></button></td></tr>';
+            '<td class="flex gap-1">' +
+              '<button class="btn btn-ghost btn-xs" onclick="openUserModal(\'' + uid + '\')" title="View"><i class="fas fa-eye"></i></button>' +
+              (bn
+                ? '<button class="btn btn-primary btn-xs" onclick="unbanUser(\'' + uid + '\')" title="Unban"><i class="fas fa-unlock"></i></button>'
+                : '<button class="btn btn-warning btn-xs" onclick="banUser(\'' + uid + '\')" title="Ban"><i class="fas fa-ban"></i></button>') +
+              '<button class="btn btn-danger btn-xs" onclick="deleteUser(\'' + uid + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
+              '<button class="btn btn-ghost btn-xs" style="color:#ffd700" onclick="window.showUserNote&&showUserNote(\'' + uid + '\',\'' + ignSafe + '\')" title="Note"><i class="fas fa-sticky-note"></i></button>' +
+            '</td></tr>';
         }
       });
       tb.innerHTML = html;
