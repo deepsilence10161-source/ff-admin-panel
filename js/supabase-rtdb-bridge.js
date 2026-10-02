@@ -2640,7 +2640,15 @@
         p_body:    payload.message || payload.body || '',
         p_ref_id:  payload.matchId || payload.ref_id || null
       }).then(function() {
-        /* Also write to Firebase for OneSignal push triggers */
+        /* ✅ BUG Z15 FIX (2026-10-02, WALK11s live-proven: 1×_adminNotifyUser
+           → 2 notifications-rows): ye "Firebase mirror" DUAL-WRITE ban gaya
+           tha — _realFbRtdb ab asli Firebase nahi, khud ek Supabase-bridge
+           (ref().constructor.name === 'SupaRef', live-verified) hai, isliye
+           ye branch bhi notifications table me doosri row likh deta tha
+           (RPC ke saath). Mirror NO-OP — RPC upar hi single source of truth
+           hai (Bug Z ne v23-ka mirror no-op kiya tha, ye bridge-apna chhoot
+           gaya tha). */
+        return;
         try {
           var fbPayload = Object.assign({ timestamp: Date.now(), read: false }, payload);
           window._realFbRtdb.ref('users/' + uid + '/notifications').push(fbPayload)
