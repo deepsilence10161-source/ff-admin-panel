@@ -1071,7 +1071,11 @@
     return {
       id:         row.id,
       userId:     row.user_id,
-      userName:   row.user_name || '',
+      userName:   row.user_ign || row.user_name || '',
+      userIgn:    row.user_ign || row.user_name || '',
+      userFfUid:  row.user_ff_uid || '',
+      subject:    row.subject || 'general',
+      type:       row.subject || 'general',
       message:    row.message   || '',
       adminReply: row.admin_reply || '',
       status:     row.status    || 'open',
@@ -1083,9 +1087,11 @@
   function ticketToSupa(d) {
     if (!d) return {};
     var s = {};
-    if (d.userId)       s.user_id    = d.userId;
-    if (d.userName)     s.user_name  = d.userName;
-    if (d.message)      s.message    = d.message;
+    if (d.userId)       s.user_id     = d.userId;
+    if (d.userName || d.userIgn) s.user_ign = d.userIgn || d.userName;
+    if (d.userFfUid)    s.user_ff_uid = d.userFfUid;
+    if (d.subject || d.type) s.subject = d.subject || d.type;
+    if (d.message)      s.message     = d.message;
     if (d.adminReply !== undefined)  s.admin_reply = d.adminReply;
     if (d.status !== undefined)      s.status = d.status;
     if (d.repliedAt !== undefined)   s.replied_at = new Date(d.repliedAt).toISOString();
@@ -2212,6 +2218,18 @@
       _doReadTimer = setTimeout(doRead, 60);
     };
 
+    /* Register in universal pulse table map so RLS-protected tables refresh in <0.3s via live_join_events */
+    window._bridgeTableRefreshers = window._bridgeTableRefreshers || {};
+    window._bridgeTableRefreshers[table] = window._bridgeTableRefreshers[table] || {};
+    window._bridgeTableRefreshers[table][channelKey] = _doReadDebounced;
+    window._bridgePulseTable = function(tbl) {
+      var map = window._bridgeTableRefreshers && window._bridgeTableRefreshers[tbl];
+      if (!map) return;
+      Object.keys(map).forEach(function(k) {
+        try { map[k](); } catch(_e) {}
+      });
+    };
+
     /* Subscribe to Supabase Realtime changes */
     try {
       var channel = supa.channel('bridge_' + table + '_' + Date.now())
@@ -2227,6 +2245,9 @@
 
     /* Return cleanup function */
     return function() {
+      if (window._bridgeTableRefreshers && window._bridgeTableRefreshers[table]) {
+        delete window._bridgeTableRefreshers[table][channelKey];
+      }
       if (_channels[channelKey]) {
         try { supa.removeChannel(_channels[channelKey]); } catch(e) {}
         delete _channels[channelKey];

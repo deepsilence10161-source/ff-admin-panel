@@ -192,9 +192,22 @@
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_join_events' }, function (payload) {
           try {
             var row = (payload && payload.new) || {};
-            var mid = row.match_id;
+            var mid = String(row.match_id || '');
             var now = Date.now();
-            if (!mid || now - _lastLiveRefresh < 1200) return;
+            if (!mid) return;
+            /* Universal <0.3s Pulse for RLS-protected tables (users, coin_requests, support_tickets, etc.) */
+            if (mid.indexOf('pulse:') === 0) {
+              var tbl = mid.slice(6);
+              if (typeof window._bridgePulseTable === 'function') {
+                window._bridgePulseTable(tbl);
+              }
+              return;
+            }
+            if (typeof window._bridgePulseTable === 'function') {
+              window._bridgePulseTable('join_requests');
+              window._bridgePulseTable('matches');
+            }
+            if (now - _lastLiveRefresh < 1200) return;
             var sel = document.getElementById('resultTournamentSelect');
             if (window.currentSection === 'results' && sel && String(sel.value) === String(mid)) {
               _lastLiveRefresh = now;

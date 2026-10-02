@@ -91,7 +91,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="admin-base.css?v=20260919d">
+<link rel="stylesheet" href="admin-base.css?v=20261003a">
 <link rel="stylesheet" href="style.css?v=20260919d">
 <link rel="stylesheet" href="js/admin-ui-v10.css?v=20260919d">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -176,15 +176,15 @@
 <!-- APP -->
 <div class="app-container" id="mainApp" style="display:none">
 
-<button class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+<button class="hamburger" onclick="toggleSidebar()" aria-label="Toggle navigation sidebar"><i class="fas fa-bars" aria-hidden="true"></i></button>
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
 <!-- SIDEBAR -->
-<div class="sidebar" id="sidebar">
+<div class="sidebar" id="sidebar" role="navigation" aria-label="Admin Navigation">
 <div class="sidebar-header">
-<div class="sidebar-logo"><i class="fas fa-gamepad"></i></div>
+<div class="sidebar-logo"><i class="fas fa-gamepad" aria-hidden="true"></i></div>
 <div class="sidebar-brand-group">
-<div class="sidebar-brand">MINI ESPORT</div>
+<h1 class="sidebar-brand" style="margin:0;line-height:1.2">MINI ESPORT</h1>
 <div class="sidebar-brand-sub">Admin Panel v4.0</div>
 </div>
 </div>
@@ -1439,7 +1439,63 @@
 <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <!-- firebase-storage-compat removed: screenshots use ImgBB (core/imgbb.js) -->
 <!-- firebase-firestore-compat removed: all data uses Supabase (core/db.js) -->
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<!-- tesseract.js v4.1.1 duplicate removed: fa53-ocr-autofill.js lazy-loads tesseract.js v5 on demand -->
+<script>
+  /* Accessibility (A11Y-004..008): ensure interactive div/span onclick elements,
+     icon-only buttons, and modal dialogs expose proper ARIA roles & keyboard support */
+  (function() {
+    function _enhanceA11y(root) {
+      try {
+        var scope = root && root.querySelectorAll ? root : document;
+        var clickables = scope.querySelectorAll('div[onclick], span[onclick]');
+        for (var i = 0; i < clickables.length; i++) {
+          var el = clickables[i];
+          if (el.classList.contains('modal-overlay') || el.classList.contains('sidebar-overlay')) continue;
+          if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+          if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+        }
+        var btns = scope.querySelectorAll('button, [role="button"]');
+        for (var j = 0; j < btns.length; j++) {
+          var b = btns[j];
+          if (!b.getAttribute('aria-label') && !(b.textContent || '').trim()) {
+            var ttl = b.getAttribute('title') || (b.querySelector('i') && b.querySelector('i').className) || 'Action';
+            b.setAttribute('aria-label', String(ttl).replace(/fa[srb]?\s+fa-/g, '').replace(/-/g, ' ').trim() || 'Action');
+          }
+        }
+        var modals = scope.querySelectorAll('.modal-overlay, .modal');
+        for (var k = 0; k < modals.length; k++) {
+          var m = modals[k];
+          if (m.classList.contains('modal')) {
+            if (!m.hasAttribute('role')) m.setAttribute('role', 'dialog');
+            if (!m.hasAttribute('aria-modal')) m.setAttribute('aria-modal', 'true');
+          }
+        }
+      } catch (_e) {}
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      _enhanceA11y(document);
+      try {
+        var obs = new MutationObserver(function(muts) {
+          for (var i = 0; i < muts.length; i++) {
+            var added = muts[i].addedNodes;
+            for (var j = 0; j < added.length; j++) {
+              if (added[j] && added[j].nodeType === 1) _enhanceA11y(added[j]);
+            }
+          }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      } catch (_e2) {}
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var t = e.target;
+      if (t && (t.tagName === 'DIV' || t.tagName === 'SPAN') && t.getAttribute('role') === 'button' && typeof t.onclick === 'function') {
+        e.preventDefault();
+        t.click();
+      }
+    });
+  })();
+</script>
 
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted, split into 4 parts: B core / C match mgmt / D operations / E peripheral)
@@ -1455,7 +1511,7 @@
      appSettings/, admins/ which stay on real Firebase RTDB.
      Everything else (matches, users, joinRequests, wallet, etc.) → Supabase.
 ═══════════════════════════════════════════════ -->
-<script defer src="js/supabase-rtdb-bridge.js?v=20261002g"></script>
+<script defer src="js/supabase-rtdb-bridge.js?v=20261003a"></script>
 
 <!-- ═══════════════════════════════════════════════
      BASE FEATURES
@@ -1500,7 +1556,7 @@
 <script defer src="js/features/fa27-anticheat-complete.js?v=20260919d"></script>
 <script defer src="js/features/fa28-fa43-fraud-control-center.js?v=20260919d"></script>
 <script defer src="js/features/fa44-fa52-final-admin-tools.js?v=20260919d"></script>
-<script defer src="js/features/fa53-ocr-autofill.js?v=20261001a"></script>
+<script defer src="js/features/fa53-ocr-autofill.js?v=20261003a"></script>
 <script defer src="js/features/fa53-ocr-engine-plus.js?v=20260930a"></script>
 <script defer src="js/features/fa-legal-kyc-dispute.js?v=20260919d"></script>
 <script defer src="js/features/fa56-fa62-automation-bundle.js?v=20260919d"></script>
@@ -1553,7 +1609,7 @@
      • Bonus: Supabase channel leaks, avatar_bg column, clan_messages
      ═══════════════════════════════════════════════════════ -->
 <script defer src="js/admin-fixes-v22-FINAL.js?v=20260919d"></script>
-<script defer src="js/qa-live-freshness.js?v=20260930a"></script>
+<script defer src="js/qa-live-freshness.js?v=20261003a"></script>
 
 <!-- ═══════════════════════════════════════════════════
      Admin Patch v23 FINAL — Applied after v22

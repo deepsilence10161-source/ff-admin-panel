@@ -292,6 +292,10 @@ function slotKills(raw){
   return n;
 }
 function fuzzyScore(a,b){
+  if (window.FA53Plus && typeof window.FA53Plus.applyLearned === 'function') {
+    var learnedA = window.FA53Plus.applyLearned(a);
+    if (learnedA && learnedA !== a) a = learnedA;
+  }
   var ka=_nameKey(a),kb=_nameKey(b);if(ka&&ka===kb)return 100;
   var na=norm(a),nb=norm(b);
   if(!na||!nb)return 0;
@@ -319,7 +323,12 @@ function fuzzyScore(a,b){
   }
   var lv=lev(na,nb);
   var lvSc=Math.round((1-lv/Math.max(na.length,nb.length))*85);
-  return Math.max(pfxSc,biSc,lvSc);
+  /* v7.0: FA53Plus OCR-confusion-weighted similarity (0<->o, 1<->i/l, 5<->s, 8<->b, rn<->m) */
+  var confSc=0;
+  if(window.FA53Plus && typeof window.FA53Plus.confusionScore === 'function' && Math.min(na.length,nb.length)>=3){
+    confSc=Math.round(window.FA53Plus.confusionScore(na,nb)*92);
+  }
+  return Math.max(pfxSc,biSc,lvSc,confSc);
 }
 function bestMatch(name,list,minSc){
   var scored=list.map(function(item){return{item:item,score:fuzzyScore(name,item.name)};});
@@ -1459,7 +1468,7 @@ function _eliminationReview(all,tbl,plans){
     var kills=document.createElement('input');kills.type='number';kills.min='0';kills.max='99';kills.placeholder='Kills';kills.setAttribute('aria-label','Kills for screenshot row '+(i+1));kills.value=op.kills==null?'':op.kills;
     var rank=document.createElement('input');rank.type='number';rank.min='1';rank.max='48';rank.placeholder='Verify rank';rank.setAttribute('aria-label','Rank for screenshot row '+(i+1));rank.value=op.explicitRank?op.rank:'';
     [sel,kills,rank].forEach(function(e){e.style.cssText='padding:8px;background:#222c40;color:white;border:1px solid #65718a;border-radius:5px;max-width:230px';row.appendChild(e);});
-    entries.push({sel:sel,kills:kills,rank:rank});box.appendChild(row);
+    entries.push({sel:sel,kills:kills,rank:rank,rawOcr:(op.name3||op.name||'')});box.appendChild(row);
   });
   var check=document.createElement('input');check.type='checkbox';check.id='_ocrReviewConfirm';
   var cl=document.createElement('label');cl.appendChild(check);cl.appendChild(document.createTextNode(' I checked player identities, kills and any entered ranks against the screenshot.'));box.appendChild(cl);
@@ -1476,15 +1485,54 @@ function _eliminationReview(all,tbl,plans){
       if(r!==''&&(!/^\d+$/.test(r)||+r<1||+r>48))error='Enter valid rank (1–48), or leave it blank.';
       if(r!==''&&ranks[+r])error='Duplicate ranks. No values applied.';if(r!=='')ranks[+r]=true;
       if(!tbl[id]||!tbl[id].row.isConnected||((tbl[id].row.querySelector('td:nth-child(2) div')||{}).textContent||'').trim()!==tbl[id].name)error='Roster changed. Rescan before applying.';
-      todo.push({row:tbl[id]&&tbl[id].row,op:{kills:+k,rank:r===''?0:+r}});
+      todo.push({row:tbl[id]&&tbl[id].row,op:{kills:+k,rank:r===''?0:+r},rawOcr:e.rawOcr,ign:tbl[id]&&tbl[id].name});
     });
     if(error){msg.textContent=error;return;}
     if(!todo.length){msg.textContent='Select at least one player.';return;}
-    todo.forEach(function(p){_fillRow(p.row,p.op,true);var ri=p.row.querySelector('.mr-rank-input');if(ri&&window.mrCalcPrize)window.mrCalcPrize(ri);});
+    todo.forEach(function(p){
+      _fillRow(p.row,p.op,true);
+      var ri=p.row.querySelector('.mr-rank-input');if(ri&&window.mrCalcPrize)window.mrCalcPrize(ri);
+      /* v7.0: Self-learning OCR dictionary — remember Admin-verified OCR -> IGN mappings */
+      try {
+        if (window.FA53Plus && typeof window.FA53Plus.learn === 'function' && p.rawOcr && p.ign) {
+          window.FA53Plus.learn(p.rawOcr, p.ign);
+        }
+      } catch (_le) {}
+    });
     if(window.mrCheckDuplicateRanks)window.mrCheckDuplicateRanks();
     msg.textContent=todo.length+' reviewed player rows applied. Results have NOT been published.';
   };
   box.appendChild(apply);box.appendChild(msg);host.appendChild(box);
+}
+
+/* v7.0: 64-bit Perceptual dHash Duplicate Screenshot Detector */
+async function _computeDHash(file) {
+  try {
+    var im = await _loadImgFile(file);
+    if (!im) return null;
+    var cv = document.createElement('canvas');
+    cv.width = 9; cv.height = 8;
+    var ctx = cv.getContext('2d');
+    ctx.drawImage(im, 0, 0, 9, 8);
+    var d = ctx.getImageData(0, 0, 9, 8).data;
+    var bits = '';
+    for (var y = 0; y < 8; y++) {
+      for (var x = 0; x < 8; x++) {
+        var iL = (y * 9 + x) * 4, iR = (y * 9 + x + 1) * 4;
+        var gL = 0.299 * d[iL] + 0.587 * d[iL + 1] + 0.114 * d[iL + 2];
+        var gR = 0.299 * d[iR] + 0.587 * d[iR + 1] + 0.114 * d[iR + 2];
+        bits += (gL < gR ? '1' : '0');
+      }
+    }
+    if (im.src && im.src.indexOf('blob:') === 0) { try { URL.revokeObjectURL(im.src); } catch (_e) {} }
+    return bits;
+  } catch (_e2) { return null; }
+}
+function _hammingDist(a, b) {
+  if (!a || !b || a.length !== b.length) return 99;
+  var d = 0;
+  for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d;
 }
 
 async function runResult(files){
@@ -1503,10 +1551,19 @@ async function runResult(files){
   var fileArr=Array.from(files).slice(0,5);
   var b=bar('mrSsPreview','<i class="fas fa-spinner fa-spin"></i> &nbsp;Scanning...','loading');
   try{
-    var all=[],unicodeWarnings=[];
+    var all=[],unicodeWarnings=[],dupCount=0,seenHashes={};
     var rosterNames=Array.from(rows).map(function(r){return ((r.querySelector('td:nth-child(2) div')||{}).textContent||'');});
     for(var i=0;i<fileArr.length;i++){
       if(b)b.innerHTML='<i class="fas fa-spinner fa-spin"></i> &nbsp;Image '+(i+1)+'/'+fileArr.length+' scan...';
+      /* v7.0: 64-bit dHash duplicate screenshot check within multi-image upload */
+      try {
+        var dh = await _computeDHash(fileArr[i]);
+        if (dh) {
+          var isDup = Object.keys(seenHashes).some(function(prevH) { return _hammingDist(dh, prevH) <= 3; });
+          if (isDup && fileArr.length > 1) { dupCount++; continue; }
+          seenHashes[dh] = true;
+        }
+      } catch (_dhe) {}
       /* v4 (2026-09-28): table-aware engine — header row se table/columns, row bands,
          per-row cell crops + votes. Clash ke 2 table bhi handle karta hai. */
       var boxed=null;
@@ -1645,6 +1702,7 @@ async function runResult(files){
     if(_idxN>0)msg+=' <span style="opacity:.7;font-weight:400">('+_idxN+' rows order-verified — amber kills ek nazar verify kar lo)</span>';
     if(!fillRank&&filled>0)msg+=' <span style="opacity:.7;font-weight:400">— kills fill hue; rank manually verify karo (kuch rows read nahi hui)</span>';
     if(unicodeWarnings.length)msg+=' — some language models unavailable; verify names manually';
+    if(dupCount>0)msg+=' <span style="opacity:.75;font-weight:400">('+dupCount+' duplicate screenshot skipped via dHash)</span>';
     if(all.some(function(r){return r.elimination&&!r.explicitRank;}))msg+=' — stylized ranks need screenshot review';
     bar('mrSsPreview',msg,filled>0?'success':'warn');
     _eliminationReview(all,tbl,plans);
@@ -1861,6 +1919,7 @@ async function parseResultV4(blob, progress){
     if(!kinds['name']||(!kinds['k']&&!kinds['kda'])||!kinds['dmg']) return;
     if(items.length>bestN){ bestN=items.length; bestLine={y:(ln.y==null?0:ln.y), items:items}; }
   });
+  if(!bestLine || !bestLine.items || !bestLine.items.length) return null;
   bestLine.items.sort(function(a,b){ return a.x0-b.x0; });
   /* 2) tables: header tokens ko x-gap se alag karo (clash = 2 table) */
   var groups=[], cur=[];
@@ -1908,11 +1967,14 @@ async function parseResultV4(blob, progress){
   var outRows=[];
   for(var ti=0; ti<tables.length; ti++){
     var T=tables[ti];
-    /* 3a) row detection: K column me bright-text profile */
+    /* 3a) row detection: K column me bright-text OR gold/amber MVP highlight profile */
     var prof=[];
     for(var y=0;y<H;y++){ var c=0;
-      for(var x=Math.round(T.kx0);x<Math.round(T.kx1);x++){ var i=(y*W+x)*4; var mn=Math.min(px.D[i],px.D[i+1],px.D[i+2]);
-        if(mn>=195) c++; }
+      for(var x=Math.round(T.kx0);x<Math.round(T.kx1);x++){ var i=(y*W+x)*4;
+        var rC=px.D[i], gC=px.D[i+1], bC=px.D[i+2];
+        var mn=Math.min(rC,gC,bC);
+        var isGoldMvp=(rC>=200 && gC>=150 && (rC-bC)>=80 && bC<=125);
+        if(mn>=185 || isGoldMvp) c++; }
       prof.push(c); }
     var bands=[], st=-1;
     for(var y2=0;y2<H;y2++){ var on=prof[y2]>=2;
@@ -2042,11 +2104,16 @@ async function parseResultV4(blob, progress){
       var top2=nlines.slice(0,2).map(function(l){ return l.t; }).join(' ');
       if(top2 && !uniq[norm(top2)]) cands.push(top2);
       rdbg.n=cands.slice(0,3);
-      /* damage (evidence) */
+      /* damage (evidence) + v7.0 DMG=0 vs Kills>0 cross-column sanity check */
       var dmg=null;
       if(T.dmg0!=null && T.dmg1!=null && T.dmg1-T.dmg0>8){
         var o5=await _v4Read(im, T.dmg0, y0, T.dmg1, y1, 190, false, true, 7, _WL_DIGITS, 520);
         if(o5){ var dn=_v4Nums(_v4Text(o5)); if(dn.length) dmg=dn[0]; }
+      }
+      if(dmg===0 && kres.v!=null && kres.v>0){
+        /* Free Fire rule: >0 kills with 0 damage is impossible (usually '0' misread as '8' or '6'). */
+        if(kv[0]!=null){ kres.v=0; rdbg.dmgFixedZero=true; }
+        else { kres.v=null; kres.share=0; rdbg.dmgConflict=true; }
       }
       rdbg.d=dmg;
       outRows.push({nameBox:[nl2,y0,T.nr,y0+Math.round((y1-y0)*0.62)],nameCandidates:cands.slice(),name:(cands[0]||''), name2:(cands[1]||null), name3:(cands[2]||null), name4:(cands[3]||null),
