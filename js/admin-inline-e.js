@@ -1334,21 +1334,31 @@ window.rejectPremiumReq = async function(reqId) {
 /* ══ SEASON PASS APPROVAL ══ */
 window.approveSeasonPass = async function(reqId, uid, season) {
   if (!uid) return;
+  /* ✅ BUG Z13/Z14 FIX (2026-10-02, WALK11s live-proven):
+     Z13: update sirf {status, approvedAt} bhejta tha — bridge-conv approvedBy/
+          reviewedBy se reviewed_by banata hai, isliye reviewed_by KABHI nahi
+          likha jaata tha (WALK11s: status approved par reviewed_by=null).
+     Z14: raw users/{uid}/notifications push chupchaap fail hota tha (SP-09:
+          toast 'approved' par notifications-row 0). Ab proven-RPC path
+          (_adminNotifyUser → admin_send_notification) se notification. */
   try {
     await rtdb.ref('battlePass/' + season + '/' + uid + '/hasPremium').set(true);
-    await rtdb.ref('seasonPassRequests/' + reqId).update({ status: 'approved', approvedAt: Date.now() });
-    await rtdb.ref('users/' + uid + '/notifications').push({
-      title: '🎫 Season Pass Activated!',
-      message: 'Season Pass activate ho gaya! Saare 50 tiers ke premium rewards unlock ho gaye.',
-      type: 'seasonpass_activated', read: false, timestamp: Date.now(), createdAt: Date.now()
-    });
+    await rtdb.ref('seasonPassRequests/' + reqId).update({ status: 'approved', approvedBy: (window.auth && window.auth.currentUser && window.auth.currentUser.uid) || 'admin', approvedAt: Date.now() });
+    var _msg = { title: '🎫 Season Pass Activated!', message: 'Season Pass activate ho gaya! Saare 50 tiers ke premium rewards unlock ho gaye.', type: 'seasonpass_activated', read: false };
+    if (window._adminNotifyUser) {
+      await window._adminNotifyUser(uid, _msg);
+    } else {
+      await rtdb.ref('users/' + uid + '/notifications').push(Object.assign({ timestamp: Date.now(), createdAt: Date.now() }, _msg));
+    }
     showToast('✅ Season Pass approved!');
     loadSeasonPassSection();
   } catch(e) { showToast('Error: ' + e.message, true); }
 };
 
 window.rejectSeasonPass = async function(reqId) {
-  await rtdb.ref('seasonPassRequests/' + reqId).update({ status: 'rejected', rejectedAt: Date.now() });
+  /* ✅ BUG Z13 FIX: rejectedBy bhi reviewed_by me darj ho (pehle sirf
+     rejectedAt jaata tha — reviewed_by sada null rehta tha). */
+  await rtdb.ref('seasonPassRequests/' + reqId).update({ status: 'rejected', rejectedBy: (window.auth && window.auth.currentUser && window.auth.currentUser.uid) || 'admin', rejectedAt: Date.now() });
   showToast('Season Pass request rejected.');
   loadSeasonPassSection();
 };

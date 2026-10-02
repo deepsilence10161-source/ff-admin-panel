@@ -980,6 +980,8 @@
     if (d.status)      s.status      = d.status;
     if (d.approvedBy)  s.reviewed_by = d.approvedBy;
     if (d.reviewedBy)  s.reviewed_by = d.reviewedBy;
+    /* ✅ BUG Z13 FIX: reject-flow rejectedBy bhejta hai — wahi reviewer. */
+    if (d.rejectedBy)  s.reviewed_by = d.rejectedBy;
     return s;
   }
 
