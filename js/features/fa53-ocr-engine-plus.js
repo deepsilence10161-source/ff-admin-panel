@@ -351,9 +351,12 @@
   /* ───────────────────────── 7. learning memory (corrections) ─────────────── */
   var _learn = _ls(LS_LEARN) || { pairs: {}, hits: 0 };
   function _learnSave() { _ls(LS_LEARN, _learn); }
-  function learn(pair) {
-    /* {from:'OCR ne kya padha', to:'asli naam'} ya {from, to} array */
+  function learn(pair, toStr) {
+    /* Supports both learn('0CR_H3R0', 'OCR_HERO') and learn({from:'0CR_H3R0', to:'OCR_HERO'}) */
     if (!pair) return false;
+    if (typeof pair === 'string' && typeof toStr === 'string') {
+      pair = [{ from: pair, to: toStr }];
+    }
     var list = Array.isArray(pair) ? pair : [pair];
     var n = 0;
     for (var i = 0; i < list.length; i++) {
@@ -439,6 +442,7 @@
     }
   };
   window.fa53Plus = api;
+  window.FA53Plus = api;
   window.fa53OCRPlus = api;
 
   _cacheLoad();
