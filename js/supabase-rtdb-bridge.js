@@ -858,11 +858,10 @@
       matchId:      row.match_id    || '',
       type:         row.type        || 'other',
       message:      row.message     || '',
+      description:  row.message     || '',
       claimedRank:  row.claimed_rank || null,
       screenshot:   row.screenshot_url || '',
       status:       row.status      || 'pending',
-      resolvedAt:   row.resolved_at ? new Date(row.resolved_at).getTime() : null,
-      resolvedBy:   row.resolved_by || null,
       createdAt:    row.created_at  ? new Date(row.created_at).getTime() : null
     };
   }
@@ -871,8 +870,42 @@
     if (!d) return {};
     var s = {};
     if (d.status !== undefined)    s.status      = d.status;
-    if (d.resolvedAt !== undefined) s.resolved_at = new Date(d.resolvedAt).toISOString();
-    if (d.resolvedBy !== undefined) s.resolved_by = d.resolvedBy;
+    if (d.type !== undefined)      s.type        = d.type;
+    if (d.message !== undefined || d.description !== undefined) s.message = d.message || d.description;
+    if (d.userId || d.uid)         s.user_id     = d.userId || d.uid;
+    return s;
+  }
+
+  /* ── KYC REQUEST conversions ── */
+  function kycReqFromSupa(row) {
+    if (!row) return null;
+    var meta = {};
+    try { if (row.document_url && row.document_url.charAt(0) === '{') meta = JSON.parse(row.document_url); } catch (e) {}
+    return {
+      id:           row.id,
+      uid:          row.user_id,
+      userId:       row.user_id,
+      ign:          meta.ign || '',
+      pan:          meta.pan || '',
+      aadhaarLast4: meta.aadhaarLast4 || '',
+      name:         meta.name || '',
+      documentType: row.document_type || 'pan_aadhaar',
+      documentUrl:  row.document_url || '',
+      status:       row.status || 'pending',
+      reviewedBy:   row.reviewed_by || null,
+      submittedAt:  row.created_at ? new Date(row.created_at).getTime() : null,
+      createdAt:    row.created_at ? new Date(row.created_at).getTime() : null
+    };
+  }
+
+  function kycReqToSupa(d) {
+    if (!d) return {};
+    var s = {};
+    if (d.userId || d.uid) s.user_id = d.userId || d.uid;
+    if (d.status !== undefined) s.status = d.status;
+    if (d.reviewedBy || d.approvedBy || d.rejectedBy) {
+      s.reviewed_by = d.reviewedBy || d.approvedBy || d.rejectedBy;
+    }
     return s;
   }
 
@@ -885,8 +918,10 @@
       uid:       row.user_id,
       ign:       row.ign || '',
       coins:     row.amount   || 0,
+      amount:    row.amount   || 0,
       price:     row.price    || 0,
-      note:      row.note     || '',
+      note:      row.reason   || row.note || '',
+      reason:    row.reason   || '',
       status:    row.status   || 'pending',
       createdAt: row.created_at ? new Date(row.created_at).getTime() : null
     };
@@ -896,13 +931,10 @@
     if (!d) return {};
     var s = {};
     if (d.userId || d.uid) s.user_id = d.userId || d.uid;
-    if (d.ign)    s.ign    = d.ign;
-    if (d.coins !== undefined) s.amount = d.coins;
-    if (d.price !== undefined) s.price  = d.price;
-    if (d.note)   s.note   = d.note;
+    if (d.coins !== undefined || d.amount !== undefined) s.amount = d.coins !== undefined ? d.coins : d.amount;
+    if (d.note || d.reason) s.reason = d.reason || d.note;
     if (d.status) s.status = d.status;
-    if (d.processedAt) s.processed_at = new Date(d.processedAt).toISOString();
-    if (d.processedBy) s.processed_by = d.processedBy;
+    if (d.processedBy || d.reviewedBy || d.approvedBy) s.reviewed_by = d.processedBy || d.reviewedBy || d.approvedBy;
     return s;
   }
 
@@ -1234,6 +1266,7 @@
     'notifications':         { to: notifToSupa,        from: notifFromSupa      },
     'admin_activity_log':    { to: activityToSupa,     from: activityFromSupa   },
     'disputes':              { to: disputeToSupa,      from: disputeFromSupa    },
+    'kyc_requests':          { to: kycReqToSupa,       from: kycReqFromSupa     },
     'coin_requests':         { to: coinReqToSupa,      from: coinReqFromSupa    },
     'premium_requests':      { to: premiumReqToSupa, from: premiumReqFromSupa },
     'season_pass_requests':  { to: seasonPassReqToSupa, from: seasonPassReqFromSupa },
@@ -1525,6 +1558,7 @@
     if (p.root === 'profileUpdates')   return { table: 'profile_updates', filter: { col: 'id', val: p.id } };
     if (p.root === 'teamRequests')     return { table: 'team_requests', filter: { col: 'id', val: p.id } };
     if (p.root === 'disputes' && p.id) return { table: 'disputes', filter: { col: 'id', val: p.id } };
+    if (p.root === 'kycRequests' && p.id) return { table: 'kyc_requests', filter: { col: 'id', val: p.id } };
     if (p.root === 'supportRequests' && p.id) return { table: 'support_tickets', filter: { col: 'id', val: p.id } };
     if (p.root === 'coinRequests' && p.id)    return { table: 'coin_requests', filter: { col: 'id', val: p.id } };
     if (p.root === 'premiumRequests' && p.id) return { table: 'premium_requests', filter: { col: 'id', val: p.id } };
@@ -1956,9 +1990,6 @@
       return;
     }
 
-    /* Add updated_at for users table */
-    if (table === 'users' && !updateData.updated_at) updateData.updated_at = new Date().toISOString();
-
     /* Remove undefined keys */
     Object.keys(updateData).forEach(function(k) {
       if (updateData[k] === undefined) delete updateData[k];
@@ -1966,15 +1997,17 @@
 
     /* ✅ FIX (2026-08-18): if every key was dropped (e.g. a caller sent
        only columns that don't exist on this table — like
-       profileUpdatePending / status / approved on users), there is
+       profileUpdatePending / status / approved / kyc on users), there is
        nothing to update; bail out as a no-op instead of sending an empty
        PATCH to PostgREST (which some versions reject). Callers that
        awaited this see success, which is correct: there was nothing real
        to write. */
     if (Object.keys(updateData).length === 0) {
-      console.warn('[Bridge] UPDATE no-op on', table, '(path:', p.raw + ') — all fields dropped (unknown columns?).');
       return;
     }
+
+    /* Add updated_at for users table (only when real columns are being updated) */
+    if (table === 'users' && !updateData.updated_at) updateData.updated_at = new Date().toISOString();
 
     var upQ = supa.from(table).update(updateData).eq(filter.col, filter.val);
     if (extraFilter) upQ = upQ.eq(extraFilter.col, extraFilter.val);
