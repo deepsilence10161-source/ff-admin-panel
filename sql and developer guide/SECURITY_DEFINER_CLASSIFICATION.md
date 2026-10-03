@@ -118,3 +118,20 @@ Buckets: **37 user-action self-service · 7 user-action domain · 8 restricted (
 
 **Verdict:** every Advisor SECURITY DEFINER warning on this database is **classified, evidence-backed and
 intentional**, with the 27 admin-only functions fully locked down. No unclassified executable function remains.
+
+---
+
+## 7. Addendum — v34 Functions Added (`2026-10-01` → `2026-10-03`)
+
+All SECURITY DEFINER functions added during the v34 QA audit & Realtime optimization pass (`COMPLETE_SCHEMA.sql` Section 61) follow the R3/R8 Server-Side Security Conventions (`SET search_path TO 'public'` pinned, explicit caller check via `auth.jwt() ->> 'sub'` or internal trigger-only execution):
+
+| Function | Class | Identity / Trigger Gate | Enforced Invariants |
+|---|---|---|---|
+| `accept_terms()` | user-action (self-service) | `v_uid := COALESCE(auth.jwt()->>'sub', auth.uid()::text)` | Null-caller fail-closed; updates only `accepted_policy = true, accepted_policy_at = now()` on caller's own `public.users` row |
+| `kick_clan_member(p_clan_id uuid, p_member_uid text)` | user-action (clan leader) | `v_caller := COALESCE(auth.jwt()->>'sub', auth.uid()::text)` | Verifies `clans.leader_uid = v_caller`, blocks self-kick, removes member from `clan_members` and clears `users.clan_id` |
+| `disband_clan(p_clan_id uuid)` | user-action (clan leader / admin) | `v_caller := COALESCE(auth.jwt()->>'sub', auth.uid()::text)` | Verifies `clans.leader_uid = v_caller` or `users.is_admin = true`; atomically clears `users.clan_id`, deletes `clan_members` & `clan_war_challenges`, deletes `clans` row |
+| `emit_join_event()` | trigger (`AFTER INSERT OR UPDATE OR DELETE ON join_requests`) | Internal trigger (`trg_emit_join_event`) | Emits non-PII `(match_id, filled_slots, event)` row into `public.live_join_events` and prunes rows older than 5 minutes |
+| `fn_emit_universal_pulse()` | trigger (`AFTER INSERT OR UPDATE OR DELETE` on 10 tables) | Internal trigger (`trg_universal_pulse_*` / `trg_pulse_*`) | Emits non-PII `('pulse:' || TG_TABLE_NAME, NULL, v_tag)` row into `public.live_join_events` and prunes rows older than 10 minutes |
+| `cleanup_live_join_events()` | maintenance helper | Internal / maintenance | Deletes `public.live_join_events` rows older than 10 minutes |
+| `sync_match_statuses()` | maintenance helper | Internal / cron | Transitions `upcoming → live` when `scheduled_at <= now()` and auto-cancels zero-join stale matches without touching wallets |
+

@@ -1,5 +1,5 @@
 # 🎮 MINI eSPORTS — COMPLETE DEVELOPER GUIDE
-## User Panel v32.16 | Admin Panel v26.12 | Last Updated: 2026-09-23 (R3 hardening P0–P11 + clan null-caller P0 fix)
+## User Panel v32.20 | Admin Panel v26.16 | Schema v34 | Last Updated: 2026-10-03 (Full QA Audit Remediation, Universal <0.3s Pulse, OCR v7.0, APK In-App Update & 20/20 Live E2E Verification)
 
 > ⚠️ **READ THIS FIRST**: this codebase went through a full security audit + fix pass in
 > July 2026 (v32.14 Security Overhaul). If you're touching ANY code that writes to the
@@ -7475,3 +7475,133 @@ config snapshot + byte-identical restore). **Final: 17 PASS / 0 FAIL** — artif
 (`/home/user/testing/r8f_restore_cfg.py`, snapshot se) — is round me values pre-task state par
 byte-identical restore hui (`preview_mode.active=false` + maintenance message `""`).
 Regression: user smoke **56/0** (admin panel is round me touch nahi hua).
+
+---
+
+## §63 — FULL QA REPORT REMEDIATION, UNIVERSAL `<0.3s` PULSE, OCR v7.0, APK IN-APP UPDATE & 20/20 LIVE E2E VERIFICATION (2026-10-01 → 2026-10-03)
+
+This section documents all database migrations, RPCs, RLS policies, Edge Function fixes, cross-panel Realtime optimizations, OCR engine upgrades, Android APK native bridge additions, and two-way live E2E verifications completed through **2026-10-03** (consolidated into **`COMPLETE_SCHEMA.sql` v34 — SECTION 61**).
+
+### §63.1 — Database Schema v34 (`COMPLETE_SCHEMA.sql` Section 61)
+
+All SQL changes applied to live Supabase (`hddhkculuyrfoevxmlwy`) between `2026-10-01` and `2026-10-03` have been consolidated into **SECTION 61** of `COMPLETE_SCHEMA.sql` and verified idempotent (`HTTP 201 []` on live re-apply, `0` missing tables, `0` differing functions, `0` missing policies, `0` missing triggers):
+
+1. **Deferrable Foreign Key on `public.match_rooms` (`2026-10-01`, `ADMIN-QC-001`)**:
+   - `trg_redirect_match_room_secrets` (`BEFORE INSERT ON public.matches`) inserts room credentials into `public.match_rooms` before the `matches` row exists.
+   - Changed `match_rooms_match_id_fkey` to `FOREIGN KEY (match_id) REFERENCES public.matches(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED` so Quick Match Create and any match insert with pre-filled Room ID/Password succeeds atomically at transaction commit.
+2. **Match Chat Table & RLS (`2026-10-01`, Bug X)**:
+   - Added `public.match_chat(id uuid PK, match_id text FK->matches, user_id text, name text, text text, created_at timestamptz)` with index `idx_match_chat_mid(match_id, created_at)`.
+   - Added RLS policies `chat_insert_own` (`(auth.jwt()->>'sub') = user_id`) and `chat_select_player` (own message, active participant in `join_requests`, or admin) + wired `matchChat` read/write in `ff-user-panel/core/db-bridge.js`.
+3. **Terms Acceptance RPC (`2026-10-01`, Walk9v)**:
+   - Added `public.accept_terms()` (`SECURITY DEFINER`, `search_path = public`) so accepting Terms & Conditions updates `users.accepted_policy = true` and `accepted_policy_at = now()` cleanly without triggering `guard_users_self_update`.
+4. **Clan Kick & Disband Server-Authoritative RPCs (`2026-10-02`, Bugs Z3 & Z4)**:
+   - Added `public.kick_clan_member(p_clan_id uuid, p_member_uid text)` and `public.disband_clan(p_clan_id uuid)` (`SECURITY DEFINER`, leader-verified via `auth.jwt()->>'sub'`) + `clans_delete_leader` DELETE policy on `public.clans`.
+   - `disband_clan` atomically clears `users.clan_id`, deletes `clan_members` and `clan_war_challenges`, and deletes the `clans` row.
+5. **Season Pass Roll & Admin Approval Policy (`2026-10-02`, Bug Z9)**:
+   - Updated `public.admin_roll_battle_pass_season()` to compute `v_next_key` from the active season's `season_key` (`cur.key + 1 month`) rather than `CURRENT_DATE + 1 month`, preventing skipped months when rolling a lapsed season.
+   - Added `spr_update_admin` UPDATE policy on `public.season_pass_requests` for admin approval/rejection.
+6. **`validate_and_join_match` & `join_match_team` Roster Metadata Population (`2026-10-03`)**:
+   - Upgraded both RPCs to resolve and write `user_ign`, `ign_at_join`, `user_ff_uid` (falling back to `public.users.ign` and `public.users.ff_uid`), `slot_number` (`COALESCE(v_m.filled_slots, 0) + 1`), and `entry_fee` / `entry_fee_paid` on every `public.join_requests` insert.
+   - Backfilled historical `join_requests` rows where `user_ign` or `user_ff_uid` was empty.
+7. **Universal `<0.3s` Pulse Table & Triggers (`2026-10-03`)**:
+   - Created `public.live_join_events(id bigint IDENTITY PK, match_id text, filled_slots int, event text, created_at timestamptz)` with public SELECT policy `lje_select_all` (`USING (true)`) and added `live_join_events` + `match_chat` to `supabase_realtime`.
+   - Added `public.emit_join_event()` (`trg_emit_join_event` on `join_requests`) and `public.fn_emit_universal_pulse()` attached to 10 core tables: `matches`, `users`, `notifications`, `sd_requests`, `coin_requests`, `kyc_requests`, `profile_requests`, `support_tickets`, `support_messages`, and `wallet_transactions`.
+   - Emits zero-PII pulse rows (`match_id = 'pulse:' || TG_TABLE_NAME`, `event = left(uid,4) || '_' || right(uid,4)` or `'*'`) and auto-prunes rows older than 10 minutes.
+8. **Admin Activity Log, Self-Notifications & 10 Admin RLS Policies (`2026-10-03`)**:
+   - Set `ALTER TABLE public.admin_activity_log ALTER COLUMN admin_uid SET DEFAULT 'system'` and added `aal_user_self_alert_insert` so anti-cheat/dispute self-alerts succeed without HTTP 400/401.
+   - Updated `notif_insert` on `public.notifications` to permit authenticated non-banned users to insert self-notifications (`user_id = auth.jwt()->>'sub'`) as well as allowlisted peer notification types (`friend_add`, `gift_ticket`, `duel_challenge`, `team_formed`, etc.) while keeping `target_all = false` enforced.
+   - Added 10 missing Admin/Leader RLS policies discovered during full 108-table audit: `cr_update_admin` (`coin_requests`), `kyc_update_admin` (`kyc_requests`), `dp_update_admin` (`disputes`), `ba_admin_all` (`ban_appeals`), `chr_admin_write` (`cheat_reports`), `kp_admin_all` (`kill_proofs`), `rr_update_admin` (`refund_requests`), `rp_admin_all` (`reports`), `cw_admin_write` (`clan_wars`), and `clans_delete_leader` (`clans`).
+
+---
+
+### §63.2 — Edge Functions (`imgbb-upload` v17 + `admin-gateway`) & Storage Fallback
+
+1. **Orphan Edge Function Removed**:
+   - Deleted the duplicate/orphan Edge Function (`93b21d5b-7284-4db4-bffa-7fff4d30b428`) from Supabase project `hddhkculuyrfoevxmlwy`.
+   - Preserved `5b72e5dc-bf91-4f50-bdc0-d4bf4f93990d` (`admin-gateway`, `ACTIVE`).
+2. **`imgbb-upload` Edge Function (`v17`)**:
+   - Configured with `verify_jwt: false` at the Supabase gateway because `imgbb-upload` verifies the caller's Firebase ID token directly against Google's public JWKS (`verifyFirebaseIdToken`).
+   - **Automatic Supabase Storage Fallback**: If ImgBB is unreachable or returns an error, `imgbb-upload` automatically uploads the decoded image binary to the public Supabase Storage bucket `uploads` (`uploads/<uid>/<timestamp>_<name>.<ext>`) using `SUPABASE_SERVICE_ROLE_KEY` and returns the public URL in the exact `{ success: true, data: { url, display_url } }` shape expected by both panels.
+   - Fixed `.github/workflows/deploy-imgbb-upload.yml` in `ff-user-panel` (verified green in GitHub Actions run `37077004962`).
+
+---
+
+### §63.3 — Cross-Panel Realtime Sync (`<0.3s`), Join Speed (`<= 505ms`) & UI Preservation
+
+1. **Why `live_join_events` Universal Pulse Exists**:
+   - Supabase Realtime `postgres_changes` evaluates RLS per subscriber. Because Firebase Third-Party Auth tokens do not carry a `role: "authenticated"` claim over the Realtime WebSocket handshake in all environments, RLS-filtered `postgres_changes` events on tables like `users`, `join_requests`, `support_tickets`, or `sd_requests` can be silently dropped.
+   - By routing lightweight, zero-PII pulse events through `public.live_join_events` (`USING (true)`), both User Panel (`core/listeners.js`) and Admin Panel (`js/supabase-rtdb-bridge.js`, `js/qa-live-freshness.js`) receive instant (`<0.3s`) WebSocket notifications and immediately trigger targeted authenticated REST re-fetches (`window._bridgePulseTable(tbl)` / `_loadUser()` / `_loadJR()` / `_loadMatches()` / `_loadNotifs()`).
+2. **Join Latency Optimization (`499ms–505ms` total click-to-Joined flip)**:
+   - `js/anti-cheat.js`: Added `window._supaReady = true` synchronization and a `200ms` timeout + `localStorage` fast-path to `window.checkDeviceJoin` so legacy Firebase RTDB `.once('value')` checks never stall `window.doJoin(id)`.
+   - `js/bugfix-v30-final.js`: `window.cJoin(matchId)` now opens the Join Confirmation modal immediately (`0ms`) when `window.MT[matchId]` is already in memory instead of blocking modal open on a redundant HTTP round-trip.
+   - `core/utils.js`: `isOk()` and `isVO()` now accept both `profile_status === 'approved'` and `profile_status === 'verified'`.
+   - `core/listeners.js`: `_loadUser()`, `_loadMatches()`, `_loadJR()`, and `_loadNotifs()` now return Promises and expose `window._refreshUserState = _loadUser`.
+3. **Admin Panel Input & Dropdown Preservation (`js/admin-inline-c.js`, `js/admin-inline-e.js`)**:
+   - `loadTournaments()` now saves and restores the selected values of `#resultMatchSelect`, `#mhMatchSelect`, `#notifMatchSelect`, and `#joinedTournamentFilter` across background refreshes.
+   - `loadParticipants()` now preserves unsaved `.rank-input` and `.kills-input` values (`_unsavedInputs`) so background pulse refreshes never wipe an admin's in-progress result entry.
+   - `toggleVerify()` (`js/admin-inline-e.js`) now `await`s the `rtdb.ref('joinRequests/' + id).update(...)` call before logging or refreshing.
+
+---
+
+### §63.4 — Support Tickets, KYC Queue, Dispute Queue & Bridge Converters
+
+1. **Support Tickets (`public.support_tickets`)**:
+   - `ff-user-panel/core/db-bridge.js` routes `supportRequests` writes to `public.support_tickets` (`user_id`, `user_ign`, `user_ff_uid`, `subject`, `message`, `status: 'open'`).
+   - `ff-user-panel/js/features-user.js` provides `window.showMyTickets()`, allowing users to view all their submitted tickets, status badges (`open`/`replied`/`closed`), and admin replies (`admin_reply`) directly from Customer Support and Profile Settings.
+   - `ff-admin-panel/js/supabase-rtdb-bridge.js` maps `user_ign`, `user_ff_uid`, `subject`, `admin_reply`, and `replied_at` in `ticketFromSupa` / `ticketToSupa`.
+2. **KYC Queue (`public.kyc_requests`) & Dispute Queue (`public.disputes`)**:
+   - `ff-user-panel/core/db-bridge.js` routes `kycRequests` writes to `public.kyc_requests` (storing `{ign, pan, aadhaarLast4, name}` JSON in `document_url`), `users/{uid}/kyc` reads to the latest `public.kyc_requests` row, and `disputes` writes to `public.disputes`.
+   - `ff-user-panel/js/legal-compliance.js`: `window.mesShowKYC()` fetches live KYC status from `users/{uid}/kyc` before rendering (`✅ KYC Verified` / `⏳ KYC Under Review` / form), and fixed a missing closing quote in `window.mesDispute()`'s `Submit Dispute` button `onclick`.
+   - `ff-admin-panel/js/supabase-rtdb-bridge.js`: Added `kycReqFromSupa` / `kycReqToSupa`, aligned `disputeFromSupa` / `disputeToSupa` and `coinReqFromSupa` / `coinReqToSupa` with actual PostgreSQL columns, and moved the empty-`updateData` no-op check before `updateData.updated_at` injection in `supaUpdate()`.
+
+---
+
+### §63.5 — Admin OCR Engine (`FA53Plus v7.0`)
+
+Upgraded `ff-admin-panel/js/features/fa53-ocr-engine-plus.js` and `ff-admin-panel/js/features/fa53-ocr-autofill.js`:
+- Exposes `window.FA53Plus` (alongside `window.FA53EnginePlus`) with:
+  - `confusionScore(a, b)`: OCR-aware string similarity weighting common Free Fire font confusions (`0↔O`, `1↔I↔l`, `5↔S`, `8↔B`, `2↔Z`, `6↔G`) at `0.25` cost instead of `1.0`.
+  - `learn(ocrText, correctedIgn)` & `applyLearned(rawName)`: Persists admin IGN corrections in `localStorage` (`fa53_ocr_learned_v2`) and auto-applies them on future scans.
+  - **64-bit Difference Hash (`dHash`) Duplicate Screenshot Detection**: Warns the admin if the same result screenshot is uploaded twice across matches.
+  - **Gold MVP Row Detection & Anti-Fraud Checks**: Detects gold-highlighted MVP rows and flags suspicious rows where `DMG = 0` but `Kills > 0`.
+  - Null-guarded `bestLine` handling so `fa53RunMatchOCR` never throws on low-contrast or empty regions.
+
+---
+
+### §63.6 — Android APK In-App Update (Step 2 Direct Download & Install) & CI Emulator E2E
+
+1. **Native `AndroidBridge` (`android/app/src/main/java/com/miniesports/app/MainActivity.java`)**:
+   - `hasCachedUpdateApk(targetVersion)`: Verifies cached APK in `getExternalFilesDir("updates")` via `PackageManager.getPackageArchiveInfo` (`versionName` + signature/package check).
+   - `downloadAndInstallApk(apkUrl, targetVersion)`: Streams the APK with HTTP `Range` resume support, emits progress callbacks (`window._onApkDownloadProgress(pct, downloadedMB, totalMB)`), cleans up older APKs (`cleanupOldUpdateApks()`), checks `canRequestPackageInstalls()` on Android 8.0+ (auto-resuming install in `onResume()` after user grants unknown-sources permission), and launches the system package installer via `FileProvider` (`android/app/src/main/res/xml/file_paths.xml`).
+2. **Gradle & GitHub Actions Android Emulator E2E (`.github/workflows/build-apk.yml`)**:
+   - Fixed Groovy `Process.waitForProcessOutput(outBuf, errBuf)` in `android/app/build.gradle` to prevent pipe buffer deadlocks when generating `assets/web_bundle_manifest.json`.
+   - Added a `Live Android Emulator APK E2E Test` job (`reactivecircus/android-emulator-runner@v2`, API 30 `x86_64`) that installs `app-release.apk`, cold-launches `com.miniesports.app/.MainActivity`, verifies WebView rendering (`mCurrentFocus`, `UIAutomator` hierarchy dump, screenshot artifact), and asserts `0` `FATAL EXCEPTION` crashes in `logcat`.
+
+---
+
+### §63.7 — Accessibility (`A11Y-001..008`) & Admin Mobile Responsiveness (`RWD-001..004`)
+
+- **Accessibility**: Added `.skip-link` (`Skip to main content`), semantic `<h1>` headings, `role="dialog"` + `aria-modal="true"` on modals, `Escape` key modal dismissal, `Tab` / `Shift+Tab` focus trapping inside active modals, descriptive `aria-label` attributes on icon-only header/control buttons, and removed the duplicate Tesseract.js `<script>` tag in `ff-admin-panel/index.html`.
+- **Admin Mobile (`375×812`)**: Added mobile bottom navigation bar (`#adminMobileBottomNav`), hamburger sidebar drawer toggle, responsive card/table wrappers, and compact header action buttons in `ff-admin-panel/admin-base.css`.
+
+---
+
+### §63.8 — 20/20 Live Two-Way E2E Verification & 58/58 Unit Test Scorecard (2026-10-03)
+
+All flows were executed in real headless Chromium (`Playwright`) against live Firebase Auth + live Supabase (`hddhkculuyrfoevxmlwy`) and on the Android API 30 Emulator:
+
+| Suite / Check ID | Flow Verified (UI DOM + Live Supabase DB Two-Way Check) | Metric / Result |
+|---|---|---|
+| `E2E-01` .. `E2E-11` (Phase 1 Suite) | Admin Match Create → User Join (`499ms`) → Admin Live Roster Auto-Sync (`0ms`) → Room Release (`get_room_credentials`) → Attendance Check-in (`checked_in=true`) → OCR Auto-Fill (`FA53Plus` `0.9286`) → Publish Results & `+50` Coins Credit → User Result Detail Modal (`1Rank`, `Kills: 5`, `🪙50`, `FF UID`) → Support Ticket Create/Reply/My-Tickets Modal → All 28 Admin Sections & 8 User Screens + Mobile `375×812` → `QA-TEST` Cleanup | **11 / 11 PASS** (`0` console/page/HTTP errors) |
+| `E2E-P2-WALLET-SD` | Live `imgbb-upload` proof upload → `sd_requests` insert (`50` SD) → Admin `resolve_sd_request('approve')` → DB `sky_diamonds = 60` + User Wallet UI `#wTotal = 60` | **PASS** |
+| `E2E-P2-COIN-REQ` | User `coin_requests` insert (`25` coins) → Admin bridge `coinRequests` approve → DB `status = 'approved'` | **PASS** |
+| `E2E-P2-PAID-MATCH-CANCEL-REFUND` | Admin creates 20-coin match → User joins in **`505ms`** (`105 → 85` coins) → Admin `cancelTournament()` → DB `status = 'cancelled'`, `join_requests.status = 'refunded'`, `users.coins = 105` + User My Matches shows `"Entry fee refunded"` chip | **PASS (`505ms`)** |
+| `E2E-P2-PROFILE-APPROVAL` | User `profile_requests` insert → Admin `admin_approve_profile` RPC → DB `profile_status = 'approved'`, User `isOk() === true`, `isVO() === false` | **PASS** |
+| `E2E-P2-KYC-ROUNDTRIP` | User `mesShowKYC()` / `mesSubmitKYC()` (`ABCDE1234F`, Aadhaar `9012`) → Admin `faKYCQueue()` displays PAN/Aadhaar in `#genericModalBody` → `faKYCApprove()` → DB `approved` + User modal shows `✅ KYC Verified` | **PASS** |
+| `E2E-P2-DISPUTE-ROUNDTRIP` | User `mesDispute()` / `mesSubmitDispute()` → Admin `faDisputeQueue()` displays dispute in `#genericModalBody` → `faDisputeResolve()` → DB `status = 'resolved'` | **PASS** |
+| `E2E-P2-GLOBAL-BROADCAST` | Admin `sendGlobalNotification()` → DB `notifications.target_all = true` → User `_loadNotifs()` receives broadcast in `window.NOTIFS` | **PASS** |
+| `E2E-P2-CLAN-LOOP` | User creates `QA-TEST-CLAN` → sends Clan Chat message (verified in `clan_messages` + `#_clanChatMsgs`) → `disbandClan()` (`disband_clan` RPC) → `0` remaining clans | **PASS** |
+| `E2E-P2-CLEANUP` | Full cleanup of all `QA-TEST` rows across all tables + Firebase Auth test accounts | **PASS (`0` residue)** |
+| Unit Tests (`tests/*.test.mjs`) | `db-update-image-errors.test.mjs`, `imgbb-upload-auth.test.mjs`, `imgbb-upload-cors.test.mjs` | **58 / 58 PASS** |
+| Android Emulator APK E2E | GitHub Actions runs `37079697620`, `37088151689`, `37092386406` (`app-release.apk` install + cold launch on API 30 emulator) | **PASS (`2410ms`, `0` crashes)** |
+
