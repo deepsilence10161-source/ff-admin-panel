@@ -24842,21 +24842,7 @@ CREATE POLICY uploads_public_read ON storage.objects
 
 -- ── 61.8  Authenticated EXECUTE Grants, Notification RLS/Guard & Leaderboard Sync (2026-10-03) ──
 
-DO $$
-DECLARE
-  r RECORD;
-BEGIN
-  FOR r IN
-    SELECT p.oid::regprocedure AS sig
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
-      AND has_function_privilege('anon', p.oid, 'EXECUTE')
-      AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
-  LOOP
-    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', r.sig);
-  END LOOP;
-END $$;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon, service_role;
 
 DROP POLICY IF EXISTS notif_insert ON public.notifications;
 CREATE POLICY notif_insert ON public.notifications
