@@ -1,4 +1,25 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261003a" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window._admEntrySym = function(m, j) {
+  var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
+  if (et === 'coin' || et === 'coins') return '🪙';
+  if (et === 'ad' || et === 'ads' || et === 'adwatch') return '📺';
+  if (et === 'free' || et === 'freeentry') return '🆓';
+  return '💎';
+};
+window._admPrizeSym = function(m) {
+  if (!m) return window.ADM_GD_ICON;
+  var sp = !!(m.isSponsored || m.is_sponsored);
+  var pt = String(m.prizeType || m.prize_type || '').toLowerCase().replace(/[_ -]/g, '');
+  var et = String(m.entryType || m.entry_type || '').toLowerCase().replace(/[_ -]/g, '');
+  if (sp || pt === 'inr' || pt === 'cash' || pt === 'sponsored') return '₹';
+  if (pt === 'skydiamond' || pt === 'sky' || pt === 'sd') return '💎';
+  if (pt === 'coin' || pt === 'coins') return '🪙';
+  if (pt === 'greendiamond' || pt === 'gd') return window.ADM_GD_ICON;
+  if (et === 'coin' || et === 'coins' || et === 'ad' || et === 'ads' || et === 'free') return '🪙';
+  return window.ADM_GD_ICON;
+};
+
 function getMatchStatus(matchTime){
   var now=Date.now();
   var startTime=Number(matchTime)||0;
@@ -139,11 +160,15 @@ async function loadTournaments(){
       }
       
       /* Build row */
+      var _eSym = window._admEntrySym(d);
+      var _pSym = window._admPrizeSym(d);
+      var _fPrize = Number(d.firstPrize || d.prize1st || d.prizePool || 0);
+      var _prizeTxt = d.perKillPrize ? (_pSym + d.perKillPrize + '/Kill') : (_fPrize ? (_pSym + _fPrize) : '—');
       if(tb) tb.innerHTML+='<tr>'+
         '<td class="font-bold text-xs">'+(d.isSpecial?'⭐ ':'')+d.name+'</td>'+
         '<td><span class="badge '+modeBadgeColor+'">'+gameModeDisplay+'</span></td>'+
-        '<td><span class="badge '+(d.entryType==='paid'?'green':d.entryType==='ad'?'yellow':'purple')+'">'+d.entryType+'</span>'+(d.entryType==='ad'?' 📺 '+(d.adsRequired||2)+' ads':' ₹'+(d.entryFee||0))+(d.minRank?'<br><span style="font-size:10px;color:#ffd700">🏅'+d.minRank+'+</span>':'')+'</td>'+
-        '<td class="text-primary font-bold">'+(d.perKillPrize?'₹'+d.perKillPrize+'/Kill':'—')+'</td>'+
+        '<td><span class="badge '+(d.entryType==='paid'?'green':d.entryType==='ad'?'yellow':'purple')+'">'+d.entryType+'</span>'+(d.entryType==='ad'?' 📺 '+(d.adsRequired||2)+' ads':' '+_eSym+(d.entryFee||0))+(d.minRank?'<br><span style="font-size:10px;color:#ffd700">🏅'+d.minRank+'+</span>':'')+'</td>'+
+        '<td class="text-primary font-bold">'+_prizeTxt+'</td>'+
         '<td>'+slotBar(d.filledSlots,d.maxSlots||0)+'</td>'+
         '<td class="text-xxs">'+(d.map||'N/A')+'</td>'+
         '<td class="text-xxs">'+tm+'</td>'+
@@ -1320,6 +1345,7 @@ async function loadJoinedPlayers(){
   function _renderSoloRow(r){
     var j=r.j;
     var sb=j.resultStatus==='completed'?'<span class="badge blue">Done</span>':'<span class="badge green">Joined</span>';
+    var eSym = window._admEntrySym(allTournaments[r.tid], j);
     return '<tr data-uid="'+r.uid+'" data-mid="'+r.tid+'">'+
       /* Col 1: Player Name */
       '<td style="min-width:140px">'+
@@ -1331,24 +1357,22 @@ async function loadJoinedPlayers(){
       '<td style="min-width:110px">'+
         '<span class="font-mono" style="font-size:11px;color:var(--info);background:rgba(0,212,255,.1);padding:2px 7px;border-radius:4px;display:inline-block">'+(r.ffUid&&r.ffUid!=='N/A'?r.ffUid:'—')+'</span>'+
       '</td>'+
-      /* Col 3: Phone */
+      /* Col 4: Phone */
       '<td style="min-width:100px">'+
         '<span style="font-size:11px;color:var(--text-muted);font-family:monospace">'+(r.phone||'—')+'</span>'+
       '</td>'+
-      /* Col 4: Match */
+      /* Col 5: Match */
       '<td style="min-width:120px"><span class="text-xs">'+r.tn+'</span></td>'+
-      /* Col 5: Mode */
+      /* Col 6: Mode */
       '<td><span class="badge '+r.modeBadgeColor+'">'+r.mode+'</span></td>'+
-      /* Col 6: Entry */
-      '<td><span style="font-weight:700">₹'+r.entryFee+'</span></td>'+
-      /* Col 7: Joined At */
+      /* Col 7: Entry */
+      '<td><span style="font-weight:700">'+eSym+r.entryFee+'</span></td>'+
+      /* Col 8: Joined At */
       '<td class="text-xxs" style="min-width:130px">'+r.dt+'</td>'+
-      /* Col 8: Status */
+      /* Col 9: Status */
       '<td>'+sb+'</td>'+
-      /* Col 9: In Room */
+      /* Col 10: In Room */
       '<td style="text-align:center">'+_inRoomBadge(r.j.inRoom, r.j.inRoomAt)+'</td>'+
-      /* Col 10: Verify */
-      _verifyChk(r.reqKey,r.verified)+
     '</tr>';
   }
 
@@ -1360,7 +1384,8 @@ async function loadJoinedPlayers(){
     var ffStr=(m.ffUid&&m.ffUid!=='N/A')?m.ffUid:'—';
     var phStr=m.phone||'—';
     var sb=m.j.resultStatus==='completed'?'<span class="badge blue" style="font-size:9px">Done</span>':'<span class="badge green" style="font-size:9px">Joined</span>';
-    return '<div style="display:grid;grid-template-columns:130px 65px 120px 100px 110px 55px 45px 130px 65px 80px 44px;align-items:center;gap:6px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:4px">'+
+    var eSym = window._admEntrySym(allTournaments[m.tid], m.j);
+    return '<div style="display:grid;grid-template-columns:130px 65px 120px 100px 110px 55px 55px 130px 65px 80px;align-items:center;gap:6px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:8px;margin-bottom:4px">'+
       /* Col 1: Name + role */
       '<div style="min-width:0">'+
         '<div style="display:flex;flex-direction:column;gap:3px">'+
@@ -1374,36 +1399,30 @@ async function loadJoinedPlayers(){
       '<div>'+
         '<span class="font-mono" style="font-size:10px;color:var(--info);background:rgba(0,212,255,.1);padding:2px 6px;border-radius:4px;display:inline-block">'+ffStr+'</span>'+
       '</div>'+
-      /* Col 3: Phone */
+      /* Col 4: Phone */
       '<div>'+
         '<span style="font-size:10px;color:var(--text-muted);font-family:monospace">'+phStr+'</span>'+
       '</div>'+
-      /* Col 4: Match */
+      /* Col 5: Match */
       '<div>'+
         '<span class="text-xs" style="color:var(--text-muted)">'+m.tn+'</span>'+
       '</div>'+
-      /* Col 5: Mode */
+      /* Col 6: Mode */
       '<div>'+
         '<span class="badge '+m.modeBadgeColor+'" style="font-size:9px">'+m.mode+'</span>'+
       '</div>'+
-      /* Col 6: Entry */
+      /* Col 7: Entry */
       '<div>'+
-        '<span style="font-size:11px;font-weight:700">₹'+m.entryFee+'</span>'+
+        '<span style="font-size:11px;font-weight:700">'+eSym+m.entryFee+'</span>'+
       '</div>'+
-      /* Col 7: Joined At */
+      /* Col 8: Joined At */
       '<div>'+
         '<span class="text-xxs" style="color:var(--text-muted)">'+m.dt+'</span>'+
       '</div>'+
-      /* Col 8: Status */
+      /* Col 9: Status */
       '<div>'+sb+'</div>'+
-      /* Col 9: In Room */
+      /* Col 10: In Room */
       '<div style="display:flex;justify-content:center">'+_inRoomBadge(m.j.inRoom, m.j.inRoomAt)+'</div>'+
-      /* Col 10: Verify */
-      '<div style="display:flex;justify-content:center">'+
-        '<div data-rk="'+m.reqKey+'" onclick="toggleVerify(this.dataset.rk,this)" class="tm-vchk" style="width:36px;height:36px;border-radius:8px;border:2px solid '+(m.verified?'#00ff9c':'rgba(255,255,255,.2)')+';background:'+(m.verified?'rgba(0,255,156,.12)':'rgba(255,255,255,.04)')+';display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">'+
-          '<i class="fas fa-check" style="font-size:15px;color:'+(m.verified?'#00ff9c':'rgba(255,255,255,.2)')+'"></i>'+
-        '</div>'+
-      '</div>'+
     '</div>';
   }
 
@@ -1448,8 +1467,9 @@ async function loadJoinedPlayers(){
       return _teamMemberRow(m,isCap);
     }).join('');
 
+    var teamEntrySym = window._admEntrySym(allTournaments[r.tid], r.j);
     tb.innerHTML+='<tr>'+
-      '<td colspan="11" style="padding:6px 10px">'+
+      '<td colspan="10" style="padding:6px 10px">'+
         '<div style="border:1px solid '+teamColor+'55;border-radius:10px;padding:10px;background:'+teamColor+'06;box-shadow:'+glowShadow+'">'+
           '<div style="font-size:10px;color:'+teamColor+';font-weight:700;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">'+
             '<span><i class="fas fa-users" style="margin-right:5px"></i>'+mode.toUpperCase()+' Team · '+r.tn+'</span>'+
@@ -1457,10 +1477,10 @@ async function loadJoinedPlayers(){
               '<span class="badge '+r.modeBadgeColor+'">'+r.mode+'</span>'+
               teamSb+
               '<span class="text-xxs text-muted">'+r.dt+'</span>'+
-              '<span class="text-xxs" style="background:rgba(255,255,255,.06);padding:1px 8px;border-radius:8px">₹'+r.entryFee+'</span>'+
+              '<span class="text-xxs" style="background:rgba(255,255,255,.06);padding:1px 8px;border-radius:8px">'+teamEntrySym+r.entryFee+'</span>'+
             '</span>'+
           '</div>'+
-          '<div style="display:grid;grid-template-columns:130px 65px 120px 100px 110px 55px 45px 130px 65px 80px 44px;gap:6px;padding:4px 10px 8px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:6px">'+
+          '<div style="display:grid;grid-template-columns:130px 65px 120px 100px 110px 55px 55px 130px 65px 80px;gap:6px;padding:4px 10px 8px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:6px">'+
             '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.35)">PLAYER</div>'+
             '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.35);text-align:center">SLOT</div>'+
             '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.35)">FF UID</div>'+
@@ -1471,7 +1491,6 @@ async function loadJoinedPlayers(){
             '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.35)">JOINED AT</div>'+
             '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.35)">STATUS</div>'+
             '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.35);text-align:center">IN ROOM</div>'+
-            '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.35);text-align:center">VERIFY</div>'+
           '</div>'+
           memberRows+
         '</div>'+
@@ -1548,15 +1567,15 @@ async function loadParticipants(){
   ls.setAttribute('data-mid', mid);
   try{
     /* Always fetch fresh from Firebase — allTournaments cache might miss perKillPrize */
-    var _freshSnap = await rtdb.ref('matches/'+mid).once('value');
-    if (_freshSnap.exists()) {
-      currentTournamentData = _freshSnap.val();
-      currentTournamentData._id = mid;
-      /* Also update allTournaments cache */
-      allTournaments[mid] = currentTournamentData;
-    } else {
-      currentTournamentData = allTournaments[mid] || {};
-    }
+    currentTournamentData = allTournaments[mid] || {};
+    try {
+      var _freshSnap = await rtdb.ref('matches/'+mid).once('value');
+      if (_freshSnap && _freshSnap.exists && _freshSnap.exists() && _freshSnap.val()) {
+        currentTournamentData = Object.assign({}, currentTournamentData, _freshSnap.val());
+        currentTournamentData._id = mid;
+        allTournaments[mid] = currentTournamentData;
+      }
+    } catch(_fe) {}
     var t=currentTournamentData;
     ls.setAttribute('data-pk', Number(t.perKillPrize)||0);
     ls.setAttribute('data-f1', Number(t.firstPrize)||0);
@@ -1566,25 +1585,35 @@ async function loadParticipants(){
     window._MRD = {f1:Number(t.firstPrize)||0, f2:Number(t.secondPrize)||0, f3:Number(t.thirdPrize)||0, pk:Number(t.perKillPrize)||0};
     /* Show per kill info too */
     var _pk=Number(t.perKillPrize)||0, _f1=Number(t.firstPrize)||0, _f2=Number(t.secondPrize)||0, _f3=Number(t.thirdPrize)||0;
-    var pkInfo = _pk ? ' | <span style="color:#ff9c00">💀 Per Kill: ₹'+_pk+'</span>' : '';
-    document.getElementById('resultTournamentInfo').innerHTML='<div class="flex justify-between mb-1"><span class="text-dim">1st/2nd/3rd:</span><strong>₹'+_f1+' / ₹'+_f2+' / ₹'+_f3+'</strong>'+pkInfo+'</div>';
+    var _pSym = window._admPrizeSym(t);
+    var pkInfo = _pk ? ' | <span style="color:#ff9c00">💀 Per Kill: '+_pSym+_pk+'</span>' : '';
+    document.getElementById('resultTournamentInfo').innerHTML='<div class="flex justify-between mb-1"><span class="text-dim">1st/2nd/3rd:</span><strong>'+_pSym+_f1+' / '+_pSym+_f2+' / '+_pSym+_f3+'</strong>'+pkInfo+'</div>';
     
     // Load existing results (if already published) to pre-fill rank/kills
     var existingResults = {};
-    var _resSnap = await rtdb.ref('results').orderByChild('matchId').equalTo(mid).once('value');
-    if (_resSnap.exists()) {
-      _resSnap.forEach(function(c){ var d=c.val(); if(d && d.userId) existingResults[d.userId] = d; });
-    }
+    try {
+      var _resSnap = await rtdb.ref('results').orderByChild('matchId').equalTo(mid).once('value');
+      if (_resSnap && _resSnap.exists && _resSnap.exists()) {
+        _resSnap.forEach(function(c){ var d=c.val(); if(d && d.userId) existingResults[d.userId] = d; });
+      }
+    } catch(_re) {}
     
-    var jS=await rtdb.ref(DB_JOIN).once('value');var html='',pc=0;
-    /* ✅ R24 FIX: RPC-join (validate_and_join_match) rows are status='pending'
-       (money already deducted — pending = room/attendance pending, NOT membership
-       pending, same semantics as sendRoomNotificationToMatch's _NOT_JOINED list).
-       Old filter (approved/joined/confirmed only) hid PAID players from the
-       result-publish screen ("No participants found") — live-proven R24 E2E. */
+    var html='',pc=0;
     var _RJ_NOT_JOINED=['cancelled','refunded','rejected','no_show'];
-    jS.forEach(function(c){
-      var j=c.val(),tid=j.tournamentId||j.matchId;
+    var _joinEntries = [];
+    try {
+      var jS=await rtdb.ref(DB_JOIN).once('value');
+      if (jS && jS.forEach) {
+        jS.forEach(function(c){ if (c && c.val) _joinEntries.push({ key: c.key, val: c.val() }); });
+      }
+    } catch(_je) {}
+    if (!_joinEntries.length && window.allJoinRequests) {
+      Object.keys(window.allJoinRequests).forEach(function(k){
+        if (window.allJoinRequests[k]) _joinEntries.push({ key: k, val: window.allJoinRequests[k] });
+      });
+    }
+    _joinEntries.forEach(function(item){
+      var j=item.val, c={key: item.key || j.id || ''}, tid=j.tournamentId||j.matchId||j.match_id;
       if(tid===mid&&_RJ_NOT_JOINED.indexOf(j.status)===-1){pc++;
         var uid=getUid(j);
         var nm=j.playerName||j.ign||j.userName||getUserName(uid)||'Unknown';
@@ -1611,6 +1640,8 @@ async function loadParticipants(){
           ? '<span style="font-size:9px;background:rgba(0,212,255,.12);color:#00d4ff;padding:1px 5px;border-radius:4px;margin-left:4px">Cap Paid</span>'
           : (jFeeType==='each_pays' ? '<span style="font-size:9px;background:rgba(0,255,156,.1);color:#00ff9c;padding:1px 5px;border-radius:4px;margin-left:4px">Self Paid</span>' : '');
         
+        var _rowESym = window._admEntrySym(t, j);
+        var _rowPSym = window._admPrizeSym(t);
         html += '<tr data-uid="'+uid+'" data-reqid="'+c.key+'" data-name="'+nm.toLowerCase()+'" data-feetype="'+jFeeType+'" data-captainuid="'+jCaptainUid+'" data-isteam="'+jIsTeamMember+'">'
           +'<td style="color:#666;font-size:11px;padding:5px 4px">'+pc+'</td>'
           +'<td style="padding:5px 4px"><div style="font-size:12px;font-weight:700;color:var(--primary)">'+nm+feeNote+'</div></td>'
@@ -1618,11 +1649,11 @@ async function loadParticipants(){
           +'<td style="padding:5px 4px;color:#aaa;font-size:11px">'+slot+'</td>'
           +'<td style="padding:5px 4px;color:#aaa;font-size:11px">'+phone+'</td>'
           +'<td style="padding:5px 4px;color:#aaa;font-size:10px;font-weight:700">'+mode+'</td>'
-          +'<td style="padding:5px 4px;color:#ffd700;font-size:11px">&#8377;'+entry+'</td>'
+          +'<td style="padding:5px 4px;color:#ffd700;font-size:11px">'+_rowESym+entry+'</td>'
           +'<td style="padding:5px 4px;color:#aaa;font-size:10px">'+joinedStr+'</td>'
           +'<td style="padding:5px 4px"><input type="number" class="rank-input" placeholder="0" min="0" value="'+preRank+'" style="width:44px;padding:4px;border-radius:6px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);font-size:12px;text-align:center;font-weight:700" oninput="calcPrize(this)"></td>'
           +'<td style="padding:5px 4px"><input type="number" class="kills-input" placeholder="0" min="0" value="'+preKills+'" style="width:44px;padding:4px;border-radius:6px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);font-size:12px;text-align:center;font-weight:700" oninput="calcPrize(this)"></td>'
-          +'<td class="prize-cell" style="padding:5px 4px;font-weight:800;color:'+(preRp>0?'var(--primary)':'#aaa')+';font-size:11px">&#8377;'+preRp+'</td>'
+          +'<td class="prize-cell" style="padding:5px 4px;font-weight:800;color:'+(preRp>0?'var(--primary)':'#aaa')+';font-size:11px">'+_rowPSym+preRp+'</td>'
           +'</tr>';
       }
     });
@@ -1699,9 +1730,10 @@ function calcPrize(inp){
     cell.style.color='#555';
     cell.innerHTML='<span style="font-size:9px;color:#555">→ Cap</span>';
   } else {
+    var _pSym2 = window._admPrizeSym ? window._admPrizeSym(window.currentTournamentData) : '₹';
     cell.style.color = tw>0?'var(--primary)':'#aaa';
-    var bd = (rp||kp)?'<br><span style="font-size:9px;color:#888">'+(rp?'R:₹'+rp:'')+(rp&&kp?'+':'')+(kp?k+'k×₹'+pk:'')+'</span>':'';
-    cell.innerHTML='<span style="font-weight:800">₹'+tw+'</span>'+bd;
+    var bd = (rp||kp)?'<br><span style="font-size:9px;color:#888">'+(rp?'R:'+_pSym2+rp:'')+(rp&&kp?'+':'')+(kp?k+'k×'+_pSym2+pk:'')+'</span>':'';
+    cell.innerHTML='<span style="font-weight:800">'+_pSym2+tw+'</span>'+bd;
   }
 }
 

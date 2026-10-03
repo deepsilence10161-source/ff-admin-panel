@@ -13,17 +13,7 @@ var _AS  = {}; // main config cache (app_settings.live_config)
 var _CVS = {}; // creator+video settings cache (app_settings.creator_system + .video_moderation)
 
 window.loadAppSettings = function() {
-  /* ✅ DIAGNOSTIC (2026-09-19): instant on-screen confirmation that this
-     function was genuinely called at all, before any of its own
-     timeout/error handling even has a chance to run — visible proof
-     that the nav-item's onclick reached this line. Safe to remove once
-     the App Settings crash is found and fixed. */
-  (function() {
-    var b = document.createElement('div');
-    b.textContent = '📞 loadAppSettings() called at ' + new Date().toLocaleTimeString();
-    b.style.cssText = 'position:fixed;top:20px;right:0;z-index:999999;background:#00d4ff;color:#000;font:10px monospace;padding:2px 6px;border-bottom-left-radius:6px;opacity:.85';
-    document.body.appendChild(b);
-  })();
+  /* Remove any leftover diagnostic banner if present */
   if (!window._supa) { setTimeout(window.loadAppSettings, 500); return; }
 
   /* ✅ BUG FIX (2026-09-17, confirmed via screenshot): "Loading

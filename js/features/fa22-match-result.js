@@ -146,19 +146,32 @@ window.loadMatchResultSection = async function() {
       });
     }
 
-    // Load join requests for this match
-    var jsSnap = await rtdb.ref(DB_JOIN || 'joinRequests').once('value');
+    // Load join requests for this match (use allJoinRequests fast-path or rtdb)
     var rows = [];
-    if (jsSnap.exists()) {
-      jsSnap.forEach(function(c) {
-        var j = c.val();
-        var tid = j.tournamentId || j.matchId;
+    var _NOT_JOINED = ['cancelled','refunded','rejected','no_show'];
+    if (window.allJoinRequests && Object.keys(window.allJoinRequests).length > 0) {
+      Object.keys(window.allJoinRequests).forEach(function(k) {
+        var j = window.allJoinRequests[k];
+        if (!j) return;
+        var tid = j.tournamentId || j.matchId || j.match_id;
         if (tid !== mid) return;
-        var isJoined = j.status === 'approved' || j.status === 'joined' || j.status === 'confirmed' || !j.status;
-        if (!isJoined) return;
-        var uid = getUid ? getUid(j) : (j.userId || j.uid || c.key);
-        rows.push({ uid: uid, reqKey: c.key, j: j });
+        if (_NOT_JOINED.indexOf(j.status) !== -1) return;
+        var uid = (typeof getUid === 'function' ? getUid(j) : '') || j.userId || j.user_id || j.uid || k;
+        rows.push({ uid: uid, reqKey: k, j: j });
       });
+    }
+    if (!rows.length) {
+      var jsSnap = await rtdb.ref(DB_JOIN || 'joinRequests').once('value');
+      if (jsSnap.exists()) {
+        jsSnap.forEach(function(c) {
+          var j = c.val();
+          var tid = j.tournamentId || j.matchId || j.match_id;
+          if (tid !== mid) return;
+          if (_NOT_JOINED.indexOf(j.status) !== -1) return;
+          var uid = (typeof getUid === 'function' ? getUid(j) : '') || j.userId || j.user_id || j.uid || c.key;
+          rows.push({ uid: uid, reqKey: c.key, j: j });
+        });
+      }
     }
 
     // Batch load phones
@@ -198,12 +211,13 @@ window.loadMatchResultSection = async function() {
     if (countEl) countEl.textContent = rows.length;
 
     // ✅ FIX: Prize pool info show karo (match-history wala style) — perKillPrize bhi dikhao
+    var _mrPSym = window._admPrizeSym ? window._admPrizeSym(t) : '₹';
     var prizeInfoEl = document.getElementById('mrPrizePoolInfo');
     if (prizeInfoEl && t) {
       var f1 = t.firstPrize || 0, f2 = t.secondPrize || 0, f3 = t.thirdPrize || 0;
       var pk = Number(t.perKillPrize) || 0;
-      var piHtml = '<span style="color:#ffd700">🥇 ₹'+f1+'</span> <span style="color:#c0c0c0">🥈 ₹'+f2+'</span> <span style="color:#cd7f32">🥉 ₹'+f3+'</span>';
-      if (pk) piHtml += ' <span style="color:#ff9c00">💀 ₹'+pk+'/Kill</span>';
+      var piHtml = '<span style="color:#ffd700">🥇 '+_mrPSym+f1+'</span> <span style="color:#c0c0c0">🥈 '+_mrPSym+f2+'</span> <span style="color:#cd7f32">🥉 '+_mrPSym+f3+'</span>';
+      if (pk) piHtml += ' <span style="color:#ff9c00">💀 '+_mrPSym+pk+'/Kill</span>';
       prizeInfoEl.innerHTML = piHtml;
       prizeInfoEl.style.display = '';
     }
@@ -218,6 +232,7 @@ window.loadMatchResultSection = async function() {
       var phone = phones[uid] || j.phone || '—';
       var mode = (j.mode || (t && (t.gameMode || t.matchType)) || 'solo').toUpperCase();
       var entry = j.entryFee || (t && t.entryFee) || 0;
+      var _mrESym = window._admEntrySym ? window._admEntrySym(t, j) : '₹';
       var joinedAt = j.joinedAt || j.createdAt || j.timestamp || 0;
       var joinedStr = joinedAt ? new Date(joinedAt).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12: true }) : '—';
 
@@ -231,7 +246,7 @@ window.loadMatchResultSection = async function() {
       var prizeColor = prePrize > 0 ? '#00ff9c' : '#aaa';
       // Breakdown string for pre-filled prize
       var preBreakdown = '';
-      if (preRp || preKp) preBreakdown = ' <span style="font-size:9px;color:#666">(R:₹'+preRp+'+K:₹'+preKp+')</span>';
+      if (preRp || preKp) preBreakdown = ' <span style="font-size:9px;color:#666">(R:'+_mrPSym+preRp+'+K:'+_mrPSym+preKp+')</span>';
 
       // ✅ FIX: data-slot row mein save karo squad sync ke liye
       var slotStr = String(slot);
@@ -250,14 +265,14 @@ window.loadMatchResultSection = async function() {
         '<td style="padding:7px 5px;text-align:center"><span style="background:rgba(0,212,255,.12);border:1.5px solid rgba(0,212,255,.4);color:#00d4ff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;font-family:monospace">' + slot + '</span></td>' +
         '<td style="padding:7px 5px;font-size:11px;color:#aaa;font-family:monospace">' + phone + '</td>' +
         '<td style="padding:7px 5px"><span style="font-size:10px;font-weight:700;color:#aaa">' + mode + '</span></td>' +
-        '<td style="padding:7px 5px;color:#ffd700;font-size:11px;font-weight:700">₹' + entry + '</td>' +
+        '<td style="padding:7px 5px;color:#ffd700;font-size:11px;font-weight:700">' + _mrESym + entry + '</td>' +
         '<td style="padding:7px 5px;font-size:10px;color:#666">' + joinedStr + '</td>' +
         /* Rank input — onfocus: 0 clear karo | oninput: squad sync + prize calc */
         '<td style="padding:5px 4px;text-align:center"><input type="number" class="mr-rank-input" placeholder="0" min="0" value="' + rankVal + '" style="width:46px;padding:5px 3px;border-radius:6px;background:rgba(255,215,0,.08);border:1.5px solid rgba(255,215,0,.3);color:#ffd700;font-size:13px;text-align:center;font-weight:700;outline:none" onfocus="mrClearIfZero(this)" oninput="mrSquadSync(this,\'rank\');mrCalcPrize(this)"></td>' +
         /* Kills input — onfocus: 0 clear karo */
         '<td style="padding:5px 4px;text-align:center"><input type="number" class="mr-kills-input" placeholder="0" min="0" value="' + killsVal + '" style="width:46px;padding:5px 3px;border-radius:6px;background:rgba(255,107,107,.08);border:1.5px solid rgba(255,107,107,.3);color:#ff6b6b;font-size:13px;text-align:center;font-weight:700;outline:none" onfocus="mrClearIfZero(this)" oninput="mrCalcPrize(this)"></td>' +
         /* Auto-calculated prize */
-        '<td class="mr-prize-cell" style="padding:7px 5px;font-weight:800;color:' + prizeColor + ';font-size:12px"><span style="color:' + prizeColor + '">₹' + prePrize + '</span>' + preBreakdown + '</td>' +
+        '<td class="mr-prize-cell" style="padding:7px 5px;font-weight:800;color:' + prizeColor + ';font-size:12px"><span style="color:' + prizeColor + '">' + _mrPSym + prePrize + '</span>' + preBreakdown + '</td>' +
       '</tr>';
     });
 
@@ -294,12 +309,13 @@ window.mrCalcPrize = function(inp) {
   var tw = rp + kp;
   var prizeCell = row.querySelector('.mr-prize-cell');
   if (prizeCell) {
+    var _mrPSym2 = window._admPrizeSym ? window._admPrizeSym(t) : '₹';
     // Show total + breakdown
     var breakdownParts = [];
-    if (rp > 0) breakdownParts.push('R:₹' + rp);
-    if (kp > 0) breakdownParts.push(kills + 'k×₹' + pk);
+    if (rp > 0) breakdownParts.push('R:' + _mrPSym2 + rp);
+    if (kp > 0) breakdownParts.push(kills + 'k×' + _mrPSym2 + pk);
     var breakdown = breakdownParts.length ? ' <span style="font-size:9px;color:#666">(' + breakdownParts.join('+') + ')</span>' : '';
-    prizeCell.innerHTML = '<span style="color:' + (tw > 0 ? '#00ff9c' : '#aaa') + ';font-weight:800">₹' + tw + '</span>' + breakdown;
+    prizeCell.innerHTML = '<span style="color:' + (tw > 0 ? '#00ff9c' : '#aaa') + ';font-weight:800">' + _mrPSym2 + tw + '</span>' + breakdown;
   }
   // ✅ FIX: Duplicate rank check karo after every change
   mrCheckDuplicateRanks();

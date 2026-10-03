@@ -252,24 +252,77 @@ function loadSponsoredTournaments(loadMore) {
   });
 }
 
-/* ── PRIZE DISTRIBUTION MODAL ── */
-window.openDistributePrizesModal = function(tourId) {
-  (window.rtdb||window.db).ref('sponsoredTournaments/' + tourId).once('value', function(snap) {
+/* ── PRIZE DISTRIBUTION MODAL (with Screenshot Upload + OCR Auto-Fill + Joined Player Lookup) ── */
+window._spDistScreenshots = [];
+window._spDistJoinedPlayers = [];
+
+window.openDistributePrizesModal = async function(tourId) {
+  var rtdbRef = (window.rtdb||window.db);
+  rtdbRef.ref('sponsoredTournaments/' + tourId).once('value', async function(snap) {
     if (!snap.exists()) return;
     var d = snap.val();
+    window._spDistScreenshots = [];
+    window._spDistJoinedPlayers = [];
 
-    var h = '<div style="margin-bottom:16px">';
+    /* Load joined players for this sponsored match (or all users as fallback) */
+    var matchId = d.matchId || d.match_id || tourId;
+    try {
+      if (window._supa) {
+        var jrRes = await window._supa.from('join_requests').select('user_id, ign_at_join, user_ign, user_ff_uid, slot_number').eq('match_id', matchId);
+        if (jrRes && Array.isArray(jrRes.data) && jrRes.data.length) {
+          jrRes.data.forEach(function(r) {
+            window._spDistJoinedPlayers.push({
+              uid: r.user_id || '',
+              ign: r.user_ign || r.ign_at_join || '',
+              ffUid: r.user_ff_uid || '',
+              slot: r.slot_number || ''
+            });
+          });
+        }
+        if (!window._spDistJoinedPlayers.length) {
+          var uRes = await window._supa.from('users').select('id, ign, ff_uid').limit(100);
+          if (uRes && Array.isArray(uRes.data)) {
+            uRes.data.forEach(function(u) {
+              if (u.ign || u.ff_uid) {
+                window._spDistJoinedPlayers.push({ uid: u.id, ign: u.ign || '', ffUid: u.ff_uid || '', slot: '' });
+              }
+            });
+          }
+        }
+      }
+    } catch(e) {}
+
+    var h = '<div style="margin-bottom:14px">';
     h += '<div style="font-size:15px;font-weight:800;color:#ffd700;margin-bottom:4px">' + escHtml(d.name) + '</div>';
     h += '<div style="font-size:12px;color:#888">Prize Pool: <strong style="color:#00ff9c">₹' + (d.prizePool||0) + '</strong></div>';
     h += '</div>';
 
-    h += '<div style="background:rgba(0,255,156,.05);border:1px solid rgba(0,255,156,.15);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:#888;line-height:1.7">';
-    h += '☪️ <strong style="color:#00ff9c">Halal:</strong> Ye prize pool sponsor ka paisa hai.<br>';
-    h += 'Winners ke Firebase account mein <code>sponsoredWinnings</code> credit hogi.<br>';
-    h += 'Winners apne UPI pe withdraw request daal sakte hain.';
+    h += '<div style="background:rgba(0,255,156,.05);border:1px solid rgba(0,255,156,.15);border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:11.5px;color:#aaa;line-height:1.6">';
+    h += '☪️ <strong style="color:#00ff9c">Halal Sponsored Prize:</strong> Winner ka <b>IGN</b>, <b>FF UID</b>, ya <b>User UID</b> daalo — ya neeche Result Screenshot upload karke <b>⚡ OCR Auto-Fill</b> dabao.';
     h += '</div>';
 
-    h += '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px">Winner User IDs enter karo:</div>';
+    /* Result Screenshot Upload + OCR Auto-Fill Box */
+    h += '<div style="background:rgba(0,212,255,.04);border:1.5px dashed rgba(0,212,255,.3);border-radius:12px;padding:12px;margin-bottom:14px">';
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">';
+    h += '<div style="font-size:12px;font-weight:700;color:#00d4ff"><i class="fas fa-camera"></i> Match Result Screenshot (OCR)</div>';
+    h += '<div style="display:flex;gap:6px">';
+    h += '<button type="button" onclick="document.getElementById(\'spDistSsInput\').click()" class="btn btn-ghost btn-xs" style="border-color:rgba(0,212,255,.35);color:#00d4ff"><i class="fas fa-upload"></i> Upload Screenshot</button>';
+    h += '<button type="button" id="spDistOcrBtn" onclick="window._spDistRunOcr()" class="btn btn-xs" style="background:linear-gradient(135deg,#00ff9c,#00d4ff);color:#000;font-weight:800;border:none"><i class="fas fa-bolt"></i> ⚡ OCR Auto-Fill</button>';
+    h += '</div></div>';
+    h += '<input type="file" id="spDistSsInput" accept="image/*" multiple style="display:none" onchange="window._spDistHandleScreenshots(this)">';
+    h += '<div id="spDistSsPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>';
+    h += '<div id="spDistOcrStatus" style="font-size:11px;color:#aaa;margin-top:6px;display:none"></div>';
+    h += '</div>';
+
+    h += '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px">Winner Details (IGN / FF UID / User UID):</div>';
+
+    /* Datalist of joined players */
+    h += '<datalist id="spDistPlayersList">';
+    window._spDistJoinedPlayers.forEach(function(p) {
+      if (p.ign) h += '<option value="' + escHtml(p.ign) + '">' + escHtml(p.ign) + (p.ffUid ? ' (FF: ' + escHtml(p.ffUid) + ')' : '') + '</option>';
+      if (p.ffUid) h += '<option value="' + escHtml(p.ffUid) + '">' + escHtml(p.ign || 'Player') + ' — FF UID</option>';
+    });
+    h += '</datalist>';
 
     var prizes = d.prizes || {};
     var fields = [
@@ -277,30 +330,31 @@ window.openDistributePrizesModal = function(tourId) {
       { label: '🥈 2nd Place', key: 'w2', prize: prizes.second || 0, color: '#ccc' },
       { label: '🥉 3rd Place', key: 'w3', prize: prizes.third || 0, color: '#cd7f32' },
     ];
-    // 4th-10th
     for (var i = 4; i <= 10; i++) {
       if (prizes.fourthToTenth > 0) {
-        fields.push({ label: '#' + i + ' Place', key: 'w' + i, prize: prizes.fourthToTenth, color: '#666' });
+        fields.push({ label: '#' + i + ' Place', key: 'w' + i, prize: prizes.fourthToTenth, color: '#888' });
       }
     }
 
     fields.forEach(function(f) {
       h += '<div class="form-group" style="margin-bottom:10px">';
       h += '<label style="color:' + f.color + '">' + f.label + ' — <strong>₹' + f.prize + '</strong></label>';
-      h += '<input type="text" id="dist_' + f.key + '" class="form-input" placeholder="Firebase UID ya IGN" style="font-size:12px">';
+      h += '<input type="text" id="dist_' + f.key + '" list="spDistPlayersList" class="form-input" placeholder="IGN, FF UID, ya User UID enter karo" style="font-size:12px">';
       h += '</div>';
     });
 
-    h += '<button onclick="confirmDistributePrizes(\'' + tourId + '\')" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#ffd700,#ff8c00);border:none;color:#000;font-size:14px;font-weight:800;cursor:pointer;margin-top:8px"><i class="fas fa-trophy"></i> Prizes Distribute Karo</button>';
+    h += '<button id="spDistSubmitBtn" onclick="confirmDistributePrizes(\'' + tourId + '\')" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#ffd700,#ff8c00);border:none;color:#000;font-size:14px;font-weight:800;cursor:pointer;margin-top:8px"><i class="fas fa-trophy"></i> Prizes Distribute Karo</button>';
+
+    var existingModal = document.getElementById('distModal');
+    if (existingModal) existingModal.remove();
 
     if (window.openModal) {
       openModal('🏆 Distribute Prizes', h);
     } else {
-      // Fallback: use a simple admin modal if available
       var m = document.createElement('div');
       m.id = 'distModal';
       m.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center';
-      m.innerHTML = '<div style="background:#1a1a2e;border:1px solid rgba(255,215,0,.25);border-radius:20px;padding:24px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto">' +
+      m.innerHTML = '<div style="background:#1a1a2e;border:1px solid rgba(255,215,0,.25);border-radius:20px;padding:24px;max-width:500px;width:92%;max-height:90vh;overflow-y:auto">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:16px;font-weight:800;color:#ffd700">🏆 Distribute Prizes</span><button onclick="document.getElementById(\'distModal\').remove()" style="background:rgba(255,255,255,.08);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer">✕</button></div>' +
         h + '</div>';
       document.body.appendChild(m);
@@ -311,55 +365,177 @@ window.openDistributePrizesModal = function(tourId) {
   });
 };
 
-window.confirmDistributePrizes = function(tourId) {
+window._spDistHandleScreenshots = function(inp) {
+  if (!inp || !inp.files || !inp.files.length) return;
+  var prev = document.getElementById('spDistSsPreview');
+  var st = document.getElementById('spDistOcrStatus');
+  Array.from(inp.files).forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      window._spDistScreenshots.push(e.target.result);
+      if (prev) {
+        var img = document.createElement('img');
+        img.src = e.target.result;
+        img.style.cssText = 'width:72px;height:48px;object-fit:cover;border-radius:6px;border:1px solid rgba(0,212,255,.4)';
+        prev.appendChild(img);
+      }
+      if (st) {
+        st.style.display = 'block';
+        st.style.color = '#00ff9c';
+        st.textContent = '✅ ' + window._spDistScreenshots.length + ' screenshot ready — "⚡ OCR Auto-Fill" dabao!';
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+window._spDistRunOcr = async function() {
+  var st = document.getElementById('spDistOcrStatus');
+  if (!window._spDistScreenshots || !window._spDistScreenshots.length) {
+    var inp = document.getElementById('spDistSsInput');
+    if (inp) inp.click();
+    if (st) { st.style.display = 'block'; st.style.color = '#ffaa00'; st.textContent = '📸 Pehle result screenshot select karo!'; }
+    return;
+  }
+  if (st) { st.style.display = 'block'; st.style.color = '#00d4ff'; st.innerHTML = '<i class="fas fa-spinner fa-spin"></i> OCR scanning screenshot...'; }
+
+  try {
+    if (!window.Tesseract) {
+      await new Promise(function(res, rej) {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    var fullText = '';
+    for (var i = 0; i < window._spDistScreenshots.length; i++) {
+      var r = await window.Tesseract.recognize(window._spDistScreenshots[i], 'eng');
+      fullText += '\n' + ((r && r.data && r.data.text) || '');
+    }
+    var lines = fullText.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l.length >= 2; });
+    var matchedWinners = [];
+    var players = window._spDistJoinedPlayers || [];
+    var norm = function(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+
+    /* 1. Match against joined players in order of appearance in scoreboard */
+    lines.forEach(function(line) {
+      var nl = norm(line);
+      if (nl.length < 3) return;
+      players.forEach(function(p) {
+        var np = norm(p.ign);
+        var nf = norm(p.ffUid);
+        if ((np.length >= 3 && nl.indexOf(np) !== -1) || (nf.length >= 5 && nl.indexOf(nf) !== -1)) {
+          var val = p.ign || p.ffUid || p.uid;
+          if (val && matchedWinners.indexOf(val) === -1) matchedWinners.push(val);
+        }
+      });
+    });
+
+    /* 2. Fallback: extract clean player tokens from scoreboard lines if no joined players matched */
+    if (!matchedWinners.length) {
+      var skipRe = /^(booyah|match|result|rank|kills|damage|score|total|squad|solo|duo|bermuda|purgatory|kalahari|alpine|nextera|free|fire|victory|defeat|mvp|team|name|player|status)$/i;
+      lines.forEach(function(line) {
+        var tokens = line.split(/\s+/).filter(function(tok) {
+          var cl = tok.replace(/[^a-zA-Z0-9_.-]/g, '');
+          return cl.length >= 3 && !/^\d+$/.test(cl) && !skipRe.test(cl);
+        });
+        if (tokens.length) {
+          var candidate = tokens[0].replace(/[^a-zA-Z0-9_.-]/g, '');
+          if (candidate.length >= 3 && matchedWinners.indexOf(candidate) === -1) {
+            matchedWinners.push(candidate);
+          }
+        }
+      });
+    }
+
+    var fields = window._distFields || [];
+    var filled = 0;
+    fields.forEach(function(f, idx) {
+      var inpEl = document.getElementById('dist_' + f.key);
+      if (inpEl && matchedWinners[idx]) {
+        inpEl.value = matchedWinners[idx];
+        inpEl.style.borderColor = '#00ff9c';
+        filled++;
+      }
+    });
+
+    if (st) {
+      if (filled > 0) {
+        st.style.color = '#00ff9c';
+        st.textContent = '✅ OCR Auto-Filled ' + filled + ' winner(s): ' + matchedWinners.slice(0, filled).join(', ');
+      } else {
+        st.style.color = '#ffaa00';
+        st.textContent = '⚠️ Screenshot se naam match nahi hua — manually IGN ya FF UID enter karo.';
+      }
+    }
+  } catch (err) {
+    if (st) {
+      st.style.color = '#ff4444';
+      st.textContent = '❌ OCR Error: ' + (err && err.message ? err.message : 'Scan failed');
+    }
+  }
+};
+
+window.confirmDistributePrizes = async function(tourId) {
   var fields = window._distFields || [];
   var updates = [];
 
   fields.forEach(function(f) {
     var uid = ((document.getElementById('dist_' + f.key)||{}).value||'').trim();
-    if (uid && f.prize > 0) {
-      updates.push({ uid: uid, prize: f.prize, rank: f.label });
+    if (uid && Number(f.prize) > 0) {
+      updates.push({ uid: uid, prize: Number(f.prize), rank: f.label });
     }
   });
 
-  if (!updates.length) { showToast('Koi winner UID nahi diya', true); return; }
+  if (!updates.length) { showToast('Koi winner IGN / FF UID / User UID nahi diya', true); return; }
+  if (!window._supa) { showToast('Supabase client not ready', true); return; }
 
-  /* ✅ R5 (2026-09-23): prize-credit ab SERVER-authoritative — admin ke browser
-     se direct Firebase sponsoredWinnings transaction hata diya (ye balance-asset
-     hai; server admin_distribute_sponsored_prize admin-guard + ledger row खुद
-     बनाता है)। Firebase ab sirf notification mirror. */
-  var done = 0, failed = 0;
-  updates.forEach(function(u) {
-    if (!window._supa) { failed++; return; }
-    window._supa.rpc('admin_distribute_sponsored_prize', {
-      p_uid: u.uid, p_amount: u.prize, p_tour_id: tourId, p_rank: u.rank
-    }).then(function(r) {
-      if (r.error || (r.data && r.data.success === false)) { failed++; }
-      else { done++; }
-      /* notification (Firebase display only) */
-      if (window.rtdb) {
-        window.rtdb.ref('users/' + u.uid + '/notifications').push({
-          type: 'sponsored_prize',
-          title: '🏆 Sponsored Prize Mili!',
-          message: u.rank + ' — ₹' + u.prize + ' aapke wallet mein add ho gayi! Wallet > Withdraw se UPI pe bhej sakte hain.',
-          read: false, timestamp: Date.now()
-        });
+  var btn = document.getElementById('spDistSubmitBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Distributing Prizes...'; }
+
+  var done = 0, failed = 0, lastErr = '';
+  for (var i = 0; i < updates.length; i++) {
+    var u = updates[i];
+    try {
+      var r = await window._supa.rpc('admin_distribute_sponsored_prize', {
+        p_uid: u.uid, p_amount: u.prize, p_tour_id: tourId, p_rank: u.rank
+      });
+      if (r.error || (r.data && r.data.success === false)) {
+        failed++;
+        lastErr = (r.data && r.data.error) || (r.error && r.error.message) || 'user_not_found';
+      } else {
+        done++;
+        var targetUid = (r.data && r.data.resolved_uid) || u.uid;
+        if (window.rtdb) {
+          window.rtdb.ref('users/' + targetUid + '/notifications').push({
+            type: 'sponsored_prize',
+            title: '🏆 Sponsored Prize Mili!',
+            message: u.rank + ' — ₹' + u.prize + ' aapke wallet mein add ho gayi! Wallet > Withdraw se UPI pe bhej sakte hain.',
+            read: false, timestamp: Date.now()
+          });
+        }
       }
-    }).catch(function() { failed++; });
-  });
+    } catch (e) {
+      failed++;
+      lastErr = e && e.message ? e.message : 'RPC error';
+    }
+  }
 
-  /* Mark tournament as distributed (Firebase display) */
-  (window.rtdb||window.db).ref('sponsoredTournaments/' + tourId).update({
-    prizeDistributed: true, distributedAt: Date.now(), status: 'completed'
-  });
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trophy"></i> Prizes Distribute Karo'; }
 
-  if (window.closeModal) closeModal();
-  var dm = document.getElementById('distModal');
-  if (dm) dm.remove();
+  if (done > 0) {
+    (window.rtdb||window.db).ref('sponsoredTournaments/' + tourId).update({
+      prizeDistributed: true, distributedAt: Date.now(), status: 'completed'
+    });
+    if (window.closeModal) closeModal();
+    var dm = document.getElementById('distModal');
+    if (dm) dm.remove();
+  }
 
   showToast(failed === 0
     ? ('✅ ' + done + ' winners ko prizes credit ho gaye!')
-    : ('⚠️ ' + done + ' credited, ' + failed + ' fail (server ne reject kiya)'), false);
+    : ('⚠️ ' + done + ' credited, ' + failed + ' fail (' + lastErr + ')'), failed > 0 && done === 0);
   loadSponsoredTournaments();
 };
 

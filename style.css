@@ -168,10 +168,26 @@ body {
   font-weight: 700 !important;
 }
 
-/* ── Tables — pro look ── */
+/* ── Tables — pro look + Universal Mobile Horizontal Scroll ── */
+.main-content, .section, .card, .card-body, .card-body.compact {
+  min-width: 0 !important;
+}
+.table-wrapper, .table-container, .table-responsive {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-x pan-y !important;
+}
 table {
   border-collapse: separate !important;
   border-spacing: 0 !important;
+  min-width: 650px !important;
+}
+th, td {
+  white-space: nowrap !important;
 }
 
 /* ✅ FIX (2026-08-21): tables (Season Pass Requests, Cosmetics Revenue,

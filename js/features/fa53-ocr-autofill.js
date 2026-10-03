@@ -2186,21 +2186,10 @@ async function runLobby(files){
   _lBusy=false;
 }
 
-/* Update verified count in section header */
+/* Update verified count in section header — disabled per Task 8 (Verify column removed) */
 function _updateVerifiedCounter(){
-  var allWraps=document.querySelectorAll('.verify-chk-wrap, .tm-vchk');
-  var total=allWraps.length,verified=0;
-  allWraps.forEach(function(el){if((el.style.borderColor||'').includes('00ff9c')||el.dataset.verified==='true')verified++;});
   var badge=document.getElementById('_ocrVerifiedBadge');
-  if(!badge){
-    var countEl=document.getElementById('joinedCount');
-    if(countEl&&countEl.parentNode){
-      badge=document.createElement('span');badge.id='_ocrVerifiedBadge';
-      badge.style.cssText='margin-left:8px;font-size:11px;color:#00ff9c;font-weight:700;background:rgba(0,255,156,.1);border:1px solid rgba(0,255,156,.25);border-radius:12px;padding:2px 9px';
-      countEl.parentNode.insertBefore(badge,countEl.nextSibling);
-    }
-  }
-  if(badge)badge.textContent='✅ '+verified+'/'+total+' verified';
+  if(badge&&badge.parentNode) badge.parentNode.removeChild(badge);
 }
 
 function _collectVerifyRows(){

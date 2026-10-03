@@ -124,17 +124,17 @@ h1,h2,h3,h4,h5,h6,.section-title,.login-title,.sidebar-brand,.stat-card h3,.topb
 .stat-card .sub{font-size:10px;color:var(--text-muted);margin-top:3px}
 
 /* CARDS */
-.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;min-width:0;max-width:100%}
 .card-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:12px}
 .card-header i{color:var(--primary);margin-right:6px}
-.card-body{padding:14px}
-.card-body.compact{padding:10px}
+.card-body{padding:14px;min-width:0;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.card-body.compact{padding:10px;min-width:0;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 
 /* TABLE */
-.table-wrapper{overflow-x:auto;overflow-y:auto;max-height:70vh;border-radius:6px;-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;font-size:12px;min-width:600px}
-th{position:sticky;top:0;background:var(--bg-dark);color:var(--text-muted);padding:8px 10px;text-align:left;font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);z-index:1}
-td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.table-wrapper{display:block;width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:auto;max-height:70vh;border-radius:6px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:650px}
+th{position:sticky;top:0;background:var(--bg-dark);color:var(--text-muted);padding:8px 10px;text-align:left;font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);z-index:1;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;white-space:nowrap}
 tr:hover td{background:rgba(255,255,255,.015)}
 
 /* IDENTITY TAG */
@@ -486,13 +486,43 @@ th,td{padding:6px 8px}
    Prevents horizontal clipping of action toolbars, filter bars, card headers,
    and 2-column stat cards on 375x812 mobile viewports.
    ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .main-content {
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+  .section, .card, .card-body, .card-body.compact {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .table-wrapper, .table-container, .table-responsive, .card-body {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+  }
+}
 @media (max-width: 600px) {
   .hide-mobile {
     display: none !important;
   }
-  .main-content, .section, .card, .card-body {
-    max-width: 100vw;
-    box-sizing: border-box;
+  .main-content {
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+  }
+  .section, .card, .card-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
   .section-header,
   .card-header,

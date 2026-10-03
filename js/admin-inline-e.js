@@ -573,8 +573,9 @@ window.calcPrize = function(inp) {
   var tw=(isTM&&ft==='captain_pays')?0:(rp+kp);
   var cell=row.querySelector('.prize-cell');
   if(!cell) return;
+  var _pSymE = window._admPrizeSym ? window._admPrizeSym(window.currentTournamentData) : '₹';
   if(isTM&&ft==='captain_pays'){cell.style.color='#555';cell.innerHTML='<span style="font-size:9px;color:#555">→ Cap</span>';}
-  else{cell.style.color=tw>0?'var(--primary)':'#aaa';var bd=(rp||kp)?'<br><span style="font-size:9px;color:#888">'+(rp?'R:₹'+rp:'')+(rp&&kp?'+':'')+(kp?k+'k×₹'+d.pk:'')+'</span>':'';cell.innerHTML='<span style="font-weight:800">₹'+tw+'</span>'+bd;}
+  else{cell.style.color=tw>0?'var(--primary)':'#aaa';var bd=(rp||kp)?'<br><span style="font-size:9px;color:#888">'+(rp?'R:'+_pSymE+rp:'')+(rp&&kp?'+':'')+(kp?k+'k×'+_pSymE+d.pk:'')+'</span>':'';cell.innerHTML='<span style="font-weight:800">'+_pSymE+tw+'</span>'+bd;}
   row.dataset.prize=tw; row.dataset.rank=r; row.dataset.kills=k;
 };
 window.adminCalcPrize = window.calcPrize;
@@ -627,10 +628,11 @@ window.loadMatchHistoryResult = async function() {
     ]);
     var match = res[0].val()||{};
     var f1=Number(match.firstPrize)||0, f2=Number(match.secondPrize)||0, f3=Number(match.thirdPrize)||0, pk=Number(match.perKillPrize)||0;
-    window._MHD = {mid:mid,f1:f1,f2:f2,f3:f3,pk:pk};
+    window._MHD = {mid:mid,f1:f1,f2:f2,f3:f3,pk:pk,match:match};
+    var _mhPSym = window._admPrizeSym ? window._admPrizeSym(match) : '₹';
     /* Set data attrs on mh tbody */
     if(tbody){ tbody.dataset.f1=f1; tbody.dataset.f2=f2; tbody.dataset.f3=f3; tbody.dataset.pk=pk; }
-    if(prizeInfo) prizeInfo.innerHTML='<i class="fas fa-calculator"></i> 🥇₹'+f1+' 🥈₹'+f2+' 🥉₹'+f3+(pk?' | 💀₹'+pk+'/Kill':'');
+    if(prizeInfo) prizeInfo.innerHTML='<i class="fas fa-calculator"></i> 🥇'+_mhPSym+f1+' 🥈'+_mhPSym+f2+' 🥉'+_mhPSym+f3+(pk?' | 💀'+_mhPSym+pk+'/Kill':'');
     /* Existing results */
     window._MHR = {};
     if(res[2].exists()) res[2].forEach(function(c){ var d=c.val(); if(d.userId) window._MHR[d.userId]={key:c.key,rank:d.rank||0,kills:d.kills||0,winnings:d.winnings||d.totalWinning||0,rankPrize:d.rankPrize||0,killPrize:d.killPrize||0}; });
@@ -654,9 +656,10 @@ window.loadMatchHistoryResult = async function() {
       var preR=er.rank||0, preK=er.kills||0;
       var preRp=preR===1?f1:preR===2?f2:preR===3?f3:0, preKp=preK*pk;
       var preTw=(isTM==='1'&&ft==='captain_pays')?0:(preRp+preKp);
+      var _mhESym = window._admEntrySym ? window._admEntrySym(match, j) : '₹';
       var prizeHtml;
       if(isTM==='1'&&ft==='captain_pays') prizeHtml='<span style="font-size:9px;color:#555">→ Cap</span>';
-      else prizeHtml='<span style="font-weight:800;color:'+(preTw>0?'var(--primary)':'#aaa')+'">₹'+preTw+'</span>'+(preRp||preKp?'<br><span style="font-size:9px;color:#888">'+(preRp?'R:₹'+preRp:'')+(preRp&&preKp?'+':'')+(preKp?preK+'k×₹'+pk:'')+'</span>':'');
+      else prizeHtml='<span style="font-weight:800;color:'+(preTw>0?'var(--primary)':'#aaa')+'">'+_mhPSym+preTw+'</span>'+(preRp||preKp?'<br><span style="font-size:9px;color:#888">'+(preRp?'R:'+_mhPSym+preRp:'')+(preRp&&preKp?'+':'')+(preKp?preK+'k×'+_mhPSym+pk:'')+'</span>':'');
       var feeNote=(ft==='captain_pays'&&isTM==='1')?'<span style="font-size:9px;background:rgba(0,212,255,.12);color:#00d4ff;padding:1px 5px;border-radius:4px;margin-left:4px">Cap</span>':(ft==='each_pays'?'<span style="font-size:9px;background:rgba(0,255,156,.1);color:#00ff9c;padding:1px 5px;border-radius:4px;margin-left:4px">Self</span>':'');
       html+='<tr data-uid="'+uid+'" data-name="'+nm.toLowerCase()+'" data-feetype="'+ft+'" data-captainuid="'+capUid+'" data-isteam="'+isTM+'">';
       html+='<td style="color:#666;font-size:11px;padding:5px 4px">'+cnt+'</td>';
@@ -664,7 +667,7 @@ window.loadMatchHistoryResult = async function() {
       html+='<td style="padding:5px 4px;color:#00d4ff;font-family:monospace;font-size:10px">'+ff+'</td>';
       html+='<td style="padding:5px 4px;color:#aaa;font-size:11px">'+slot+'</td>';
       html+='<td style="padding:5px 4px;color:#aaa;font-size:10px;font-weight:700">'+mode+'</td>';
-      html+='<td style="padding:5px 4px;color:#ffd700;font-size:11px">₹'+entry+'</td>';
+      html+='<td style="padding:5px 4px;color:#ffd700;font-size:11px">'+_mhESym+entry+'</td>';
       html+='<td style="padding:5px 4px;text-align:center"><input type="number" class="mh-rank" placeholder="0" min="0" value="'+preR+'" oninput="mhCalcPrize(this)" style="width:44px;padding:4px;border-radius:6px;background:var(--bg-dark);border:1px solid var(--border);color:#ffd700;font-size:12px;text-align:center;font-weight:700"></td>';
       html+='<td style="padding:5px 4px;text-align:center"><input type="number" class="mh-kills" placeholder="0" min="0" value="'+preK+'" oninput="mhCalcPrize(this)" style="width:44px;padding:4px;border-radius:6px;background:var(--bg-dark);border:1px solid var(--border);color:#ff6b6b;font-size:12px;text-align:center;font-weight:700"></td>';
       html+='<td class="mh-prize" style="padding:5px 4px;font-size:11px">'+prizeHtml+'</td>';
@@ -681,11 +684,12 @@ window.mhCalcPrize = function(inp) {
   var k=Number((row.querySelector('.mh-kills')||{}).value)||0;
   var r=Number((row.querySelector('.mh-rank')||{}).value)||0;
   var d=window._MHD||{f1:0,f2:0,f3:0,pk:0};
+  var _mhPSym = (window._admPrizeSym && d.match) ? window._admPrizeSym(d.match) : '₹';
   var rp=r===1?d.f1:r===2?d.f2:r===3?d.f3:0, kp=k*d.pk;
   var isTM=row.dataset.isteam==='1', ft=row.dataset.feetype||'solo';
   var tw=(isTM&&ft==='captain_pays')?0:(rp+kp);
   var cell=row.querySelector('.mh-prize');
-  if(cell){ var bd=(rp||kp)?'<br><span style="font-size:9px;color:#888">'+(rp?'R:₹'+rp:'')+(rp&&kp?'+':'')+(kp?k+'k×₹'+d.pk:'')+'</span>':''; cell.innerHTML='<span style="font-weight:800;color:'+(tw>0?'var(--primary)':'#aaa')+'">₹'+tw+'</span>'+bd; }
+  if(cell){ var bd=(rp||kp)?'<br><span style="font-size:9px;color:#888">'+(rp?'R:'+_mhPSym+rp:'')+(rp&&kp?'+':'')+(kp?k+'k×'+_mhPSym+d.pk:'')+'</span>':''; cell.innerHTML='<span style="font-weight:800;color:'+(tw>0?'var(--primary)':'#aaa')+'">'+_mhPSym+tw+'</span>'+bd; }
 };
 
 window.mhFilterRows = function(s) {

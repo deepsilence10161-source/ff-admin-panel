@@ -133,7 +133,9 @@
       else {
         h += '<table><thead><tr><th>#</th><th>Match</th><th>Status</th><th>Entry</th><th>Slots</th><th>Prize Pool</th></tr></thead><tbody>';
         topM.forEach(function (m, i) {
-          h += '<tr><td>' + (i + 1) + '</td><td><strong>' + esc(m.name || '?') + '</strong></td><td class="text-xs">' + esc(m.status || '-') + '</td><td>₹' + (Number(m.entry_fee) || 0) + '</td><td class="text-xs">' + (m.filled_slots == null ? '-' : m.filled_slots) + '/' + (m.max_slots == null ? '-' : m.max_slots) + '</td><td class="text-primary font-bold">₹' + (Number(m.prize_pool) || 0) + '</td></tr>';
+          var _eSymTop = window._admEntrySym ? window._admEntrySym(m) : '₹';
+          var _pSymTop = window._admPrizeSym ? window._admPrizeSym(m) : '₹';
+          h += '<tr><td>' + (i + 1) + '</td><td><strong>' + esc(m.name || '?') + '</strong></td><td class="text-xs">' + esc(m.status || '-') + '</td><td>' + _eSymTop + (Number(m.entry_fee) || 0) + '</td><td class="text-xs">' + (m.filled_slots == null ? '-' : m.filled_slots) + '/' + (m.max_slots == null ? '-' : m.max_slots) + '</td><td class="text-primary font-bold">' + _pSymTop + (Number(m.prize_pool) || 0) + '</td></tr>';
         });
         h += '</tbody></table>';
       }
