@@ -1,6 +1,6 @@
 /* ================================================================
    MINI eSPORTS ADMIN — fixes-admin-v9.js
-   1. Replace remaining <img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> with green-diamond image
+   1. Replace remaining <img src="green-diamond.png?v=20261003a" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> with green-diamond image
    2. Green Diamond currency uses UD.greenDiamonds field
    3. Correct match type → prize currency labels
    4. Manual wallet: green=greenDiamonds path
@@ -9,16 +9,16 @@
 (function(){
 'use strict';
 
-var GD = '<img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
-var GD_LG = '<img src="green-diamond.png" style="width:18px;height:18px;vertical-align:middle;object-fit:contain;display:inline-block">';
+var GD = '<img src="green-diamond.png?v=20261003a" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+var GD_LG = '<img src="green-diamond.png?v=20261003a" style="width:18px;height:18px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window.ADMIN_GD = GD;
 
 function replaceGDInNode(node){
   if(!node) return;
   if(node.nodeType===3){
-    if(node.textContent.indexOf('<img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">')!==-1){
+    if(node.textContent.indexOf('<img src="green-diamond.png?v=20261003a" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">')!==-1){
       var sp=document.createElement('span');
-      sp.innerHTML=node.textContent.replace(/<img src="green-diamond.png" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">/g,GD);
+      sp.innerHTML=node.textContent.replace(/<img src="green-diamond.png?v=20261003a" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">/g,GD);
       node.parentNode.replaceChild(sp,node);
     }
     return;
