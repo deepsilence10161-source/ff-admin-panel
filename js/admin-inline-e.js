@@ -185,7 +185,7 @@ async function toggleVerify(reqKey, el) {
          isliye PostgREST poora statement 400 (PGRST204) se reject kar deta tha aur
          checked_in/in_room bhi kabhi save nahi hote the — jabki admin ko
          "✅ Player verified!" toast dikhta tha (silent failure). */
-      window._supa.from('join_requests').update({
+      await window._supa.from('join_requests').update({
         checked_in:newState,
         in_room:newState,
         checkin_at:newState?new Date().toISOString():null

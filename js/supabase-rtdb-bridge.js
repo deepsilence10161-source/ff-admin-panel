@@ -507,9 +507,15 @@
        core/db-bridge.js upserts exactly those). Before this fix, ANY
        admin-side join-request CREATE (e.g. Fix Team JRs) carried
        player_name/ff_uid/phone and the whole insert was rejected. */
-    if (d.playerName !== undefined || d.ign !== undefined || d.userName !== undefined)
-                         s.ign_at_join   = d.playerName || d.ign || d.userName;
-    if (d.slotNumber !== undefined) s.slot_number = d.slotNumber;
+    if (d.playerName !== undefined || d.ign !== undefined || d.userName !== undefined) {
+      var _ignVal = d.playerName || d.ign || d.userName;
+      s.ign_at_join = _ignVal;
+      s.user_ign    = _ignVal;
+    }
+    if (d.ffUid !== undefined || d.userFFUID !== undefined || d.gameUid !== undefined || d.playerFfUid !== undefined) {
+      s.user_ff_uid = d.ffUid || d.userFFUID || d.gameUid || d.playerFfUid;
+    }
+    if (d.slotNumber !== undefined) s.slot_number = Number(d.slotNumber) || null;
     if (d.status   !== undefined) s.status      = d.status;
     if (d.entryFee !== undefined) s.entry_fee   = d.entryFee;
     if (d.entryType !== undefined) s.entry_type = d.entryType;
@@ -546,11 +552,14 @@
       oderId:        row.user_id,
       matchId:       row.match_id,
       tournamentId:  row.match_id,
-      /* ✅ FIX (2026-08-18): read real columns (ign_at_join / squad_members)
-         — player_name/ff_uid/phone/team_members don't exist on the table. */
-      playerName:    row.ign_at_join  || '',
-      ign:           row.ign_at_join  || '',
-      userName:      row.ign_at_join  || '',
+      /* ✅ FIX (2026-08-18 + 2026-10-03): read real columns (ign_at_join / user_ign / user_ff_uid / squad_members) */
+      playerName:    row.ign_at_join  || row.user_ign || '',
+      ign:           row.ign_at_join  || row.user_ign || '',
+      userName:      row.ign_at_join  || row.user_ign || '',
+      ffUid:         row.user_ff_uid  || '',
+      userFFUID:     row.user_ff_uid  || '',
+      gameUid:       row.user_ff_uid  || '',
+      playerFfUid:   row.user_ff_uid  || '',
       slotNumber:    row.slot_number  || null,
       slot:          row.slot_number  || null,
       status:        row.status       || 'joined',

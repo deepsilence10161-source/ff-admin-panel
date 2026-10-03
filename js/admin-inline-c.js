@@ -91,8 +91,12 @@ async function loadTournaments(){
     });
     var tb=document.getElementById('tournamentsTable');if(tb)tb.innerHTML='';var cnt=0;
     var rS=document.getElementById('resultTournamentSelect'),nS=document.getElementById('notifTournamentSelect'),jF=document.getElementById('joinedTournamentFilter');
-    if(rS)rS.innerHTML='<option value="">-- Select --</option>';
     var mhSel=document.getElementById('mhMatchSelect');
+    var _prevRS = rS ? rS.value : '';
+    var _prevMH = mhSel ? mhSel.value : '';
+    var _prevNS = nS ? nS.value : '';
+    var _prevJF = jF ? jF.value : '';
+    if(rS)rS.innerHTML='<option value="">-- Select --</option>';
     if(mhSel)mhSel.innerHTML='<option value="">-- Select Match --</option>';
     if(nS)nS.innerHTML='<option value="">-- Select --</option>';
     if(jF)jF.innerHTML='<option value="all">All</option>';
@@ -166,6 +170,9 @@ async function loadTournaments(){
       }
       nS.innerHTML+='<option value="'+id+'">'+d.name+'</option>';
     });
+    if(rS && _prevRS && Array.from(rS.options).some(function(o){return o.value===_prevRS;})) rS.value = _prevRS;
+    if(mhSel && _prevMH && Array.from(mhSel.options).some(function(o){return o.value===_prevMH;})) mhSel.value = _prevMH;
+    if(nS && _prevNS && Array.from(nS.options).some(function(o){return o.value===_prevNS;})) nS.value = _prevNS;
     /* Show empty message if no matches */
     if(cnt===0){
       tb.innerHTML='<tr><td colspan="9" class="text-muted text-xs" style="text-align:center;padding:20px"><i class="fas fa-trophy" style="font-size:24px;opacity:0.3;display:block;margin-bottom:8px"></i>No matches found. Click "Create" to add a new match.</td></tr>';
@@ -176,6 +183,7 @@ async function loadTournaments(){
     
     /* Populate joined tournament filter */
     populateJoinedFilter();
+    if(jF && _prevJF && Array.from(jF.options).some(function(o){return o.value===_prevJF;})) jF.value = _prevJF;
     loadJoinedPlayers();
   }catch(e){
     console.error('loadTournaments Error:',e);
@@ -1522,7 +1530,22 @@ async function loadParticipants(){
   var mid=document.getElementById('resultTournamentSelect').value,ct=document.getElementById('resultsContainer'),ls=document.getElementById('participantsList');
   if(!mid){ct.style.display='none';return;}
   ct.style.display='block';
-  ls.innerHTML='<tr><td colspan="11" class="text-muted text-xs" style="padding:12px;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+  /* Preserve any unsaved rank/kills inputs when refreshing the same match */
+  var _unsavedInputs = {};
+  var _sameMatch = (ls.getAttribute('data-mid') === mid);
+  if (_sameMatch) {
+    ls.querySelectorAll('tr[data-uid]').forEach(function(row){
+      var u = row.getAttribute('data-uid');
+      var rInp = row.querySelector('.rank-input');
+      var kInp = row.querySelector('.kills-input');
+      var rVal = rInp ? Number(rInp.value)||0 : 0;
+      var kVal = kInp ? Number(kInp.value)||0 : 0;
+      if (u && (rVal > 0 || kVal > 0)) _unsavedInputs[u] = { rank: rVal, kills: kVal };
+    });
+  } else {
+    ls.innerHTML='<tr><td colspan="11" class="text-muted text-xs" style="padding:12px;text-align:center"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+  }
+  ls.setAttribute('data-mid', mid);
   try{
     /* Always fetch fresh from Firebase — allTournaments cache might miss perKillPrize */
     var _freshSnap = await rtdb.ref('matches/'+mid).once('value');
@@ -1576,10 +1599,11 @@ async function loadParticipants(){
         var jCaptainUid = j.captainUid || '';
         var jIsTeamMember = j.isTeamMember ? '1' : '0';
         
-        // Pre-fill rank/kills if result already exists
+        // Pre-fill rank/kills if result already exists or if admin has unsaved inputs
         var er = existingResults[uid] || {};
-        var preRank = er.rank || 0;
-        var preKills = er.kills || 0;
+        var unsaved = _unsavedInputs[uid] || {};
+        var preRank = unsaved.rank || er.rank || 0;
+        var preKills = unsaved.kills || er.kills || 0;
         var preRp = er.winnings || 0;
         
         // Show badge if this player's winnings go to captain (captain_pays + isTeamMember)
