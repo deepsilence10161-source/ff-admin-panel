@@ -198,19 +198,10 @@
     return true;
   }
 
-  /* chhota badge (visual proof ki enhanced engine chalu hai) */
+  /* chhota badge disabled per UI cleanup — floating refresh button sits at bottom-right */
   function _badge() {
-    if (!_opts.badge || document.getElementById('fa53plusBadge')) return;
-    try {
-      var b = document.createElement('div');
-      b.id = 'fa53plusBadge';
-      b.title = 'OCR v4 PLUS: result-cache + DPI + worker-pool + deskew + learning';
-      b.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:9998;background:rgba(0,255,156,.12);' +
-        'border:1px solid rgba(0,255,156,.35);color:#00ff9c;font:700 10px/1.2 system-ui;padding:4px 8px;' +
-        'border-radius:20px;pointer-events:none;opacity:.75';
-      b.textContent = '⚡ OCR v4';
-      (document.body || document.documentElement).appendChild(b);
-    } catch (e) {}
+    var old = document.getElementById('fa53plusBadge');
+    if (old) { try { old.remove(); } catch(e) {} }
   }
 
   /* ───────────────────────── 4. worker pool (batch parallelism) ───────────── */

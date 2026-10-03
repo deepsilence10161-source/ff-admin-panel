@@ -2201,6 +2201,20 @@
 
   var _channels = {};
   var _pollingTimers = {};
+  var _listenerSeq = 0;
+
+  /* Re-fire all active bridge listeners as soon as admin Firebase JWT is synced */
+  window.addEventListener('supabase:authenticated', function() {
+    setTimeout(function() {
+      var all = window._bridgeTableRefreshers || {};
+      Object.keys(all).forEach(function(tbl) {
+        var map = all[tbl] || {};
+        Object.keys(map).forEach(function(k) {
+          try { map[k](); } catch(_e) {}
+        });
+      });
+    }, 150);
+  });
 
   function setupRealtimeListener(p, callback, query) {
     var supa = getSupa();
@@ -2210,7 +2224,7 @@
     if (!mapping) return function() {};
 
     var table = mapping.table;
-    var channelKey = p.raw;
+    var channelKey = p.raw + '#' + (++_listenerSeq);
 
     /* Remove existing channel */
     if (_channels[channelKey]) {

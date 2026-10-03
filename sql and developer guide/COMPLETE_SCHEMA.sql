@@ -24840,7 +24840,156 @@ CREATE POLICY uploads_public_read ON storage.objects
   FOR SELECT TO public
   USING (bucket_id = 'uploads');
 
--- ══════════════ END SECTION 61 — consolidated final state (v34 · 2026-10-03) ══════════════
+-- ── 61.8  Authenticated EXECUTE Grants, Notification RLS/Guard & Leaderboard Sync (2026-10-03) ──
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND has_function_privilege('anon', p.oid, 'EXECUTE')
+      AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+  LOOP
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', r.sig);
+  END LOOP;
+END $$;
+
+DROP POLICY IF EXISTS notif_insert ON public.notifications;
+CREATE POLICY notif_insert ON public.notifications
+  FOR INSERT TO public
+  WITH CHECK (
+    public.is_caller_admin()
+    OR ((auth.jwt() ->> 'sub') IS NOT NULL AND (
+      user_id = (auth.jwt() ->> 'sub')
+      OR (
+        user_id <> 'global'
+        AND COALESCE(type, '') IN (
+          'team_join', 'team_cancel', 'team_invite',
+          'gift_received', 'gift_sent', 'coin_gift',
+          'referral_bonus', 'referral',
+          'clan_invite', 'clan_join', 'clan_war',
+          'creator_match', 'match_reminder'
+        )
+      )
+    ))
+  );
+
+DROP POLICY IF EXISTS notif_delete_own ON public.notifications;
+CREATE POLICY notif_delete_own ON public.notifications
+  FOR DELETE TO public
+  USING (
+    public.is_caller_admin()
+    OR ((auth.jwt() ->> 'sub') IS NOT NULL AND user_id = (auth.jwt() ->> 'sub'))
+  );
+
+CREATE OR REPLACE FUNCTION public.guard_notification_insert()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_caller TEXT := COALESCE(
+    nullif(current_setting('request.jwt.claim.sub', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+  );
+  v_role TEXT := COALESCE(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
+  );
+  v_is_admin BOOLEAN := false;
+BEGIN
+  IF v_caller IS NULL AND COALESCE(v_role, '') IN ('', 'service_role', 'postgres', 'supabase_admin') THEN
+    RETURN NEW;
+  END IF;
+  IF v_role = 'service_role' THEN
+    RETURN NEW;
+  END IF;
+  IF v_caller IS NULL THEN
+    RAISE EXCEPTION 'NOT_AUTHENTICATED' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT (COALESCE(u.is_admin, false) OR EXISTS (
+    SELECT 1 FROM public.admins a WHERE a.uid = v_caller AND a.is_active = true
+  ))
+    INTO v_is_admin
+    FROM public.users u
+   WHERE u.id = v_caller;
+
+  IF COALESCE(v_is_admin, false) THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.user_id = v_caller THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.user_id = 'global' THEN
+    RAISE EXCEPTION 'GLOBAL_BROADCAST_ADMIN_ONLY' USING ERRCODE = '42501';
+  END IF;
+
+  IF COALESCE(NEW.type, '') NOT IN (
+    'team_join', 'team_cancel', 'team_invite',
+    'gift_received', 'gift_sent', 'coin_gift',
+    'referral_bonus', 'referral',
+    'clan_invite', 'clan_join', 'clan_war',
+    'creator_match', 'match_reminder'
+  ) THEN
+    RAISE EXCEPTION 'NOTIFICATION_TYPE_NOT_ALLOWED_FOR_PEER' USING ERRCODE = '42501';
+  END IF;
+
+  IF char_length(COALESCE(NEW.title, '')) > 160 OR char_length(COALESCE(NEW.body, '')) > 600 THEN
+    RAISE EXCEPTION 'NOTIFICATION_TOO_LONG' USING ERRCODE = '22001';
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.sync_leaderboard()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF COALESCE(NEW.is_admin, false) = true
+     OR COALESCE(NEW.is_banned, false) = true
+     OR COALESCE(NEW.leaderboard_hidden, false) = true
+     OR lower(COALESCE(NEW.ign, '')) = 'adminaccount'
+     OR NEW.ign ILIKE 'QA-TEST%' THEN
+    DELETE FROM public.leaderboard WHERE id = NEW.id;
+    RETURN NEW;
+  END IF;
+
+  INSERT INTO public.leaderboard (id, ign, avatar_url, total_kills, total_wins, matches_played, total_earnings, updated_at)
+  VALUES (
+    NEW.id,
+    NEW.ign,
+    NEW.avatar_url,
+    COALESCE(NEW.total_kills, 0),
+    COALESCE(NEW.total_wins, 0),
+    COALESCE(NEW.matches_played, 0),
+    COALESCE(NEW.total_winnings, NEW.total_earnings, 0),
+    now()
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    ign            = EXCLUDED.ign,
+    avatar_url     = EXCLUDED.avatar_url,
+    total_kills    = EXCLUDED.total_kills,
+    total_wins     = EXCLUDED.total_wins,
+    matches_played = EXCLUDED.matches_played,
+    total_earnings = EXCLUDED.total_earnings,
+    updated_at     = now();
+  RETURN NEW;
+END;
+$function$;
+
+-- ══════════════ END SECTION 61 — consolidated final state (v35 · 2026-10-03) ══════════════
 
 NOTIFY pgrst, 'reload schema';
 COMMIT;

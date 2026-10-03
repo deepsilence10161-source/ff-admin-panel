@@ -195,17 +195,34 @@
             var mid = String(row.match_id || '');
             var now = Date.now();
             if (!mid) return;
-            /* Universal <0.3s Pulse for RLS-protected tables (users, coin_requests, support_tickets, etc.) */
+            /* Universal <0.3s Pulse for RLS-protected tables (users, sd_requests, coin_requests, support_tickets, etc.) */
             if (mid.indexOf('pulse:') === 0) {
               var tbl = mid.slice(6);
               if (typeof window._bridgePulseTable === 'function') {
                 window._bridgePulseTable(tbl);
+              }
+              if (typeof window.updateBadgeCounts === 'function') {
+                window.updateBadgeCounts();
+              }
+              if ((tbl === 'sd_requests' || tbl === 'coin_requests' || tbl === 'wallet_transactions') &&
+                  window.currentSection === 'skydiamond-req' &&
+                  typeof window.loadSkyDiamondReqSection === 'function') {
+                window.loadSkyDiamondReqSection();
+              }
+              if (window.currentSection === 'dashboard' && typeof window.refreshDashboard === 'function') {
+                clearTimeout(window._qaDashPulseTimer);
+                window._qaDashPulseTimer = setTimeout(function() {
+                  try { window.refreshDashboard(); } catch(_e) {}
+                }, 250);
               }
               return;
             }
             if (typeof window._bridgePulseTable === 'function') {
               window._bridgePulseTable('join_requests');
               window._bridgePulseTable('matches');
+            }
+            if (typeof window.updateBadgeCounts === 'function') {
+              window.updateBadgeCounts();
             }
             if (now - _lastLiveRefresh < 1200) return;
             var sel = document.getElementById('resultTournamentSelect');

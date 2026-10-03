@@ -158,215 +158,494 @@ async function removeUserPartner(userA, userB){
 }
 
 /* =============================================
-   SUPPORT CHAT — uses senderId:'admin' (not sender:'admin')
-   Reads from supportChats/{uid}/ OR support/{uid}/ (checks both paths)
-   Admin checks BOTH senderId and sender for backward compat
+   SUPPORT CHAT — WhatsApp Smart UI (v20261003f)
+   Shows ALL registered players in a clean WhatsApp user list.
+   Clicking any player opens their full conversation view with a Back button.
    ============================================= */
-var allChatUsers={};
-function isAdminMsg(mv){return mv.senderId==='admin'||mv.sender==='admin';}
+var allChatUsers = {};
+var activeSupportFilter = 'all';
+function isAdminMsg(mv) {
+  return mv && (mv.senderId === 'admin' || mv.sender === 'admin' || mv.senderRole === 'admin' || mv.is_admin === true);
+}
 
-/* Try to detect which chat path is being used */
-var CHAT_PATH_PRIMARY='support';        /* Primary path — synced with User Panel */
-var CHAT_PATH_SECONDARY='chats';        /* Secondary/fallback path */
-
-/* loadSupportChats — Listens to supportChats/{userId} AND support/{userId} paths
-   Each user has their own chat node: supportChats/uid123/messageId OR support/uid123/messageId
-   Messages have senderId:'admin' or senderId:userId
-   
-   This function checks BOTH paths for compatibility with different User Panel versions
-*/
+var CHAT_PATH_PRIMARY = 'support';
+var CHAT_PATH_SECONDARY = 'chats';
 var _supportScanTimer = null;
-/* FIX (2026-09-20): Inbox hamesha khaali tha — root reads (support/, supportChats/)
-   RTDB rules mein PERMISSION_DENIED hain, par per-user read support/{uid} ALLOWED hai.
-   Ab: Supabase users se uid-list → har uid ka support/{uid} node padho (15-parallel
-   batches) → list render. Har 20s me auto-refresh. Rules badle bina bhi chalta hai. */
-async function _scanSupportInboxes(){
-  try{
-    var supa = window._supa; if(!supa) return;
-    var res = await supa.from('users').select('id,ign').order('created_at',{ascending:false}).limit(300);
-    if(res.error){ console.warn('[SupportScan] users fetch fail:', res.error.message); return; }
-    var ulist = res.data || [];
-    var found = {};
-    for(var i=0;i<ulist.length;i+=15){
-      var batch = ulist.slice(i,i+15);
-      await Promise.all(batch.map(async function(u){
-        try{
-          var s = await rtdb.ref('support/'+u.id).once('value');
-          if(!s.exists()) return;
-          var info = s.child('info').val() || {};
-          var msgs = s.child('messages');
-          var last='', lastT=0, unread=0;
-          if(msgs.exists()){
-            msgs.forEach(function(ms){
-              var m = ms.val() || {};
-              if(typeof m !== 'object' || (!m.text && !m.message)) return;
-              last = m.message || m.text || '';
-              var mt = m.createdAt || m.timestamp || 0;
-              if(mt > lastT) lastT = mt;
-              if(!isAdminMsg(m) && !m.read) unread++;
-            });
-          }
-          if(!last && info.lastMessage){ last = info.lastMessage; lastT = info.lastMessageTime || 0; }
-          if(!last) return;
-          found[u.id] = { userName: info.userIGN || info.userName || u.ign || 'User', lastMsg: last, unread: unread, lastTime: lastT, chatPath: 'support' };
-        }catch(e){}
-      }));
+
+window.switchSupportSubView = function(mode) {
+  var chatsWrap = document.getElementById('waChatContainer');
+  var ticketsWrap = document.getElementById('waTicketsViewWrap');
+  var btnChats = document.getElementById('waTabChatsBtn');
+  var btnTickets = document.getElementById('waTabTicketsBtn');
+  if (mode === 'tickets') {
+    if (chatsWrap) chatsWrap.style.display = 'none';
+    if (ticketsWrap) ticketsWrap.style.display = 'block';
+    if (btnTickets) {
+      btnTickets.style.background = 'rgba(37,211,102,.16)';
+      btnTickets.style.border = '1px solid rgba(37,211,102,.45)';
+      btnTickets.style.color = '#25D366';
     }
-    allChatUsers = found;
-    /* render chat list (same markup as before) */
-    var ls = document.getElementById('chatUserList'); if(!ls) return;
-    var users = Object.keys(found).map(function(uid){ return Object.assign({uid:uid}, found[uid]); });
-    if(!users.length){
-      ls.innerHTML = '<div class="chat-empty" style="padding:30px 0"><i class="fas fa-comments"></i><span class="text-xs">No conversations</span></div>';
+    if (btnChats) {
+      btnChats.style.background = 'transparent';
+      btnChats.style.border = '1px solid var(--border)';
+      btnChats.style.color = 'var(--text-muted)';
+    }
+    if (typeof window.loadSupportTickets === 'function') window.loadSupportTickets();
+  } else {
+    if (chatsWrap) chatsWrap.style.display = '';
+    if (ticketsWrap) ticketsWrap.style.display = 'none';
+    if (btnChats) {
+      btnChats.style.background = 'rgba(37,211,102,.16)';
+      btnChats.style.border = '1px solid rgba(37,211,102,.45)';
+      btnChats.style.color = '#25D366';
+    }
+    if (btnTickets) {
+      btnTickets.style.background = 'transparent';
+      btnTickets.style.border = '1px solid var(--border)';
+      btnTickets.style.color = 'var(--text-muted)';
+    }
+  }
+};
+
+window.setSupportChatFilter = function(filterMode) {
+  activeSupportFilter = filterMode || 'all';
+  ['All', 'Unread', 'Active'].forEach(function(k) {
+    var el = document.getElementById('waFilter' + k);
+    if (el) el.classList.toggle('active', k.toLowerCase() === activeSupportFilter);
+  });
+  var qEl = document.getElementById('chatSearchInput');
+  renderSupportChatList(qEl ? qEl.value : '');
+};
+
+window.closeSupportChatView = function() {
+  var c = document.getElementById('waChatContainer');
+  if (c) c.classList.remove('wa-chat-open');
+};
+
+async function _scanSupportInboxes() {
+  try {
+    var supa = window._supa || (window.SupabaseDB && window.SupabaseDB.client);
+    if (!supa) return;
+    var res = await supa.from('users')
+      .select('id,ign,ff_uid,avatar_url,email,is_admin,leaderboard_hidden,created_at')
+      .order('created_at', { ascending: false })
+      .limit(300);
+    if (res.error) {
+      console.warn('[SupportScan] users fetch fail:', res.error.message);
       return;
     }
-    users.sort(function(a,b){ return b.lastTime - a.lastTime; });
-    var h='';
-    users.forEach(function(u){
-      var ini=(u.userName||u.uid).charAt(0).toUpperCase(), ts=u.lastTime?formatChatTime(u.lastTime):'';
-      h += '<div class="chat-user-item '+(activeChatUid===u.uid?'active':'')+'" onclick="openChat(\''+u.uid+'\')"><div class="chat-avatar">'+ini+'</div><div class="chat-user-info"><div class="chat-user-name"><span>'+(u.userName||u.uid.substring(0,12))+'</span><span class="chat-time">'+ts+'</span></div><div class="chat-user-preview">'+u.lastMsg+'</div></div>'+(u.unread>0?'<div class="chat-unread-dot">'+u.unread+'</div>':'')+'</div>';
+    var ulist = (res.data || []).filter(function(u) {
+      if (!u || !u.id) return false;
+      if (u.is_admin === true || u.leaderboard_hidden === true) return false;
+      var ignLow = String(u.ign || '').toLowerCase();
+      if (ignLow === 'adminaccount' || ignLow.indexOf('qa-test') === 0) return false;
+      return true;
     });
-    ls.innerHTML = h;
-  }catch(e){ console.warn('[SupportScan] error:', e && e.message); }
+
+    /* Also fetch Supabase support_messages & support_tickets so all messages show */
+    var supaMsgsByUid = {};
+    try {
+      var smRes = await supa.from('support_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(1000);
+      ((smRes && smRes.data) || []).forEach(function(m) {
+        var uid = m.user_id || m.uid;
+        if (!uid) return;
+        if (!supaMsgsByUid[uid]) supaMsgsByUid[uid] = [];
+        supaMsgsByUid[uid].push({
+          text: m.message || m.text || m.body || '',
+          senderId: (m.sender === 'admin' || m.is_admin) ? 'admin' : uid,
+          createdAt: m.created_at ? new Date(m.created_at).getTime() : Date.now(),
+          read: m.is_read !== false
+        });
+      });
+    } catch (_e1) {}
+
+    var found = {};
+    for (var i = 0; i < ulist.length; i += 20) {
+      var batch = ulist.slice(i, i + 20);
+      await Promise.all(batch.map(async function(u) {
+        var last = '', lastT = 0, lastSender = '', unread = 0;
+        try {
+          var s = await rtdb.ref('support/' + u.id).once('value');
+          if (s && s.exists && s.exists()) {
+            var info = (s.child && s.child('info').val()) || {};
+            var msgs = s.child ? s.child('messages') : null;
+            if (msgs && msgs.exists && msgs.exists()) {
+              msgs.forEach(function(ms) {
+                var m = (ms && ms.val && ms.val()) || {};
+                if (typeof m !== 'object' || (!m.text && !m.message)) return;
+                var mt = m.createdAt || m.timestamp || 0;
+                if (mt >= lastT) {
+                  lastT = mt;
+                  last = m.message || m.text || '';
+                  lastSender = isAdminMsg(m) ? 'admin' : 'user';
+                }
+                if (!isAdminMsg(m) && !m.read) unread++;
+              });
+            }
+            if (!last && info.lastMessage) {
+              last = info.lastMessage;
+              lastT = info.lastMessageTime || 0;
+              lastSender = info.lastReplyByAdmin ? 'admin' : 'user';
+            }
+          }
+        } catch (_e2) {}
+
+        var extra = supaMsgsByUid[u.id] || [];
+        extra.forEach(function(em) {
+          if (em.createdAt >= lastT && em.text) {
+            lastT = em.createdAt;
+            last = em.text;
+            lastSender = isAdminMsg(em) ? 'admin' : 'user';
+          }
+          if (!isAdminMsg(em) && !em.read) unread++;
+        });
+
+        found[u.id] = {
+          uid: u.id,
+          userName: u.ign || (u.email ? u.email.split('@')[0] : ('Player_' + String(u.id).slice(0, 6))),
+          ffUid: u.ff_uid || '',
+          avatarUrl: u.avatar_url || '',
+          email: u.email || '',
+          createdAt: u.created_at ? new Date(u.created_at).getTime() : 0,
+          lastMsg: last,
+          lastSender: lastSender,
+          unread: unread,
+          lastTime: lastT,
+          hasMessages: Boolean(last),
+          chatPath: 'support'
+        };
+      }));
+    }
+
+    allChatUsers = found;
+
+    var totalUsersCount = Object.keys(found).length;
+    var totalUnread = Object.values(found).reduce(function(sum, item) { return sum + (item.unread || 0); }, 0);
+
+    var countBadge = document.getElementById('waUserCountBadge');
+    if (countBadge) countBadge.textContent = String(totalUsersCount);
+
+    var unreadPill = document.getElementById('waUnreadCountPill');
+    if (unreadPill) {
+      unreadPill.textContent = String(totalUnread);
+      unreadPill.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+    }
+
+    var qEl = document.getElementById('chatSearchInput');
+    renderSupportChatList(qEl ? qEl.value : '');
+  } catch (e) {
+    console.warn('[SupportScan] error:', e && e.message);
+  }
 }
-function loadSupportChats(){
-  console.log('[SupportScan] per-uid inbox scanner active (support/{uid} reads — rules-safe)');
+
+function renderSupportChatList(filterQuery) {
+  var ls = document.getElementById('chatUserList');
+  if (!ls) return;
+  var q = String(filterQuery || '').trim().toLowerCase();
+
+  var users = Object.keys(allChatUsers).map(function(uid) {
+    return Object.assign({ uid: uid }, allChatUsers[uid]);
+  }).filter(function(u) {
+    if (activeSupportFilter === 'unread' && !(u.unread > 0)) return false;
+    if (activeSupportFilter === 'active' && !u.hasMessages) return false;
+    if (!q) return true;
+    return (
+      String(u.userName || '').toLowerCase().indexOf(q) >= 0 ||
+      String(u.ffUid || '').toLowerCase().indexOf(q) >= 0 ||
+      String(u.uid || '').toLowerCase().indexOf(q) >= 0 ||
+      String(u.email || '').toLowerCase().indexOf(q) >= 0 ||
+      String(u.lastMsg || '').toLowerCase().indexOf(q) >= 0
+    );
+  });
+
+  if (!users.length) {
+    ls.innerHTML =
+      '<div class="chat-empty" style="padding:40px 16px;text-align:center">' +
+        '<i class="fab fa-whatsapp" style="font-size:32px;color:#25D366;opacity:.45"></i>' +
+        '<span class="text-xs" style="color:#8696a0">' +
+          (activeSupportFilter === 'unread' ? 'No unread chats right now' : (activeSupportFilter === 'active' ? 'No recent chat messages yet' : 'No matching players found')) +
+        '</span>' +
+      '</div>';
+    return;
+  }
+
+  users.sort(function(a, b) {
+    if ((b.unread > 0) !== (a.unread > 0)) return (b.unread > 0) ? 1 : -1;
+    if ((b.lastTime || 0) !== (a.lastTime || 0)) return (b.lastTime || 0) - (a.lastTime || 0);
+    return String(a.userName || '').localeCompare(String(b.userName || ''));
+  });
+
+  var h = '';
+  users.forEach(function(u) {
+    var ini = (u.userName || u.uid || 'P').charAt(0).toUpperCase();
+    var ts = u.lastTime ? formatChatTime(u.lastTime) : (u.ffUid ? ('FF: ' + eh(u.ffUid)) : 'Player');
+    var avatarHtml = u.avatarUrl
+      ? '<div class="wa-avatar"><img src="' + eh(u.avatarUrl) + '" alt="" onerror="this.remove();this.parentElement.textContent=\'' + eh(ini) + '\'"></div>'
+      : '<div class="wa-avatar">' + eh(ini) + '</div>';
+
+    var tickHtml = u.lastSender === 'admin'
+      ? '<i class="fas fa-check-double" style="color:#53bdeb;font-size:10px;margin-right:4px"></i>'
+      : '';
+    var previewHtml = u.lastMsg
+      ? (tickHtml + eh(u.lastMsg))
+      : '<span style="color:#00a884;font-weight:600"><i class="fas fa-comment-dots" style="font-size:10px;margin-right:4px"></i>Tap to start chat' + (u.ffUid ? (' • UID: ' + eh(u.ffUid)) : '') + '</span>';
+
+    h +=
+      '<div class="chat-user-item ' + (activeChatUid === u.uid ? 'active' : '') + '" data-uid="' + eh(u.uid) + '" onclick="openChat(\'' + eh(u.uid) + '\')">' +
+        avatarHtml +
+        '<div class="chat-user-info" style="flex:1;min-width:0">' +
+          '<div class="chat-user-name" style="display:flex;align-items:center;justify-content:space-between;gap:6px">' +
+            '<span style="color:#e9edef;font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + eh(u.userName || u.uid.substring(0, 12)) + '</span>' +
+            '<span class="chat-time" style="font-size:10px;color:' + (u.unread > 0 ? '#25D366' : '#8696a0') + ';font-weight:' + (u.unread > 0 ? '700' : '500') + ';flex-shrink:0">' + ts + '</span>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:3px">' +
+            '<div class="chat-user-preview" style="font-size:11.5px;color:#8696a0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">' + previewHtml + '</div>' +
+            (u.unread > 0 ? '<div class="chat-unread-dot" style="background:#25D366;color:#000;font-weight:800;min-width:19px;height:19px;border-radius:10px;font-size:10px;padding:0 5px;animation:none">' + u.unread + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  });
+  ls.innerHTML = h;
+}
+
+function loadSupportChats() {
+  console.log('[SupportScan] WhatsApp user inbox scanner active');
   _scanSupportInboxes();
-  if(_supportScanTimer) clearInterval(_supportScanTimer);
+  if (_supportScanTimer) clearInterval(_supportScanTimer);
   _supportScanTimer = setInterval(_scanSupportInboxes, 20000);
 }
-function formatChatTime(ts){var d=new Date(ts),n=new Date();if(d.toDateString()===n.toDateString())return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return d.toLocaleDateString([],{month:'short',day:'numeric'});}
-function filterChatUsers(q){q=q.toLowerCase();document.querySelectorAll('.chat-user-item').forEach(function(el){var nm=el.querySelector('.chat-user-name span');var t=nm?nm.textContent.toLowerCase():'';el.style.display=t.indexOf(q)>=0?'':'none';});}
 
-function openChat(uid){
-  activeChatUid=uid;
-  var cd=allChatUsers[uid]||{};
-  var un=cd.userName||getUserName(uid);
-  /* Determine which chat path this user's messages are stored in */
-  var userChatPath=cd.chatPath||CHAT_PATH_PRIMARY;
-  console.log('Opening chat for '+uid+' using path: '+userChatPath+'/');
-  
-  var ma=document.getElementById('chatMainArea');
-  ma.innerHTML='<div class="chat-main-header"><div class="chat-avatar" style="width:30px;height:30px;font-size:12px">'+(un||uid).charAt(0).toUpperCase()+'</div><div class="chat-header-info"><div class="chat-header-name">'+un+'</div><div class="chat-header-uid">'+uid+'</div></div><button class="btn btn-ghost btn-xs" onclick="openUserModal(\''+uid+'\')"><i class="fas fa-user"></i> Profile</button></div><div class="chat-messages" id="chatMessages"></div><div class="chat-input-bar"><input type="text" id="chatInput" class="form-input" placeholder="Type reply..." style="padding:8px 12px" onkeydown="if(event.key===\'Enter\')sendAdminReply()"><button class="btn btn-primary" onclick="sendAdminReply()" style="padding:8px 14px"><i class="fas fa-paper-plane"></i></button></div>';
-  document.querySelectorAll('.chat-user-item').forEach(function(el){el.classList.remove('active')});
-  
-  /* Mark unread as read — check both paths */
-  function markAsRead(path){
-    rtdb.ref(path+'/'+uid).once('value').then(function(s){
-      s.forEach(function(m){
-        if(!isAdminMsg(m.val())&&!m.val().read){
-          rtdb.ref(path+'/'+uid+'/'+m.key).update({read:true});
+function formatChatTime(ts) {
+  var d = new Date(ts), n = new Date();
+  if (d.toDateString() === n.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function filterChatUsers(q) {
+  renderSupportChatList(q);
+}
+
+window.sendQuickReplyText = function(txt) {
+  var inp = document.getElementById('chatInput');
+  if (!inp) return;
+  inp.value = txt;
+  sendAdminReply();
+};
+
+function openChat(uid) {
+  activeChatUid = uid;
+  var container = document.getElementById('waChatContainer');
+  if (container) container.classList.add('wa-chat-open');
+
+  var cd = allChatUsers[uid] || {};
+  if (cd.unread) {
+    cd.unread = 0;
+  }
+  var un = cd.userName || getUserName(uid);
+  var ffUid = cd.ffUid || '';
+  var ini = (un || uid || 'P').charAt(0).toUpperCase();
+  var avatarHtml = cd.avatarUrl
+    ? '<div class="wa-avatar" style="width:38px!important;height:38px!important;font-size:14px!important"><img src="' + eh(cd.avatarUrl) + '" alt="" onerror="this.remove();this.parentElement.textContent=\'' + eh(ini) + '\'"></div>'
+    : '<div class="wa-avatar" style="width:38px!important;height:38px!important;font-size:14px!important">' + eh(ini) + '</div>';
+
+  var qEl = document.getElementById('chatSearchInput');
+  renderSupportChatList(qEl ? qEl.value : '');
+
+  var quickChips = [
+    { label: '👋 Hello', text: 'Hello! Welcome to Mini eSports Support. How can we help you today?' },
+    { label: '✅ Approved', text: 'Your request has been approved! Please check your wallet/account.' },
+    { label: '🔑 Room ID', text: 'Room ID & Password will be shared 15 minutes before the match starts.' },
+    { label: '📸 Send Proof', text: 'Please share your payment UTR number and screenshot so we can verify immediately.' }
+  ].map(function(c) {
+    return '<button type="button" class="quick-reply-btn" onclick="sendQuickReplyText(\'' + c.text.replace(/'/g, "\\'") + '\')" style="background:#202c33;border:1px solid rgba(37,211,102,.25);color:#e9edef;border-radius:14px;padding:4px 10px;font-size:11px;white-space:nowrap">' + c.label + '</button>';
+  }).join('');
+
+  var ma = document.getElementById('chatMainArea');
+  ma.innerHTML =
+    '<div class="chat-main-header wa-conv-header">' +
+      '<button type="button" class="wa-back-btn" onclick="closeSupportChatView()" title="Back to Players List" aria-label="Back to Players List"><i class="fas fa-arrow-left"></i></button>' +
+      avatarHtml +
+      '<div class="chat-header-info" style="flex:1;min-width:0;cursor:pointer" onclick="openUserModal(\'' + eh(uid) + '\')">' +
+        '<div class="chat-header-name" style="color:#e9edef;font-size:14px;font-weight:800;display:flex;align-items:center;gap:6px">' +
+          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + eh(un) + '</span>' +
+          '<span style="width:7px;height:7px;border-radius:50%;background:#25D366;display:inline-block;flex-shrink:0"></span>' +
+        '</div>' +
+        '<div class="chat-header-uid" style="color:#8696a0;font-size:10.5px">' +
+          (ffUid ? ('FF UID: ' + eh(ffUid) + ' • ') : '') + 'ID: ' + eh(String(uid).slice(0, 14)) +
+        '</div>' +
+      '</div>' +
+      '<button type="button" class="btn btn-ghost btn-xs" onclick="openUserModal(\'' + eh(uid) + '\')" style="border-color:rgba(255,255,255,.12);color:#e9edef"><i class="fas fa-user"></i> Profile</button>' +
+    '</div>' +
+    '<div class="chat-messages wa-messages" id="chatMessages"><div class="chat-empty"><div class="spinner" style="width:22px;height:22px;border-width:2px"></div></div></div>' +
+    '<div class="quick-replies-container" style="background:#182229;border-top:1px solid rgba(255,255,255,.06);padding:6px 10px">' +
+      '<div class="quick-replies-label" style="color:#25D366;font-weight:700"><i class="fas fa-bolt"></i> Quick:</div>' +
+      '<div class="quick-replies-list" style="display:flex;gap:6px;overflow-x:auto">' + quickChips + '</div>' +
+    '</div>' +
+    '<div class="chat-input-bar wa-input-bar">' +
+      '<input type="text" id="chatInput" class="form-input" placeholder="Message ' + eh(un) + '..." autocomplete="off" onkeydown="if(event.key===\'Enter\')sendAdminReply()">' +
+      '<button type="button" class="wa-send-btn" onclick="sendAdminReply()" aria-label="Send Reply"><i class="fas fa-paper-plane"></i></button>' +
+    '</div>';
+
+  /* Mark unread as read */
+  function markAsRead(path) {
+    rtdb.ref(path + '/' + uid + '/messages').once('value').then(function(s) {
+      if (!s || !s.forEach) return;
+      s.forEach(function(m) {
+        var val = m.val() || {};
+        if (!isAdminMsg(val) && !val.read) {
+          rtdb.ref(path + '/' + uid + '/messages/' + m.key).update({ read: true });
         }
       });
-    });
+    }).catch(function() {});
   }
   markAsRead(CHAT_PATH_PRIMARY);
-  /* FIX: CHAT_PATH_SECONDARY (supportChats) reads denied + flat structure — skip to avoid console noise */
-  
-  /* FIX Bug#9: Properly detach previous Firebase listener.
-     ORIGINAL BUG: chatListener was set to the return value of ref.on()
-     which is the callback function itself. Calling chatListener() just
-     re-invokes the callback — it does NOT unsubscribe. Listeners accumulate.
-     FIX: chatListener is now always set to a proper cleanup closure. */
-  if(typeof chatListener === 'function') chatListener();
-  
-  /* FIX (2026-09-20): supportChats/{uid} reads PERMISSION_DENIED hain — pehle Promise.all
-   dono paths par tha, ek denied read pura render abort kar deti thi → thread hamesha khaali.
-   Ab sirf support/{uid}/messages (wahi path jahan user panel likhta hai), proper error
-   handling + correct sort key (createdAt||timestamp). */
-  function renderMessages(){
-    var me=document.getElementById('chatMessages');if(!me)return;
-    function fetchAndRender(){
-      rtdb.ref('support/'+uid+'/messages').orderByChild('createdAt').limitToLast(200).once('value')
-        .then(function(snap){
-          var allMessages=[];
-          if(snap.exists()) snap.forEach(function(ms){ allMessages.push({key:ms.key,...ms.val()}); });
-          if(allMessages.length===0){
-            me.innerHTML='<div class="chat-empty"><i class="fas fa-comment-dots"></i><span class="text-xs">No messages</span></div>';
-            return;
-          }
-          allMessages.sort(function(a,b){ return (a.createdAt||a.timestamp||0)-(b.createdAt||b.timestamp||0); });
-          me.innerHTML='';
-          var ld='';
-          allMessages.forEach(function(m){
-            var ia=isAdminMsg(m),ts=(m.createdAt||m.timestamp)?new Date(m.createdAt||m.timestamp):null,ds=ts?ts.toLocaleDateString():'';
-            if(ds&&ds!==ld){ld=ds;me.innerHTML+='<div style="text-align:center;padding:6px;font-size:9px;color:var(--text-muted)">'+eh(ds)+'</div>';}
-            var tm=ts?ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-            var msgText=eh(m.message||m.text||''); /* SECURITY: escape user-typed message */
-            me.innerHTML+='<div class="chat-bubble '+(ia?'admin':'user')+'">'+msgText+'<div class="time">'+eh(tm)+(ia?' <i class="fas fa-check-double" style="color:var(--primary)"></i>':'')+'</div></div>';
+
+  if (typeof chatListener === 'function') chatListener();
+
+  function renderMessages() {
+    var me = document.getElementById('chatMessages');
+    if (!me) return;
+    rtdb.ref('support/' + uid + '/messages').orderByChild('createdAt').limitToLast(200).once('value')
+      .then(async function(snap) {
+        var allMessages = [];
+        if (snap && snap.exists && snap.exists()) {
+          snap.forEach(function(ms) {
+            allMessages.push(Object.assign({ key: ms.key }, ms.val()));
           });
-          me.scrollTop=me.scrollHeight;
-        })
-        .catch(function(e){
-          console.warn('[openChat] messages read fail:', e && (e.code||e.message));
-          me.innerHTML='<div class="chat-empty"><i class="fas fa-exclamation-triangle"></i><span class="text-xs">Chat load nahi hua — dobara koshish karo</span></div>';
+        }
+        /* Merge any Supabase support_messages for this player */
+        try {
+          var supa = window._supa || (window.SupabaseDB && window.SupabaseDB.client);
+          if (supa) {
+            var smRes = await supa.from('support_messages').select('*').eq('user_id', uid).order('created_at', { ascending: true }).limit(200);
+            ((smRes && smRes.data) || []).forEach(function(sm) {
+              var ts = sm.created_at ? new Date(sm.created_at).getTime() : Date.now();
+              var txt = sm.message || sm.text || sm.body || '';
+              if (!txt) return;
+              var dup = allMessages.some(function(ex) {
+                return (ex.message || ex.text) === txt && Math.abs((ex.createdAt || ex.timestamp || 0) - ts) < 5000;
+              });
+              if (!dup) {
+                allMessages.push({
+                  key: sm.id,
+                  message: txt,
+                  text: txt,
+                  senderId: (sm.sender === 'admin' || sm.is_admin) ? 'admin' : uid,
+                  createdAt: ts,
+                  read: true
+                });
+              }
+            });
+          }
+        } catch (_eSm) {}
+
+        if (allMessages.length === 0) {
+          me.innerHTML =
+            '<div class="wa-date-chip">WhatsApp Direct Support</div>' +
+            '<div class="chat-empty" style="padding:30px 16px"><i class="fab fa-whatsapp" style="font-size:34px;color:#25D366;opacity:.45"></i><span class="text-xs" style="color:#8696a0;text-align:center">No messages with ' + eh(un) + ' yet.<br>Send a message or tap a Quick Reply below to start chatting!</span></div>';
+          return;
+        }
+        allMessages.sort(function(a, b) {
+          return (a.createdAt || a.timestamp || 0) - (b.createdAt || b.timestamp || 0);
         });
-    }
-    fetchAndRender();
+        me.innerHTML = '';
+        var ld = '';
+        allMessages.forEach(function(m) {
+          var ia = isAdminMsg(m);
+          var ts = (m.createdAt || m.timestamp) ? new Date(m.createdAt || m.timestamp) : null;
+          var ds = ts ? ts.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+          if (ds && ds !== ld) {
+            ld = ds;
+            me.innerHTML += '<div class="wa-date-chip">' + eh(ds) + '</div>';
+          }
+          var tm = ts ? ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+          var msgText = eh(m.message || m.text || '');
+          me.innerHTML +=
+            '<div class="chat-bubble ' + (ia ? 'admin' : 'user') + '">' +
+              '<div>' + msgText + '</div>' +
+              '<div class="time">' + eh(tm) + (ia ? ' <i class="fas fa-check-double" style="color:#53bdeb;font-size:10px"></i>' : '') + '</div>' +
+            '</div>';
+        });
+        me.scrollTop = me.scrollHeight;
+      })
+      .catch(function(e) {
+        console.warn('[openChat] messages read fail:', e && (e.code || e.message));
+        me.innerHTML = '<div class="chat-empty"><i class="fas fa-exclamation-triangle"></i><span class="text-xs">Chat load nahi hua — dobara koshish karo</span></div>';
+      });
   }
-  
-  /* FIX Bug#9: Store both ref and callback so we can properly detach.
-     ref.on() returns the callback in Firebase SDK v8.
-     We CANNOT unsubscribe by calling callback() — must call ref.off(eventType, callback).
-     Solution: replace chatListener with a proper cleanup closure. */
-  var _chatRef=rtdb.ref('support/'+uid+'/messages');
-  var _chatCb=function(){ renderMessages(); };
-  _chatRef.on('value',_chatCb);
-  /* chatListener is now a proper cleanup function, not the raw callback */
-  chatListener=function(){
-    _chatRef.off('value',_chatCb);
-    console.log('[Bug#9 Fix] Chat listener properly detached for uid:',uid);
+  renderMessages();
+
+  var _chatRef = rtdb.ref('support/' + uid + '/messages');
+  var _chatCb = function() { renderMessages(); };
+  _chatRef.on('value', _chatCb);
+  chatListener = function() {
+    _chatRef.off('value', _chatCb);
   };
 }
 
-/* sendAdminReply — saves with senderId:'admin'
-   Saves to the same path where the user's chat exists
-*/
-async function sendAdminReply(){
-  if(!activeChatUid)return showToast('Select user',true);
-  var inp=document.getElementById('chatInput'),msg=inp.value.trim();if(!msg)return;
-  
-  /* Determine which path to use for this user */
-  var cd=allChatUsers[activeChatUid]||{};
-  var chatPath=cd.chatPath||CHAT_PATH_PRIMARY;
-  
-  console.log('Sending reply to '+chatPath+'/'+activeChatUid);
-  
-  try{
-    /* FIX: Save to support/{uid}/messages — EXACTLY where user reads from */
+async function sendAdminReply() {
+  if (!activeChatUid) return showToast('Select user', true);
+  var inp = document.getElementById('chatInput');
+  var msg = inp ? inp.value.trim() : '';
+  if (!msg) return;
+  inp.value = '';
+
+  var uid = activeChatUid;
+  var nowTs = Date.now();
+  if (allChatUsers[uid]) {
+    allChatUsers[uid].lastMsg = msg;
+    allChatUsers[uid].lastSender = 'admin';
+    allChatUsers[uid].lastTime = nowTs;
+    allChatUsers[uid].hasMessages = true;
+    var qEl = document.getElementById('chatSearchInput');
+    renderSupportChatList(qEl ? qEl.value : '');
+  }
+
+  try {
     var msgData = {
       message: msg,
       text: msg,
       senderId: 'admin',
       senderRole: 'admin',
       sender: 'admin',
-      timestamp: Date.now(),
-      createdAt: Date.now(),
+      timestamp: nowTs,
+      createdAt: nowTs,
       read: true,
       adminUid: _adminUid()
     };
-    /* Primary: support/{uid}/messages — user reads this path */
-    await rtdb.ref('support/'+activeChatUid+'/messages').push(msgData);
-    /* Update support/{uid}/info for admin list */
-    await rtdb.ref('support/'+activeChatUid+'/info').update({
+    await rtdb.ref('support/' + uid + '/messages').push(msgData);
+    await rtdb.ref('support/' + uid + '/info').update({
       lastMessage: msg,
-      lastMessageTime: Date.now(),
-      lastReplyByAdmin: Date.now(),
+      lastMessageTime: nowTs,
+      lastReplyByAdmin: nowTs,
       unreadByAdmin: false
     });
-    
+
+    /* Also store in Supabase support_messages (best effort) */
+    try {
+      var supa = window._supa || (window.SupabaseDB && window.SupabaseDB.client);
+      if (supa) {
+        await supa.from('support_messages').insert({
+          user_id: uid,
+          sender: 'admin',
+          message: msg,
+          is_read: false
+        });
+      }
+    } catch (_eSupaMsg) {}
+
     /* Send notification to user */
-    await rtdb.ref(DB_USERS+'/'+activeChatUid+'/notifications').push({
-      title:'💬 Support Reply',
-      message:msg,
-      timestamp:Date.now(),
-      read:false,
-      type:'support_reply'
+    await rtdb.ref(DB_USERS + '/' + uid + '/notifications').push({
+      title: '💬 Support Reply',
+      message: msg,
+      timestamp: nowTs,
+      read: false,
+      type: 'support_reply'
     });
-    
-    inp.value='';
-    console.log('Chat reply sent to '+chatPath+'/'+activeChatUid+' with senderId:admin');
-  }catch(e){
+  } catch (e) {
     console.error('sendAdminReply error:',e);
     showToast('Error: '+e.message,true);
   }

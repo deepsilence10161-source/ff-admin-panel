@@ -551,34 +551,101 @@ patchWhenReady('mrPublishResults', function () {
     setTimeout(function(){ _waitThenStartPoll(waited + 300); }, 300);
   })();
 
+  /* Universal Smart Refresh — used by both header Refresh button and floating #v22RefreshBtn */
+  window.adminSmartRefresh = async function (triggerBtn) {
+    var floatBtn = document.getElementById('v22RefreshBtn');
+    if (floatBtn) floatBtn.classList.add('spinning');
+    var iconEl = triggerBtn && triggerBtn.querySelector ? triggerBtn.querySelector('i') : null;
+    if (iconEl) iconEl.classList.add('fa-spin');
+
+    try {
+      /* 1. Re-fire all active Supabase RTDB bridge listeners */
+      var all = window._bridgeTableRefreshers || {};
+      Object.keys(all).forEach(function (tbl) {
+        var map = all[tbl] || {};
+        Object.keys(map).forEach(function (k) {
+          try { map[k](); } catch (_e) {}
+        });
+      });
+
+      /* 2. Update all sidebar badge counts */
+      if (typeof window.updateBadgeCounts === 'function') window.updateBadgeCounts();
+
+      /* 3. Refresh current active section + dashboard + tournaments */
+      var tasks = [];
+      if (typeof window.refreshDashboard === 'function') tasks.push(Promise.resolve(window.refreshDashboard()));
+      if (typeof window.loadTournaments === 'function') tasks.push(Promise.resolve(window.loadTournaments(true)));
+
+      var sec = window.currentSection || 'dashboard';
+      if (sec === 'skydiamond-req' || sec === 'skyDiamondRequests') {
+        if (typeof window.loadSkyDiamondReqSection === 'function') tasks.push(Promise.resolve(window.loadSkyDiamondReqSection()));
+      } else if (sec === 'premiumRequests' || sec === 'premium-req') {
+        if (typeof window.loadPremiumReqSection === 'function') tasks.push(Promise.resolve(window.loadPremiumReqSection()));
+      } else if (sec === 'seasonPass') {
+        if (typeof window.loadSeasonPassSection === 'function') tasks.push(Promise.resolve(window.loadSeasonPassSection()));
+      } else if (sec === 'sponsoredTournaments') {
+        if (typeof window.loadSponsoredSection === 'function') tasks.push(Promise.resolve(window.loadSponsoredSection()));
+      } else if (sec === 'support') {
+        if (typeof window.loadSupportChats === 'function') tasks.push(Promise.resolve(window.loadSupportChats()));
+        if (typeof window.loadSupportTickets === 'function') tasks.push(Promise.resolve(window.loadSupportTickets()));
+      } else if (sec === 'disputes') {
+        if (typeof window.loadDisputes === 'function') tasks.push(Promise.resolve(window.loadDisputes()));
+      } else if (sec === 'users') {
+        if (typeof window.loadUsers === 'function') tasks.push(Promise.resolve(window.loadUsers()));
+      } else if (sec === 'profileVerification') {
+        if (typeof window.loadProfileRequests === 'function') tasks.push(Promise.resolve(window.loadProfileRequests()));
+      } else if (sec === 'profileUpdates') {
+        if (typeof window.loadProfileUpdates === 'function') tasks.push(Promise.resolve(window.loadProfileUpdates()));
+      }
+      await Promise.allSettled(tasks);
+      if (typeof window.showToast === 'function') window.showToast('🔄 Data refreshed!');
+    } catch (e) {
+      console.warn('[SmartRefresh] error:', e && e.message);
+    } finally {
+      setTimeout(function () {
+        if (floatBtn) floatBtn.classList.remove('spinning');
+        if (iconEl) iconEl.classList.remove('fa-spin');
+      }, 600);
+    }
+  };
+
   /* Also add floating refresh indicator */
-  setTimeout(function () {
+  function _mountFloatingRefreshBtn() {
+    if (document.getElementById('v22RefreshBtn')) return;
+    var ocrB = document.getElementById('fa53plusBadge');
+    if (ocrB) { try { ocrB.remove(); } catch (e) {} }
     var style = document.createElement('style');
     style.textContent = [
       '#v22RefreshBtn { position:fixed; bottom:20px; right:20px; z-index:9999;',
-      '  background:rgba(0,212,255,.15); border:1px solid rgba(0,212,255,.4);',
-      '  color:#00d4ff; border-radius:50%; width:44px; height:44px;',
+      '  background:linear-gradient(135deg,rgba(0,255,156,.2),rgba(0,212,255,.22)); border:1.5px solid rgba(0,255,156,.45);',
+      '  color:#00ff9c; border-radius:50%; width:46px; height:46px;',
       '  display:flex; align-items:center; justify-content:center;',
-      '  cursor:pointer; font-size:16px; backdrop-filter:blur(10px);',
-      '  transition:all .2s; box-shadow:0 4px 20px rgba(0,212,255,.2); }',
-      '#v22RefreshBtn:hover { background:rgba(0,212,255,.3); transform:scale(1.1); }',
-      '#v22RefreshBtn.spinning i { animation:spin .8s linear infinite; }',
+      '  cursor:pointer; font-size:17px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);',
+      '  transition:all .2s; box-shadow:0 6px 24px rgba(0,255,156,.25); }',
+      '#v22RefreshBtn:hover { background:rgba(0,255,156,.32); transform:scale(1.08); }',
+      '#v22RefreshBtn:active { transform:scale(0.94); }',
+      '#v22RefreshBtn.spinning i { animation:spin .7s linear infinite; }',
       '@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }'
     ].join('\n');
     document.head.appendChild(style);
 
-    var btn = document.createElement('div');
+    var btn = document.createElement('button');
+    btn.type = 'button';
     btn.id = 'v22RefreshBtn';
-    btn.title = 'Refresh Data';
+    btn.title = 'Refresh Live Data';
+    btn.setAttribute('aria-label', 'Refresh Live Data');
     btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
     btn.onclick = function () {
-      btn.classList.add('spinning');
-      if (typeof window.loadTournaments === 'function') window.loadTournaments(true);
-      if (typeof window.refreshDashboard === 'function') window.refreshDashboard();
-      setTimeout(function () { btn.classList.remove('spinning'); }, 1200);
+      window.adminSmartRefresh(btn);
     };
     document.body.appendChild(btn);
-  }, 4000);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _mountFloatingRefreshBtn);
+  } else {
+    _mountFloatingRefreshBtn();
+  }
+  setTimeout(_mountFloatingRefreshBtn, 1500);
 })();
 
 /* ═══════════════════════════════════════════════════════════════════════════

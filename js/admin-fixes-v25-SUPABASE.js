@@ -160,51 +160,61 @@
     /* ─────────────────────────────────────────────────────────────
        5. BADGE COUNTS — Live pending counts from Supabase
     ───────────────────────────────────────────────────────────── */
+    var _lastSdPendingCount = -1;
+    function _setBadgeDom(badgeIds, count) {
+      (Array.isArray(badgeIds) ? badgeIds : [badgeIds]).forEach(function(id) {
+        var els = document.querySelectorAll('[data-badge="' + id + '"], #' + id + ', .' + id);
+        els.forEach(function(el) {
+          el.textContent = count > 0 ? String(count) : '0';
+          el.style.display = count > 0 ? 'inline-flex' : 'none';
+        });
+        if (typeof window._updateNavBadge === 'function') {
+          window._updateNavBadge(id, count);
+        }
+      });
+    }
+
     function updateBadgeCounts() {
       var supa = window._supa;
-      /* ✅ FIX (live-testing — root cause of the 181 failed network
-         requests seen in the test report): this poller self-starts
-         (setInterval below) independent of admin login, so it was
-         hitting the anon Supabase client during/before authentication
-         for 6 tables every 30s. Wait for window._supaAuthed, same as
-         admin-supabase-sync.js's watchers fixed earlier this audit. */
       if (!supa || !window._supaAuthed) return;
 
       var tables = [
-        { table: 'profile_requests',  badge: 'profileBadge',  filter: { status: 'pending' } },
-        { table: 'profile_updates',   badge: 'profileUpdBadge', filter: { status: 'pending' } },
-        { table: 'join_requests',     badge: 'joinBadge',     filter: { status: 'joined' } },
-        { table: 'disputes',          badge: 'disputeBadge',  filter: { status: 'pending' } },
-        { table: 'team_requests',     badge: 'teamBadge',     filter: { status: 'pending' } }
+        { table: 'sd_requests',          badges: ['skyDiaBadge'],                       filter: { status: 'pending' } },
+        { table: 'profile_requests',     badges: ['profileBadge'],                      filter: { status: 'pending' } },
+        { table: 'profile_updates',      badges: ['profileUpdateBadge','profileUpdBadge'], filter: { status: 'pending' } },
+        { table: 'premium_requests',     badges: ['premiumBadge'],                      filter: { status: 'pending' } },
+        { table: 'season_pass_requests', badges: ['spBadge'],                           filter: { status: 'pending' } },
+        { table: 'wallet_transactions',  badges: ['sponsoredBadge'],                    filter: { txn_type: 'sponsored_withdrawal', status: 'pending' } },
+        { table: 'disputes',             badges: ['disputesBadge','disputeBadge'],      filter: { status: 'pending' } },
+        { table: 'support_tickets',      badges: ['ticketBadge','supportBadge'],        filter: { status: 'open' } },
+        { table: 'team_requests',        badges: ['teamBadge'],                         filter: { status: 'pending' } }
       ];
 
       tables.forEach(function(t) {
-        /* ✅ FIX (BUG L-6 class): count:'exact'+head:true is unreliable
-           under headless-Chromium test conditions (100% ERR_ABORTED,
-           confirmed elsewhere in this codebase that the equivalent
-           filter/count works fine at the SQL level — transport-layer
-           quirk, not a data bug). Switched to a capped row select +
-           length; badges only need "how many, roughly", not an exact
-           count past a few hundred. */
         var q = supa.from(t.table).select('id').limit(1000);
         if (t.filter) {
           Object.keys(t.filter).forEach(function(col) { q = q.eq(col, t.filter[col]); });
         }
         q.then(function(r) {
+          if (r && r.error) return;
           var count = (r && r.data) ? r.data.length : 0;
-          /* Update badge elements */
-          var els = document.querySelectorAll('[data-badge="' + t.badge + '"], #' + t.badge + ', .' + t.badge);
-          els.forEach(function(el) {
-            el.textContent = count > 0 ? count : '';
-            el.style.display = count > 0 ? '' : 'none';
-          });
-          /* Also try the generic badge update function */
-          if (typeof window._updateNavBadge === 'function') {
-            window._updateNavBadge(t.badge, count);
+          _setBadgeDom(t.badges, count);
+          if (t.table === 'sd_requests') {
+            if (_lastSdPendingCount !== -1 && _lastSdPendingCount !== count) {
+              if (window.currentSection === 'skydiamond-req' && typeof window.loadSkyDiamondReqSection === 'function') {
+                window.loadSkyDiamondReqSection();
+              }
+            }
+            _lastSdPendingCount = count;
           }
         }, function(){});
       });
     }
+    window.updateBadgeCounts = updateBadgeCounts;
+    window.addEventListener('supabase:authenticated', function() {
+      setTimeout(updateBadgeCounts, 200);
+      setTimeout(updateBadgeCounts, 1200);
+    });
 
     /* Update badges immediately, then every 30s as a safety-net only —
        ✅ SPEED FIX (2026-08-24): badges were 100% poll-only (up to 30s
