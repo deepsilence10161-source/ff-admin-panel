@@ -1287,6 +1287,9 @@ async function approveProfileUpdate(rid, evt){
     
     console.log('✅ Profile update approved!');
     console.log('═══════════════════════════════');
+    /* ✅ BUG FIX (2026-10-04): approve ke baad list turant refresh — pehle
+       request section mein pending reh jati thi jab tak manual refresh na hota. */
+    if (window._reloadProfileUpdates) window._reloadProfileUpdates();
     showToast('✅ Profile update approved! '+(changeMsg.join(', ')||''));
   }catch(e){
     console.error('approveProfileUpdate error:',e);

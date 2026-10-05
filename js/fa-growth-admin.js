@@ -56,8 +56,11 @@ function loadCreatorApplications() {
      long you waited. This now queries the real source table directly. */
   if (!window._supa) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:#c00">Supabase unavailable</td></tr>'; return; }
 
+  /* ✅ BUG FIX (2026-10-04): channel_url + followers select + map nahi ho
+     rahe the (hardcoded '' / '—') — admin table mein Channel box khali dikhta
+     tha. Ab asli values DB se aati hain. */
   window._supa.from('creator_applications')
-    .select('user_id, status, creator_code, created_at, users:user_id(ign)')
+    .select('user_id, status, creator_code, created_at, channel_url, followers, users:user_id(ign)')
     .order('created_at', { ascending: false })
     .then(function (res) {
       if (res.error) {
@@ -72,8 +75,8 @@ function loadCreatorApplications() {
           cp: {
             code: r.creator_code,
             status: r.status,
-            followers: '—',  /* not collected at signup — see submitCreatorSignup */
-            channel: '',
+            followers: r.followers || '—',
+            channel: r.channel_url || '',
             createdAt: r.created_at ? new Date(r.created_at).getTime() : 0
           }
         };
@@ -133,9 +136,20 @@ window.approveCreator = async function(uid, code) {
     _gToast('❌ ' + msg, true);
     return;
   }
+  /* ✅ BUG FIX (2026-10-04): 20% hardcoded tha + galat logic ("har Sky
+     Diamond purchase pe"). Ab: (a) percentage admin-set creator_system
+     .sdMatchCommissionPct se, (b) sahi logic — hosted Sky Diamond match
+     mein user ka sky diamond spend par commission. */
+  var _sdPct = 15;
+  try {
+    var _csRes = await window._supa.from('app_settings').select('value').eq('key', 'creator_system').maybeSingle();
+    if (_csRes && _csRes.data && _csRes.data.value && _csRes.data.value.sdMatchCommissionPct != null) {
+      _sdPct = Number(_csRes.data.value.sdMatchCommissionPct);
+    }
+  } catch (e) { console.warn('[approveCreator] creator_system read failed:', e && e.message); }
   _gDb().ref('users/' + uid + '/notifications').push({
     type: 'creator_approved', title: '✅ Creator Approved!',
-    message: 'Tumhara creator code "' + code + '" approve ho gaya! Ab tumhe har Sky Diamond purchase pe 20% commission milegi.',
+    message: 'Tumhara creator code "' + code + '" approve ho gaya! Ab jab aap apne hosted Sky Diamond match mein kisi user ko sky diamond kharch karwaoge, tumhe ' + _sdPct + '% commission milegi.',
     read: false, timestamp: Date.now()
   });
   _gToast('Creator approved!', false);

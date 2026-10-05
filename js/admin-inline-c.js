@@ -162,14 +162,23 @@ async function loadTournaments(){
       /* Build row */
       var _eSym = window._admEntrySym(d);
       var _pSym = window._admPrizeSym(d);
+      /* ✅ BUG FIX (2026-10-04): PRIZE column sirf 1st prize (firstPrize)
+         dikha raha tha — poora pool (1st+2nd+3rd) nahi. Ab total pool +
+         breakdown tooltip. */
       var _fPrize = Number(d.firstPrize || d.prize1st || d.prizePool || 0);
-      var _prizeTxt = d.perKillPrize ? (_pSym + d.perKillPrize + '/Kill') : (_fPrize ? (_pSym + _fPrize) : '—');
+      var _sPrize = Number(d.secondPrize || d.prize2nd || 0);
+      var _tPrize = Number(d.thirdPrize || d.prize3rd || 0);
+      var _poolTotal = _fPrize + _sPrize + _tPrize;
+      var _poolTip = '1st: ' + _fPrize + ' · 2nd: ' + _sPrize + ' · 3rd: ' + _tPrize;
+      var _prizeTxt = d.perKillPrize
+        ? (_pSym + d.perKillPrize + '/Kill' + (_poolTotal ? ' + ' + _pSym + _poolTotal : ''))
+        : (_poolTotal ? ('<span title="' + _poolTip + '" style="cursor:help;border-bottom:1px dotted currentColor">' + _pSym + _poolTotal + '</span>') : '—');
       if(tb) tb.innerHTML+='<tr>'+
         '<td class="font-bold text-xs">'+(d.isSpecial?'⭐ ':'')+d.name+'</td>'+
         '<td><span class="badge '+modeBadgeColor+'">'+gameModeDisplay+'</span></td>'+
         '<td><span class="badge '+(d.entryType==='paid'?'green':d.entryType==='ad'?'yellow':'purple')+'">'+d.entryType+'</span>'+(d.entryType==='ad'?' 📺 '+(d.adsRequired||2)+' ads':' '+_eSym+(d.entryFee||0))+(d.minRank?'<br><span style="font-size:10px;color:#ffd700">🏅'+d.minRank+'+</span>':'')+'</td>'+
         '<td class="text-primary font-bold">'+_prizeTxt+'</td>'+
-        '<td>'+slotBar(d.filledSlots,d.maxSlots||0)+'</td>'+
+        '<td>'+slotBar(d.filledSlots,d.maxSlots||0)+'<div id="intCnt-'+id+'" style="font-size:10px;margin-top:3px;min-height:14px"></div></td>'+
         '<td class="text-xxs">'+(d.map||'N/A')+'</td>'+
         '<td class="text-xxs">'+tm+'</td>'+
         '<td><span class="badge '+sb+'">'+st+'</span></td>'+
@@ -195,6 +204,23 @@ async function loadTournaments(){
       }
       nS.innerHTML+='<option value="'+id+'">'+d.name+'</option>';
     });
+    /* ✅ BUG FIX (2026-10-04): "Mark as Interested" admin ko nahi dikhta tha —
+       ab har match ke interested users ka count badge (click par list). */
+    (function(){
+      var supa = window._supa || (typeof getSupa === 'function' ? getSupa() : null);
+      if (!supa) return;
+      supa.from('match_interest').select('match_id,user_id,name,created_at')
+        .then(function(r) {
+          var byMatch = {};
+          (r.data || []).forEach(function(x) { (byMatch[x.match_id] = byMatch[x.match_id] || []).push(x); });
+          Object.keys(byMatch).forEach(function(mid) {
+            var el = document.getElementById('intCnt-' + mid);
+            if (!el) return;
+            var n = byMatch[mid].length;
+            el.innerHTML = '<span onclick="showInterestedUsers(\'' + mid + '\')" title="' + n + ' users interested — click to view" style="cursor:pointer;color:#ffd700;font-weight:700">👋 ' + n + ' interested</span>';
+          });
+        }).catch(function(){});
+    })();
     if(rS && _prevRS && Array.from(rS.options).some(function(o){return o.value===_prevRS;})) rS.value = _prevRS;
     if(mhSel && _prevMH && Array.from(mhSel.options).some(function(o){return o.value===_prevMH;})) mhSel.value = _prevMH;
     if(nS && _prevNS && Array.from(nS.options).some(function(o){return o.value===_prevNS;})) nS.value = _prevNS;
@@ -227,6 +253,28 @@ function populateJoinedFilter(){
     jF.innerHTML+='<option value="'+id+'">'+t.name+'</option>';
   });
   jF.value=currentVal||'all';
+}
+/* ✅ BUG FIX (2026-10-04): interested users list modal (Mark as Interested) */
+function showInterestedUsers(matchId){
+  var supa = window._supa || (typeof getSupa === 'function' ? getSupa() : null);
+  if (!supa) { if(window.showToast) showToast('Supabase not ready', true); return; }
+  supa.from('match_interest').select('user_id,name,created_at').eq('match_id', matchId).order('created_at', {ascending:false})
+    .then(function(r){
+      var list = r.data || [];
+      var rows = list.map(function(u){
+        return '<tr><td class="font-bold text-xs">'+(window.escHtml?window.escHtml(u.name||'—'):(u.name||'—'))+'</td><td class="text-xxs">'+String(u.user_id||'').slice(0,10)+'…</td><td class="text-xxs">'+(u.created_at?new Date(u.created_at).toLocaleString('en-IN'):'—')+'</td></tr>';
+      }).join('');
+      var h = '<div style="max-height:320px;overflow:auto"><table class="table"><thead><tr><th>IGN</th><th>UID</th><th>TIME</th></tr></thead><tbody>'+(rows||'<tr><td colspan="3" class="text-xxs" style="padding:14px">Koi interested user nahi</td></tr>')+'</tbody></table></div>';
+      var ov = document.createElement('div');
+      ov.id = 'interestedOverlay';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+      ov.innerHTML = '<div style="background:var(--bg2,#111);border:1px solid var(--border,#333);border-radius:14px;max-width:420px;width:100%;padding:16px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><strong>👋 Interested Users — '+(allTournaments[matchId]?allTournaments[matchId].name:matchId)+' ('+list.length+')</strong>'+
+        '<button class="btn btn-ghost btn-xs" onclick="document.getElementById(\'interestedOverlay\').remove()">✕</button></div>'+h+'</div>';
+      ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+      document.body.appendChild(ov);
+    })
+    .catch(function(){ if(window.showToast) showToast('Interested list load nahi hui', true); });
 }
 function filterTournaments(f,btn){currentFilter=f;document.querySelectorAll('.filter-tab').forEach(function(t){t.classList.remove('active')});if(btn)btn.classList.add('active');loadTournaments();}
 function openTournamentModal(){

@@ -329,11 +329,23 @@
             });
         }
         loadProfileUpdates();
-        try {
-          supa.channel('v25_profile_upd_changes')
+        /* ✅ BUG FIX (2026-10-04): "Profile approve hone ke baad bhi request
+           section se hat-ti nahi thi (refresh/section-switch par hi hati thi)".
+           Root cause: realtime channel boot par subscribe hota hai (line 513)
+           — ho sakta hai admin auth complete hone se PEHLE, jis case mein
+           RLS events block ho jate hain aur list stale reh jati hai.
+           Fix: (a) reload function globally expose, (b) 10s safety polling,
+           (c) approve/reject ke baad explicit reload (admin-inline-b.js). */
+        window._reloadProfileUpdates = loadProfileUpdates;
+        try { supa.channel('v25_profile_upd_changes')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_updates' }, loadProfileUpdates)
             .subscribe();
-        } catch(e) { setInterval(loadProfileUpdates, 8000); }
+        } catch(e) {}
+        if (!window._profileUpdatesPoller) {
+          window._profileUpdatesPoller = setInterval(function () {
+            if (typeof window._reloadProfileUpdates === 'function') window._reloadProfileUpdates();
+          }, 10000);
+        }
       };
     }
 

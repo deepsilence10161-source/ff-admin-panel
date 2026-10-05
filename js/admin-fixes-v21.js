@@ -596,7 +596,12 @@ patchWhenReady('fa68_checkSeasonReset', function () {
     /* Bug#54: Tournament modal scroll on small screens */
     '#createTournamentModal .modal-body, #tournamentModal .modal-body { max-height: 80vh; overflow-y: auto; }',
     /* Bug#55: Joined players table sticky last column */
-    '#joinedPlayersTable th:last-child, #joinedPlayersTable td:last-child { position: sticky; right: 0; background: var(--bg-card, #1a1a2e); z-index: 2; }',
+    /* ✅ BUG FIX (2026-10-04): sticky last column HATA diya — user ki live
+       report: "jab row slide karte hain to poori row slide hoti hai lekin
+       'Pending' word ek jagah atka rehta hai". Sticky right:0 ki wajah se
+       In-Room column (Pending badge) slide nahi hota tha — broken lagta tha.
+       Ab poori row ek saath smooth slide hoti hai. */
+    '#joinedPlayersTable th:last-child, #joinedPlayersTable td:last-child { position: static; }',
     /* Bug#56: Search results onblur clickable fix */
     '#globalSearchResults .search-result-item { cursor: pointer; }',
     /* Bug#58: Screenshot previews larger */

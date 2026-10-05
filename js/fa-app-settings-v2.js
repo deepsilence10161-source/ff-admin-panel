@@ -253,12 +253,38 @@ function _renderAppSettings() {
         '<span id="paytmToggleLabel" style="font-size:12px;color:' + (val('paytmEnabled', false) ? '#00ff9c' : '#888') + '">' + (val('paytmEnabled', false) ? '✅ Button visible to users' : '🔴 Button hidden from users') + '</span>' +
       '</div>' +
       '<div style="font-size:10px;color:#666;margin-top:4px">ON = "Pay Instantly via Paytm" button wallet mein dikhega</div>' +
+    '</div>' +
+    /* ✅ BUG 16 (2026-10-04): Manual Payment (UPI QR) system — pehle user
+       panel mein hardcoded "miniesports@upi" text line thi, koi QR nahi,
+       koi admin control nahi. Ab yahan se QR image URL + UPI ID + payee
+       name + instructions set karo — user ke "Buy Sky Diamonds" modal mein
+       wahi dikhta hai. Single source: live_config.manualPayment. */
+    '<div style="border-top:1px solid rgba(255,255,255,.07);margin:14px 0 12px;padding-top:12px">' +
+      '<div style="font-size:11px;font-weight:800;color:#00ff9c;margin-bottom:8px">📱 Manual UPI Payment (QR System)</div>' +
+      '<div class="form-group" style="margin-bottom:10px"><label style="font-size:12px">Manual Payment ON/OFF</label>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-top:6px">' +
+          '<label class="toggle"><input type="checkbox" id="as_manualPayEnabled" ' + (val('manualPayment.enabled', true) ? 'checked' : '') + '><span class="toggle-slider"></span></label>' +
+          '<span style="font-size:12px;color:' + (val('manualPayment.enabled', true) ? '#00ff9c' : '#888') + '">' + (val('manualPayment.enabled', true) ? '✅ QR + UPI ID users ko dikhega' : '🔴 Manual payment band') + '</span>' +
+        '</div>' +
+      '</div>' +
+      row('manualPayUpiId', 'UPI ID', val('manualPayment.upiId', 'miniesports@upi'), 'text', 'Jaise: miniesports@upi — user isi ID pe paisa bhejta hai') +
+      row('manualPayPayee', 'Payee Name', val('manualPayment.payeeName', 'Mini eSports'), 'text', 'UPI app mein payee ke naam se dikhega') +
+      row('manualPayQrUrl', 'QR Image URL', val('manualPayment.qrImageUrl', ''), 'text', 'Apne UPI QR ka image link (ImgBB etc.) — user isko scan karta hai. Khali chhodne pe sirf UPI ID + deep-link dikhega.') +
+      row('manualPayMin', 'Minimum Amount ₹', val('manualPayment.minAmount', 10), 'number', 'Isse kam ka manual payment accept nahi') +
+      '<div class="form-group" style="margin-bottom:0"><label style="font-size:12px">Payment Instructions (user ko dikhengi)</label>' +
+        '<textarea id="as_manualPayInstructions" class="form-input" rows="4" style="font-size:12px">' + String(val('manualPayment.instructions', '')).replace(/[<>&]/g, function (ch) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch]; }) + '</textarea>' +
+        '<div style="font-size:10px;color:#666;margin-top:3px">Steps jaise: UPI app se paisa bhejo → UTR copy karo → screenshot + UTR submit karo</div>' +
+      '</div>' +
     '</div>'
   );
 
   /* 6. CREATOR SETTINGS */
   html += section('Creator Program', 'fas fa-broadcast-tower', '#00d4ff',
-    row('commission',    '💰 Match Commission %',    Math.round((val('commission', 0.15)) * 100), 'number', 'Har Sky Diamond entry ka %, creator ko milega (e.g. 15 = 15%)') +
+    /* ✅ BUG FIX (2026-10-04): purana "Match Commission %" (key 'commission')
+       HATA diya — ye creator_system.sdMatchCommissionPct ka DUPLICATE tha
+       (do alag jagah se commission set hoti thi, confusion + galat value).
+       Ab commission ka SINGLE source of truth: "Creator Match Hosting"
+       section ka "💎 SD Match Commission %" (creator_system.sdMatchCommissionPct). */
     row('minPayout',     '💵 Min Payout Amount ₹',   val('creatorMinPayout', 100),               'number', 'Creator itne se zyada hone par withdraw request kar sakta hai')
   );
 
@@ -330,8 +356,10 @@ function _renderAppSettings() {
 
   var matchHtml =
     row('cvCreatorMatchEnabled', '🎮 Creator Match Hosting ON/OFF',  ccVal('creatorMatchEnabled',1),   'number', '1 = ON, 0 = OFF — Creator apna match create kar sakta hai') +
-    row('cvCoinMatchComm',       '🪙 Coin Match Commission %',        ccVal('coinMatchCommissionPct',10),'number', 'Coin matches ka X% creator ko GD mein milega') +
-    row('cvSDMatchComm',         '💎 SD Match Commission %',          ccVal('sdMatchCommissionPct',15), 'number', 'SD matches ka X% creator ko ₹ payout queue mein jaayega') +
+    /* ✅ BUG FIX (2026-10-04): "🪙 Coin Match Commission %" row HATAYA —
+       coin/green-diamond creator matches par ab koi commission nahi (sirf
+       hosted Sky Diamond match par). Single commission setting = SD %. */
+    row('cvSDMatchComm',         '💎 SD Match Commission %',          ccVal('sdMatchCommissionPct',15), 'number', 'Hosted Sky Diamond match par user ke sky diamond spend ka X% creator ko ₹ payout queue mein jaayega (coin/GD matches par koi commission nahi)') +
     row('cvHoldDays',            '🔒 Commission Hold Days',           ccVal('commissionHoldDays',7),    'number', 'SD match commission itne din hold rahega payout ke pehle') +
     row('cvMaxCreatorMatches',   '📋 Max Active Matches per Creator', ccVal('maxCreatorMatches',3),     'number', 'Creator ek saath kitne live/upcoming matches rakh sakta hai') +
     row('cvMinFollowersSD',      '👥 Min Followers to Host SD Match', ccVal('minFollowersForSD',1000),  'number', 'Creator ne declare karne honge ≥ ye followers SD match ke liye');
@@ -405,7 +433,8 @@ window.saveAppSettings = function() {
     referralJoinCoins:  gn('refJoinCoins', 50),
     referralSDBonusDiamonds: gn('refSDBonus', 10),
     referralMatchCoins: gn('refMatchCoins', 30),
-    commission:         gn('commission', 15) / 100,
+    /* ✅ BUG FIX (2026-10-04): 'commission' key save band — duplicate
+       commission system clean (single source = creator_system.sdMatchCommissionPct). */
     creatorMinPayout:   gn('minPayout', 100),
     roomReleaseMins:  gn('roomReleaseMins', 10),
     matchReminderMins: gn('matchReminderMins', 30),
@@ -456,6 +485,17 @@ window.saveAppSettings = function() {
     sdPackages: sdPkgs.length ? sdPkgs : null,
     /* ── Paytm Instant Checkout toggle ── */
     paytmEnabled: !!(document.getElementById('as_paytmEnabled') && document.getElementById('as_paytmEnabled').checked),
+    /* ✅ BUG 16 (2026-10-04): Manual UPI payment (QR) — single source
+       live_config.manualPayment, quick-deposit.js isi ko render karta hai. */
+    manualPayment: {
+      enabled:      !!(document.getElementById('as_manualPayEnabled') && document.getElementById('as_manualPayEnabled').checked),
+      upiId:        (g('manualPayUpiId') || 'miniesports@upi').trim(),
+      payeeName:    (g('manualPayPayee') || 'Mini eSports').trim(),
+      qrImageUrl:   (g('manualPayQrUrl') || '').trim(),
+      minAmount:    gn('manualPayMin', 10),
+      instructions: (function () { var el = document.getElementById('as_manualPayInstructions'); return el ? el.value : ''; })(),
+      updatedAt:    Date.now(),
+    },
     updatedAt: Date.now(),
   };
 
@@ -476,7 +516,8 @@ window.saveAppSettings = function() {
   };
   var creatorSystemConfig = {
     creatorMatchEnabled:   gn('cvCreatorMatchEnabled',1),
-    coinMatchCommissionPct:gn('cvCoinMatchComm',10),
+    /* ✅ BUG FIX (2026-10-04): coinMatchCommissionPct save band — coin matches
+       par commission nahi milta (single commission = SD only). */
     sdMatchCommissionPct:  gn('cvSDMatchComm',15),
     commissionHoldDays:    gn('cvHoldDays',7),
     maxCreatorMatches:     gn('cvMaxCreatorMatches',3),
