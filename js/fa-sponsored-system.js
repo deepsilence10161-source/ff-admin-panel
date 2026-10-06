@@ -33,9 +33,38 @@ function _onSpMatchTimeChange(){
 }
 
 /* ── CREATE MODAL ── */
+/* ✅ B11 FIX (2026-10-07): pool ab PRIZES ka jod hai (1st+2nd+3rd +
+   7×4th-10th), aur unit (₹/🪙) prize type ke saath badalta hai.
+   Pehle "Total Prize Pool" ek alag number tha jise server poora IGNORE
+   karta tha (pool = 1st+2nd+3rd hota tha) — user card par ek pool
+   dikhta tha aur asli obligation kuch aur hoti thi. Ab dono ek hi
+   cheez hain, isliye galat number ka sawaal hi nahi. */
+window.spRecalcPool = function() {
+  var g = function(id) { var el = document.getElementById(id); return el ? (Number(el.value) || 0) : 0; };
+  var isCoin = ((document.getElementById('spTourPrizeType') || {}).value === 'coin');
+  var unit = isCoin ? '🪙' : '₹';
+  var p4 = g('spPrize4to10');
+  var total = g('spPrize1') + g('spPrize2') + g('spPrize3') + (7 * p4);
+  var poolEl = document.getElementById('spTourPool');
+  if (poolEl) poolEl.value = total > 0 ? total : '';
+  var uEl = document.getElementById('spPoolUnit');
+  if (uEl) uEl.textContent = '(' + unit + ')';
+  Array.prototype.forEach.call(document.querySelectorAll('#createSponsoredModal .sp-unit'), function(s) {
+    s.textContent = '(' + (isCoin ? '🪙' : '₹') + (s.textContent.indexOf('each') !== -1 ? ' each' : '') + ')';
+  });
+  var hint = document.getElementById('spPoolHint');
+  if (hint) {
+    hint.textContent = total > 0
+      ? ('Pool = ' + unit + g('spPrize1') + ' + ' + unit + g('spPrize2') + ' + ' + unit + g('spPrize3') + ' + 7×' + unit + p4 + ' = ' + unit + total)
+      : 'Neeche prize amounts bharo — pool khud jud jayega.';
+  }
+  return total;
+};
+
 window.openCreateSponsoredModal = function() {
   var m = document.getElementById('createSponsoredModal');
   if (m) m.style.display = 'flex';
+  window.spRecalcPool();
   /* Default match time to 30 min from now, same pattern as the
      creator-match-host "Naya Match Host Karo" form. */
   var el = document.getElementById('spTourMatchTime');
@@ -83,15 +112,20 @@ window.createSponsoredTournament = async function() {
   var maxSlots= Number((document.getElementById('spTourMaxSlots')||{}).value)||48;
   var map     = (document.getElementById('spTourMap')||{}).value||'Bermuda';
   var mtVal   = _spCapturedMatchTime;
-  var pool    = Number((document.getElementById('spTourPool')||{}).value)||0;
+  /* ✅ B11 FIX: pool ab local jod hai (server bhi yahi jod karta hai) —
+     form ka readonly pool field sirf dikhane ke liye hai. */
   var p1      = Number((document.getElementById('spPrize1')||{}).value)||0;
   var p2      = Number((document.getElementById('spPrize2')||{}).value)||0;
   var p3      = Number((document.getElementById('spPrize3')||{}).value)||0;
+  var p4to10  = Number((document.getElementById('spPrize4to10')||{}).value)||0;
+  var pool    = window.spRecalcPool() || (p1 + p2 + p3 + (7 * p4to10));
+  /* ✅ B11: admin ka chuna hua prize type hi bhejna hai ('cash' default) */
+  var prizeType = (document.getElementById('spTourPrizeType')||{}).value === 'coin' ? 'coin' : 'cash';
   var desc    = ((document.getElementById('spTourDesc')||{}).value||'').trim();
 
   if (!name) { showToast('Tournament name dalo', true); return; }
   if (!sponsor) { showToast('Sponsor name dalo', true); return; }
-  if (pool < 1) { showToast('Prize pool amount dalo', true); return; }
+  if (pool < 1) { showToast('Kam se kam ek prize amount dalo (1st/2nd/3rd ya 4th-10th)', true); return; }
   if (!mtVal) { showToast('Match time set karo', true); return; }
 
   /* Explicit numeric Date construction — no string-parsing ambiguity,
@@ -109,9 +143,11 @@ window.createSponsoredTournament = async function() {
      reason a wrong time used to go through without the admin ever
      seeing it. */
   if (Math.abs(scheduledAt.getTime() - Date.now()) < 2*60*1000) {
-    if (!confirm('⚠️ Match time abhi (' + scheduledAt.toLocaleString() + ') ke bahut kareeb hai — save hote hi match LIVE ho jayega. Sahi hai?')) {
-      return;
-    }
+    /* ✅ B3 ka usool: koi native browser popup nahi — app ka apna dialog. */
+    var okNear = window.appConfirm
+      ? await window.appConfirm('⚠️ Match time abhi (' + scheduledAt.toLocaleString('en-IN') + ') ke bahut kareeb hai — save hote hi match LIVE ho jayega. Sahi hai?', { icon: '⚠️', danger: true, okText: 'Haan, banao' })
+      : true;
+    if (!okNear) return;
   }
 
   var btn = document.querySelector('#createSponsoredModal button[onclick="createSponsoredTournament()"]');
@@ -120,7 +156,8 @@ window.createSponsoredTournament = async function() {
   window._supa.rpc('admin_create_sponsored_match', {
     p_title: name, p_sponsor_name: sponsor, p_mode: mode, p_max_slots: maxSlots,
     p_scheduled_at: scheduledAt.toISOString(), p_first_prize: p1, p_second_prize: p2,
-    p_third_prize: p3, p_prize_type: 'cash', p_description: desc || null, p_map: map
+    p_third_prize: p3, p_fourth_prize: p4to10, p_prize_type: prizeType,
+    p_description: desc || null, p_map: map
   }).then(function(r) {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Tournament'; }
     if (r && r.error) {
@@ -136,16 +173,21 @@ window.createSponsoredTournament = async function() {
         invalid_mode: 'Mode select karo',
         invalid_slot_count: 'Slots 2-100 ke beech ho',
         invalid_prize: 'Prize amount sahi se bharo',
+        invalid_prize_type: 'Prize type galat hai — Real Money ya Coins chuno',
         schedule_too_soon: 'Match kam se kam 5 min baad schedule karo'
       };
       showToast(errMap[d && d.error] || ('Create nahi ho paya' + (d && d.error ? ' (' + d.error + ')' : '')), true);
       return;
     }
     closeSponsoredModal();
-    showToast('✅ Sponsored tournament + match dono ban gaye!', false);
+    showToast('✅ Sponsored match ban gaya (' + (prizeType === 'coin' ? '🪙 Coins' : '₹ Real Money') + ' prize)!', false);
+    /* ✅ B9: naye match ka asli status turant laane ke liye cached status saaf */
+    _spMatchInfo = {};
     loadSponsoredTournaments();
-    ['spTourName','spTourSponsor','spTourPool','spPrize1','spPrize2','spPrize3','spTourDesc','spTourMatchTime']
+    ['spTourName','spTourSponsor','spTourPool','spPrize1','spPrize2','spPrize3','spPrize4to10','spTourDesc','spTourMatchTime']
       .forEach(function(id){ var el = document.getElementById(id); if(el) el.value = ''; });
+    var ptEl = document.getElementById('spTourPrizeType'); if (ptEl) ptEl.value = 'cash';
+    window.spRecalcPool();
     _spCapturedMatchTime = '';
     var _spPreview = document.getElementById('spTourMatchTimePreview'); if (_spPreview) _spPreview.textContent = '';
   }).catch(function(err) {
@@ -158,6 +200,137 @@ window.createSponsoredTournament = async function() {
 var _sponsorPageSize = 20;
 var _sponsorLastKey  = null;   /* cursor for next page */
 var _sponsorAllItems = {};     /* id → data, accumulated across pages */
+
+/* ══════════════════════════════════════════════════════════════
+   ✅ B9 FIX (2026-10-07): "Sponsored tab me match CARD ki jagah
+   data-table jaisa dikhe."
+   ──────────────────────────────────────────────────────────────
+   PEHLE: har sponsored tournament ek bada match-jaisa card hota tha
+   (gradient, prize boxes, join button…) — admin panel ke baaki sab
+   sections asli data-tables hain, isliye ye section alag-thalag
+   lagta tha aur ek nazar me compare karna mushkil tha (kaunsa match
+   kab hai, kitna baaki hai, kiska prize baantna hai).
+   AB: ek asli table — ek row = ek sponsored tournament. Mobile par
+   bhi theek rehta hai kyunki poora table `.table-wrapper` ke andar
+   hai (wahi wrapper jo admin ke baaki tables use karte hain) — wo
+   horizontally scroll ho jaata hai, layout tootta nahi.
+
+   ✅ B11/B14 (is row ke saath juda): "Prize Type" column ab asli
+   `prize_type` dikhata hai (₹ Real Money / 🪙 Coins), aur
+   "Distribute Prizes" button ab match ke ASLI status par bandh
+   chalta hai — wahi `_admPrizeDistributeGate` niyam jo Publish
+   Results par laga hai (upcoming/cancelled = रोक, live/completed =
+   chalne do). Pehle sponsored par ye gate lagaa hi nahi tha.
+   ══════════════════════════════════════════════════════════════ */
+var _spMatchInfo = {};                          /* matchId → {status, scheduled_at, filled_slots, max_slots} */
+var _spUuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/* Asli match ka status ek hi query me (jitni rows dikh rahi hain unke ids se) */
+function _spLoadMatchInfo(ids, cb) {
+  var need = (ids || []).filter(function(id) { return _spUuidRe.test(id) && !_spMatchInfo[id]; });
+  if (!need.length || !window._supa) { cb(); return; }
+  window._supa.from('matches').select('id,status,scheduled_at,filled_slots,max_slots')
+    .in('id', need)
+    .then(function(r) {
+      (r.data || []).forEach(function(m) { _spMatchInfo[m.id] = m; });
+      cb();
+    })
+    .catch(function(e) { console.warn('[Sponsored] match info fail:', e && e.message); cb(); });
+}
+
+function _spMatchTimeMs(spId, rm) {
+  if (rm && rm.scheduled_at) return new Date(rm.scheduled_at).getTime();
+  return 0;
+}
+
+function _spRenderTable(items) {
+  var container = document.getElementById('sponsoredTournamentList');
+  if (!container) return;
+
+  var h = '<div class="table-wrapper"><table><thead><tr>';
+  h += '<th>Tournament</th><th>Prize Type</th><th>Pool</th><th>Prizes (1st / 2nd / 3rd / 4-10th)</th>';
+  h += '<th>Match</th><th>Sponsorship</th><th>Winners Paid?</th><th>Actions</th>';
+  h += '</tr></thead><tbody>';
+
+  items.forEach(function(item) {
+    var d = item.d;                                  /* bridge → {name, sponsor, prizePool, prizes, prizeType, matchId, status, prizeDistributed, createdAt} */
+    var prizes = d.prizes || {};
+    var pType = String(d.prizeType || 'cash').toLowerCase();
+    var isCoin = (pType === 'coin' || pType === 'coins');
+    var unit = isCoin ? '🪙' : '₹';
+    var typeLabel = isCoin
+      ? '<span style="color:#ffd700;font-weight:800">🪙 Coins</span>'
+      : '<span style="color:#00ff9c;font-weight:800">₹ Real Money</span>';
+
+    /* Asli match ka status (bridge se ya _spLoadMatchInfo se) */
+    var matchId = d.matchId || '';
+    var rm = matchId ? _spMatchInfo[matchId] : null;
+    var mtObj = { status: rm ? rm.status : '', matchTime: _spMatchTimeMs(matchId, rm) };
+    var stTxt = '—', stColor = '#888';
+    if (rm) {
+      var st = (rm.status || '').toLowerCase();
+      if (st === 'live')            { stTxt = '🔴 LIVE';      stColor = '#ff5555'; }
+      else if (st === 'completed')  { stTxt = '✅ Completed'; stColor = '#00d4ff'; }
+      else if (st === 'cancelled')  { stTxt = '❌ Cancelled'; stColor = '#ff5555'; }
+      else                          { stTxt = '⏱ Upcoming';  stColor = '#00ff9c'; }
+    } else if (matchId) {
+      stTxt = '… check'; stColor = '#888';
+    }
+    var whenTxt = mtObj.matchTime
+      ? new Date(mtObj.matchTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      : '—';
+
+    /* ✅ B14: Distribute button par wahi gate jo Publish Results par hai */
+    var gate = window._admPrizeDistributeGate ? window._admPrizeDistributeGate(mtObj) : { ok: true };
+    var canDist = (d.status === 'active' && !d.prizeDistributed && gate.ok !== false);
+
+    var campTxt = d.status === 'active' ? '<span style="color:#00ff9c">🟢 Active</span>'
+                : d.status === 'completed' ? '<span style="color:#00d4ff">✅ Prizes Distributed</span>'
+                : '<span style="color:#888">⏸ Paused</span>';
+
+    h += '<tr>';
+    h += '<td><div style="font-weight:800;color:#ffd700">' + escHtml(d.name || 'Sponsored') + '</div>'
+       + '<div style="font-size:11px;color:#888">Sponsor: <strong style="color:#aaa">' + escHtml(d.sponsor || '—') + '</strong></div>'
+       + '<div style="font-size:10px;color:#555">' + escHtml(String(d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-IN') : '')) + '</div></td>';
+    /* ✅ B11: admin ne jo prize type chuna, wahi yahan nazar aata hai */
+    h += '<td>' + typeLabel + '</td>';
+    h += '<td><strong style="color:' + (isCoin ? '#ffd700' : '#00ff9c') + '">' + unit + (d.prizePool || 0) + '</strong></td>';
+    h += '<td style="font-size:11px;white-space:nowrap">'
+       + unit + (Number(prizes.first) || 0) + ' / ' + unit + (Number(prizes.second) || 0) + ' / ' + unit + (Number(prizes.third) || 0)
+       + ' / ' + unit + (Number(prizes.fourthToTenth) || 0)
+       + '</td>';
+    h += '<td><span style="font-weight:700;color:' + stColor + '">' + stTxt + '</span>'
+       + '<div style="font-size:11px;color:#888;white-space:nowrap">' + whenTxt + '</div>'
+       + (matchId ? '<div style="font-size:10px;color:#555">' + escHtml(matchId.slice(0, 8)) + '…</div>' : '') + '</td>';
+    h += '<td>' + campTxt + '</td>';
+    h += '<td>' + (d.prizeDistributed
+          ? '<span style="color:#00d4ff;font-weight:700">✅ Ha</span>'
+          : '<span style="color:#888">⏳ Nahi</span>') + '</td>';
+    h += '<td style="white-space:nowrap">';
+    if (d.prizeDistributed) {
+      h += '<span style="color:#00d4ff;font-size:11px;font-weight:700">✅ Prizes Distributed</span>';
+    } else if (canDist) {
+      h += '<button onclick="openDistributePrizesModal(\'' + item.id + '\')" title="' + (gate.note || '') + '" style="padding:6px 12px;border-radius:8px;background:linear-gradient(135deg,#00ff9c,#00cc7a);border:none;color:#000;font-size:11px;font-weight:800;cursor:pointer;margin-right:4px"><i class="fas fa-trophy"></i> Distribute</button>';
+    } else {
+      /* Band kyun hai — wahi wajah jo B14 me hai */
+      var blockMsg = gate.ok === false ? gate.msg : (!d.status || d.status !== 'active' ? '⏸ Sponsorship paused hai — pehle active karo.' : '… match status check ho raha hai');
+      h += '<button disabled title="' + escAttr(blockMsg) + '" style="padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#777;font-size:11px;font-weight:700;cursor:not-allowed;margin-right:4px"><i class="fas fa-trophy"></i> Distribute</button>';
+    }
+    h += '<button onclick="deleteSponsoredTournament(\'' + item.id + '\')" title="Delete" style="padding:6px 10px;border-radius:8px;background:rgba(255,60,60,.08);border:1px solid rgba(255,60,60,.2);color:#ff6b6b;font-size:11px;cursor:pointer"><i class="fas fa-trash"></i></button>';
+    h += '</td>';
+    h += '</tr>';
+  });
+
+  h += '</tbody></table></div>';
+
+  /* Load More (Bug#71 pagination) — pehle jaisa hi, bas table ke neeche */
+  if (window._spHasMore) {
+    h += '<div style="text-align:center;margin-top:14px">'
+      + '<button onclick="loadSponsoredTournaments(true)" style="background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);color:#ffd700;padding:8px 24px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:700">'
+      + '<i class="fas fa-chevron-down"></i> Load More</button></div>';
+  }
+  container.innerHTML = h;
+}
 
 function loadSponsoredTournaments(loadMore) {
   var container = document.getElementById('sponsoredTournamentList');
@@ -191,66 +364,20 @@ function loadSponsoredTournaments(loadMore) {
     /* Track cursor for next page (oldest key in this batch) */
     var batchKeys = []; snap.forEach(function(c) { batchKeys.push(c.key); });
     if (batchKeys.length > 0) _sponsorLastKey = batchKeys[0];
-    var hasMore = snap.numChildren() === _sponsorPageSize;
+    window._spHasMore = (snap.numChildren() === _sponsorPageSize);
 
-    var items = Object.values(_sponsorAllItems).sort(function(a,b){ return (b.d.createdAt||0) - (a.d.createdAt||0); });
-    var html = '<div style="display:grid;gap:12px">';
-    items.forEach(function(item) {
-      var d = item.d;
-      /* ✅ BUG FIX (2026-08-26): "match ban to jata hai lekin direct
-         active status pe show hota hai" — d.status here is
-         sponsored_tournaments.status, a SEPARATE concept from the
-         real match's own live/upcoming/completed lifecycle (which
-         lives on the matches table via d.matchId, not here). "Active"
-         correctly means "this sponsorship campaign is running/not
-         paused/not completed" — but next to what looks like a match
-         card, it reads exactly like "the match itself is live", which
-         is the confusion being reported. Relabeled to make that
-         distinction explicit instead of just showing a bare "Active". */
-      var statusColor = d.status === 'active' ? '#00ff9c' : d.status === 'completed' ? '#00d4ff' : '#666';
-      var statusLabel = d.status === 'active' ? '🟢 Sponsorship Active' : d.status === 'completed' ? '✅ Prizes Distributed' : '⏸ Paused';
-      html += '<div style="background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.15);border-radius:14px;padding:16px">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">';
-      html += '<div>';
-      html += '<div style="font-size:15px;font-weight:800;color:#ffd700">' + escHtml(d.name) + '</div>';
-      html += '<div style="font-size:11px;color:#888;margin-top:3px">Sponsor: <strong style="color:#aaa">' + escHtml(d.sponsor) + '</strong></div>';
-      if (d.matchId) html += '<div style="font-size:10px;color:#555;margin-top:2px">Match ID: ' + escHtml(d.matchId) + ' <a onclick="showSection(\'tournaments\',this)" style="color:#00d4ff;cursor:pointer">(match ka live/upcoming status Matches tab me dekho)</a></div>';
-      html += '</div>';
-      html += '<span style="font-size:11px;color:' + statusColor + ';font-weight:700">' + statusLabel + '</span>';
-      html += '</div>';
-      // Prize pool
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
-      html += '<div style="background:rgba(0,255,156,.06);border:1px solid rgba(0,255,156,.15);border-radius:10px;padding:8px 12px;text-align:center;min-width:70px"><div style="font-size:10px;color:#888">Pool</div><div style="font-size:15px;font-weight:900;color:#00ff9c">₹' + (d.prizePool||0) + '</div></div>';
-      if (d.prizes) {
-        if (d.prizes.first) html += '<div style="background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:10px;padding:8px 12px;text-align:center;min-width:60px"><div style="font-size:10px;color:#888">🥇 1st</div><div style="font-size:14px;font-weight:800;color:#ffd700">₹' + d.prizes.first + '</div></div>';
-        if (d.prizes.second) html += '<div style="background:rgba(180,180,180,.06);border:1px solid rgba(180,180,180,.2);border-radius:10px;padding:8px 12px;text-align:center;min-width:60px"><div style="font-size:10px;color:#888">🥈 2nd</div><div style="font-size:14px;font-weight:800;color:#ccc">₹' + d.prizes.second + '</div></div>';
-        if (d.prizes.third) html += '<div style="background:rgba(205,127,50,.06);border:1px solid rgba(205,127,50,.2);border-radius:10px;padding:8px 12px;text-align:center;min-width:60px"><div style="font-size:10px;color:#888">🥉 3rd</div><div style="font-size:14px;font-weight:800;color:#cd7f32">₹' + d.prizes.third + '</div></div>';
-      }
-      html += '</div>';
-      // Action buttons
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-      if (d.status === 'active' && !d.prizeDistributed) {
-        html += '<button onclick="openDistributePrizesModal(\'' + item.id + '\')" style="padding:8px 14px;border-radius:10px;background:linear-gradient(135deg,#00ff9c,#00cc7a);border:none;color:#000;font-size:12px;font-weight:800;cursor:pointer"><i class="fas fa-trophy"></i> Distribute Prizes</button>';
-      }
-      if (d.prizeDistributed) {
-        html += '<span style="padding:8px 14px;border-radius:10px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:#00d4ff;font-size:12px;font-weight:700">✅ Prizes Distributed</span>';
-      }
-      html += '<button onclick="deleteSponsoredTournament(\'' + item.id + '\')" style="padding:8px 12px;border-radius:10px;background:rgba(255,60,60,.08);border:1px solid rgba(255,60,60,.2);color:#ff6b6b;font-size:12px;cursor:pointer"><i class="fas fa-trash"></i></button>';
-      html += '</div>';
-      html += '</div>';
+    var items = Object.values(_sponsorAllItems).sort(function(a,b){ return ((b.d && b.d.createdAt)||0) - ((a.d && a.d.createdAt)||0); });
+    document.getElementById('sponsoredCount').textContent = items.length;
+
+    /* Pehle table render (turant), phir asli match status aa jaane par dobara render —
+       isse screen khaali nahi lagti aur B14 ka gate asli status par lagta hai. */
+    _spRenderTable(items);
+    _spLoadMatchInfo(items.map(function(i){ return i.d.matchId; }), function() {
+      _spRenderTable(items);
     });
-    html += '</div>';
-    /* Bug#71 Fix: append "Load More" button if there are more pages */
-    if (hasMore) {
-      html += '</div><div style="text-align:center;margin-top:14px">' +
-        '<button onclick="loadSponsoredTournaments(true)" style="background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.3);color:#ffd700;padding:8px 24px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:700">' +
-        '<i class="fas fa-chevron-down"></i> Load More</button></div>';
-    } else {
-      html += '</div>';
-    }
-    container.innerHTML = html;
   });
 }
+
 
 /* ── PRIZE DISTRIBUTION MODAL (with Screenshot Upload + OCR Auto-Fill + Joined Player Lookup) ── */
 window._spDistScreenshots = [];
@@ -292,9 +419,21 @@ window.openDistributePrizesModal = async function(tourId) {
       }
     } catch(e) {}
 
+    /* ✅ B11 FIX (2026-10-07): modal ab wahi currency dikhata hai jo
+       admin ne create karte waqt chuni thi (₹ real money / 🪙 coins) —
+       pehle yahan SAB KUCH hardcoded ₹ tha, isliye coin-prize wale
+       sponsored match par bhi "₹" likha aata tha (aur paisa galat
+       wallet me jaane ka khatra tha). Currency server bhi tournament
+       row se hi uthata hai (anti-tamper) — yahan bas dikhane/bhejne ke
+       liye wahi value rakhi jaati hai. */
+    var _pt = String(d.prizeType || 'cash').toLowerCase();
+    window._distCurrency = (_pt === 'coin' || _pt === 'coins') ? 'coin' : 'cash';
+    var _u = window._distCurrency === 'coin' ? '🪙' : '₹';
     var h = '<div style="margin-bottom:14px">';
     h += '<div style="font-size:15px;font-weight:800;color:#ffd700;margin-bottom:4px">' + escHtml(d.name) + '</div>';
-    h += '<div style="font-size:12px;color:#888">Prize Pool: <strong style="color:#00ff9c">₹' + (d.prizePool||0) + '</strong></div>';
+    h += '<div style="font-size:12px;color:#888">Prize Pool: <strong style="color:#00ff9c">' + _u + (d.prizePool||0) + '</strong>'
+       + ' &nbsp;·&nbsp; Type: <strong style="color:' + (window._distCurrency === 'coin' ? '#ffd700' : '#00ff9c') + '">'
+       + (window._distCurrency === 'coin' ? '🪙 Coins (wallet me coins)' : '₹ Real Money (UPI withdrawal)') + '</strong></div>';
     h += '</div>';
 
     h += '<div style="background:rgba(0,255,156,.05);border:1px solid rgba(0,255,156,.15);border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:11.5px;color:#aaa;line-height:1.6">';
@@ -338,7 +477,7 @@ window.openDistributePrizesModal = async function(tourId) {
 
     fields.forEach(function(f) {
       h += '<div class="form-group" style="margin-bottom:10px">';
-      h += '<label style="color:' + f.color + '">' + f.label + ' — <strong>₹' + f.prize + '</strong></label>';
+      h += '<label style="color:' + f.color + '">' + f.label + ' — <strong>' + _u + f.prize + '</strong></label>';
       h += '<input type="text" id="dist_' + f.key + '" list="spDistPlayersList" class="form-input" placeholder="IGN, FF UID, ya User UID enter karo" style="font-size:12px">';
       h += '</div>';
     });
@@ -491,6 +630,20 @@ window.confirmDistributePrizes = async function(tourId) {
   if (!updates.length) { showToast('Koi winner IGN / FF UID / User UID nahi diya', true); return; }
   if (!window._supa) { showToast('Supabase client not ready', true); return; }
 
+  /* ✅ B11 SURAKSHA (2026-10-07): paisa jaane se PEHLE app ka apna confirm —
+     kis-kis ko kitna ja raha hai wo saaf likha hota hai (native popup nahi).
+     Server side par teen aur taale hain: duplicate-guard (ek tournament me
+     ek user ko dobara credit nahi), pool-cap (pool se zyada nahi) aur
+     audit-log (kis admin ne kya kiya). */
+  var _c = window._distCurrency === 'coin' ? 'coin' : 'cash';
+  var _cu = _c === 'coin' ? '🪙' : '₹';
+  var _lines = updates.map(function(u) { return '• ' + u.rank + ' → ' + u.uid + ' = ' + _cu + u.prize; }).join('\n');
+  var _go = window.appConfirm
+    ? await window.appConfirm('Ye prizes credit karne hain?\n\n' + _lines + '\n\n(' + (_c === 'coin' ? '🪙 coins wallet me jayenge' : '₹ real money — winner withdraw kar sakta hai') + ')',
+        { icon: '🏆', okText: 'Haan, credit karo' })
+    : true;
+  if (!_go) return;
+
   var btn = document.getElementById('spDistSubmitBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Distributing Prizes...'; }
 
@@ -499,11 +652,19 @@ window.confirmDistributePrizes = async function(tourId) {
     var u = updates[i];
     try {
       var r = await window._supa.rpc('admin_distribute_sponsored_prize', {
-        p_uid: u.uid, p_amount: u.prize, p_tour_id: tourId, p_rank: u.rank
+        p_uid: u.uid, p_amount: u.prize, p_tour_id: tourId, p_rank: u.rank, p_currency: _c
       });
       if (r.error || (r.data && r.data.success === false)) {
         failed++;
-        lastErr = (r.data && r.data.error) || (r.error && r.error.message) || 'user_not_found';
+        var _e = (r.data && r.data.error) || (r.error && r.error.message) || 'user_not_found';
+        /* server ke saaf messages ko admin ki bhasha me */
+        var _eMap = {
+          already_credited: 'pehle hi credit ho chuka hai (duplicate block)',
+          exceeds_prize_pool: 'pool se zyada ho raha hai (pool-cap ne roka)',
+          invalid_amount: 'amount galat',
+          not_admin: 'aap admin nahi hain'
+        };
+        lastErr = _eMap[_e] || _e;
       } else {
         done++;
         var targetUid = (r.data && r.data.resolved_uid) || u.uid;
@@ -536,11 +697,19 @@ window.confirmDistributePrizes = async function(tourId) {
   showToast(failed === 0
     ? ('✅ ' + done + ' winners ko prizes credit ho gaye!')
     : ('⚠️ ' + done + ' credited, ' + failed + ' fail (' + lastErr + ')'), failed > 0 && done === 0);
+  /* Fail hone par wajah ek saaf app-dialog me bhi (admin ko turant pata chale) */
+  if (failed > 0 && window.appAlert) {
+    window.appAlert('⚠️ ' + failed + ' winner ka prize credit NAHI hua.\n\nWajah: ' + lastErr + '\n\n(Tip: ek hi winner ko dobara credit nahi hota, aur pool se zyada nahi ja sakta — dono server par blocked hain.)', { icon: '⚠️' });
+  }
   loadSponsoredTournaments();
 };
 
-window.deleteSponsoredTournament = function(id) {
-  if (!confirm('Is sponsored tournament ko delete karo?')) return;
+window.deleteSponsoredTournament = async function(id) {
+  /* ✅ B3 usool: native popup nahi — app ka apna dialog. */
+  var ok = window.appConfirm
+    ? await window.appConfirm('Is sponsored tournament ko delete karo? (Match aur uska data alag rehta hai — sirf sponsorship branding row hattee hai.)', { danger: true, icon: '🗑️', okText: 'Haan, delete' })
+    : true;
+  if (!ok) return;
   (window.rtdb||window.db).ref('sponsoredTournaments/' + id).remove(function() {
     showToast('Tournament deleted', false);
     loadSponsoredTournaments();

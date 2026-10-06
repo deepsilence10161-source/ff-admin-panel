@@ -24,8 +24,20 @@ h1,h2,h3,h4,h5,h6,.section-title,.login-title,.sidebar-brand,.stat-card h3,.topb
 .loading-screen p{color:var(--primary);font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:4px}
 
 /* APP */
-.app-container{opacity:0;transform:translateY(8px);transition:all .4s ease}
-.app-container.show{opacity:1;transform:translateY(0)}
+.app-container{opacity:0}
+/* ✅ B10 (2026-10-07) — SURAKSHA-JAAL: pehle yahan `.app-container` par
+   `transform: translateY(0)` (transition ke saath) laga rehta tha, aur CSS
+   ka niyam hai ki transform wale kisi bhi ancestor ke andar `position:fixed`
+   viewport ke bajaye US ancestor ke box ke hisaab se lagta hai. Isi wajah se
+   mainApp ke andar rakha gaya "New Sponsored Tournament" modal (aur aage jo
+   bhi fixed element wahan aayega) poore app-container ke beech me khulta tha.
+   Wo modal ab body-level par hai (asli ilaaj), aur ye entry-animation bhi
+   ab aise likha gaya hai ki animation ke KHATAM hote hi transform `none` ho
+   jaye — yani aage koi bhi fixed element galti se mainApp me rakha jaye to
+   bhi ajeeb jagah par nahi khulega. Dikhne me bilkul pehle jaisa hi hai
+   (8px slide + fade, wahi .4s). */
+.app-container.show{opacity:1;animation:appIn .4s ease}
+@keyframes appIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* SIDEBAR */
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--bg-card);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform .3s cubic-bezier(.4,0,.2,1)}

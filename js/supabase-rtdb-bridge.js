@@ -1238,6 +1238,12 @@
     if (d.title !== undefined) s.title = d.title;
     if (d.sponsor !== undefined) s.sponsor_name = d.sponsor;
     if (d.prizePool !== undefined) s.prize_pool = d.prizePool;
+    /* ✅ B11 FIX (2026-10-07): prize_type/entry_type bridge me KABHI map hi
+       nahi hue the — isliye admin ke sponsored table/distribute modal ko
+       prize type dikhta hi nahi tha aur wo hamesha 'cash' (₹) maan liya
+       karte the, chahe row coin-prize wali ho. */
+    if (d.prizeType !== undefined) s.prize_type = d.prizeType;
+    if (d.entryType !== undefined) s.entry_type = d.entryType;
     if (d.prizes !== undefined) s.prizes = d.prizes;
     if (d.matchId !== undefined) s.match_id = d.matchId;
     if (d.description !== undefined) s.description = d.description;
@@ -1257,6 +1263,8 @@
       title: row.title || '',
       sponsor: row.sponsor_name || '',
       prizePool: row.prize_pool || 0,
+      prizeType: row.prize_type || 'cash',
+      entryType: row.entry_type || 'free',
       prizes: row.prizes || {},
       matchId: row.match_id || '',
       description: row.description || '',

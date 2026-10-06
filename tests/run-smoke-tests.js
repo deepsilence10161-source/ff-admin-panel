@@ -206,6 +206,65 @@ console.log('\n── TEST 7: B24/B26 video safai + Daily Bonus Editor ka sach �
      'editor warning dikhata hai jab server migration baaki ho');
 }
 
+/* ── TEST 8: B9/B10/B11 — sponsored table + modal position + prize type + payout suraksha ── */
+console.log('\n── TEST 8: B9/B10/B11 sponsored system (table, modal jagah, prize type, UTR suraksha) ──');
+{
+  const idx = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+
+  /* B10: createSponsoredModal mainApp ke ANDAR nahi hona chahiye (transform wale
+     ancestor ke andar position:fixed viewport ke bajaye usi ancestor par lagta hai). */
+  const appEnd = idx.indexOf('<!-- app end -->');
+  const modalPos = idx.indexOf('id="createSponsoredModal"');
+  ok(appEnd !== -1 && modalPos > appEnd,
+     'B10: createSponsoredModal body-level par hai (app-container ke bahar)');
+  ok(idx.indexOf('id="spTourPrizeType"') !== -1,
+     'B11: create modal me Prize Type select hai');
+  ok(/<option value="cash" selected>/.test(idx),
+     'B11: default prize type = Real Money (cash)');
+  ok(idx.indexOf('id="spTourPool" class="form-input" placeholder="0" min="1" readonly') !== -1,
+     'B11: pool field readonly (auto = prizes ka jod)');
+  ok(idx.indexOf('oninput="spRecalcPool()"') !== -1,
+     'B11: prize fields pool auto-calc se jude hain');
+
+  const css = fs.readFileSync(path.join(REPO, 'admin-base.css'), 'utf8');
+  ok(/@keyframes appIn\{from\{[^}]*transform:translateY\(8px\)\}to\{opacity:1;transform:none\}\}/.test(css),
+     'B10: app-container entry animation transform:none par khatam hoti hai (fixed elements safe)');
+  ok(!/\.app-container\.show\{opacity:1;transform:translateY\(0\)\}/.test(css),
+     'B10: purana transform:translateY(0) wala containing-block trap gaya');
+
+  const fa = fs.readFileSync(path.join(REPO, 'js/fa-sponsored-system.js'), 'utf8');
+  ok(fa.indexOf('_spRenderTable') !== -1 && fa.indexOf('<div class="table-wrapper"><table>') !== -1,
+     'B9: sponsored list ab data-table render karti hai');
+  ok(fa.indexOf('table-wrapper') !== -1 && fa.indexOf('mc-prize-box') === -1,
+     'B9: purane match-card wale markup (mc-prize-box) nahi bache');
+  ok(fa.indexOf('_admPrizeDistributeGate') !== -1,
+     'B14: sponsored Distribute button bhi wahi gate use karta hai');
+  ok(fa.indexOf("p_fourth_prize: p4to10") !== -1 && fa.indexOf("p_prize_type: prizeType") !== -1,
+     'B11: create RPC ko prize type + 4th-10th prizes jaate hain');
+  ok(fa.indexOf("p_prize_type: 'cash'") === -1,
+     'B11: hardcoded cash gaya (ab admin ka chuna hua jaata hai)');
+  ok(fa.indexOf('window._distCurrency') !== -1 && fa.indexOf("p_currency: _c") !== -1,
+     'B11: distribute modal currency-aware hai');
+  ok(fa.indexOf('sponsored_coin_prize') !== -1 || fa.indexOf('coin') !== -1,
+     'B11: coin prize ka rasta maujood hai');
+  ok(!/if \(!confirm\('Is sponsored tournament ko delete karo\?'\)\)/.test(fa),
+     'B3 usool: delete par native confirm nahi (app dialog)');
+  ok(fa.indexOf('window.appConfirm') !== -1, 'B3 usool: sponsored flows app-dialog use karte hain');
+
+  const ss = fs.readFileSync(path.join(REPO, 'js/admin-supabase-sponsored.js'), 'utf8');
+  ok(ss.indexOf('payout_ref_required') !== -1 && ss.indexOf('p_note: ref') !== -1,
+     'B11: withdrawal approve par UTR/reference lazmi (server + UI)');
+  ok(ss.indexOf('window.appConfirm') !== -1 && !/if \(!confirm\('Approve this sponsored withdrawal\?'\)\)/.test(ss),
+     'B11: approve/reject native popup se azaad (app dialog)');
+  ok(ss.indexOf('Payout ref') !== -1, 'B11: table me payout reference dikhta hai');
+
+  const br = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
+  ok(br.indexOf('if (d.prizeType !== undefined) s.prize_type = d.prizeType;') !== -1,
+     'B11: bridge prize_type bhejta hai (pehle drop ho jaata tha)');
+  ok(br.indexOf("prizeType: row.prize_type || 'cash'") !== -1,
+     'B11: bridge prize_type padhta hai');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }

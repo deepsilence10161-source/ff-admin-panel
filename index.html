@@ -87,15 +87,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mini eSports — Admin Panel</title>
-<link rel="icon" type="image/png" href="app-icon.png?v=20261007e">
-<link rel="apple-touch-icon" href="app-icon.png?v=20261007e">
+<link rel="icon" type="image/png" href="app-icon.png?v=20261007f">
+<link rel="apple-touch-icon" href="app-icon.png?v=20261007f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="admin-base.css?v=20261007e">
-<link rel="stylesheet" href="style.css?v=20261007e">
-<link rel="stylesheet" href="js/admin-ui-v10.css?v=20261007e">
+<link rel="stylesheet" href="admin-base.css?v=20261007f">
+<link rel="stylesheet" href="style.css?v=20261007f">
+<link rel="stylesheet" href="js/admin-ui-v10.css?v=20261007f">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- ✅ ADDED (2026-08-20): supabase-js v2 query builders are thenables
      with no real .catch()/.finally() — dozens of call sites across this
@@ -106,8 +106,8 @@
      behavior change to successful requests). Must load immediately
      after the Supabase SDK and before every other panel script that
      might call .catch() on a query builder. -->
-<script defer src="js/supabase-compat-patch.js?v=20261007e"></script>
-<script defer src="js/r8-admin-gateway-shim.js?v=20261007e"></script><!-- R8 FINAL: admin-only RPCs via trusted backend path (admin-gateway) -->
+<script defer src="js/supabase-compat-patch.js?v=20261007f"></script>
+<script defer src="js/r8-admin-gateway-shim.js?v=20261007f"></script><!-- R8 FINAL: admin-only RPCs via trusted backend path (admin-gateway) -->
 <script>
   /* Admin panel constants */
   window.SUPABASE_URL = 'https://hddhkculuyrfoevxmlwy.supabase.co';
@@ -121,9 +121,9 @@
      SUPABASE EARLY INIT — Must load before Firebase scripts
      Initializes window._supa so the bridge can install quickly
 ═══════════════════════════════════════════════ -->
-<script defer src="js/supabase-init-early.js?v=20261007e"></script>
-<script defer src="js/app-dialog.js?v=20261007e"></script><!-- ✅ B3: sab confirm/alert/prompt app-UI me -->
-<script defer src="js/security-hardening.js?v=20261007e"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
+<script defer src="js/supabase-init-early.js?v=20261007f"></script>
+<script defer src="js/app-dialog.js?v=20261007f"></script><!-- ✅ B3: sab confirm/alert/prompt app-UI me -->
+<script defer src="js/security-hardening.js?v=20261007f"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
 <script>
   /* ✅ REPLACED (2026-09-30) — pehle yahan ek bada DIAGNOSTIC block tha:
      green "🔧 build v54-diag" badge, poore page ka click tracer (har click
@@ -158,7 +158,7 @@
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
 <div class="login-card">
-<div class="login-icon"><img src="app-icon.png?v=20261007e" alt="Mini eSports" style="width:96px;height:96px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 0 18px rgba(57,255,20,.45))"></div>
+<div class="login-icon"><img src="app-icon.png?v=20261007f" alt="Mini eSports" style="width:96px;height:96px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 0 18px rgba(57,255,20,.45))"></div>
 <div class="login-title">MINI ESPORT</div>
 <div class="login-subtitle">Admin Control Center</div>
 <div class="login-error" id="loginError"><i class="fas fa-exclamation-circle"></i> <span id="loginErrorMsg"></span></div>
@@ -185,7 +185,7 @@
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar" role="navigation" aria-label="Admin Navigation">
 <div class="sidebar-header">
-<div class="sidebar-logo"><img src="app-icon.png?v=20261007e" alt="" aria-hidden="true" style="width:38px;height:38px;object-fit:contain;display:block;filter:drop-shadow(0 0 6px rgba(57,255,20,.45))"></div>
+<div class="sidebar-logo"><img src="app-icon.png?v=20261007f" alt="" aria-hidden="true" style="width:38px;height:38px;object-fit:contain;display:block;filter:drop-shadow(0 0 6px rgba(57,255,20,.45))"></div>
 <div class="sidebar-brand-group">
 <h1 class="sidebar-brand" style="margin:0;line-height:1.2">MINI ESPORT</h1>
 <div class="sidebar-brand-sub">Admin Panel v4.0</div>
@@ -677,9 +677,115 @@
 </div></div>
 </div>
 
+
+
+<!-- DISPUTES -->
+<div class="section" id="section-disputes">
+<div class="section-header"><div class="section-title"><i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> Disputes <span class="count" id="disputeCount">0</span></div></div>
+<div class="card"><div class="card-body compact">
+<div class="table-wrapper"><table>
+<thead><tr><th>Player</th><th>Match</th><th>Type</th><th>Claimed Rank</th><th>Message</th><th>Creator Code</th><th>Screenshot</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+<tbody id="disputesTable"><tr><td colspan="9" class="text-muted text-center" style="padding:20px">Loading...</td></tr></tbody>
+</table></div>
+</div></div>
+</div>
+
+<!-- CREATOR VIDEO REVIEW (✅ FIX Audit H2 — section poori tarah missing thi) -->
+<!-- CREATOR MATCH REVIEW (2026-08: repurposed from the never-shipped
+     Creator Video Review section — that feature was removed entirely
+     from User Panel as dead code. This is where creator-hosted match
+     results land when auto-approve flags them as suspicious — see
+     creator_result_flags table and creator_publish_result RPC. -->
+<div class="section" id="section-creatorMatchReview">
+<div class="section-header"><div class="section-title"><i class="fas fa-flag text-primary"></i> Creator Match Review</div>
+<div class="section-actions">
+<button class="btn btn-ghost btn-sm" onclick="loadCreatorMatchFlags()"><i class="fas fa-sync-alt"></i> Refresh</button>
+</div></div>
+<div class="card"><div class="card-body compact">
+<div class="section-title" style="font-size:13px;margin-bottom:8px"><i class="fas fa-flag"></i> Flagged Match Results (needs review)</div>
+<div style="font-size:11px;color:var(--txt-dim);margin-bottom:10px;line-height:1.6">Creator-hosted matches auto-approve and pay out instantly — this list only shows matches that tripped an anomaly check (impossible kill count, repeat-winner pattern, or payout over the safety cap). Everything else already paid out with zero admin action needed.</div>
+<div id="creatorMatchFlagsContent"><p class="text-muted text-xs" style="padding:20px;text-align:center">Loading...</p></div>
+</div></div>
+<div class="card mt-3"><div class="card-body compact">
+<div class="section-title" style="font-size:13px;margin-bottom:8px"><i class="fas fa-history"></i> Creator Strike History</div>
+<div id="creatorStrikeHistoryContent"><p class="text-muted text-xs" style="padding:20px;text-align:center">Loading...</p></div>
+</div></div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="section" id="section-analytics">
+<div class="section-header"><div class="section-title"><i class="fas fa-chart-bar text-primary"></i> Analytics</div>
+<button class="btn btn-ghost btn-sm" onclick="refreshAnalytics()"><i class="fas fa-sync-alt"></i> Refresh</button>
+</div>
+<div class="stats-grid mb-4" style="grid-template-columns:repeat(3,1fr)">
+<div class="stat-card"><div class="stat-icon green"><i class="fas fa-arrow-down"></i></div><h3>Total Revenue</h3><div class="value text-primary" id="analRevenue">₹0</div><div class="sub">From deposits</div></div>
+<div class="stat-card"><div class="stat-icon red"><i class="fas fa-arrow-up"></i></div><h3>Total Payouts</h3><div class="value text-warning" id="analPayout">₹0</div><div class="sub">Withdrawals + Prizes</div></div>
+<div class="stat-card"><div class="stat-icon blue"><i class="fas fa-coins"></i></div><h3>Net Profit</h3><div class="value" id="analNet">₹0</div><div class="sub">Revenue - Payouts</div></div>
+</div>
+<div class="grid mb-4" style="grid-template-columns:repeat(2,1fr)">
+<div class="stat-card"><div class="stat-icon green"><i class="fas fa-gamepad"></i></div><h3>Entry Fees Collected</h3><div class="value text-primary" id="analEntryFees">₹0</div><div class="sub">From match entries</div></div>
+<div class="stat-card" style="background:linear-gradient(135deg,rgba(0,255,156,.06),rgba(0,255,156,.02));border-color:rgba(0,255,156,.2)"><div class="stat-icon green"><i class="fas fa-chart-line"></i></div><h3>🎯 Platform Profit</h3><div class="value text-primary" id="analPlatformProfit" style="font-size:22px;font-weight:800">₹0</div><div class="sub">Entry Fees − Prizes Paid</div></div>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-header"><i class="fas fa-chart-line"></i> Last 7 Days Revenue</div><div class="card-body" id="analChart"><p class="text-muted text-xs">Loading...</p></div></div>
+<div class="card"><div class="card-header"><i class="fas fa-trophy"></i> Top Matches (by Prize)</div><div class="card-body compact" id="analTopMatches"><p class="text-muted text-xs">Loading...</p></div></div>
+</div>
+<div class="card mt-3"><div class="card-header"><i class="fas fa-crown"></i> Top Earners</div><div class="card-body compact" id="analTopPlayers"><p class="text-muted text-xs">Loading...</p></div></div>
+</div>
+
+<!-- PLAYER LOOKUP -->
+<div class="section" id="section-lookup">
+<div class="section-header"><div class="section-title"><i class="fas fa-search text-primary"></i> Player Lookup</div>
+<button class="btn btn-ghost btn-sm" onclick="clearLookup()"><i class="fas fa-times"></i> Clear</button>
+</div>
+<div class="card mb-3"><div class="card-body">
+<div class="form-group"><label>Search by IGN, UID, FF UID, or Phone</label>
+<div class="flex gap-2"><input type="text" id="playerSearchInput" class="form-input" placeholder="Enter search term..." onkeyup="if(event.key==='Enter')searchPlayers()">
+<button class="btn btn-primary" onclick="searchPlayers()"><i class="fas fa-search"></i> Search</button></div></div>
+</div></div>
+<div id="lookupResults"><p class="text-muted text-xs" style="padding:20px;text-align:center">Enter IGN, UID, FF UID, or Phone to search</p></div>
+<div id="investigationDetail" style="display:none" class="card mt-3"><div class="card-header"><i class="fas fa-user-secret"></i> Investigation Report</div><div class="card-body"></div></div>
+</div>
+
+<!-- ACTIVITY LOG -->
+<div class="section" id="section-activity">
+<div class="section-header"><div class="section-title"><i class="fas fa-history text-primary"></i> Activity Log <span class="count" id="activityLogCount">0</span></div>
+<div class="section-actions">
+<select class="form-input" style="max-width:140px" onchange="filterActivityLog(this.value)">
+<option value="all">All Types</option>
+<option value="ban">Bans</option>
+<option value="wallet">Wallet</option>
+<option value="result">Results</option>
+<option value="profile">Profiles</option>
+<option value="match">Matches</option>
+<option value="credit">Credits</option>
+<option value="debit">Debits</option>
+</select>
+<button class="btn btn-ghost btn-sm" onclick="refreshActivityLog()"><i class="fas fa-sync-alt"></i></button>
+<button class="btn btn-ghost btn-sm" onclick="exportActivityLog()"><i class="fas fa-download"></i> Export</button>
+</div></div>
+<div class="card"><div class="card-body compact" id="activityLogList"><p class="text-muted text-xs" style="padding:20px;text-align:center">Loading activity logs...</p></div></div>
+</div>
+
+</div><!-- main-content end -->
+</div><!-- app end -->
+
+<!-- MODALS -->
+
+<!-- ⚠️ B10 FIX (2026-10-07): "New Sponsored Tournament" ka create modal
+     pehle mainApp (.app-container) ke ANDAR tha — aur .app-container par
+     entry animation ka `transform: translateY(0)` laga rehta hai. CSS ka
+     niyam: transform wale kisi bhi ancestor ke andar `position:fixed`
+     viewport ke bajaye US ancestor ke box ke hisaab se lagta hai. Nateeja:
+     ye modal fixed hone ke bawajood poore app-container (kai hazaar px
+     lambe) ke beech me open hota tha -> admin ko "match create page neeche
+     ajeeb tareeke se khulta hai" dikhta tha. Baaki SAARE 9 modals
+     (tournamentModal, genericModal, adminGenericModal...) body-level par
+     hain, isi liye sirf yahi ek modal ajeeb khulta tha. Ab wo bhi unhi ki
+     tarah body-level hai (position:fixed = asli viewport). -->
 <!-- Create Sponsored Tournament Modal -->
-<div id="createSponsoredModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);align-items:center;justify-content:center" onclick="if(event.target===this)closeSponsoredModal()">
-  <div style="background:#1a1a2e;border:1px solid rgba(255,215,0,.25);border-radius:20px;padding:28px;max-width:480px;width:90%;max-height:90vh;overflow-y:auto">
+<div id="createSponsoredModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:14px;overflow-y:auto;-webkit-overflow-scrolling:touch" onclick="if(event.target===this)closeSponsoredModal()">
+  <div style="background:#1a1a2e;border:1px solid rgba(255,215,0,.25);border-radius:20px;padding:22px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;margin:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div style="font-size:18px;font-weight:900;color:#ffd700"><i class="fas fa-medal"></i> New Sponsored Tournament</div>
       <button onclick="closeSponsoredModal()" style="background:rgba(255,255,255,.08);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
@@ -705,14 +811,32 @@
       <input type="datetime-local" id="spTourMatchTime" class="form-input" onchange="_onSpMatchTimeChange()">
       <div id="spTourMatchTimePreview" style="margin-top:6px;font-size:12px;font-weight:700"></div>
     </div>
-    <div class="form-group"><label>Total Prize Pool (₹)</label><input type="number" id="spTourPool" class="form-input" placeholder="e.g. 1000" min="1"></div>
+    <!-- ✅ B11 (2026-10-07): PRIZE TYPE — admin jo chune wahi user ko dikhega
+         aur result par wahi milega (cash = real money, sponsored_winnings +
+         UPI withdrawal; coin = 🪙 users.coins). Default = Real Money,
+         kyunki "Halal Prize System" ka asli maqsad cash prize hi hai. -->
+    <div class="form-group"><label>Prize Type <span style="color:#00ff9c">(user ko yahi dikhega)</span></label>
+      <select id="spTourPrizeType" class="form-input" onchange="spRecalcPool()">
+        <option value="cash" selected>₹ Real Money (UPI se milega)</option>
+        <option value="coin">🪙 Coins (wallet me coins)</option>
+      </select>
+    </div>
+    <!-- ✅ B11 FIX: pool ab ADMIN ka typed number nahi — prizes ka jod.
+         Pehle ye field sirf dikhawe ke liye thi (server use ignore karta
+         tha), isliye card par "Total Pool" aur asli prizes kabhi alag ho
+         sakte the. Ab ye readonly hai aur prize fields bharte hi apne aap
+         jud jaata hai: 1st+2nd+3rd + 7×(4th-10th). -->
+    <div class="form-group"><label>Total Prize Pool <span id="spPoolUnit" style="color:#fff">(₹)</span> <span style="color:#888;font-weight:400">— auto (prizes ka total)</span></label>
+      <input type="number" id="spTourPool" class="form-input" placeholder="0" min="1" readonly style="opacity:.85;cursor:not-allowed" tabindex="-1">
+      <div id="spPoolHint" style="margin-top:5px;font-size:11px;color:#888">Neeche prize amounts bharo — pool khud jud jayega.</div>
+    </div>
     <div style="background:rgba(0,255,156,.06);border:1px solid rgba(0,255,156,.2);border-radius:12px;padding:12px;margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:#00ff9c;margin-bottom:8px">Prize Distribution</div>
+      <div style="font-size:12px;font-weight:700;color:#00ff9c;margin-bottom:8px">Prize Distribution <span style="color:#888;font-weight:400;font-size:11px">— 4th-10th (7 players) bhi pool me judte hain</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="form-group" style="margin:0"><label style="font-size:11px">🥇 1st Place (₹)</label><input type="number" id="spPrize1" class="form-input" placeholder="500"></div>
-        <div class="form-group" style="margin:0"><label style="font-size:11px">🥈 2nd Place (₹)</label><input type="number" id="spPrize2" class="form-input" placeholder="300"></div>
-        <div class="form-group" style="margin:0"><label style="font-size:11px">🥉 3rd Place (₹)</label><input type="number" id="spPrize3" class="form-input" placeholder="150"></div>
-        <div class="form-group" style="margin:0"><label style="font-size:11px">4th–10th (₹ each)</label><input type="number" id="spPrize4to10" class="form-input" placeholder="10"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:11px">🥇 1st Place <span class="sp-unit">(₹)</span></label><input type="number" id="spPrize1" class="form-input" placeholder="500" min="0" oninput="spRecalcPool()"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:11px">🥈 2nd Place <span class="sp-unit">(₹)</span></label><input type="number" id="spPrize2" class="form-input" placeholder="300" min="0" oninput="spRecalcPool()"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:11px">🥉 3rd Place <span class="sp-unit">(₹)</span></label><input type="number" id="spPrize3" class="form-input" placeholder="150" min="0" oninput="spRecalcPool()"></div>
+        <div class="form-group" style="margin:0"><label style="font-size:11px">4th–10th <span class="sp-unit">(₹ each)</span></label><input type="number" id="spPrize4to10" class="form-input" placeholder="10" min="0" oninput="spRecalcPool()"></div>
       </div>
     </div>
     <div class="form-group"><label>Description (optional)</label><textarea id="spTourDesc" class="form-input" placeholder="Tournament details..." style="min-height:70px"></textarea></div>
@@ -1076,99 +1200,6 @@
      waise hi chalte hain; DB me join_requests.roster_status column jaisa hai
      waisa hai (kisi cheez ko todne ke liye usse chheda nahi gaya). -->
 </div>
-
-<!-- DISPUTES -->
-<div class="section" id="section-disputes">
-<div class="section-header"><div class="section-title"><i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> Disputes <span class="count" id="disputeCount">0</span></div></div>
-<div class="card"><div class="card-body compact">
-<div class="table-wrapper"><table>
-<thead><tr><th>Player</th><th>Match</th><th>Type</th><th>Claimed Rank</th><th>Message</th><th>Creator Code</th><th>Screenshot</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
-<tbody id="disputesTable"><tr><td colspan="9" class="text-muted text-center" style="padding:20px">Loading...</td></tr></tbody>
-</table></div>
-</div></div>
-</div>
-
-<!-- CREATOR VIDEO REVIEW (✅ FIX Audit H2 — section poori tarah missing thi) -->
-<!-- CREATOR MATCH REVIEW (2026-08: repurposed from the never-shipped
-     Creator Video Review section — that feature was removed entirely
-     from User Panel as dead code. This is where creator-hosted match
-     results land when auto-approve flags them as suspicious — see
-     creator_result_flags table and creator_publish_result RPC. -->
-<div class="section" id="section-creatorMatchReview">
-<div class="section-header"><div class="section-title"><i class="fas fa-flag text-primary"></i> Creator Match Review</div>
-<div class="section-actions">
-<button class="btn btn-ghost btn-sm" onclick="loadCreatorMatchFlags()"><i class="fas fa-sync-alt"></i> Refresh</button>
-</div></div>
-<div class="card"><div class="card-body compact">
-<div class="section-title" style="font-size:13px;margin-bottom:8px"><i class="fas fa-flag"></i> Flagged Match Results (needs review)</div>
-<div style="font-size:11px;color:var(--txt-dim);margin-bottom:10px;line-height:1.6">Creator-hosted matches auto-approve and pay out instantly — this list only shows matches that tripped an anomaly check (impossible kill count, repeat-winner pattern, or payout over the safety cap). Everything else already paid out with zero admin action needed.</div>
-<div id="creatorMatchFlagsContent"><p class="text-muted text-xs" style="padding:20px;text-align:center">Loading...</p></div>
-</div></div>
-<div class="card mt-3"><div class="card-body compact">
-<div class="section-title" style="font-size:13px;margin-bottom:8px"><i class="fas fa-history"></i> Creator Strike History</div>
-<div id="creatorStrikeHistoryContent"><p class="text-muted text-xs" style="padding:20px;text-align:center">Loading...</p></div>
-</div></div>
-</div>
-
-<!-- ANALYTICS -->
-<div class="section" id="section-analytics">
-<div class="section-header"><div class="section-title"><i class="fas fa-chart-bar text-primary"></i> Analytics</div>
-<button class="btn btn-ghost btn-sm" onclick="refreshAnalytics()"><i class="fas fa-sync-alt"></i> Refresh</button>
-</div>
-<div class="stats-grid mb-4" style="grid-template-columns:repeat(3,1fr)">
-<div class="stat-card"><div class="stat-icon green"><i class="fas fa-arrow-down"></i></div><h3>Total Revenue</h3><div class="value text-primary" id="analRevenue">₹0</div><div class="sub">From deposits</div></div>
-<div class="stat-card"><div class="stat-icon red"><i class="fas fa-arrow-up"></i></div><h3>Total Payouts</h3><div class="value text-warning" id="analPayout">₹0</div><div class="sub">Withdrawals + Prizes</div></div>
-<div class="stat-card"><div class="stat-icon blue"><i class="fas fa-coins"></i></div><h3>Net Profit</h3><div class="value" id="analNet">₹0</div><div class="sub">Revenue - Payouts</div></div>
-</div>
-<div class="grid mb-4" style="grid-template-columns:repeat(2,1fr)">
-<div class="stat-card"><div class="stat-icon green"><i class="fas fa-gamepad"></i></div><h3>Entry Fees Collected</h3><div class="value text-primary" id="analEntryFees">₹0</div><div class="sub">From match entries</div></div>
-<div class="stat-card" style="background:linear-gradient(135deg,rgba(0,255,156,.06),rgba(0,255,156,.02));border-color:rgba(0,255,156,.2)"><div class="stat-icon green"><i class="fas fa-chart-line"></i></div><h3>🎯 Platform Profit</h3><div class="value text-primary" id="analPlatformProfit" style="font-size:22px;font-weight:800">₹0</div><div class="sub">Entry Fees − Prizes Paid</div></div>
-</div>
-<div class="grid-2">
-<div class="card"><div class="card-header"><i class="fas fa-chart-line"></i> Last 7 Days Revenue</div><div class="card-body" id="analChart"><p class="text-muted text-xs">Loading...</p></div></div>
-<div class="card"><div class="card-header"><i class="fas fa-trophy"></i> Top Matches (by Prize)</div><div class="card-body compact" id="analTopMatches"><p class="text-muted text-xs">Loading...</p></div></div>
-</div>
-<div class="card mt-3"><div class="card-header"><i class="fas fa-crown"></i> Top Earners</div><div class="card-body compact" id="analTopPlayers"><p class="text-muted text-xs">Loading...</p></div></div>
-</div>
-
-<!-- PLAYER LOOKUP -->
-<div class="section" id="section-lookup">
-<div class="section-header"><div class="section-title"><i class="fas fa-search text-primary"></i> Player Lookup</div>
-<button class="btn btn-ghost btn-sm" onclick="clearLookup()"><i class="fas fa-times"></i> Clear</button>
-</div>
-<div class="card mb-3"><div class="card-body">
-<div class="form-group"><label>Search by IGN, UID, FF UID, or Phone</label>
-<div class="flex gap-2"><input type="text" id="playerSearchInput" class="form-input" placeholder="Enter search term..." onkeyup="if(event.key==='Enter')searchPlayers()">
-<button class="btn btn-primary" onclick="searchPlayers()"><i class="fas fa-search"></i> Search</button></div></div>
-</div></div>
-<div id="lookupResults"><p class="text-muted text-xs" style="padding:20px;text-align:center">Enter IGN, UID, FF UID, or Phone to search</p></div>
-<div id="investigationDetail" style="display:none" class="card mt-3"><div class="card-header"><i class="fas fa-user-secret"></i> Investigation Report</div><div class="card-body"></div></div>
-</div>
-
-<!-- ACTIVITY LOG -->
-<div class="section" id="section-activity">
-<div class="section-header"><div class="section-title"><i class="fas fa-history text-primary"></i> Activity Log <span class="count" id="activityLogCount">0</span></div>
-<div class="section-actions">
-<select class="form-input" style="max-width:140px" onchange="filterActivityLog(this.value)">
-<option value="all">All Types</option>
-<option value="ban">Bans</option>
-<option value="wallet">Wallet</option>
-<option value="result">Results</option>
-<option value="profile">Profiles</option>
-<option value="match">Matches</option>
-<option value="credit">Credits</option>
-<option value="debit">Debits</option>
-</select>
-<button class="btn btn-ghost btn-sm" onclick="refreshActivityLog()"><i class="fas fa-sync-alt"></i></button>
-<button class="btn btn-ghost btn-sm" onclick="exportActivityLog()"><i class="fas fa-download"></i> Export</button>
-</div></div>
-<div class="card"><div class="card-body compact" id="activityLogList"><p class="text-muted text-xs" style="padding:20px;text-align:center">Loading activity logs...</p></div></div>
-</div>
-
-</div><!-- main-content end -->
-</div><!-- app end -->
-
-<!-- MODALS -->
 <!-- Tournament Modal -->
 <div class="modal-overlay" id="tournamentModal">
 <div class="modal">
@@ -1206,7 +1237,7 @@
 <div class="form-group"><label>Map *</label><select id="tMap" class="form-input"><option>Bermuda</option><option>Kalahari</option><option>Purgatory</option><option>Alpine</option><option>Nexterra</option><option>Bermuda Remastered</option></select></div>
 <div class="form-group"><label>Entry Type *</label><select id="tEntryType" class="form-input" onchange="onEntryTypeChange()"><option value="paid">💠 Paid (Sky Diamond)</option><option value="coin">🪙 Coin</option><option value="ad">📺 Ad-Based (Free)</option><option value="free">🎁 Free Entry (no fee)</option></select></div>
 </div>
-<div id="entryTypeHint" class="info-box green"><i class="fas fa-info-circle"></i> Paid — Entry: 💠 Sky Diamond | Winner Prize: <img src="green-diamond.png?v=20261007e" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green Diamond</div>
+<div id="entryTypeHint" class="info-box green"><i class="fas fa-info-circle"></i> Paid — Entry: 💠 Sky Diamond | Winner Prize: <img src="green-diamond.png?v=20261007f" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green Diamond</div>
 <div id="adsRequiredWrap" style="display:none;margin-top:10px">
   <div class="grid-3">
     <div class="form-group"><label>📺 Ads Required to Join</label><select id="tAdsRequired" class="form-input"><option value="1">1 Ad</option><option value="2" selected>2 Ads</option><option value="3">3 Ads</option></select></div>
@@ -1345,7 +1376,7 @@
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-primary" id="manualUserName">—</span><span class="badge green" id="manualUserStatus">—</span></div>
 <div class="flex gap-3 text-xs flex-wrap" style="gap:8px">
   <span>💎 Sky: <strong style="color:#00d4ff" id="manualUserDep">0</strong></span>
-  <span><img src="green-diamond.png?v=20261007e" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green: <strong style="color:#00ff64" id="manualUserWin">0</strong></span>
+  <span><img src="green-diamond.png?v=20261007f" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green: <strong style="color:#00ff64" id="manualUserWin">0</strong></span>
   <span>🪙 Coins: <strong style="color:#ffd700" id="manualUserCoins">0</strong></span>
 </div>
 </div>
@@ -1566,10 +1597,10 @@
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted, split into 4 parts: B core / C match mgmt / D operations / E peripheral)
 ═══════════════════════════════════════════════ -->
-<script defer src="js/admin-inline-b.js?v=20261007e"></script>
-<script defer src="js/admin-inline-c.js?v=20261007e"></script>
-<script defer src="js/admin-inline-d.js?v=20261007e"></script>
-<script defer src="js/admin-inline-e.js?v=20261007e"></script>
+<script defer src="js/admin-inline-b.js?v=20261007f"></script>
+<script defer src="js/admin-inline-c.js?v=20261007f"></script>
+<script defer src="js/admin-inline-d.js?v=20261007f"></script>
+<script defer src="js/admin-inline-e.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════
      SUPABASE RTDB BRIDGE — Firebase → Supabase migration
@@ -1577,86 +1608,86 @@
      appSettings/, admins/ which stay on real Firebase RTDB.
      Everything else (matches, users, joinRequests, wallet, etc.) → Supabase.
 ═══════════════════════════════════════════════ -->
-<script defer src="js/supabase-rtdb-bridge.js?v=20261007e"></script>
+<script defer src="js/supabase-rtdb-bridge.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════
      BASE FEATURES
 ═══════════════════════════════════════════════ -->
-<script defer src="js/fix8-lazy-loading.js?v=20261007e"></script>
-<script defer src="js/security-patches.js?v=20261007e"></script>
-<script defer src="js/admin-live-dash.js?v=20261007e"></script>
-<script defer src="js/admin-analytics.js?v=20261007e"></script>
-<script defer src="js/admin-scheduler.js?v=20261007e"></script>
-<script defer src="js/admin-player-lookup.js?v=20261007e"></script>
-<script defer src="js/admin-notif-templates.js?v=20261007e"></script>
-<script defer src="js/admin-chat-enhance.js?v=20261007e"></script>
-<script defer src="js/admin-activity-log.js?v=20261007e"></script>
-<script defer src="js/features-admin.js?v=20261007e"></script>
+<script defer src="js/fix8-lazy-loading.js?v=20261007f"></script>
+<script defer src="js/security-patches.js?v=20261007f"></script>
+<script defer src="js/admin-live-dash.js?v=20261007f"></script>
+<script defer src="js/admin-analytics.js?v=20261007f"></script>
+<script defer src="js/admin-scheduler.js?v=20261007f"></script>
+<script defer src="js/admin-player-lookup.js?v=20261007f"></script>
+<script defer src="js/admin-notif-templates.js?v=20261007f"></script>
+<script defer src="js/admin-chat-enhance.js?v=20261007f"></script>
+<script defer src="js/admin-activity-log.js?v=20261007f"></script>
+<script defer src="js/features-admin.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════
      FEATURE MODULES (fa02–fa80)
 ═══════════════════════════════════════════════ -->
-<script defer src="js/features/fa02-smart-search.js?v=20261007e"></script>
-<script defer src="js/features/fix7-server-side-search.js?v=20261007e"></script>
-<script defer src="js/features/fa03-quick-match-creator.js?v=20261007e"></script>
-<script defer src="js/features/fa04-bulk-notification.js?v=20261007e"></script>
-<script defer src="js/features/fa05-platform-health.js?v=20261007e"></script>
-<script defer src="js/features/fa06-duplicate-detector.js?v=20261007e"></script>
-<script defer src="js/features/fa08-match-autopublish.js?v=20261007e"></script>
-<script defer src="js/features/fa10-user-activity-heatmap.js?v=20261007e"></script>
-<script defer src="js/features/fa11-result-auto-calc.js?v=20261007e"></script>
-<script defer src="js/features/fa12-bulk-notify.js?v=20261007e"></script>
-<script defer src="js/features/fa13-match-clone.js?v=20261007e"></script>
-<script defer src="js/features/fa14-player-lookup.js?v=20261007e"></script>
-<script defer src="js/features/fa15-match-result-reminder.js?v=20261007e"></script>
-<script defer src="js/features/fa16-quick-ban.js?v=20261007e"></script>
-<script defer src="js/features/fa17-pending-profiles.js?v=20261007e"></script>
-<script defer src="js/features/fa18-match-stats.js?v=20261007e"></script>
-<script defer src="js/features/fa19-auto-status.js?v=20261007e"></script>
-<script defer src="js/features/fa21-match-history.js?v=20261007e"></script>
-<script defer src="js/features/fa22-match-result.js?v=20261007e"></script>
-<script defer src="js/features/fa24-admin-smart-tools.js?v=20261007e"></script>
-<script defer src="js/features/fa25-fraud-dashboard.js?v=20261007e"></script>
-<script defer src="js/features/fa26-poll-suggestion.js?v=20261007e"></script>
-<script defer src="js/features/fa27-anticheat-complete.js?v=20261007e"></script>
-<script defer src="js/features/fa28-fa43-fraud-control-center.js?v=20261007e"></script>
-<script defer src="js/features/fa44-fa52-final-admin-tools.js?v=20261007e"></script>
-<script defer src="js/features/fa53-ocr-autofill.js?v=20261007e"></script>
-<script defer src="js/features/fa53-ocr-engine-plus.js?v=20261007e"></script>
-<script defer src="js/features/fa-legal-kyc-dispute.js?v=20261007e"></script>
-<script defer src="js/features/fa56-fa62-automation-bundle.js?v=20261007e"></script>
-<script defer src="js/features/fa63-fa70-automation-bundle.js?v=20261007e"></script>
-<script defer src="js/features/fa71-fa80-automation-bundle.js?v=20261007e"></script>
+<script defer src="js/features/fa02-smart-search.js?v=20261007f"></script>
+<script defer src="js/features/fix7-server-side-search.js?v=20261007f"></script>
+<script defer src="js/features/fa03-quick-match-creator.js?v=20261007f"></script>
+<script defer src="js/features/fa04-bulk-notification.js?v=20261007f"></script>
+<script defer src="js/features/fa05-platform-health.js?v=20261007f"></script>
+<script defer src="js/features/fa06-duplicate-detector.js?v=20261007f"></script>
+<script defer src="js/features/fa08-match-autopublish.js?v=20261007f"></script>
+<script defer src="js/features/fa10-user-activity-heatmap.js?v=20261007f"></script>
+<script defer src="js/features/fa11-result-auto-calc.js?v=20261007f"></script>
+<script defer src="js/features/fa12-bulk-notify.js?v=20261007f"></script>
+<script defer src="js/features/fa13-match-clone.js?v=20261007f"></script>
+<script defer src="js/features/fa14-player-lookup.js?v=20261007f"></script>
+<script defer src="js/features/fa15-match-result-reminder.js?v=20261007f"></script>
+<script defer src="js/features/fa16-quick-ban.js?v=20261007f"></script>
+<script defer src="js/features/fa17-pending-profiles.js?v=20261007f"></script>
+<script defer src="js/features/fa18-match-stats.js?v=20261007f"></script>
+<script defer src="js/features/fa19-auto-status.js?v=20261007f"></script>
+<script defer src="js/features/fa21-match-history.js?v=20261007f"></script>
+<script defer src="js/features/fa22-match-result.js?v=20261007f"></script>
+<script defer src="js/features/fa24-admin-smart-tools.js?v=20261007f"></script>
+<script defer src="js/features/fa25-fraud-dashboard.js?v=20261007f"></script>
+<script defer src="js/features/fa26-poll-suggestion.js?v=20261007f"></script>
+<script defer src="js/features/fa27-anticheat-complete.js?v=20261007f"></script>
+<script defer src="js/features/fa28-fa43-fraud-control-center.js?v=20261007f"></script>
+<script defer src="js/features/fa44-fa52-final-admin-tools.js?v=20261007f"></script>
+<script defer src="js/features/fa53-ocr-autofill.js?v=20261007f"></script>
+<script defer src="js/features/fa53-ocr-engine-plus.js?v=20261007f"></script>
+<script defer src="js/features/fa-legal-kyc-dispute.js?v=20261007f"></script>
+<script defer src="js/features/fa56-fa62-automation-bundle.js?v=20261007f"></script>
+<script defer src="js/features/fa63-fa70-automation-bundle.js?v=20261007f"></script>
+<script defer src="js/features/fa71-fa80-automation-bundle.js?v=20261007f"></script>
 
 <!-- v17 NEW FEATURES -->
-<script defer src="js/features/fa-v17-features.js?v=20261007e"></script>
+<script defer src="js/features/fa-v17-features.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════
      PATCH & GROWTH LAYERS
      (load after features, order matters)
 ═══════════════════════════════════════════════ -->
-<script defer src="js/fix13-realtime-analytics.js?v=20261007e"></script>
-<script defer src="js/admin-fixes-v7.js?v=20261007e"></script>
-<script defer src="js/fixes-admin-v9.js?v=20261007e"></script>
-<script defer src="js/fa-admin-v10.js?v=20261007e"></script>
-<script defer src="js/fa-admin-v10-final.js?v=20261007e"></script>
-<script defer src="js/fa-sponsored-system.js?v=20261007e"></script>
-<script defer src="js/fa-growth-admin.js?v=20261007e"></script>
-<script defer src="js/fa-app-settings-v2.js?v=20261007e"></script>
+<script defer src="js/fix13-realtime-analytics.js?v=20261007f"></script>
+<script defer src="js/admin-fixes-v7.js?v=20261007f"></script>
+<script defer src="js/fixes-admin-v9.js?v=20261007f"></script>
+<script defer src="js/fa-admin-v10.js?v=20261007f"></script>
+<script defer src="js/fa-admin-v10-final.js?v=20261007f"></script>
+<script defer src="js/fa-sponsored-system.js?v=20261007f"></script>
+<script defer src="js/fa-growth-admin.js?v=20261007f"></script>
+<script defer src="js/fa-app-settings-v2.js?v=20261007f"></script>
 <!-- ✅ FIX (Audit H2): yeh file exist karti thi lekin kabhi load hi nahi hoti thi —
      poora Creator Video Review + Strike management feature is wajah se 100%
      unreachable tha (na sidebar mein link tha, na script tag tha). -->
-<script defer src="js/fa-creator-video-review.js?v=20261007e"></script>
+<script defer src="js/fa-creator-video-review.js?v=20261007f"></script>
 
-<script defer src="js/imgbb.js?v=20261007e"></script>
-<script defer src="js/admin-supabase-sync.js?v=20261007e"></script>
-<script defer src="js/admin-supabase-sponsored.js?v=20261007e"></script><!-- Bug#118 Fix: separated sponsored WD -->
+<script defer src="js/imgbb.js?v=20261007f"></script>
+<script defer src="js/admin-supabase-sync.js?v=20261007f"></script>
+<script defer src="js/admin-supabase-sponsored.js?v=20261007f"></script><!-- Bug#118 Fix: separated sponsored WD -->
 
 <!-- ═══════════════════════════════════════════════════════
      v21 BUG FIX PATCH — Loads LAST to patch all above scripts
      Fixes all 120 bugs from comprehensive analysis report
      ═══════════════════════════════════════════════════════ -->
-<script defer src="js/admin-fixes-v21.js?v=20261007e"></script>
+<script defer src="js/admin-fixes-v21.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      v22 FINAL PATCH — Loads AFTER v21
@@ -1673,8 +1704,8 @@
      • Bug#111    Unified _calcPrize() across all functions
      • Bonus: Supabase channel leaks, avatar_bg column, clan_messages
      ═══════════════════════════════════════════════════════ -->
-<script defer src="js/admin-fixes-v22-FINAL.js?v=20261007e"></script>
-<script defer src="js/qa-live-freshness.js?v=20261007e"></script>
+<script defer src="js/admin-fixes-v22-FINAL.js?v=20261007f"></script>
+<script defer src="js/qa-live-freshness.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════════
      Admin Patch v23 FINAL — Applied after v22
@@ -1683,7 +1714,7 @@
      real-time joinRequests listener, approveTeam dup check,
      global Firebase→Supabase notification dual-write, heatmap pagination
      ═══════════════════════════════════════════════════ -->
-<script defer src="js/admin-fixes-v23-FINAL.js?v=20261007e"></script>
+<script defer src="js/admin-fixes-v23-FINAL.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════════
      Admin Patch v24 FINAL — Applied after v23
@@ -1704,20 +1735,20 @@
      #20 syncTournamentStatuses document.hidden guard
      #26 fa58_showBatchWithdrawals correct walletRequests ref
      ═══════════════════════════════════════════════════ -->
-<script defer src="js/admin-devicejoins-bridge.js?v=20261007e"></script>
-<script defer src="js/admin-fixes-v24-FINAL.js?v=20261007e"></script>
+<script defer src="js/admin-devicejoins-bridge.js?v=20261007f"></script>
+<script defer src="js/admin-fixes-v24-FINAL.js?v=20261007f"></script>
 
 <!-- ═══════════════════════════════════════════════
      v25 SUPABASE MIGRATION FINAL PATCH
      Loads ABSOLUTELY LAST — overrides listeners with Supabase versions
      Firebase sirf chat/deviceJoins/appSettings/auth ke liye raha
 ═══════════════════════════════════════════════ -->
-  <script defer src="js/admin-fixes-v25-SUPABASE.js?v=20261007e"></script>
-  <script defer src="js/admin-monitor.js?v=20261007e"></script>
+  <script defer src="js/admin-fixes-v25-SUPABASE.js?v=20261007f"></script>
+  <script defer src="js/admin-monitor.js?v=20261007f"></script>
 <!-- ✅ B13 (2026-10-06): approve/reject har jagah MILLISECONDS me dikhe —
      click par button band, kaam banne par row turant hatti hai (section ke
      dobara load hone ka intezaar nahi). Detail: js/adm-fast-actions.js -->
-<script defer src="js/adm-fast-actions.js?v=20261007e"></script>
+<script defer src="js/adm-fast-actions.js?v=20261007f"></script>
 
 </body>
 </html>

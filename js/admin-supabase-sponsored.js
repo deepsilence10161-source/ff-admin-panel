@@ -41,6 +41,12 @@ function _initSponsoredWd() {
                   : st==='rejected' ? '<span style="color:#ff5555">❌ Rejected</span>'
                   : '<span style="color:#ffaa00">⏳ Pending</span>';
         var upi = (w.note||'').replace('Sponsored withdrawal to UPI: ','');
+        /* ✅ B11 (2026-10-07): approve par ab server payout reference (UTR)
+           LAZMI karta hai; wo reference isi note me ' | Payout ref: X' ban
+           kar hamesha ke liye rehta hai — admin ko yahin dikhaya jaata hai
+           taaki "paisa gaya ya nahi" ka proof table me hi nazar aaye. */
+        var _refM = /Payout ref:\s*([^|]+)/.exec(w.note || '');
+        var payoutRef = _refM ? _refM[1].trim() : '';
         var actions = (st==='pending'||!st)
           ? '<button onclick="window.approveSponsoredWd(\''+w.id+'\')" style="background:rgba(0,255,106,.12);border:1px solid #00ff9c;color:#00ff9c;padding:4px 10px;border-radius:6px;cursor:pointer;margin-right:4px;font-size:11px">✅ Approve</button>'
           + '<button onclick="window.rejectSponsoredWd(\''+w.id+'\')" style="background:rgba(255,60,60,.12);border:1px solid #ff5555;color:#ff5555;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px">❌ Reject</button>'
@@ -54,12 +60,37 @@ function _initSponsoredWd() {
           +'<td><span style="font-family:monospace;font-size:10px;color:#00d4ff;background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">'+(u.ff_uid||'—')+'</span></td>'
           +'<td>₹'+(w.amount||0)+'</td><td>'+upi+'</td>'
           +'<td>'+new Date(w.created_at||Date.now()).toLocaleDateString('en-IN')+'</td>'
-          +'<td>'+badge+'</td><td>'+actions+'</td></tr>';
+          +'<td>'+badge
+            +(payoutRef ? '<br><small style="color:#00ff9c;font-family:monospace">UTR: '+payoutRef+'</small>' : '')
+            +(st==='pending'||!st ? '<br><small style="color:#888">Approve par UTR lazmi</small>' : '')
+          +'</td><td>'+actions+'</td></tr>';
       }).join('');
     }
 
     window.approveSponsoredWd = async function(txnId) {
-      if (!confirm('Approve this sponsored withdrawal?')) return;
+      /* ✅ B11 SURAKSHA (2026-10-07): asli paisa bahar jaane wala rasta —
+         (1) native confirm ki jagah app ka apna dialog (B3 usool),
+         (2) payment reference (UTR/UPI txn id) LAZMI — server bhi bina
+             reference ke approve hi nahi karta (payout_ref_required),
+         (3) audit trail: kis admin ne kab kitna bheja, wallet_audit_log me.
+         Purana code bina kisi proof ke chup-chaap approve kar deta tha aur
+         sirf ek Firebase notification bhejta tha — "paisa bheja ya nahi" ka
+         koi record nahi bachta tha. */
+      var _u = (window._sponsoredWdList||[]).find(function(w){ return w.id===txnId; });
+      var _amt = _u ? (_u.amount||0) : 0;
+      var ok = window.appConfirm
+        ? await window.appConfirm('₹' + _amt + ' ka sponsored prize withdrawal approve karna hai?\n\nUser ke UPI par paisa bhejne ke BAAD uska UTR / transaction id daalna hoga.', { icon: '💰', okText: 'Haan, aage badho' })
+        : true;
+      if (!ok) return;
+
+      var ref = window.appPrompt
+        ? await window.appPrompt('Payout reference daalo (UTR / UPI transaction id — kam se kam 6 akshar):', '', { placeholder: 'e.g. 412345678901 / UPI-TXN-ID' })
+        : '';
+      ref = (ref || '').trim();
+      if (ref.length < 6) {
+        if (window.appAlert) window.appAlert('❌ Payout reference zaroori hai (kam se kam 6 akshar). Bina reference ke approve nahi hota — ye jaan-bujh kar lagaya gaya suraksha-niyam hai.', { icon: '⚠️' });
+        return;
+      }
       try {
         /* BUG #45 FIX (2026-07): the old direct .update({status,reviewed_at,reviewed_by})
            call referenced columns that never existed on wallet_transactions (now added, but
@@ -69,11 +100,16 @@ function _initSponsoredWd() {
            admin-checked RPC that atomically re-verifies sufficient balance (protects against
            double-approving two pending requests that together exceed the real balance) and
            correctly decrements the real Supabase sponsored_winnings column. */
-        var r = await window._supa.rpc('resolve_sponsored_withdrawal', { p_txn_id: txnId, p_action: 'approve' });
+        var r = await window._supa.rpc('resolve_sponsored_withdrawal', { p_txn_id: txnId, p_action: 'approve', p_note: ref });
         if (r.error || (r.data && r.data.success === false)) {
           var msg = (r.data && r.data.error) || (r.error && r.error.message) || 'Unknown error';
-          if (window.showToast) showToast('❌ ' + msg, true);
+          var _map = { payout_ref_required: 'Payout reference zaroori hai (UTR/UPI txn id)', 'Already resolved': 'Ye request pehle hi resolve ho chuki hai', 'Insufficient sponsored_winnings remaining — balance may have changed since request was submitted': 'Balance ab kaafi nahi (pehle hi koi dusri request nikal gayi) — dobara check karo' };
+          if (window.showToast) showToast('❌ ' + (_map[msg] || msg), true);
           return;
+        }
+        /* Audit: kis admin ne kitna payout kiya + reference */
+        if (window._logAction) {
+          try { window._logAction('sponsored_wd_approve', null, { uid: (_u && _u.user_id) || null, amount: _amt, payoutRef: ref, txnId: txnId }); } catch (e) {}
         }
         var txn = (window._sponsoredWdList||[]).find(function(w){return w.id===txnId;});
         if (txn && txn.user_id) {
@@ -90,13 +126,18 @@ function _initSponsoredWd() {
               message:'₹'+(txn.amount||0)+' sponsored prize withdrawal approved. 3-5 days mein aayegi.' });
           }
         }
-        if (window.showToast) showToast('✅ Withdrawal approved!');
+        if (window.showToast) showToast('✅ Withdrawal approved! (UTR: ' + ref + ')');
         window.loadSponsoredWithdrawals();
       } catch(e) { if (window.showToast) showToast('Error: '+e.message,true); }
     };
 
     window.rejectSponsoredWd = async function(txnId) {
-      var reason = prompt('Rejection reason (user ko dikhega):') || 'Admin ne reject kiya';
+      /* ✅ B3 usool: native prompt ki jagah app ka apna dialog. */
+      var reason = (window.appPrompt
+        ? await window.appPrompt('Rejection reason likho (user ko dikhega):', 'Admin ne reject kiya', { icon: '❌', okText: 'Reject karo', danger: true })
+        : null);
+      if (reason === null || reason === undefined) return;
+      reason = String(reason).trim() || 'Admin ne reject kiya';
       try {
         /* BUG #45 FIX (2026-07): same broken-columns issue as approve, above. No balance
            change needed here — nothing is deducted until approval, so reject correctly just
