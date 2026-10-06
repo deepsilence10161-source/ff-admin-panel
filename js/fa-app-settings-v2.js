@@ -288,7 +288,11 @@ function _renderAppSettings() {
        hai, is liye panel band hone par bhi pahunchta hai. Default 5 minute. */
     row('matchStartAlertMins', '⚡ Match start alert (minute pehle) — OneSignal push', val('matchStartAlertMins', 5), 'number', 'Match ke saare joined players ko server se push jaega (app band ho tab bhi). Default 5 minute.') +
     /* ✅ A9 (2026-10-06): purani broadcast naye users ko kitne din tak dikhe — 0 = sab */
-    row('notifBroadcastDays', '📣 Purani broadcast notification kitne din tak dikhe', val('notifBroadcastDays', 7), 'number', 'Naye user ko sirf itne din ki admin broadcast dikhegi (0 = sab dikhe)')
+    row('notifBroadcastDays', '📣 Purani broadcast notification kitne din tak dikhe', val('notifBroadcastDays', 7), 'number', 'Naye user ko sirf itne din ki admin broadcast dikhegi (0 = sab dikhe)') +
+    /* ✅ B5 (2026-10-07): admin panel ke apne match-start alerts pehle code me
+       15/5 par hardcode the — ab yahin se badalte hain (default wahi 15/5). */
+    row('admAlertEarlyMins', '🖥️ Admin panel chetavni (minute pehle)', val('admAlertEarlyMins', 15), 'number', 'Admin panel me match shuru hone se itne minute pehle pehli chetavni (default 15)') +
+    row('admAlertUrgentMins', '🚨 Admin panel URGENT chetavni (minute pehle)', val('admAlertUrgentMins', 5), 'number', 'Itne minute pehle laal URGENT chetavni (default 5; isse zyada nahi ho sakti)')
   );
 
   /* 5d. PAYMENT SETTINGS — Paytm Instant Checkout */
@@ -513,6 +517,10 @@ window.saveAppSettings = function() {
        matchStartAlertMins). Default 5 minute. */
     matchStartAlertMins: gn('matchStartAlertMins', 5),
     notifBroadcastDays: gn('notifBroadcastDays', 7),
+    /* ✅ B5 (2026-10-07): admin panel ke apne alerts ki timings — pehle
+       fa-admin-v10-final.js me 15/5 hardcode the. Default wahi 15/5. */
+    admAlertEarlyMins:  gn('admAlertEarlyMins', 15),
+    admAlertUrgentMins: gn('admAlertUrgentMins', 5),
     missions: {
       /* ✅ BUG FIX (2026-09-16): daily_login / daily_checkin removed —
          see the Mission Rewards section render above for why. */

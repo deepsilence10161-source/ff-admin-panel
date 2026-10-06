@@ -541,39 +541,79 @@ var _roomBtnTimer = setInterval(function () {
 }, 1000);
 
 /* ================================================================
-   SECTION 3 — MATCH START ALERTS (15 min + 5 min)
+   SECTION 3 — MATCH START ALERTS
+   ✅ B5 (2026-10-07): pehle yahan 15 aur 5 minute CODE ME HARDOCODE the —
+   admin Settings se ek bhi nahi badal sakta tha (B5 ki asli shikayat:
+   "har value settings me ho, code badalne ki zaroorat na ho"). Ab dono
+   timings live_config se aati hain:
+     admAlertEarlyMins  (default 15) — pehli chetavni, kitne minute pehle
+     admAlertUrgentMins (default 5)  — URGENT chetavni (laal), kitne minute pehle
+   Defaults wahi 15/5 hain, isliye jahan admin ne kuch na badla ho wahan
+   vyavhaar bilkul pehle jaisa hi rehta hai. Config boot par + har 5 minute
+   par refresh hoti hai, aur Settings save hote hi turant.
 ================================================================ */
 
 var _alertTimers = {};
+var _admAlertCfg = { early: 15, urgent: 5 };
+
+function _admAlertLoadCfg() {
+  try {
+    var db_ = getDB();
+    if (!db_ || !db_.ref) return;
+    db_.ref('appConfig').once('value', function (s) {
+      var v = (s && s.val && s.val()) || {};
+      var e = Number(v.admAlertEarlyMins), u = Number(v.admAlertUrgentMins);
+      _admAlertCfg.early  = (isFinite(e) && e  > 0) ? Math.min(1440, Math.round(e)) : 15;
+      _admAlertCfg.urgent = (isFinite(u) && u  > 0) ? Math.min(1440, Math.round(u)) : 5;
+      if (_admAlertCfg.urgent > _admAlertCfg.early) _admAlertCfg.urgent = _admAlertCfg.early;
+    }, function () {});
+  } catch (e) {}
+}
+setTimeout(_admAlertLoadCfg, 4000);
+setInterval(_admAlertLoadCfg, 5 * 60 * 1000);
+window._admAlertRefresh = _admAlertLoadCfg;
+
+/* Test-friendly: ye batata hai ki abhi ki settings par kaun-kaun si chetavni
+   kis waqt bajegi (E2E isi ko naapta hai). */
+window._admAlertPlan = function (matchTime, nowMs) {
+  var now = Number(nowMs) || Date.now();
+  var mt  = Number(matchTime) || 0;
+  var e = _admAlertCfg.early, u = _admAlertCfg.urgent;
+  return {
+    early:  { mins: e, fireInMs: mt - now - e * 60000 },
+    urgent: { mins: u, fireInMs: mt - now - u * 60000 }
+  };
+};
 
 function _scheduleAlert(matchId, matchTime, matchName) {
+  var _E = _admAlertCfg.early, _U = _admAlertCfg.urgent;
   if (_alertTimers[matchId]) {
     clearTimeout(_alertTimers[matchId].t15);
     clearTimeout(_alertTimers[matchId].t5);
   }
   var now = Date.now();
-  var ms15 = matchTime - now - 15 * 60 * 1000;
-  var ms5  = matchTime - now - 5 * 60 * 1000;
+  var ms15 = matchTime - now - _E * 60 * 1000;
+  var ms5  = matchTime - now - _U * 60 * 1000;
   _alertTimers[matchId] = {};
 
   if (ms15 > 0) {
     _alertTimers[matchId].t15 = setTimeout(function () {
-      _showAlert(matchId, matchName, 15);
+      _showAlert(matchId, matchName, _E);
     }, ms15);
-  } else if (ms15 > -5 * 60 * 1000) {
-    /* Between 15 min before and 5 min before — show immediately */
+  } else if (ms15 > -_U * 60 * 1000) {
+    /* Pehli chetavni ka waqt nikal chuka par URGENT se pehle — abhi dikhao */
     _showAlert(matchId, matchName, Math.max(1, Math.round((matchTime - now) / 60000)));
   }
 
   if (ms5 > 0) {
     _alertTimers[matchId].t5 = setTimeout(function () {
-      _showAlert(matchId, matchName, 5);
+      _showAlert(matchId, matchName, _U);
     }, ms5);
   }
 }
 
 function _showAlert(matchId, matchName, minutesLeft) {
-  var urgent = minutesLeft <= 5;
+  var urgent = minutesLeft <= (_admAlertCfg.urgent || 5);
   var color = urgent ? '#ff4444' : '#ffd700';
   var bg = urgent ? 'rgba(255,68,68,.14)' : 'rgba(255,215,0,.1)';
   var border = urgent ? 'rgba(255,68,68,.5)' : 'rgba(255,215,0,.4)';
@@ -634,7 +674,7 @@ function _showAlert(matchId, matchName, minutesLeft) {
   if (window.Notification && Notification.permission === 'granted') {
     new Notification('Mini eSports — Match Alert', {
       body: minutesLeft + ' min mein "' + matchName + '" shuru hoga!',
-      icon: 'app-icon.png?v=20261007g',
+      icon: 'app-icon.png?v=20261007h',
     });
   }
 

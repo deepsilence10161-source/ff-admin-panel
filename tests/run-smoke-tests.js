@@ -263,6 +263,30 @@ console.log('\n── TEST 8: B9/B10/B11 sponsored system (table, modal jagah, p
      'B11: cancel par error-toast (B13 wrapper row ko galat nahi hatata)');
   ok(ss.indexOf("Payout reference zaroori hai (UTR / UPI txn id) — approve nahi hua") !== -1,
      'B11: reference-gayab par error-toast + saaf wajah');
+}
+
+/* ── TEST 9: B5 — notification timing (har value settings se, code se nahi) ── */
+console.log('\n── TEST 9: B5 notification/alerts timing settings se aate hain ──');
+{
+  const alertSrc = fs.readFileSync(path.join(REPO, "js/fa-admin-v10-final.js"), "utf8");
+  const setSrc   = fs.readFileSync(path.join(REPO, "js/fa-app-settings-v2.js"), "utf8");
+  ok(alertSrc.indexOf('_admAlertCfg') !== -1 && alertSrc.indexOf('admAlertEarlyMins') !== -1,
+     'B5: admin alerts live_config (admAlertEarlyMins/UrgentMins) padhte hain');
+  ok(!/matchTime - now - 15 \* 60 \* 1000/.test(alertSrc),
+     'B5: alerts me 15-minute hardcode gaya');
+  ok(!/matchTime - now - 5 \* 60 \* 1000/.test(alertSrc),
+     'B5: alerts me 5-minute hardcode gaya');
+  ok(setSrc.indexOf("row('admAlertEarlyMins'") !== -1 && setSrc.indexOf("row('admAlertUrgentMins'") !== -1,
+     'B5: Settings me dono nayi rows maujood hain');
+  ok(setSrc.indexOf('admAlertEarlyMins:  gn(') !== -1 && setSrc.indexOf('admAlertUrgentMins: gn(') !== -1,
+     'B5: save payload me dono keys jaati hain');
+  ok(setSrc.indexOf("matchReminderMins', 30)") !== -1 && setSrc.indexOf("notifBroadcastDays', 7)") !== -1,
+     'B5: reminder + broadcast-days rows bhi settings me (ek hi default: 30 / 7)');
+  const brSrc = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
+  ok(brSrc.indexOf('_cfgAuthPending()') !== -1 && (brSrc.match(/_cfgAuthPending\(\)\) \{ _cfgQueueWrite/g) || []).length >= 2,
+     'B5: auth se pehle app_settings writes queue hoti hain (throw nahi)');
+  ok(brSrc.indexOf("addEventListener('supabase:authenticated'") !== -1,
+     'B5: login ke baad queue khud-b-khud chalti hai');
 
   const br = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
   ok(br.indexOf('if (d.prizeType !== undefined) s.prize_type = d.prizeType;') !== -1,

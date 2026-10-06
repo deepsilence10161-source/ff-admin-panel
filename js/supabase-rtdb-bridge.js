@@ -1961,6 +1961,7 @@
           var _kvRow = Object.assign({}, patch, { key: _kvKey, updated_at: new Date().toISOString() });
           var _kvWho = _appSettingsUpdater();
           if (_kvWho) _kvRow.updated_by = _kvWho;
+          if (_cfgAuthPending()) { _cfgQueueWrite(function () { return supa.from('app_settings').upsert(_kvRow, { onConflict: 'key' }); }, p.raw); return; }
           var _kvRes = await supa.from('app_settings').upsert(_kvRow, { onConflict: 'key' });
           if (_kvRes && _kvRes.error) {
             console.error('[Bridge] app_settings write FAILED (path: ' + p.raw + '):', _kvRes.error.message);
@@ -1988,7 +1989,8 @@
         var _mRow = { key: _mKey, value: _mNew, updated_at: new Date().toISOString() };
         var _mWho = _appSettingsUpdater();
         if (_mWho) _mRow.updated_by = _mWho;
-        var _mRes = await supa.from('app_settings').upsert(_mRow, { onConflict: 'key' });
+        if (_cfgAuthPending()) { _cfgQueueWrite(function () { return supa.from('app_settings').upsert(_mRow, { onConflict: 'key' }); }, p.raw); return; }
+          var _mRes = await supa.from('app_settings').upsert(_mRow, { onConflict: 'key' });
         if (_mRes && _mRes.error) {
           console.error('[Bridge] app_settings merge-write FAILED (path: ' + p.raw + '):', _mRes.error.message);
           throw new Error('Supabase upsert failed on app_settings: ' + _mRes.error.message);
@@ -2096,6 +2098,10 @@
           upsertPatch.updated_at = new Date().toISOString();
           var _setWho = _appSettingsUpdater();
           if (_setWho) upsertPatch.updated_by = _setWho;
+          if (_cfgAuthPending()) {
+            _cfgQueueWrite(function () { return supa.from('app_settings').upsert(upsertPatch, { onConflict: 'key' }); }, p.raw);
+            return;
+          }
           var _setRes = await supa.from('app_settings').upsert(upsertPatch, { onConflict: 'key' });
           if (_setRes && _setRes.error) {
             console.error('[Bridge] app_settings set FAILED (path: ' + p.raw + '):', _setRes.error.message);
@@ -2652,6 +2658,39 @@
      11. INSTALL THE BRIDGE
      Firebase RTDB ko replace karte hain jab ready ho
   ═══════════════════════════════════════════════════════════════════ */
+
+  /* ═══════════════════════════════════════════════════════════════════
+     ✅ B5-followup (2026-10-07, live E2E me pakda gaya): app_settings ki
+     writes auth se PEHLE chali jaati thin (jaise admin panel khulte hi
+     Growth Analytics ka hourlyPeak bucket) — us waqt Supabase client
+     anon hota hai, is liye RLS sahi-sahi write ROK deti hai aur bridge
+     `throw` kar deta tha ⇒ panel par bina-matlab ka error (aur asli data
+     chup-chaap kho jaata tha). Ab: auth pending ho to write QUEUE me
+     jaati hai aur `supabase:authenticated` par apne aap (ek hi baar)
+     dobara chalti hai. Login ke baad ki asli RLS errors pehle jaise hi
+     rahenge (chhupaye nahi jaate).
+     ═══════════════════════════════════════════════════════════════════ */
+  var _pendingCfgWrites = [];
+  function _cfgAuthPending() { return window._supaAuthed !== true; }
+  function _cfgQueueWrite(fn, pathTxt) {
+    _pendingCfgWrites.push({ fn: fn, path: pathTxt });
+    if (_pendingCfgWrites.length > 100) _pendingCfgWrites.shift();
+    console.warn('[Bridge] app_settings write queue me (auth baaki hai): ' + pathTxt);
+  }
+  document.addEventListener('supabase:authenticated', function () {
+    if (!_pendingCfgWrites.length) return;
+    var q = _pendingCfgWrites.slice(); _pendingCfgWrites.length = 0;
+    console.info('[Bridge] ' + q.length + ' queued app_settings write(s) ab chala rahe hain');
+    var i = 0;
+    (function next() {
+      if (i >= q.length) return;
+      var job = q[i++];
+      Promise.resolve().then(job.fn).then(next, function (e) {
+        console.error('[Bridge] queued write fail: ' + job.path, e && e.message);
+        next();
+      });
+    })();
+  });
 
   function installBridge() {
     if (!window.rtdb || !window.rtdb.ref) {
