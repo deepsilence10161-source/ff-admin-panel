@@ -1,5 +1,5 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
-window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261007b" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261007c" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window._admEntrySym = function(m, j) {
   var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
   if (et === 'coin' || et === 'coins') return '🪙';
@@ -251,22 +251,21 @@ async function loadTournaments(){
       }
       nS.innerHTML+='<option value="'+id+'">'+d.name+'</option>';
     });
-    /* ✅ BUG FIX (2026-10-04): "Mark as Interested" admin ko nahi dikhta tha —
-       ab har match ke interested users ka count badge (click par list). */
+    /* ✅ BUG FIX (2026-10-04) + B15 (2026-10-07): "Mark as Interested" admin ke
+       table me count badge banata hai; B15 me ise server RPC par le aaye taki
+       data kabhi chupke se gaayab na ho — neeche loadMatchInterests() dekho. */
     (function(){
-      var supa = window._supa || (typeof getSupa === 'function' ? getSupa() : null);
-      if (!supa) return;
-      supa.from('match_interest').select('match_id,user_id,name,created_at')
-        .then(function(r) {
-          var byMatch = {};
-          (r.data || []).forEach(function(x) { (byMatch[x.match_id] = byMatch[x.match_id] || []).push(x); });
-          Object.keys(byMatch).forEach(function(mid) {
-            var el = document.getElementById('intCnt-' + mid);
-            if (!el) return;
-            var n = byMatch[mid].length;
-            el.innerHTML = '<span onclick="showInterestedUsers(\'' + mid + '\')" title="' + n + ' users interested — click to view" style="cursor:pointer;color:#ffd700;font-weight:700">👋 ' + n + ' interested</span>';
-          });
-        }).catch(function(){});
+      if (typeof loadMatchInterests !== 'function') return;
+      loadMatchInterests(null).then(function(rows) {
+        var byMatch = {};
+        (rows || []).forEach(function(x) { (byMatch[x.match_id] = byMatch[x.match_id] || []).push(x); });
+        Object.keys(byMatch).forEach(function(mid) {
+          var el = document.getElementById('intCnt-' + mid);
+          if (!el) return;
+          var n = byMatch[mid].length;
+          el.innerHTML = '<span onclick="showInterestedUsers(\'' + mid + '\')" title="' + n + ' users interested — click to view" style="cursor:pointer;color:#ffd700;font-weight:700">👋 ' + n + ' interested</span>';
+        });
+      }).catch(function(){});
     })();
     if(rS && _prevRS && Array.from(rS.options).some(function(o){return o.value===_prevRS;})) rS.value = _prevRS;
     if(mhSel && _prevMH && Array.from(mhSel.options).some(function(o){return o.value===_prevMH;})) mhSel.value = _prevMH;
@@ -301,13 +300,40 @@ function populateJoinedFilter(){
   });
   jF.value=currentVal||'all';
 }
+/* ✅ B15 (2026-10-07): "Mark as Interested" ka data admin tak PAKKA aata hai.
+   ───────────────────────────────────────────────────────────────────────
+   ASLI ROOT CAUSE (live test se pakda gaya — yaad rakho):
+     * Panels Firebase JWT bhejte hain, aur us JWT me Supabase ka `role` claim
+       nahi hota — PostgREST aise request ko **anon** role me chalata hai.
+     * `match_interest` table par anon ko koi GRANT nahi hai → har direct
+       `from('match_interest')` par 401 "permission denied for table
+       match_interest" aata tha. User panel ka insert bhi (jo `catch` me chup
+       ho jata tha) aur admin ka select — dono isi wajah se fail the. Isi liye
+       "data admin tak pahunchta hi nahi" wali shikayat thi.
+     * Upar se us table ki RLS policies `auth.uid()` par tiki hain, jo Firebase
+       uid (uuid nahi hota) par cast hi fail karti hai.
+   ISLIYE: table par bharosa karna band — ab sirf server RPC
+   `admin_match_interests(p_match_id)` (SECURITY DEFINER, `is_caller_admin()`
+   se gate). Yehi raasta user panel ke `toggle_match_interest` se likhe data ko
+   hamesha dikhata hai (live E2E me asli admin JWT ke saath pass hua).
+   Row ka shape wahi purana hai: {match_id,user_id,name,interested_at}. */
+function loadMatchInterests(matchId){
+  var supa = window._supa || (typeof getSupa === 'function' ? getSupa() : null);
+  if (!supa) return Promise.reject(new Error('Supabase not ready'));
+  return supa.rpc('admin_match_interests', { p_match_id: matchId || null })
+    .then(function(r){
+      if (r && r.error) throw r.error;
+      return r.data || [];
+    });
+}
 /* ✅ BUG FIX (2026-10-04): interested users list modal (Mark as Interested) */
 function showInterestedUsers(matchId){
   var supa = window._supa || (typeof getSupa === 'function' ? getSupa() : null);
   if (!supa) { if(window.showToast) showToast('Supabase not ready', true); return; }
-  supa.from('match_interest').select('user_id,name,created_at').eq('match_id', matchId).order('created_at', {ascending:false})
-    .then(function(r){
-      var list = r.data || [];
+  /* ✅ B15: data sirf server RPC se — neeche loadMatchInterests() */
+  loadMatchInterests(matchId)
+    .then(function(rows){
+      var list = (rows || []).slice().sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); });
       var rows = list.map(function(u){
         return '<tr><td class="font-bold text-xs">'+(window.escHtml?window.escHtml(u.name||'—'):(u.name||'—'))+'</td><td class="text-xxs">'+String(u.user_id||'').slice(0,10)+'…</td><td class="text-xxs">'+(u.created_at?new Date(u.created_at).toLocaleString('en-IN'):'—')+'</td></tr>';
       }).join('');
@@ -374,7 +400,7 @@ function onEntryTypeChange(){
   if(t==='paid'){
     h.className='info-box green';
     if(entryFeeLabel) entryFeeLabel.textContent='💠 Entry Fee (Sky Diamond) *';
-    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261007b" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
+    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261007c" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
   } else if(t==='coin'){
     h.className='info-box purple';
     if(entryFeeLabel) entryFeeLabel.textContent='🪙 Entry Fee (Coins) *';
