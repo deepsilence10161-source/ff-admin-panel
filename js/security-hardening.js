@@ -173,8 +173,13 @@
         try { await window._requireVerifiedAdmin(name); }
         catch (e) { return; }
       }
-      /* Rate limit: 3 seconds between same critical action */
-      if (!window.RateLimit.check('auth_' + name, 3000)) {
+      /* Rate limit: 3 seconds between same critical action.
+         ✅ B3 (2026-10-06): jab confirm-dialog app-UI se aata hai, to "Haan"
+         dabate hi wahi button apne aap dobara chalta hai (AppDialog replay).
+         Wo user ka double-click NAHI hai — wahi ek action aage badh raha hai.
+         Isliye replay ke waqt ye rate-limit nahi lagti (warna admin ko lagta
+         tha ki click kaam hi nahi kiya). */
+      if (!window.__appDialogBypass && !window.RateLimit.check('auth_' + name, 3000)) {
         if (window.showToast) window.showToast('⏳ Ek second ruko, duplicate click ban kiya', true);
         return;
       }
