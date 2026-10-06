@@ -733,7 +733,10 @@ window._seasonDateHint = function () {
     if (!el.value) { box.textContent = '⚠️ Koi tareekh nahi chuni — user ko season ka ant nahi dikhega'; box.style.color = '#ffb84d'; return; }
     var d = new Date(el.value + 'T23:59:59');
     if (isNaN(d.getTime())) { box.textContent = '⚠️ Tareekh samajh nahi aayi'; box.style.color = '#ff6b6b'; return; }
-    var days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+    /* B18: din calendar-din me ginte hain (warna 45 din ki tareekh 46 dikhati) */
+    var _t0 = new Date(); _t0.setHours(0, 0, 0, 0);
+    var _t1 = new Date(d.getTime()); _t1.setHours(0, 0, 0, 0);
+    var days = Math.round((_t1.getTime() - _t0.getTime()) / 86400000);
     box.textContent = days > 0
       ? '👀 User ko dikhega: ' + days + ' din baaki (khatam: ' + d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ')'
       : '⛔ Ye tareekh nikal chuki hai (season khatam dikhega)';
