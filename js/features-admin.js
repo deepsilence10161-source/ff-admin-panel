@@ -795,32 +795,19 @@
     });
   };
 
-  /* ─── FEATURE 24: CUSTOM UPI SETTINGS ─── */
-  window.showUpiSettings = function () {
-    rtdb.ref('appSettings/payment').once('value', function (s) {
-      var p = s.val() || {};
-      var h = '<div>';
-      h += '<div class="form-group"><label>UPI ID</label><input type="text" id="upiId" class="form-input" value="' + (p.upiId || '') + '" placeholder="yourname@upi"></div>';
-      h += '<div class="form-group"><label>UPI Name (Display)</label><input type="text" id="upiName" class="form-input" value="' + (p.upiName || '') + '" placeholder="Mini eSports"></div>';
-      h += '<div class="form-group"><label>Payee Name</label><input type="text" id="upiPayee" class="form-input" value="' + (p.payeeName || '') + '"></div>';
-      h += '<div class="form-group"><label>QR Code Image URL (optional)</label><input type="text" id="upiQr" class="form-input" value="' + (p.qrCodeUrl || '') + '" placeholder="https://..."></div>';
-      h += '<div class="form-group"><label>Min Deposit (₹)</label><input type="number" id="upiMin" class="form-input" value="' + (p.minDeposit || 10) + '"></div>';
-      h += '<button class="btn btn-primary w-full" onclick="window._saveUpi()"><i class="fas fa-save"></i> Save Payment Settings</button></div>';
-      _modal('💳 UPI Settings', h);
-    });
-  };
-  window._saveUpi = function () {
-    rtdb.ref('appSettings/payment').set({
-      upiId: (_$('upiId') || {}).value,
-      upiName: (_$('upiName') || {}).value,
-      payeeName: (_$('upiPayee') || {}).value,
-      qrCodeUrl: (_$('upiQr') || {}).value,
-      minDeposit: Number((_$('upiMin') || {}).value) || 10
-    });
-    _logAction('update_upi');
-    _toast('✅ Payment settings saved!');
-    _close();
-  };
+  /* ─── FEATURE 24: CUSTOM UPI SETTINGS — ✅ B22 (2026-10-06) HATA DIYA ───
+     Yahan pehle `showUpiSettings()` / `_saveUpi()` modal tha jo
+     `appSettings/payment/{upiId, upiName, payeeName, qrCodeUrl, minDeposit}`
+     likhta tha. Par user panel (quick-deposit.js → window.CFG.manualPayment)
+     bilkul DOOSRI jagah se padhta hai: `live_config.manualPayment`
+     (upiId, payeeName, qrImageUrl, minAmount, instructions, enabled) —
+     jo App Settings → "Manual UPI Payment (QR System)" section se set hoti
+     hai. Yaani purana modal ek DEAD DUPLICATE tha: admin wahan save karta
+     tha aur user ko kuch bhi nahi dikhta tha (na QR, na UPI ID).
+     User ka niyam: "har settable value Settings me ho, duplicate na ho" —
+     isliye modal + uska save dono hata diye. Quick Tools ka "UPI Settings"
+     button ab `window._openManualPaySettings()` se usi asli section par le
+     jata hai (fa-app-settings-v2.js me).
 
   /* ─── FEATURE 25: DASHBOARD WIDGETS TOGGLE + QUICK ACTION TOPBAR ─── */
   window.adminWidgetPrefs = JSON.parse(localStorage.getItem('adminWidgets') || '{"revenue":true,"users":true,"matches":true,"health":true}');

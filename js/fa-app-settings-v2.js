@@ -110,6 +110,16 @@ function _renderAppSettings() {
     return cur != null ? cur : def;
   }
 
+  /* ✅ B22 (2026-10-06): settings ke andar HTML me value daalne se pehle
+     escape — pehle sirf instructions textarea me hota tha, ab QR ka data-URI
+     (jo bahut lamba hota hai aur theoretically quote bhi rakhta hai) bhi
+     value attribute me jata hai. */
+  function _asEsc(v) {
+    return String(v == null ? '' : v).replace(/[<>&"']/g, function (ch) {
+      return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
   function row(id, label, value, type, hint) {
     type = type || 'number';
     hint = hint ? '<div style="font-size:10px;color:#666;margin-top:3px">' + hint + '</div>' : '';
@@ -301,9 +311,27 @@ function _renderAppSettings() {
       '</div>' +
       row('manualPayUpiId', 'UPI ID', val('manualPayment.upiId', 'miniesports@upi'), 'text', 'Jaise: miniesports@upi — user isi ID pe paisa bhejta hai') +
       row('manualPayPayee', 'Payee Name', val('manualPayment.payeeName', 'Mini eSports'), 'text', 'UPI app mein payee ke naam se dikhega') +
-      row('manualPayQrUrl', 'QR Image URL', val('manualPayment.qrImageUrl', ''), 'text', 'Apne UPI QR ka image link (ImgBB etc.) — user isko scan karta hai. Khali chhodne pe sirf UPI ID + deep-link dikhega.') +
-      row('manualPayMin', 'Minimum Amount ₹', val('manualPayment.minAmount', 10), 'number', 'Isse kam ka manual payment accept nahi') +
-      '<div class="form-group" style="margin-bottom:0"><label style="font-size:12px">Payment Instructions (user ko dikhengi)</label>' +
+      /* ✅ B22 (2026-10-06): "Payment settings me QR URL ki jagah SIIDHE QR upload ho"
+         — pehle yahan ek text box tha (ImgBB ka link paste karna padta tha).
+         Ab: gallery se QR image chuno -> wahi image (chhota kar ke, PNG data-URI)
+         `manualPayment.qrImageUrl` me chali jati hai aur user panel usi ko
+         dikhata hai. Koi bahar ka link ya hosting ki zaroorat nahi.
+         Purana `#as_manualPayQrUrl` input bhi bana hua hai (hidden) — save
+         wala code usi ko padhta hai, isliye single source waisa hi hai. */
+      '<div class="form-group" style="margin-bottom:10px" id="as_manualPayQrBlock">' +
+        '<label style="font-size:12px">UPI QR Image (upload karo)</label>' +
+        '<input type="hidden" id="as_manualPayQrUrl" value="' + _asEsc(val('manualPayment.qrImageUrl', '')) + '">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">' +
+          '<input type="file" id="as_manualPayQrFile" accept="image/*" style="display:none" onchange="window._manualPayQrPick(this)">' +
+          '<button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById(\'as_manualPayQrFile\').click()"><i class="fas fa-upload"></i> QR upload karo</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" onclick="window._manualPayQrClear()"><i class="fas fa-trash"></i> hatao</button>' +
+          '<span id="as_manualPayQrInfo" style="font-size:11px;color:var(--text-muted)"></span>' +
+        '</div>' +
+        '<div id="as_manualPayQrPrevWrap" style="margin-top:8px;display:none">' +
+          '<img id="as_manualPayQrPrev" alt="QR preview" style="width:120px;height:120px;object-fit:contain;background:#fff;border-radius:10px;padding:6px">' +
+        '</div>' +
+        '<div style="font-size:10px;color:#666;margin-top:4px">Gallery se apne UPI QR ki photo chuno — image apne aap 600px tak chhoti ho jati hai. Khali chhodne par user ko sirf UPI ID + deep-link dikhta hai.</div>' +
+      '</div>' +
         '<textarea id="as_manualPayInstructions" class="form-input" rows="4" style="font-size:12px">' + String(val('manualPayment.instructions', '')).replace(/[<>&]/g, function (ch) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch]; }) + '</textarea>' +
         '<div style="font-size:10px;color:#666;margin-top:3px">Steps jaise: UPI app se paisa bhejo → UTR copy karo → screenshot + UTR submit karo</div>' +
       '</div>' +
@@ -412,6 +440,8 @@ function _renderAppSettings() {
 
   var cont = document.getElementById('appSettingsContent');
   if (cont) cont.innerHTML = html;
+  /* ✅ B22: QR pehle se saved ho (data-URI ya link) to preview + info dikhao */
+  try { if (window._manualPayQrHydrate) window._manualPayQrHydrate(); } catch (e) {}
   } catch (e) {
     /* ✅ BUG FIX (2026-09-17): "App Settings tab pe jaate hi crash" —
        this whole function had no try/catch, so any unexpected data
@@ -661,6 +691,120 @@ window.removeSDPackage = function(i) {
       if (el) el.closest('div').closest('div').style.display = 'none';
     });
   }
+};
+
+/* ══════════════════════════════════════════════════════════════════════
+   ✅ B22 (2026-10-06) — QR IMAGE SIDHA UPLOAD (URL paste nahi)
+   Admin gallery se QR ki photo chunta hai; yahin browser me hi image
+   600px tak chhoti kar ke PNG data-URI bana di jati hai aur wahi
+   `manualPayment.qrImageUrl` me save hoti hai (live_config, single source).
+   User panel ka quick-deposit.js usi ko <img> me dikhata hai — koi bahar ki
+   hosting/URL ki zaroorat nahi, aur QR kabhi "toota hua link" nahi hoga.
+   ══════════════════════════════════════════════════════════════════════ */
+window._MANUAL_PAY_QR_MAX = 600;                 /* px — isse zyada chhota kar diya jata hai */
+window._MANUAL_PAY_QR_MAX_BYTES = 400 * 1024;   /* ~400 KB se bada data-URI save nahi karenge */
+
+window._manualPayQrHydrate = function () {
+  var inp = document.getElementById('as_manualPayQrUrl');
+  var prev = document.getElementById('as_manualPayQrPrev');
+  var wrap = document.getElementById('as_manualPayQrPrevWrap');
+  var info = document.getElementById('as_manualPayQrInfo');
+  if (!inp || !prev || !wrap) return;
+  var v = String(inp.value || '');
+  if (v && (v.indexOf('data:image/') === 0 || /^https?:\/\//i.test(v))) {
+    prev.src = v;
+    wrap.style.display = 'block';
+    if (info) info.textContent = (v.indexOf('data:image/') === 0)
+      ? '✅ QR laga hua hai (~' + Math.round(v.length * 0.75 / 1024) + ' KB)'
+      : '✅ QR link laga hua hai';
+  } else {
+    prev.removeAttribute('src');
+    wrap.style.display = 'none';
+    if (info) info.textContent = 'QR abhi nahi lagaya';
+  }
+};
+
+window._manualPayQrClear = function () {
+  var inp = document.getElementById('as_manualPayQrUrl');
+  var f = document.getElementById('as_manualPayQrFile');
+  if (inp) inp.value = '';
+  if (f) f.value = '';
+  window._manualPayQrHydrate();
+  if (window.showToast) showToast('QR hata diya — Save All Settings dabana na bhoolo', false);
+};
+
+window._manualPayQrPick = function (input) {
+  try {
+    var f = (input && input.files && input.files[0]) || null;
+    if (!f) return;
+    if (!/^image\//i.test(f.type || '')) {
+      if (window.showToast) showToast('Sirf image file chuno (PNG/JPG)', true);
+      input.value = '';
+      return;
+    }
+    var fr = new FileReader();
+    fr.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var max = window._MANUAL_PAY_QR_MAX || 600;
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        var scale = Math.min(1, max / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+        var c = document.createElement('canvas');
+        c.width = cw; c.height = ch;
+        var ctx = c.getContext('2d');
+        /* QR safed background par hona chahiye — transparent PNG ko bhi
+           scan-able rakhne ke liye safed base bhar dete hain */
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.drawImage(img, 0, 0, cw, ch);
+        var dataUri = c.toDataURL('image/png');
+        if (dataUri.length * 0.75 > (window._MANUAL_PAY_QR_MAX_BYTES || 409600)) {
+          /* bahut heavy — JPEG me try karo (QR ke liye quality 0.92 kaafi hai) */
+          dataUri = c.toDataURL('image/jpeg', 0.92);
+        }
+        if (dataUri.length * 0.75 > (window._MANUAL_PAY_QR_MAX_BYTES || 409600)) {
+          if (window.showToast) showToast('QR image bahut badi hai — chhoti photo chuno', true);
+          input.value = '';
+          return;
+        }
+        var inp = document.getElementById('as_manualPayQrUrl');
+        if (inp) inp.value = dataUri;
+        window._manualPayQrHydrate();
+        if (window.showToast) showToast('✅ QR lag gaya (' + cw + '×' + ch + ') — ab Save All Settings dabao', false);
+        /* wahi file dobara chunne par bhi onchange chale */
+        input.value = '';
+      };
+      img.onerror = function () {
+        if (window.showToast) showToast('Ye image padhi nahi ja saki — dobara try karo', true);
+        input.value = '';
+      };
+      img.src = String(fr.result || '');
+    };
+    fr.onerror = function () {
+      if (window.showToast) showToast('File padhi nahi ja saki', true);
+      input.value = '';
+    };
+    fr.readAsDataURL(f);
+  } catch (e) {
+    if (window.showToast) showToast('QR upload fail: ' + (e && e.message), true);
+  }
+};
+
+/* Purana quick-tools ka "UPI Settings" button isi section par le aata hai —
+   pehle wo ek ALAG modal kholta tha jo doosri keys (appSettings/payment.
+   qrCodeUrl) likhta tha jinhe user panel padhta hi nahi (dead duplicate). */
+window._openManualPaySettings = function () {
+  try {
+    if (window.showSection) window.showSection('settings', null);
+    if (window.loadAppSettings) window.loadAppSettings();
+    setTimeout(function () {
+      var el = document.getElementById('as_manualPayQrBlock');
+      var box = document.getElementById('as_manualPayUpiId');
+      var t = box || el;
+      if (t && t.scrollIntoView) t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 600);
+  } catch (e) {}
 };
 
 window.resetAppSettings = function() {
