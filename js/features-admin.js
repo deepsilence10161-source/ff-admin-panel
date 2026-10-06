@@ -1066,7 +1066,36 @@
     window.showPendingWallet();
   };
 
-  /* ─── FEATURE 30: ROOM ID RELEASE MANAGER ─── */
+  /* ─── FEATURE 30: ROOM ID RELEASE MANAGER ───
+     ✅ FIX (2026-10-06): timing chip ka click handler pehle inline tha aur
+     `b.style.background=''` se reset karta tha — khaali string INVALID CSS
+     hai, isliye chips safed ho jate the aur white text invisible ho jata tha.
+     Ab ek named helper hai jo har chip par hamesha valid color lagata hai. */
+  window._rmPickMin = function (min) {
+    var inp = document.getElementById('rmRelMin');
+    if (inp) { inp.value = min; }
+    var chips = document.querySelectorAll('[data-rm-chip]');
+    chips.forEach(function (b) {
+      var on = Number(b.getAttribute('data-rm-chip')) === Number(min);
+      b.style.background = on ? 'var(--primary)' : 'var(--bg2,#15151c)';
+      b.style.color      = on ? '#04140c' : 'var(--text,#eaeaea)';
+    });
+    /* Auto-release line bhi turant update karo (pehle sirf button dabne par
+       number badalta tha, line purani rehti thi) */
+    var info = document.getElementById('rmAutoInfo');
+    if (info && info.getAttribute('data-matchtime')) {
+      var mt   = Number(info.getAttribute('data-matchtime'));
+      var diff = (mt - Number(min) * 60000) - Date.now();
+      if (diff > 0) {
+        info.textContent = '⏰ Auto-release in: ~' + Math.floor(diff / 60000) + ' min (match - ' + min + ' min)';
+        info.style.color = '#00d4ff';
+      } else {
+        info.textContent = '⚠️ Release time already passed — release manually';
+        info.style.color = '#ffaa00';
+      }
+    }
+  };
+
   window.showRoomManager = function (matchId, matchName) {
     rtdb.ref('matches/' + matchId).once('value', function (s) {
       var m = s.val() || {};
@@ -1079,9 +1108,19 @@
       h += '<div class="form-group" style="margin-bottom:14px">';
       h += '<label style="margin-bottom:6px;display:block">⏱️ Players ko Room ID kab mile? (Match se kitne min pehle)</label>';
       h += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      /* ✅ BUG FIX (2026-10-06) — "timing box me kuch dikhta hi nahi, box bhi
+         white aur likha hua bhi white"
+         असली जड़: background me khaali string pass ho rahi thi
+         (`background:` + '' + ';') jo INVALID CSS hai — isliye browser apna
+         default (safed/light) button background use karta tha, aur upar se
+         text white (var(--text)) → safed par safed = invisible.
+         Ab: na-chune gaye chips ko DARK background milta hai aur reset par
+         bhi wahi dark color lagta hai (khaali string nahi). */
+      var RM_IDLE_BG  = 'var(--bg2,#15151c)';
+      var RM_IDLE_FG  = 'var(--text,#eaeaea)';
       [1, 3, 5, 10, 15, 30].forEach(function(min) {
-        h += '<button onclick="document.getElementById(\'rmRelMin\').value=' + min + ';this.parentNode.querySelectorAll(\'button\').forEach(function(b){b.style.background=\'\'});this.style.background=\'var(--primary)\'" ' +
-          'style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:' + (relMin === min ? 'var(--primary)' : '') + ';color:var(--text);font-size:12px;cursor:pointer">' + min + ' min</button>';
+        h += '<button data-rm-chip="' + min + '" onclick="window._rmPickMin(' + min + ')" ' +
+          'style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:' + (relMin === min ? 'var(--primary)' : RM_IDLE_BG) + ';color:' + (relMin === min ? '#04140c' : RM_IDLE_FG) + ';font-size:12px;font-weight:700;cursor:pointer">' + min + ' min</button>';
       });
       h += '</div>';
       h += '<input type="number" id="rmRelMin" value="' + relMin + '" min="1" max="60" style="margin-top:8px;width:80px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:13px" placeholder="Min">';
@@ -1094,11 +1133,13 @@
         var releaseAt = Number(m.matchTime) - (relMin * 60000);
         var now = Date.now();
         var diff = releaseAt - now;
+        /* id + data-matchtime diye gaye hain taki chip badalte hi ye line
+           turant update ho jaye (window._rmPickMin dekho) */
         if (diff > 0) {
           var mins = Math.floor(diff / 60000);
-          h += '<div style="margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(0,212,255,.08);font-size:12px;color:#00d4ff">⏰ Auto-release in: ~' + mins + ' min (match - ' + relMin + ' min)</div>';
+          h += '<div id="rmAutoInfo" data-matchtime="' + Number(m.matchTime) + '" style="margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(0,212,255,.08);font-size:12px;color:#00d4ff">⏰ Auto-release in: ~' + mins + ' min (match - ' + relMin + ' min)</div>';
         } else {
-          h += '<div style="margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(255,170,0,.08);font-size:12px;color:#ffaa00">⚠️ Release time already passed — release manually</div>';
+          h += '<div id="rmAutoInfo" data-matchtime="' + Number(m.matchTime) + '" style="margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(255,170,0,.08);font-size:12px;color:#ffaa00">⚠️ Release time already passed — release manually</div>';
         }
       }
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';

@@ -1228,7 +1228,12 @@
   <select id="tPrizeType" class="form-input" onchange="onPrizeTypeChange()">
     <option value="greenDiamond">💎 Green Diamond — Paid/SD match winner ke liye</option>
     <option value="coin">🪙 Coins — Coin/Ad match winner ke liye</option>
-    <option value="skyDiamond">💠 Sky Diamond — Special match (Admin discretion)</option>
+    <!-- ✅ REMOVED (2026-10-06, owner decision): "💠 Sky Diamond — Special match"
+         option hata diya. Sky Diamond kabhi bhi PRIZE me nahi diya jata —
+         woh sirf ENTRY FEE (paid match join) ke liye hai, aur woh jagah
+         entry-fee row hai (neeche "Entry Fee (Sky Diamond)"). Prize me SD
+         dene se economy/ledger dono गड़बड़ होते the (SD ki value real money
+         se linked hai, jeetne par dena galat hisaab banata hai). -->
   </select>
 </div>
 <div class="grid-3">

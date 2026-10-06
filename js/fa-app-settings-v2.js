@@ -164,8 +164,17 @@ function _renderAppSettings() {
 
   html += section('Watch & Earn Settings', 'fas fa-eye', '#b964ff',
     row('watchEarnEnabled',      '👀 Watch & Earn ON/OFF', val('watchEarnEnabled',1),         'number', '1 = ON, 0 = OFF') +
-    row('watchCoinsPerInterval', '🪙 Coins per interval', val('watchCoinsPerInterval',2),     'number', 'Har interval pe kitne coins milenge') +
-    row('watchIntervalMins',     '⏱️ Interval (minutes)',  val('watchIntervalMins',5),         'number', 'Har X min mein coins milenge') +
+    /* ✅ FIX (2026-10-06): mismatch saaf kiya. Pehle yahan "Coins per interval"
+       + "Interval 5 min" tha (yaani 2 coins / 5 min) — par user panel me
+       "2🪙/min" dikhta tha. Owner ne confirm kiya: 2 coins PER MINUTE sahi hai.
+       Ab interval default 1 hai aur neeche live "= X coins per minute" line
+       dikhti hai, taki admin ko hamesha asli rate pata rahe. */
+    row('watchCoinsPerInterval', '🪙 Coins per interval (har interval par)', val('watchCoinsPerInterval',2), 'number', 'Har interval poora hone par itne coins milte hain') +
+    row('watchIntervalMins',     '⏱️ Interval (minutes) — 1 = हर मिनट',    val('watchIntervalMins',1),     'number', 'Default 1 rakho to 2 coins har minute (user ko yahi dikhta hai)') +
+    '<div style="background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:8px 10px;margin:-4px 0 10px;font-size:11px;color:#8fe3ff">' +
+      '📐 असली rate: <b id="as_watchRate">' + (val('watchCoinsPerInterval',2) / Math.max(1, val('watchIntervalMins',1))).toFixed(2) + ' coins / minute</b>' +
+      ' — user panel me bilkul yahi rate dikhega' +
+    '</div>' +
     row('watchDailyLimitMins',   '📅 Daily limit (minutes)', val('watchDailyLimitMins',30),    'number', 'Din mein kitne min tak earn kar sakte hain')
   );
 
@@ -492,7 +501,10 @@ window.saveAppSettings = function() {
     checkInCloseMins:      gn('checkInCloseMins',5),
     watchEarnEnabled:      gn('watchEarnEnabled',1),
     watchCoinsPerInterval: gn('watchCoinsPerInterval',2),
-    watchIntervalMins:     gn('watchIntervalMins',5),
+    /* ✅ FIX (2026-10-06): default 5 → 1 (2 coins per MINUTE — owner-confirmed).
+       Purana default 5 hone se naya save bina soche 2 coins / 5 min kar deta tha
+       jabki user panel 2/min dikhata tha = wahi mismatch. */
+    watchIntervalMins:     gn('watchIntervalMins',1),
     watchDailyLimitMins:   gn('watchDailyLimitMins',30),
     seasonName:            document.getElementById('as_seasonName')&&document.getElementById('as_seasonName').value||'Season 1',
     seasonEndDays:         gn('seasonEndDays',90),

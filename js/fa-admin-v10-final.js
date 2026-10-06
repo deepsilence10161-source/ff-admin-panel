@@ -90,7 +90,7 @@ var TEMPLATES = [
       tName: 'Solo Blitz',
       tGameMode: 'solo', tMatchSubType: 'battle_royale', tMap: 'Bermuda',
       tEntryType: 'coin', tEntryFee: 50, tMaxSlots: 12,
-      tPrizeType: 'skyDiamond',
+      tPrizeType: 'coin',
       tFirstPrize: 100, tSecondPrize: 50, tThirdPrize: 25, tPerKill: 5,
     }
   },
@@ -104,7 +104,7 @@ var TEMPLATES = [
       tName: 'Duo Rush',
       tGameMode: 'duo', tMatchSubType: 'battle_royale', tMap: 'Bermuda',
       tEntryType: 'coin', tEntryFee: 80, tMaxSlots: 12,
-      tPrizeType: 'skyDiamond',
+      tPrizeType: 'coin',
       tFirstPrize: 160, tSecondPrize: 80, tThirdPrize: 40, tPerKill: 6,
     }
   },
@@ -132,7 +132,7 @@ var TEMPLATES = [
       tName: 'Clash Squad',
       tGameMode: 'squad', tMatchSubType: 'clash_squad', tMap: 'Bermuda',
       tEntryType: 'coin', tEntryFee: 100, tMaxSlots: 16,
-      tPrizeType: 'skyDiamond',
+      tPrizeType: 'coin',
       tFirstPrize: 250, tSecondPrize: 120, tThirdPrize: 60, tPerKill: 0,
     }
   },
@@ -389,7 +389,7 @@ window._qcCreate = async function () {
     entryType: tmpl.fill.tEntryType || 'coin',
     entryFee: tmpl.fill.tEntryFee || 0,
     maxSlots: tmpl.fill.tMaxSlots || 12,
-    prizeType: tmpl.fill.tPrizeType || 'skyDiamond',
+    prizeType: tmpl.fill.tPrizeType || 'coin',
     firstPrize: tmpl.fill.tFirstPrize || 0,
     secondPrize: tmpl.fill.tSecondPrize || 0,
     thirdPrize: tmpl.fill.tThirdPrize || 0,
