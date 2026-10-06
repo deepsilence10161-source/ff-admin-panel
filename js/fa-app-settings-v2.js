@@ -261,7 +261,9 @@ function _renderAppSettings() {
   /* 5c. ROOM RELEASE TIMING */
   html += section('Room ID Auto-Release Settings', 'fas fa-key', '#00ff9c',
     row('roomReleaseMins', '⏰ Room ID kitne minute pehle jaega (default: 10)', val('roomReleaseMins', 10), 'number', 'Ye time Firebase "appSettings/liveConfig/roomReleaseMins" mein save hoga') +
-    row('matchReminderMins', '🔔 Match reminder notification (minute pehle)', val('matchReminderMins', 30), 'number', 'User ko match se pehle notification jaegi')
+    row('matchReminderMins', '🔔 Match reminder notification (minute pehle)', val('matchReminderMins', 30), 'number', 'User ko match se pehle notification jaegi (user khud bhi match se pehle ka samay chun sakta hai)') +
+    /* ✅ A9 (2026-10-06): purani broadcast naye users ko kitne din tak dikhe — 0 = sab */
+    row('notifBroadcastDays', '📣 Purani broadcast notification kitne din tak dikhe', val('notifBroadcastDays', 7), 'number', 'Naye user ko sirf itne din ki admin broadcast dikhegi (0 = sab dikhe)')
   );
 
   /* 5d. PAYMENT SETTINGS — Paytm Instant Checkout */
@@ -463,6 +465,7 @@ window.saveAppSettings = function() {
     creatorMinPayout:   gn('minPayout', 100),
     roomReleaseMins:  gn('roomReleaseMins', 10),
     matchReminderMins: gn('matchReminderMins', 30),
+    notifBroadcastDays: gn('notifBroadcastDays', 7),
     missions: {
       /* ✅ BUG FIX (2026-09-16): daily_login / daily_checkin removed —
          see the Mission Rewards section render above for why. */
