@@ -1,5 +1,5 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
-window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006i" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006j" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window._admEntrySym = function(m, j) {
   var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
   if (et === 'coin' || et === 'coins') return '🪙';
@@ -53,6 +53,53 @@ function getAdminMatchStatus(m){
   
   return getMatchStatus(mt).toLowerCase();
 }
+
+/* ✅ B14 (2026-10-06): PRIZE DISTRIBUTE GATE ─────────────────────────────
+   Shikayat: "Publish Results & Distribute Prizes" match shuru hone se PEHLE
+   bhi dabaya ja sakta tha. Jab match abhi upcoming hota hai to (a) koi asli
+   result hota hi nahi — galat/adhoora data publish hone ka khatra, aur
+   (b) publish hone ke baad match ka status resultPublished ho jata hai,
+   jise admin panel terminal maanta hai (time-calculation use override nahi
+   karti) — yaani galti sudharni mushkil ho jati thi.
+
+   Ek hi gate dono publish buttons (purana publishResults + naya
+   mrPublishResults) use karte hain, taki dono jagah ek jaisa niyam rahe:
+     • upcoming  → ROCH do (button bhi disabled rehta hai)
+     • cancelled → ROCH do (refund ho chuka hota hai)
+     • live      → chalo (match shuru ho chuka hai), sirf button par note
+     • completed → chalo (asli istemal ka rasta)
+   ───────────────────────────────────────────────────────────────────── */
+window._admPrizeDistributeGate = function (m) {
+  var st = (typeof getAdminMatchStatus === 'function') ? getAdminMatchStatus(m) : '';
+  if (st === 'cancelled')
+    return { ok: false, reason: 'cancelled', msg: '❌ Yeh match cancel ho chuka hai (refund process ho gaya) — prize distribute nahi ho sakta.' };
+  if (st === 'upcoming')
+    return { ok: false, reason: 'upcoming', msg: '⏳ Match abhi start nahi hua hai — prize distribute nahi ho sakta. Match shuru hone ke baad hi publish karein.' };
+  if (st === 'live')
+    return { ok: true, reason: 'live', note: 'Match abhi LIVE hai — sirf tab publish karo jab khel khatam ho aur rank/kills final hon' };
+  return { ok: true, reason: st };
+};
+
+/* ✅ B14: publish button ko select kiye hue match ke hisab se lock/unlock karo
+   (dono result panels — #publishResultsBtn aur #mrPublishBtn). */
+window._admUpdatePublishBtnState = function (m) {
+  var g = window._admPrizeDistributeGate(m);
+  var ids = ['publishResultsBtn', 'mrPublishBtn'];
+  for (var i = 0; i < ids.length; i++) {
+    var btn = document.getElementById(ids[i]);
+    if (!btn) continue;
+    if (g.ok === false) {
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.title = g.msg;
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.title = g.note || '';
+    }
+  }
+  return g;
+};
 
 /* getStatusBadgeColor — Badge color based on calculated status */
 function getStatusBadgeColor(status){
@@ -327,7 +374,7 @@ function onEntryTypeChange(){
   if(t==='paid'){
     h.className='info-box green';
     if(entryFeeLabel) entryFeeLabel.textContent='💠 Entry Fee (Sky Diamond) *';
-    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006i" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
+    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006j" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
   } else if(t==='coin'){
     h.className='info-box purple';
     if(entryFeeLabel) entryFeeLabel.textContent='🪙 Entry Fee (Coins) *';
@@ -349,7 +396,7 @@ function onEntryTypeChange(){
 }
 /* ✅ Helper: update prize column labels when prize type changes */
 function _updatePrizeLabels(pt, p1lbl, p2lbl, p3lbl){
-  var sym = pt==='greenDiamond' ? '<img src="green-diamond.png?v=20261006i" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD'
+  var sym = pt==='greenDiamond' ? '<img src="green-diamond.png?v=20261006j" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD'
            : pt==='skyDiamond'  ? '💠 SD'
            : '🪙 Coins';
   if(p1lbl) p1lbl.textContent='1st Prize (' + sym.replace(/<[^>]+>/g,'').trim() + ')';
@@ -1597,6 +1644,12 @@ async function loadParticipants(){
   var mid=document.getElementById('resultTournamentSelect').value,ct=document.getElementById('resultsContainer'),ls=document.getElementById('participantsList');
   if(!mid){ct.style.display='none';return;}
   ct.style.display='block';
+  /* ✅ B14 (2026-10-06): match chunte hi publish button lock/unlock —
+     upcoming/cancelled par button band (tooltip me wajah), live par warning. */
+  try {
+    var _pt = (window.allTournaments || {})[mid] || (window.currentTournamentData && window.currentTournamentData.id === mid ? window.currentTournamentData : null);
+    if (window._admUpdatePublishBtnState) window._admUpdatePublishBtnState(_pt || currentTournamentData);
+  } catch (e) {}
   /* Preserve any unsaved rank/kills inputs when refreshing the same match */
   var _unsavedInputs = {};
   var _sameMatch = (ls.getAttribute('data-mid') === mid);
@@ -1806,6 +1859,14 @@ async function publishResults(){
   var mid=document.getElementById('resultTournamentSelect').value;
   if(!mid){ _pubUnlock(); return showToast('Select match',true); }
   var t=currentTournamentData;
+
+  /* ✅ B14 (2026-10-06): prize distribute se PEHLE match ki halat dekho —
+     match shuru hone se pehle (upcoming) ya cancel hone par publish nahi hoga.
+     Live/completed par chalega (match shuru ho chuka hai — result ka asli
+     waqt wahi hai). */
+  var _pg = window._admPrizeDistributeGate(t);
+  if (_pg && _pg.ok === false) { _pubUnlock(); return showToast(_pg.msg, true); }
+
 
   /* ✅ FIX (2026-10-01, advanced-E2E): rows ko YAHIN (click ke turant baad) pakdo.
      Pehle ye confirm-dialog + Supabase check ke BAAD padhi jati thi — aur us window

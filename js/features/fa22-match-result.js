@@ -120,6 +120,8 @@ window.loadMatchResultSection = async function() {
     if (tb) tb.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#aaa">Select a match to load players</td></tr>';
     return;
   }
+  /* ✅ B14: match chunte hi publish button ki halat set karo (upcoming par band) */
+  try { if (window._admUpdatePublishBtnState) window._admUpdatePublishBtnState((window._mrMatches || {})[mid] || (window.allTournaments || {})[mid] || null); } catch (e) {}
   if (typeof rtdb === 'undefined') return;
   if (tb) tb.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:14px;color:#aaa"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
 
@@ -427,6 +429,13 @@ window.mrPublishResults = async function() {
   var mid = (document.getElementById('mrMatchFilter') || {}).value || '';
   if (!mid) return showToast('Select a match first', true);
   if (typeof rtdb === 'undefined') return;
+
+  /* ✅ B14 (2026-10-06): wahi gate jo purane publish par lagta hai —
+     match shuru hone se pehle (upcoming) ya cancelled par publish nahi. */
+  var _mData = (window._mrMatches || {})[mid] || (window.allTournaments || {})[mid] || null;
+  var _mg = (typeof window._admPrizeDistributeGate === 'function') ? window._admPrizeDistributeGate(_mData) : null;
+  if (_mg && _mg.ok === false) { return showToast(_mg.msg, true); }
+
 
   if (window._mrPublishingInFlight) { showToast('⏳ Already publishing — please wait...', true); return; }
   window._mrPublishingInFlight = true;
