@@ -1,5 +1,5 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
-window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006m" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006n" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window._admEntrySym = function(m, j) {
   var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
   if (et === 'coin' || et === 'coins') return '🪙';
@@ -374,7 +374,7 @@ function onEntryTypeChange(){
   if(t==='paid'){
     h.className='info-box green';
     if(entryFeeLabel) entryFeeLabel.textContent='💠 Entry Fee (Sky Diamond) *';
-    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006m" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
+    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006n" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
   } else if(t==='coin'){
     h.className='info-box purple';
     if(entryFeeLabel) entryFeeLabel.textContent='🪙 Entry Fee (Coins) *';
@@ -396,9 +396,13 @@ function onEntryTypeChange(){
 }
 /* ✅ Helper: update prize column labels when prize type changes */
 function _updatePrizeLabels(pt, p1lbl, p2lbl, p3lbl){
-  var sym = pt==='greenDiamond' ? '<img src="green-diamond.png?v=20261006m" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD'
-           : pt==='skyDiamond'  ? '💠 SD'
-           : '🪙 Coins';
+  /* ⛔ B2 (2026-10-06): yahan pehle `pt==='skyDiamond' ? '💠 SD'` ki shaakh thi —
+     lekin Sky Diamond ab prize me kabhi diya hi nahi jata (dropdown me option
+     nahi hai, aur server function `publish_match_results` me bhi hard guard
+     laga hai). Dead shaakh hata di taki code aur comment ek hi baat kahen. */
+  /* label me saaf shabd (textContent se HTML strip ho jata hai, isliye img ke
+     saath 'GD' likhna padta tha — ab poora naam 'Green Diamond' hi likhte hain) */
+  var sym = pt==='greenDiamond' ? 'Green Diamond' : 'Coins';
   if(p1lbl) p1lbl.textContent='1st Prize (' + sym.replace(/<[^>]+>/g,'').trim() + ')';
   if(p2lbl) p2lbl.textContent='2nd Prize (' + sym.replace(/<[^>]+>/g,'').trim() + ')';
   if(p3lbl) p3lbl.textContent='3rd Prize (' + sym.replace(/<[^>]+>/g,'').trim() + ')';
@@ -421,7 +425,8 @@ function onPrizeTypeChange(){
   /* Update hint text */
   var h = document.getElementById('entryTypeHint');
   if(h){
-    var prizeLabel = pt==='greenDiamond' ? 'Green Diamond 💎' : pt==='skyDiamond' ? 'Sky Diamond 💠' : 'Coins 🪙';
+    /* ⛔ B2 (2026-10-06): 'skyDiamond' ki shaakh hatai — SD prize allowed nahi */
+    var prizeLabel = pt==='greenDiamond' ? 'Green Diamond 💎' : 'Coins 🪙';
     var entryLabel = et==='paid' ? 'Sky Diamond 💠' : et==='coin' ? 'Coins 🪙' : 'Ads 📺';
     h.innerHTML = '<i class="fas fa-info-circle"></i> Entry: ' + entryLabel + ' | Prize: <b>' + prizeLabel + '</b>';
   }
@@ -533,6 +538,33 @@ function editTournament(id){
   if(document.getElementById('tPrizeType')) {
     /* ✅ FIX: coin match default was skyDiamond (wrong). Now coin → coin */
     var _editPrize = d.prizeType || (d.entryType==='paid'?'greenDiamond' : 'coin');
+    /* ⛔ B2 (2026-10-06): dropdown me ab sirf Green Diamond / Coins hain
+       (Sky Diamond prize allowed nahi). Purane matches me prize_type
+       'sky_diamond'/'skyDiamond'/'coins'/'green_diamond' jaisi spelling
+       ho sakti hai — aise case me select khaali ho jata tha aur save par
+       prize CHUPKE SE badal jata. Ab saaf taur par map karte hain aur
+       admin ko note dikhate hain ki purana value kya tha aur kya chuna gaya. */
+    if (_editPrize !== 'greenDiamond' && _editPrize !== 'coin') {
+      var _oldPrize = String(_editPrize);
+      var _mapped = /green/i.test(_oldPrize) ? 'greenDiamond'
+                  : /sky|sd/i.test(_oldPrize)  ? 'greenDiamond' /* SD-entry match => GD prize (aaj ka niyam) */
+                  : (d.entryType === 'paid' ? 'greenDiamond' : 'coin');
+      _editPrize = _mapped;
+      var _note = document.getElementById('prizeTypeLegacyNote');
+      if (!_note) {
+        _note = document.createElement('div');
+        _note.id = 'prizeTypeLegacyNote';
+        _note.style.cssText = 'font-size:10px;color:#ffcc66;margin-top:4px;line-height:1.5';
+        var _sel = document.getElementById('tPrizeType');
+        if (_sel && _sel.parentNode) _sel.parentNode.appendChild(_note);
+      }
+      if (_note) _note.innerHTML = '⚠️ Is match me purana prize type <b>' + _oldPrize +
+        '</b> tha (ab allowed nahi). Ab <b>' + (_mapped === 'greenDiamond' ? 'Green Diamond' : 'Coins') +
+        '</b> chuna gaya hai — save karne par yahi lagega.';
+    } else {
+      var _noteOld = document.getElementById('prizeTypeLegacyNote');
+      if (_noteOld) _noteOld.innerHTML = '';
+    }
     document.getElementById('tPrizeType').value = _editPrize;
     _updatePrizeLabels(_editPrize,
       document.getElementById('prize1Label'),
