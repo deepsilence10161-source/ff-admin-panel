@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# ══════════════════════════════════════════════════════════════════════
+#  MINI eSPORTS — PRE-COMMIT HOOK (भूल जाने पर भी नंबर अपने-आप बढ़ेगा)
+# ══════════════════════════════════════════════════════════════════════
+#  क्या करता है:
+#    1. scripts/version-sync.mjs --bump-if-needed चलाता है
+#       (index.html के 101 ?v=, sw.js के ASSET_VER + CACHE_VER, manifest.json,
+#        js/features/screens के अंदर के ?v= — सब एक ही नए नंबर पर)
+#    2. सिर्फ़ उन बदली फ़ाइलों को stage करता है (बाक़ी आपके बदलाव नहीं छूता)
+#    3. fail होने पर commit रोक देता है — पुराने नंबर वाली रिलीज़ कभी न जाए
+#
+#  एक्टिव करने के लिए (एक बार):  bash scripts/install-hooks.sh
+# ══════════════════════════════════════════════════════════════════════
+set -u
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "⚠️  node नहीं मिला — version-sync.skip (CI में gate फिर भी पकड़ेगा)"
+  exit 0
+fi
+
+OUT="$(node scripts/version-sync.mjs --bump-if-needed --quiet --print-changed 2>&1)"
+STATUS=$?
+
+if [ $STATUS -ne 0 ]; then
+  echo "❌ VERSION SYNC FAIL — commit रोका गया:"
+  echo "$OUT"
+  exit 1
+fi
+
+# सिर्फ़ वही फ़ाइलें stage करो जो sync ने बदलीं
+CHANGED="$(echo "$OUT" | grep '^CHANGED:' | sed 's/^CHANGED://')"
+if [ -n "$CHANGED" ]; then
+  echo "$CHANGED" | while IFS= read -r f; do
+    [ -n "$f" ] && git add -- "$f"
+  done
+  echo "🔢 version-sync: नंबर अपडेट + stage हो गए → $(echo "$CHANGED" | tr '\n' ' ')"
+fi
+exit 0

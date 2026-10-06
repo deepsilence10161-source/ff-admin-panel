@@ -1,0 +1,43 @@
+# ══════════════════════════════════════════════════════════════════════
+#  MINI eSPORTS — ADMIN PANEL · VERSION GUARD (2026-10-06)
+# ══════════════════════════════════════════════════════════════════════
+#  Admin panel me APK jaisa build workflow nahi hai, isliye ye chhota
+#  workflow har push par 2 cheezein check karta hai:
+#    1. cache-busting numbers ek hi stamp par hain? (index.html ke ~81 ?v=,
+#       manifest/json + js ke andar ke stamps)
+#    2. smoke tests pass hain?
+#  Number pichhe chhoot gaya to ye FAIL hokar turant batayega —
+#  warna wahi purani bimari: "admin me fix dikh hi nahi raha".
+#
+#  Fix karne ke liye:  node scripts/version-sync.mjs --bump
+#                      git add -A && git commit -m "chore(version): stamp" && git push
+# ══════════════════════════════════════════════════════════════════════
+name: Version Guard (cache-busting + smoke tests)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  guard:
+    name: Version Sync + Smoke Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # stamp ko commit-date se compare karna hai
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Version Sync Gate
+        run: node scripts/version-sync.mjs --check --require-if-changed
+
+      - name: Smoke Tests
+        run: node tests/run-smoke-tests.js

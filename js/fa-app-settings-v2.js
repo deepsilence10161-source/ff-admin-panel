@@ -12,6 +12,22 @@
 var _AS  = {}; // main config cache (app_settings.live_config)
 var _CVS = {}; // creator+video settings cache (app_settings.creator_system + .video_moderation)
 
+/* ── VERSION COMPARE (2026-10-06) ─────────────────────────────────
+   appLatestVersion ko automatically manage kiya jaata hai (GitHub Actions
+   har APK release par set karta hai). Admin form purane value ke saath save
+   kare to naya/bada number overwrite na ho — uske liye semantic compare.
+   '1.0.112' > '1.0.9' — plain number compare se yeh galat hota, isliye
+   hissa-dar-hissa (dot se alag) compare kar rahe hain. */
+function _verCmp(a, b) {
+  var pa = String(a || '0').split('.'), pb = String(b || '0').split('.');
+  var n = Math.max(pa.length, pb.length);
+  for (var i = 0; i < n; i++) {
+    var x = parseInt(pa[i] || '0', 10) || 0, y = parseInt(pb[i] || '0', 10) || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
 window.loadAppSettings = function() {
   /* Remove any leftover diagnostic banner if present */
   if (!window._supa) { setTimeout(window.loadAppSettings, 500); return; }
@@ -122,7 +138,7 @@ function _renderAppSettings() {
     '<div style="background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.2);border-radius:10px;padding:10px 12px;margin-bottom:12px">' +
       '<div style="font-size:11px;color:#ccc">Jis user ki installed APK version <b>Minimum Supported Version</b> se purani hogi, usko poori app ki jagah ek blank "Update Required" screen dikhegi — jab tak wo naya APK <b>install</b> nahi kar leta (sirf download karne se nahi hategi).</div>' +
     '</div>' +
-    row('appLatestVersion', '🆕 Latest Version (e.g. 1.3.8)', val('appLatestVersion','1.0.0'), 'text', 'Sirf display ke liye — "Update Available" jaisi info screens mein dikhta hai') +
+    row('appLatestVersion', '🆕 Latest Version (e.g. 1.3.8)', val('appLatestVersion','1.0.0'), 'text', '🤖 AUTO: har APK release par GitHub Actions apne aap set karta hai. Yahan se purani (chhoti) value save nahi hogi — safe hai.') +
     row('appMinSupportedVersion', '⛔ Minimum Supported Version (e.g. 1.3.5)', val('appMinSupportedVersion','1.0.0'), 'text', 'Isse purani installed version wale users ko FORCE update screen dikhegi. Chhota bug fix ho to isse mat badlo — sirf "Latest Version" badlo.') +
     row('appApkUrl', '🔗 APK Download URL', val('appApkUrl',''), 'text', 'Direct .apk link (GitHub Release / Uptodown / apna host) — "Update Now" button isi ko kholega') +
     row('appSupportContact', '💬 Support WhatsApp Number (optional)', val('appSupportContact',''), 'text', 'Format: 91XXXXXXXXXX (country code ke saath). Update screen par "Contact Support" button dikhega — link kaam na kare to user fasega nahi.') +
@@ -542,8 +558,32 @@ window.saveAppSettings = function() {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
     return;
   }
-  window._supa.from('app_settings')
-    .upsert({ key: 'live_config', value: config, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+  /* 🤖 AUTO-MANAGED appLatestVersion (2026-10-06)
+     ──────────────────────────────────────────────────────────────
+     appLatestVersion ab GitHub Actions har APK release par apne aap set
+     karta hai. Par save karte waqt purana form (jo CI-update se pehle
+     khula tha) chhota number wapas likh deta — live me bilkul yahi hua
+     tha: APK v1.0.111 publish tha, par DB me 1.0.109 pada reh gaya.
+     Isliye ab save se pehle DB ki current value padhi jaati hai aur
+     max() rakha jaata hai. Select fail ho jaye to bhi save rukta nahi
+     (bina guard ke normal save chalta hai). */
+  function _upsertLive() {
+    return window._supa.from('app_settings')
+      .upsert({ key: 'live_config', value: config, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  }
+
+  window._supa.from('app_settings').select('value').eq('key', 'live_config').limit(1)
+    .then(function(_cur) {
+      try {
+        var _row   = (_cur && _cur.data && _cur.data[0]) || null;
+        var _dbVer = _row && _row.value && _row.value.appLatestVersion;
+        if (_dbVer && _verCmp(config.appLatestVersion, _dbVer) < 0) {
+          config.appLatestVersion = _dbVer;
+          if (window.showToast) showToast('🤖 Latest Version auto-managed hai — ' + _dbVer + ' hi rakha gaya', false);
+        }
+      } catch (e) { /* compare fail → jaisa hai waisa save */ }
+      return _upsertLive();
+    }, function() { return _upsertLive(); })
     .then(function(r1) {
       if (r1.error) throw r1.error;
       _AS = config;
