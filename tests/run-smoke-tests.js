@@ -179,6 +179,31 @@ console.log('\n── TEST 6: R5 sponsored withdrawal single-authority (server R
   ok(ss.includes('resolve_sponsored_withdrawal'), 'secure sponsor wd resolve RPC intact');
 }
 
+/* ── TEST 7: B24/B26 — video system gaya + daily bonus live_config par ── */
+console.log('\n── TEST 7: B24/B26 video safai + Daily Bonus Editor ka sach ──');
+{
+  const as = fs.readFileSync(path.join(REPO, 'js/fa-app-settings-v2.js'), 'utf8');
+  ok(as.indexOf('video_moderation') === -1 || as.indexOf("key: 'video_moderation'") === -1,
+     'admin settings ab video_moderation row nahi likhta');
+  ok(as.indexOf('cvVideoEnabled') === -1 && as.indexOf('cvWatchCoins') === -1,
+     'Creator Video System ke rows gaye');
+  ok(as.indexOf('videoModerationConfig') === -1 || as.indexOf('var videoModerationConfig = {') === -1,
+     'videoModerationConfig payload gaya');
+  ok(as.indexOf("gn('checkinCoins'") === -1 && as.indexOf("gn('checkinBonus7'") === -1,
+     'dead checkinCoins/checkinBonus7 payload se gaye');
+  ok(as.indexOf("upsert({ key: 'creator_system'") !== -1,
+     'creator_system ka save waise hi chal raha hai (asli feature)');
+  ok(as.indexOf("row('cvSDMatchComm'") !== -1,
+     'Creator Match Hosting section intact (SD commission %)');
+
+  const f7 = fs.readFileSync(path.join(REPO, 'js/admin-fixes-v7.js'), 'utf8');
+  ok(f7.indexOf("ref('appSettings/dailyBonusRewards')") === -1,
+     'Daily Bonus Editor ab Firebase par nahi likhta');
+  ok(f7.indexOf("eq('key', 'live_config')") !== -1 && f7.indexOf('val.dailyBonusRewards = data') !== -1,
+     'Daily Bonus Editor live_config.dailyBonusRewards save karta hai (read-modify-write)');
+  ok(/function _dbBonusDefaults\(\)/.test(f7), 'editor ke defaults server constants se match hain');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }

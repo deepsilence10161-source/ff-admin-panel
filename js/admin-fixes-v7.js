@@ -2,7 +2,7 @@
    MINI ESPORTS — ADMIN PANEL v7 FIXES + NEW FEATURES
    Fixes: UTR shown in withdrawal, Support Chat Typing Indicator,
           Withdrawal duplicate guard, Gift ticket visibility
-   Features: Admin-Editable Daily Bonus Rewards, Extended Push Notifs,
+   Features: Admin-Editable Daily Bonus Rewards (B26: Supabase live_config), Extended Push Notifs,
              Recently Won Feed management, Invite & Earn admin view,
              WhatsApp share config, Referral Leaderboard admin
    ═══════════════════════════════════════════════════════════════════ */
@@ -34,85 +34,85 @@
         if (s.exists()) s.forEach(function (c) { reqs.push(Object.assign({}, c.val(), { _key: c.key })); });
         reqs.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
 
-        var h = '<div>';
-        h += '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">';
-        h += '<button class="btn btn-ghost btn-sm" onclick="window.exportCSV(\'wallet\')"><i class="fas fa-download"></i> Export</button>';
-        h += '<span style="font-size:11px;color:#aaa;margin-left:auto">' + reqs.length + ' pending requests</span>';
-        h += '</div>';
-
-        if (!reqs.length) {
-          h += '<div style="text-align:center;padding:32px;color:#aaa"><i class="fas fa-check-circle" style="font-size:32px;color:#00ff9c;display:block;margin-bottom:8px"></i>No pending requests ✅</div>';
-        }
-
-        reqs.forEach(function (r) {
-          var isDeposit = r.type === 'deposit';
-          var hasUTR = r.utr && r.utr.toString().trim().length > 0;
-          var utrFromUser = r.utrNumber || r.utr || '';  // support both field names
-          var utrBadge = hasUTR
-            ? '<span style="background:rgba(0,255,156,.15);color:#00ff9c;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;font-family:monospace">UTR: ' + utrFromUser + '</span>'
-            : '<span style="background:rgba(255,107,107,.15);color:#ff6b6b;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">⚠️ UTR Missing</span>';
-
-          h += '<div class="card" style="margin-bottom:10px;border:1px solid ' + (hasUTR ? 'rgba(255,255,255,.1)' : 'rgba(255,107,107,.3)') + '">';
-          h += '<div class="card-body compact">';
-
-          // Header row
-          h += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">';
-          h += '<div>';
-          h += '<div style="font-weight:700;font-size:13px">' + (isDeposit ? '📥 Deposit' : '📤 Withdrawal') + '</div>';
-          h += '<div style="font-size:22px;font-weight:900;color:' + (isDeposit ? '#00d4ff' : '#00ff9c') + ';margin:2px 0">₹' + (r.amount || r.withdrawalAmount || 0) + '</div>';
-          h += '<div style="font-size:10px;color:#aaa">' + (r.userName || '?') + ' · ' + new Date(r.createdAt || 0).toLocaleString() + '</div>';
-          h += '</div>';
-          h += '<div style="display:flex;flex-direction:column;gap:5px">';
-          h += '<button class="btn btn-primary btn-xs" onclick="window.approveWallet(\'' + r._key + '\',\'' + r.uid + '\',' + (r.amount || 0) + ',\'' + r.type + '\')">✅ Approve</button>';
-          h += '<button class="btn btn-danger btn-xs" onclick="window.rejectWallet(\'' + r._key + '\',\'' + r.uid + '\',' + (r.amount || 0) + ',\'' + r.type + '\')">❌ Reject</button>';
-          if (r.utr) h += '<button class="btn btn-ghost btn-xs" onclick="window._addUTRToRequest(\'' + r._key + '\')">📝 Add UTR</button>';
-          h += '</div></div>';
-
-          // UTR row — prominent
-          h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)">';
-          h += utrBadge;
-          if (!hasUTR) {
-            h += '<input type="text" id="utrInput_' + r._key + '" placeholder="Enter UTR number" style="flex:1;padding:5px 8px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,107,107,.3);color:#fff;font-size:11px;font-family:monospace">';
-            h += '<button onclick="window._saveAdminUTR(\'' + r._key + '\')" style="padding:5px 10px;border-radius:8px;background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:#00d4ff;font-size:11px;cursor:pointer;font-weight:700">Save</button>';
-          }
+          var h = '<div>';
+          h += '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">';
+          h += '<button class="btn btn-ghost btn-sm" onclick="window.exportCSV(\'wallet\')"><i class="fas fa-download"></i> Export</button>';
+          h += '<span style="font-size:11px;color:#aaa;margin-left:auto">' + reqs.length + ' pending requests</span>';
           h += '</div>';
 
-          // UPI + details
-          h += '<div style="font-size:11px;color:#aaa;margin-top:4px">';
-          if (r.upiId) h += '💳 UPI: <span style="color:#fff;font-family:monospace">' + r.upiId + '</span> &nbsp;';
-          if (r.diamondsWithdrawn) h += '💎 ' + r.diamondsWithdrawn + ' diamonds';
+          if (!reqs.length) {
+            h += '<div style="text-align:center;padding:32px;color:#aaa"><i class="fas fa-check-circle" style="font-size:32px;color:#00ff9c;display:block;margin-bottom:8px"></i>No pending requests ✅</div>';
+          }
+
+          reqs.forEach(function (r) {
+            var isDeposit = r.type === 'deposit';
+            var hasUTR = r.utr && r.utr.toString().trim().length > 0;
+            var utrFromUser = r.utrNumber || r.utr || '';  // support both field names
+            var utrBadge = hasUTR
+              ? '<span style="background:rgba(0,255,156,.15);color:#00ff9c;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;font-family:monospace">UTR: ' + utrFromUser + '</span>'
+              : '<span style="background:rgba(255,107,107,.15);color:#ff6b6b;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">⚠️ UTR Missing</span>';
+
+            h += '<div class="card" style="margin-bottom:10px;border:1px solid ' + (hasUTR ? 'rgba(255,255,255,.1)' : 'rgba(255,107,107,.3)') + '">';
+            h += '<div class="card-body compact">';
+
+            // Header row
+            h += '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">';
+            h += '<div>';
+            h += '<div style="font-weight:700;font-size:13px">' + (isDeposit ? '📥 Deposit' : '📤 Withdrawal') + '</div>';
+            h += '<div style="font-size:22px;font-weight:900;color:' + (isDeposit ? '#00d4ff' : '#00ff9c') + ';margin:2px 0">₹' + (r.amount || r.withdrawalAmount || 0) + '</div>';
+            h += '<div style="font-size:10px;color:#aaa">' + (r.userName || '?') + ' · ' + new Date(r.createdAt || 0).toLocaleString() + '</div>';
+            h += '</div>';
+            h += '<div style="display:flex;flex-direction:column;gap:5px">';
+            h += '<button class="btn btn-primary btn-xs" onclick="window.approveWallet(\'' + r._key + '\',\'' + r.uid + '\',' + (r.amount || 0) + ',\'' + r.type + '\')">✅ Approve</button>';
+            h += '<button class="btn btn-danger btn-xs" onclick="window.rejectWallet(\'' + r._key + '\',\'' + r.uid + '\',' + (r.amount || 0) + ',\'' + r.type + '\')">❌ Reject</button>';
+            if (r.utr) h += '<button class="btn btn-ghost btn-xs" onclick="window._addUTRToRequest(\'' + r._key + '\')">📝 Add UTR</button>';
+            h += '</div></div>';
+
+            // UTR row — prominent
+            h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.06)">';
+            h += utrBadge;
+            if (!hasUTR) {
+              h += '<input type="text" id="utrInput_' + r._key + '" placeholder="Enter UTR number" style="flex:1;padding:5px 8px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,107,107,.3);color:#fff;font-size:11px;font-family:monospace">';
+              h += '<button onclick="window._saveAdminUTR(\'' + r._key + '\')" style="padding:5px 10px;border-radius:8px;background:rgba(0,212,255,.15);border:1px solid rgba(0,212,255,.3);color:#00d4ff;font-size:11px;cursor:pointer;font-weight:700">Save</button>';
+            }
+            h += '</div>';
+
+            // UPI + details
+            h += '<div style="font-size:11px;color:#aaa;margin-top:4px">';
+            if (r.upiId) h += '💳 UPI: <span style="color:#fff;font-family:monospace">' + r.upiId + '</span> &nbsp;';
+            if (r.diamondsWithdrawn) h += '💎 ' + r.diamondsWithdrawn + ' diamonds';
+            h += '</div>';
+
+            if (isDeposit && r.screenshotBase64) {
+              h += '<button class="btn btn-ghost btn-xs" style="margin-top:6px" onclick="window._viewSS(\'' + r._key + '\')"><i class="fas fa-image"></i> View Proof</button>';
+            }
+            if (!isDeposit && r.screenshotBase64) {
+              h += '<button class="btn btn-ghost btn-xs" style="margin-top:6px" onclick="window._viewSS(\'' + r._key + '\')"><i class="fas fa-image"></i> View Payment Proof</button>';
+            }
+
+            h += '</div></div>';
+          });
+
           h += '</div>';
-
-          if (isDeposit && r.screenshotBase64) {
-            h += '<button class="btn btn-ghost btn-xs" style="margin-top:6px" onclick="window._viewSS(\'' + r._key + '\')"><i class="fas fa-image"></i> View Proof</button>';
-          }
-          if (!isDeposit && r.screenshotBase64) {
-            h += '<button class="btn btn-ghost btn-xs" style="margin-top:6px" onclick="window._viewSS(\'' + r._key + '\')"><i class="fas fa-image"></i> View Payment Proof</button>';
-          }
-
-          h += '</div></div>';
+          if (window._adminModal) window._adminModal('💳 Pending Wallet Requests (' + reqs.length + ')', h);
+          else _modal('💳 Pending Wallet Requests (' + reqs.length + ')', h);
         });
-
-        h += '</div>';
-        if (window._adminModal) window._adminModal('💳 Pending Wallet Requests (' + reqs.length + ')', h);
-        else _modal('💳 Pending Wallet Requests (' + reqs.length + ')', h);
-      });
     };
 
     // Save UTR from admin side
     window._saveAdminUTR = function (key) {
-      var inp = _$('utrInput_' + key);
-      if (!inp || !inp.value.trim()) { _toast('UTR number enter karo', 'err'); return; }
-      rtdb.ref('walletRequests/' + key).update({ utr: inp.value.trim(), utrAddedByAdmin: true, utrAddedAt: Date.now() });
-      _toast('✅ UTR saved!');
-      window.showPendingWallet();
+        var inp = _$('utrInput_' + key);
+        if (!inp || !inp.value.trim()) { _toast('UTR number enter karo', 'err'); return; }
+        rtdb.ref('walletRequests/' + key).update({ utr: inp.value.trim(), utrAddedByAdmin: true, utrAddedAt: Date.now() });
+        _toast('✅ UTR saved!');
+        window.showPendingWallet();
     };
     window._addUTRToRequest = function (key) {
-      var utr = prompt('Enter UTR number for this request:');
-      if (!utr || !utr.trim()) return;
-      rtdb.ref('walletRequests/' + key).update({ utr: utr.trim(), utrAddedByAdmin: true });
-      _toast('✅ UTR added!');
-      window.showPendingWallet();
+        var utr = prompt('Enter UTR number for this request:');
+        if (!utr || !utr.trim()) return;
+        rtdb.ref('walletRequests/' + key).update({ utr: utr.trim(), utrAddedByAdmin: true });
+        _toast('✅ UTR added!');
+        window.showPendingWallet();
     };
 
     console.log('[v7-Admin] ✅ Fix: UTR shown prominently in withdrawal requests');
@@ -126,53 +126,53 @@
     var _adminTypingTimeouts = {};
 
     window.setupAdminTypingForUser = function (userId) {
-      var chatInput = _$('adminChatInput') || document.querySelector('.admin-chat-input') || document.querySelector('[id*="chatInput"]');
-      if (!chatInput || chatInput._adminTypingSetup) return;
-      chatInput._adminTypingSetup = true;
+        var chatInput = _$('adminChatInput') || document.querySelector('.admin-chat-input') || document.querySelector('[id*="chatInput"]');
+        if (!chatInput || chatInput._adminTypingSetup) return;
+        chatInput._adminTypingSetup = true;
 
-      chatInput.addEventListener('input', function () {
-        rtdb.ref('supportTyping/admin_for_' + userId).set({ typing: true, ts: Date.now() });
-        clearTimeout(_adminTypingTimeouts[userId]);
-        _adminTypingTimeouts[userId] = setTimeout(function () {
+        chatInput.addEventListener('input', function () {
+          rtdb.ref('supportTyping/admin_for_' + userId).set({ typing: true, ts: Date.now() });
+          clearTimeout(_adminTypingTimeouts[userId]);
+          _adminTypingTimeouts[userId] = setTimeout(function () {
+            rtdb.ref('supportTyping/admin_for_' + userId).set({ typing: false, ts: Date.now() });
+          }, 2500);
+        });
+        chatInput.addEventListener('blur', function () {
           rtdb.ref('supportTyping/admin_for_' + userId).set({ typing: false, ts: Date.now() });
-        }, 2500);
-      });
-      chatInput.addEventListener('blur', function () {
-        rtdb.ref('supportTyping/admin_for_' + userId).set({ typing: false, ts: Date.now() });
-      });
+        });
     };
 
     // Show user typing status in admin chat
     window.listenUserTyping = function (userId, statusElId) {
-      rtdb.ref('supportTyping/user_' + userId).on('value', function (s) {
-        var data = s.val();
-        var el = _$(statusElId) || document.querySelector('.user-typing-status');
-        if (!el) return;
-        if (data && data.typing && (Date.now() - (data.ts || 0)) < 5000) {
-          el.innerHTML = '<span style="color:#00ff9c;font-size:11px;animation:pulse 1s infinite">✍️ User typing...</span>';
-        } else {
-          el.textContent = '';
-        }
-      });
+        rtdb.ref('supportTyping/user_' + userId).on('value', function (s) {
+          var data = s.val();
+          var el = _$(statusElId) || document.querySelector('.user-typing-status');
+          if (!el) return;
+          if (data && data.typing && (Date.now() - (data.ts || 0)) < 5000) {
+            el.innerHTML = '<span style="color:#00ff9c;font-size:11px;animation:pulse 1s infinite">✍️ User typing...</span>';
+          } else {
+            el.textContent = '';
+          }
+        });
     };
 
     // Inject typing status into admin chat UI when it opens
     var _observer = new MutationObserver(function () {
-      var chatBoxes = document.querySelectorAll('[data-user-id]');
-      chatBoxes.forEach(function (box) {
-        var uid = box.getAttribute('data-user-id');
-        if (uid && !box._typingInited) {
-          box._typingInited = true;
-          window.setupAdminTypingForUser(uid);
-          if (!box.querySelector('.user-typing-status')) {
-            var typingEl = document.createElement('div');
-            typingEl.className = 'user-typing-status';
-            typingEl.style.cssText = 'height:16px;font-size:11px;padding:0 8px';
-            box.appendChild(typingEl);
-            window.listenUserTyping(uid, null);
+        var chatBoxes = document.querySelectorAll('[data-user-id]');
+        chatBoxes.forEach(function (box) {
+          var uid = box.getAttribute('data-user-id');
+          if (uid && !box._typingInited) {
+            box._typingInited = true;
+            window.setupAdminTypingForUser(uid);
+            if (!box.querySelector('.user-typing-status')) {
+              var typingEl = document.createElement('div');
+              typingEl.className = 'user-typing-status';
+              typingEl.style.cssText = 'height:16px;font-size:11px;padding:0 8px';
+              box.appendChild(typingEl);
+              window.listenUserTyping(uid, null);
+            }
           }
-        }
-      });
+        });
     });
     _observer.observe(document.body, { childList: true, subtree: true });
 
@@ -180,36 +180,52 @@
   });
 
   /* ════════════════════════════════════════════════════════════
-     ✨ NEW FEATURE: DAILY BONUS REWARD EDITOR
-     Admin panel se daily login bonus rewards set kar sake
+     ✨ DAILY BONUS REWARD EDITOR  (✅ B26 — 2026-10-07 rewrite)
+     ────────────────────────────────────────────────────────────
+     PEHLE: yeh editor Firebase RTDB `appSettings/dailyBonusRewards` me
+     likhta/parhta tha. 2026-08 ki Firebase→Supabase migration ke baad wo
+     ek MARA hua path tha — live me wahan value hi nahi thi (null), yani
+     editor kuch save karta hi nahi tha aur user panel default array
+     [5,7,10,12,15,20,30] par chalta raha. Upar se process_daily_checkin
+     RPC (2026-09-20 Round-4) teeno params IGNORE karta tha, isliye yeh
+     "Daily Check-In Coins" wali App-Settings rows ki bhi duplicate thi —
+     dono jagah se kuch bhi badalne ka user par asar nahi hota tha.
+     AB: SOURCE OF TRUTH = Supabase `app_settings.live_config.dailyBonusRewards`
+     (read-modify-write, baaki live_config keys ko chhua nahi jaata).
+     User panel (features/app-config.js → window._adminDailyBonusRewards)
+     aur server RPC dono isi key ko padhte hain — ek hi editor, ek hi sach.
   ════════════════════════════════════════════════════════════ */
+  function _dbBonusDefaults() { return { day1: 5, day2: 7, day3: 10, day4: 12, day5: 15, day6: 20, day7: 30, day30Bonus: 100 }; }
+
   window.showDailyBonusConfig = function () {
-    if (!window.rtdb) return;
-    rtdb.ref('appSettings/dailyBonusRewards').once('value', function (s) {
-      var cfg = s.val() || { day1: 5, day2: 7, day3: 10, day4: 12, day5: 15, day6: 20, day7: 30 };
-      var h = '<div>';
-      h += '<div style="background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.2);border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;color:#ffaa00">';
-      h += '⚡ Yeh rewards user ko daily login streak par milte hain (Coins). Changes turant effect honge.';
-      h += '</div>';
-      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-      var dayEmojis = ['🌱','🌿','🌳','⚡','🔥','💫','👑'];
-      var dayLabels = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7 (Max)'];
-      for (var i = 1; i <= 7; i++) {
-        h += '<div class="form-group">';
-        h += '<label style="display:flex;align-items:center;gap:6px">' + dayEmojis[i-1] + ' ' + dayLabels[i-1] + ' <span style="font-size:10px;color:#666">(coins)</span></label>';
-        h += '<input type="number" id="dbDay' + i + '" class="form-input" value="' + (cfg['day' + i] || 5) + '" min="1" max="10000">';
+    if (!window._supa) { _toast('Supabase ready nahi hai — thodi der baad try karo'); return; }
+    window._supa.from('app_settings').select('value').eq('key', 'live_config').limit(1)
+      .then(function (r) {
+        var saved = (r && r.data && r.data[0] && r.data[0].value && r.data[0].value.dailyBonusRewards) || null;
+        var cfg = Object.assign(_dbBonusDefaults(), saved || {});
+        var h = '<div>';
+        h += '<div style="background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.2);border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;color:#ffaa00">';
+        h += '⚡ Yeh rewards user ko daily login streak par milte hain (coins) — yahi asli source hai (live_config.dailyBonusRewards). Save ke baad user panel 5 min ke andar (ya app kholte hi) naya reward use karega.';
         h += '</div>';
-      }
-      h += '</div>';
-      h += '<div class="form-group" style="margin-top:10px">';
-      h += '<label>Special Day-30 Bonus (coins) <span style="font-size:10px;color:#666">Monthly legend reward</span></label>';
-      h += '<input type="number" id="dbDay30Bonus" class="form-input" value="' + (cfg.day30Bonus || 100) + '" min="0">';
-      h += '</div>';
-      h += '<button class="btn btn-primary w-full" onclick="window._saveDailyBonusConfig()" style="margin-top:12px"><i class="fas fa-save"></i> Save Daily Bonus Rewards</button>';
-      h += '<button class="btn btn-ghost w-full" onclick="window._previewDailyBonus()" style="margin-top:6px"><i class="fas fa-eye"></i> Preview User Experience</button>';
-      h += '</div>';
-      _modal('🎁 Daily Bonus Reward Editor', h);
-    });
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+        var dayEmojis = ['🌱','🌿','🌳','⚡','🔥','💫','👑'];
+        var dayLabels = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7 (Max)'];
+        for (var i = 1; i <= 7; i++) {
+          h += '<div class="form-group">';
+          h += '<label style="display:flex;align-items:center;gap:6px">' + dayEmojis[i-1] + ' ' + dayLabels[i-1] + ' <span style="font-size:10px;color:#666">(coins)</span></label>';
+          h += '<input type="number" id="dbDay' + i + '" class="form-input" value="' + (cfg['day' + i] || 5) + '" min="1" max="10000">';
+          h += '</div>';
+        }
+        h += '</div>';
+        h += '<div class="form-group" style="margin-top:10px">';
+        h += '<label>Special Day-30 Bonus (coins) <span style="font-size:10px;color:#666">Monthly legend reward</span></label>';
+        h += '<input type="number" id="dbDay30Bonus" class="form-input" value="' + (cfg.day30Bonus || 100) + '" min="0">';
+        h += '</div>';
+        h += '<button class="btn btn-primary w-full" onclick="window._saveDailyBonusConfig()" style="margin-top:12px"><i class="fas fa-save"></i> Save Daily Bonus Rewards</button>';
+        h += '<button class="btn btn-ghost w-full" onclick="window._previewDailyBonus()" style="margin-top:6px"><i class="fas fa-eye"></i> Preview User Experience</button>';
+        h += '</div>';
+        _modal('🎁 Daily Bonus Reward Editor', h);
+      }, function () { _toast('Rewards load nahi hue — network check karo'); });
   };
 
   window._saveDailyBonusConfig = function () {
@@ -228,10 +244,25 @@
     if (suspicious.length && !confirm('⚠️ Yeh values normal daily-bonus range (1-100) se kaafi zyada hain:\n\n' + suspicious.join('\n') + '\n\nAgar yeh sahi hai to OK karo, warna Cancel karke value check kar lo.')) {
       return;
     }
-    rtdb.ref('appSettings/dailyBonusRewards').set(data);
-    if (window._logAction) window._logAction('update_daily_bonus_config', null, data);
-    _toast('✅ Daily bonus rewards saved! Users ko turant effect milega.');
-    if (window.closeModal) window.closeModal();
+    /* ✅ B26: live_config me read-modify-write — sirf dailyBonusRewards badalta
+       hai, baaki 30+ keys (force-update, payment, missions...) waise hi rehti
+       hain. Row pehle se maujood hai, isliye update (upsert nahi). */
+    window._supa.from('app_settings').select('value').eq('key', 'live_config').limit(1)
+      .then(function (r) {
+        var val = (r && r.data && r.data[0] && r.data[0].value) || {};
+        val.dailyBonusRewards = data;
+        return window._supa.from('app_settings')
+          .update({ value: val, updated_at: new Date().toISOString() })
+          .eq('key', 'live_config');
+      })
+      .then(function (res) {
+        if (res && res.error) { _toast('❌ Save fail: ' + res.error.message); return; }
+        if (window._logAction) window._logAction('update_daily_bonus_config', null, data);
+        _toast('✅ Daily Bonus rewards saved! User panel 5 min ke andar (ya app kholte hi) naya reward use karega.');
+        if (window.closeModal) window.closeModal();
+      }, function (e) {
+        _toast('❌ Save fail: ' + ((e && e.message) || e));
+      });
   };
 
   window._previewDailyBonus = function () {

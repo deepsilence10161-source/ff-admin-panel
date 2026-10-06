@@ -2,15 +2,16 @@
    APP SETTINGS ADMIN — fa-app-settings.js
    Admin se sab kuch control karo — koi code change nahi
    ✅ MIGRATED (2026-08): Firebase appSettings/liveConfig →
-   Supabase app_settings table (key='live_config'), same for
-   adminConfig/creatorSystem (key='creator_system') and
-   adminConfig/videoModeration (key='video_moderation'). Firebase ab
+   Supabase app_settings table (key='live_config') aur
+   adminConfig/creatorSystem (key='creator_system'). Firebase ab
    sirf chat/presence/anti-cheat ke liye — koi bhi actual data
    Firebase pe nahi rehta.
+   ✅ B24 (2026-10-07): video_moderation hata — poora "Creator Video
+   System" gaya (wajah us section ki jagah neeche likhi hai).
    ================================================================ */
 
 var _AS  = {}; // main config cache (app_settings.live_config)
-var _CVS = {}; // creator+video settings cache (app_settings.creator_system + .video_moderation)
+var _CVS = {}; // creator settings cache (app_settings.creator_system)
 
 /* ── VERSION COMPARE (2026-10-06) ─────────────────────────────────
    appLatestVersion ko automatically manage kiya jaata hai (GitHub Actions
@@ -63,7 +64,7 @@ window.loadAppSettings = function() {
     if (cont) cont.innerHTML = '<div style="text-align:center;padding:40px;color:#ff6b6b"><i class="fas fa-wifi fa-2x"></i><br><br>Settings load hone mein bahut time lag raha hai.<br><span style="font-size:11px;color:#888">Network slow ho sakta hai — check karo aur retry karo.</span><br><br><button class="btn btn-ghost btn-sm" onclick="loadAppSettings()">Retry</button></div>';
   }, 10000);
 
-  window._supa.from('app_settings').select('key,value').in('key', ['live_config', 'creator_system', 'video_moderation'])
+  window._supa.from('app_settings').select('key,value').in('key', ['live_config', 'creator_system'])   /* ✅ B24: video_moderation gaya */
     .then(function(r) {
       clearTimeout(_timeoutTimer);
       if (_settingsTimedOut) return; /* already showed the timeout message; a late success shouldn't silently replace it without the admin re-triggering */
@@ -73,7 +74,6 @@ window.loadAppSettings = function() {
       rows.forEach(function(row) { byKey[row.key] = row.value; });
       _AS = byKey.live_config || {};
       _CVS.creator = byKey.creator_system || {};
-      _CVS.video = byKey.video_moderation || {};
       _renderAppSettings();
     }, function(e) {
       clearTimeout(_timeoutTimer);
@@ -198,9 +198,7 @@ function _renderAppSettings() {
   /* 1. EARN SETTINGS */
   html += section('Coin Earn Settings', 'fas fa-coins', '#ffd700',
     row('adCoins',         '📺 Ad Watch Coins',          val('adCoinsPerWatch', 10),   'number', 'Rewarded ad dekhhne pe kitne coins milenge') +
-    row('adDailyLimit',    '📺 Ad Daily Limit',           val('adDailyLimit', 5),       'number', 'Roz maximum kitni baar ad dekh sakte hain') +
-    row('checkinCoins',    '📅 Daily Check-In Coins',     val('checkinCoins', 5),       'number', 'Roz check-in karne pe coins') +
-    row('checkinBonus7',   '🔥 7-Day Streak Bonus Coins', val('checkinStreakBonus7', 50),'number', '7 din streak hone pe extra bonus')
+    row('adDailyLimit',    '📺 Ad Daily Limit',           val('adDailyLimit', 5),       'number', 'Roz maximum kitni baar ad dekh sakte hain')
     /* ✅ REMOVED (2026-08-22): "Share Result Coins" — per explicit
        instruction, sharing a result should not pay coins. The feature
        (giveShareCoins in growth.js) has been fully removed from both
@@ -213,9 +211,17 @@ function _renderAppSettings() {
      and m_daily_checkin removed from here. Both used to pay coins for
      the exact same event as "Daily Check-In Coins" above (the real
      Check-In button, process_daily_checkin RPC) — a user could collect
-     all three for one login/check-in. checkinCoins above is now the
-     single admin-configurable amount for that. daily_match and
-     daily_kills3 remain — genuinely separate actions. */
+     all three for one login/check-in. daily_match and daily_kills3
+     remain — genuinely separate actions.
+     ✅ B26 (2026-10-07): "📅 Daily Check-In Coins" + "🔥 7-Day Streak
+     Bonus Coins" rows bhi hata diye — dono DEAD settings thi. Wajah:
+     process_daily_checkin RPC (2026-09-20 Round-4) se teeno params
+     IGNORE karta hai aur server constants par chalta hai (7-din cycle
+     5,7,10,12,15,20,30 + day-30 par 100 bonus) — yahan value badalne ka
+     user par ZERO asar hota tha (UI galat vaada kar rahi thi).
+     Ab daily check-in rewards ka EK hi editor: Quick Tools →
+     "🎁 Daily Bonus Editor" (live_config.dailyBonusRewards — migration
+     2026-10-07-b24-b26 ke saath RPC bhi usi ko padhta hai). */
   var m = val('missions', {});
   html += section('Mission Rewards (Coins)', 'fas fa-tasks', '#00ff9c',
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
@@ -399,35 +405,19 @@ function _renderAppSettings() {
   sdHtml += '<button onclick="addSDPackage()" style="padding:8px 14px;border-radius:10px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);color:#00d4ff;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px">+ Package Add Karo</button>';
   html += section('Sky Diamond Packages', 'fas fa-gem', '#00d4ff', sdHtml);
 
-  /* 9. CREATOR & VIDEO SYSTEM */
-  var cv = _CVS.video   || {};
+  /* ✅ B24 (2026-10-07): poora "Creator Video System" HATA diya (section +
+     settings + payload). Wajah: ye feature LIVE nahi tha —
+       * user panel me video dekhne/earn karne wali koi screen hi nahi thi
+         (submitCreatorVideo ke koi callers nahi the — dead function, hata diya),
+       * admin me videos review karne ka koi page nahi tha,
+       * creator_videos table khaali (0 rows) thi,
+       * aur ye settings ek purane Firebase path (adminConfig/videoModeration)
+         se "connect" dikhayi ja rahi thi jahan koi likhta hi nahi tha.
+     Yani 7 settings sirf jhoothi tasveer dete the ("Watcher ko itne coins") —
+     inhe hata kar user panel me sirf ASLI watch feature rakha: Watch & Earn
+     (match live stream — 2 coins/minute, upar ki section me set hota hai). */
   var cc = _CVS.creator || {};
-  function cvVal(k, def) { return cv[k] != null ? cv[k] : def; }
   function ccVal(k, def) { return cc[k] != null ? cc[k] : def; }
-
-  // Banned keywords textarea helper
-  var bkw = cvVal('videoBannedKeywords', 'gandi,nangi,sexy,vulgar,18+,nude,porn,adult,xxx,explicit,hack tool,cheat,mod apk,aimbot,wallhack');
-  var bkwDisplay = Array.isArray(bkw) ? bkw.join(',') : (bkw || '');
-
-  // Allowed platforms dropdown
-  var selPlatform = function(selected) {
-    var opts = [{v:'both',l:'YouTube + Instagram (Both)'},{v:'youtube',l:'YouTube Only'},{v:'instagram',l:'Instagram Only'}];
-    return '<select id="as_cvAllowedPlatforms" class="form-input" style="font-size:13px">' +
-      opts.map(function(o){ return '<option value="' + o.v + '"' + (selected === o.v ? ' selected' : '') + '>' + o.l + '</option>'; }).join('') +
-    '</select>';
-  };
-
-  var vidHtml =
-    row('cvVideoEnabled',       '📹 Video System ON/OFF',                cvVal('videoEnabled',1),          'number', '1 = ON, 0 = OFF — User panel mein Video tab dikhe ya nahi') +
-    row('cvWatchCoins',         '🪙 Coins per Video Watched',            cvVal('videoWatchCoins',5),        'number', 'Watcher ko ek video dekhne pe milne wale coins') +
-    row('cvDailyLimit',         '📅 Max Videos per Watcher per Day',     cvVal('videoDailyLimit',10),       'number', 'Roz ek user kitne videos watch karke coins earn kar sakta hai') +
-    row('cvAutoHideReports',    '🚩 Auto-Hide on X Reports',             cvVal('videoAutoHideReports',5),   'number', 'Itne reports aane pe video automatically hide ho jaayegi') +
-    row('cvFalseReportPenalty', '⚠️ False Report Penalty (Coins)',       cvVal('videoFalseReportPenalty',3),'number', 'Admin restore kare to har reporter ke itne coins katenge') +
-    '<div class="form-group" style="margin-bottom:10px"><label style="font-size:12px">🔤 Banned Keywords (comma-separated)</label>' +
-      '<textarea id="as_cvBannedKeywords" class="form-input" rows="3" style="font-size:12px;resize:vertical">' + bkwDisplay + '</textarea>' +
-      '<div style="font-size:10px;color:#666;margin-top:3px">Title + Description mein ye words mile to video block ho jaayegi</div></div>' +
-    '<div class="form-group" style="margin-bottom:10px"><label style="font-size:12px">🌐 Allowed Platforms</label>' + selPlatform(cvVal('videoAllowedPlatforms','both')) +
-      '<div style="font-size:10px;color:#666;margin-top:3px">Creator kaunsa platform link submit kar sakta hai</div></div>';
 
   var matchHtml =
     row('cvCreatorMatchEnabled', '🎮 Creator Match Hosting ON/OFF',  ccVal('creatorMatchEnabled',1),   'number', '1 = ON, 0 = OFF — Creator apna match create kar sakta hai') +
@@ -446,9 +436,6 @@ function _renderAppSettings() {
        waisi hi kaam karti hain. */
     row('cvMaxCreatorMatches',   '📋 Max Active Matches per Creator', ccVal('maxCreatorMatches',3),     'number', 'Creator ek saath kitne live/upcoming matches rakh sakta hai');
 
-  html += section('Creator Video System', 'fas fa-video', '#ff6b35',
-    '<div style="font-size:11px;color:#888;margin-bottom:12px">Video sharing settings — Creators YouTube/Instagram links share karte hain, users earn karte hain</div>' + vidHtml
-  );
   html += section('Creator Match Hosting', 'fas fa-gamepad', '#00ff9c',
     '<div style="font-size:11px;color:#888;margin-bottom:12px">Commission structure — Creator apna match host karke earn karta hai</div>' + matchHtml
   );
@@ -511,8 +498,8 @@ window.saveAppSettings = function() {
     appForceUpdateEnabled:   !!(document.getElementById('as_appForceUpdateEnabled') && document.getElementById('as_appForceUpdateEnabled').checked),
     adCoinsPerWatch:    gn('adCoins', 10),
     adDailyLimit:       gn('adDailyLimit', 5),
-    checkinCoins:       gn('checkinCoins', 5),
-    checkinStreakBonus7:gn('checkinBonus7', 50),
+    /* ✅ B26 (2026-10-07): checkinCoins / checkinStreakBonus7 payload se hata
+       diye — RPC inhe padhta hi nahi (server constants; upar note dekho). */
     /* ✅ REMOVED (2026-08-22): shareCoins — feature fully removed */
     referralJoinCoins:  gn('refJoinCoins', 50),
     referralSDBonusDiamonds: gn('refSDBonus', 10),
@@ -594,19 +581,9 @@ window.saveAppSettings = function() {
 
   // Build creator/video config objects (moved above the save block so they
   // exist before being referenced in the upsert calls below)
-  var gsEl = function(id) { var el = document.getElementById('as_' + id); return el ? el.value : null; };
-  var bkwRaw = gsEl('cvBannedKeywords') || '';
-  var bkwArr  = bkwRaw.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
-  var videoModerationConfig = {
-    videoEnabled:           gn('cvVideoEnabled',1),
-    videoWatchCoins:        gn('cvWatchCoins',5),
-    videoDailyLimit:        gn('cvDailyLimit',10),
-    videoAutoHideReports:   gn('cvAutoHideReports',5),
-    videoFalseReportPenalty:gn('cvFalseReportPenalty',3),
-    videoBannedKeywords:    bkwArr,
-    videoAllowedPlatforms:  gsEl('cvAllowedPlatforms') || 'both',
-    updatedAt: Date.now(),
-  };
+  /* ✅ B24: gsEl/bkwRaw/bkwArr (video banned-keywords) hata — video system gaya */
+  /* ✅ B24: videoModerationConfig poora hata — ab koi video_moderation row
+     likhi hi nahi jaati (creator_system ka creator config neeche hai). */
   var creatorSystemConfig = {
     creatorMatchEnabled:   gn('cvCreatorMatchEnabled',1),
     /* ✅ BUG FIX (2026-10-04): coinMatchCommissionPct save band — coin matches
@@ -663,8 +640,7 @@ window.saveAppSettings = function() {
     .then(function(r1) {
       if (r1.error) throw r1.error;
       _AS = config;
-      var p2 = window._supa.from('app_settings')
-        .upsert({ key: 'video_moderation', value: videoModerationConfig, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      /* ✅ B24: video_moderation upsert hata; sirf creator_system bacha */
       var p3 = window._supa.from('app_settings')
         .upsert({ key: 'creator_system', value: creatorSystemConfig, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       return Promise.all([p2, p3]);
@@ -673,10 +649,9 @@ window.saveAppSettings = function() {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
       var err = results.find(function(r) { return r && r.error; });
       if (err) {
-        if (window.showToast) showToast('Main settings saved. Creator config error: ' + err.error.message, true);
+        if (window.showToast) showToast('Main settings saved. Creator settings error: ' + err.error.message, true);
       } else {
         if (window.showToast) showToast('✅ Settings saved! User app mein live ho gaya.', false);
-        _CVS.video   = videoModerationConfig;
         _CVS.creator = creatorSystemConfig;
       }
     })
