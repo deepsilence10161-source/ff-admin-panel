@@ -291,7 +291,8 @@ console.log('\n── TEST 9: B5 notification/alerts timing settings se aate hai
      'B5: queue flush NAYE authenticated client (window._supa) par hota hai');
   const _fnBody = alertSrc.slice(alertSrc.indexOf('function _admAlertLoadCfg()'),
                                  alertSrc.indexOf('setTimeout(_admAlertLoadCfg, 4000)'));
-  ok(_fnBody.length > 100 && _fnBody.indexOf('.once(') === -1 && _fnBody.indexOf("eq('key', 'live_config')") !== -1,
+  const _fnCode = _fnBody.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');  /* comments hata ke */
+  ok(_fnCode.length > 100 && _fnCode.indexOf('.once(') === -1 && _fnCode.indexOf("eq('key', 'live_config')") !== -1,
      'B5: alert timings seedha Supabase live_config se aate hain (khaali appConfig root nahi)');
 
   const br = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
