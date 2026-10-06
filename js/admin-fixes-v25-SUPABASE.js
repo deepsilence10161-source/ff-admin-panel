@@ -314,6 +314,10 @@
                   newFfUid:       u.new_ff_uid  || '',
                   currentIgn:     u.current_ign || '',
                   currentFfUid:   u.current_ff_uid || '',
+                  /* ✅ A4 FIX (2026-10-06): purana phone bhi map karo —
+                     warna admin table me "purana → naya" khaali dikhta tha
+                     (usersCache me har user ka phone nahi hota). */
+                  currentPhone:   u.current_phone || '',
                   newPhone:       u.new_phone   || '',
                   status:         u.status      || 'pending',
                   requestCount:   u.request_count || 1,
