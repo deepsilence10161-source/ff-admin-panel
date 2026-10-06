@@ -166,11 +166,12 @@ function _renderAppSettings() {
     row('autoSquadTimeout', '⏰ Max wait time (minutes)', val('autoSquadTimeout',15), 'number', 'Itne min baad queue cancel ho jaayegi')
   );
 
-  html += section('Pre-Match Check-In System', 'fas fa-clipboard-check', '#ffd700',
-    row('checkInEnabled',    '✅ Check-In System ON/OFF', val('checkInEnabled',1),     'number', '1 = ON, 0 = OFF') +
-    row('checkInOpenMins',   '⏰ Check-in kitne min pehle khule', val('checkInOpenMins',30),  'number', 'Default: 30 min pehle') +
-    row('checkInCloseMins',  '⏰ Check-in kitne min pehle band ho', val('checkInCloseMins',5), 'number', 'Default: 5 min pehle — no-shows release honge')
-  );
+  /* ✅ B30 (2026-10-07): "Pre-Match Check-In System" ka poora section hata diya
+     (Check-In ON/OFF + khulne/band hone ke minute). Poora system user panel se
+     nikal gaya — features/checkin-system.js delete, matches.js ke button gaye.
+     Wajah: check-in ka asli kaam check-in-miss auto-refund / slot-release tha,
+     aur wo policy 2026-10-03 me hi khatam ho chuki thi — yaani yeh settings
+     aisi cheez chalati thi jo maujood hi nahi thi. */
 
   html += section('Watch & Earn Settings', 'fas fa-eye', '#b964ff',
     row('watchEarnEnabled',      '👀 Watch & Earn ON/OFF', val('watchEarnEnabled',1),         'number', '1 = ON, 0 = OFF') +
@@ -558,9 +559,8 @@ window.saveAppSettings = function() {
     },
     autoSquadEnabled:      gn('autoSquadEnabled',1),
     autoSquadTimeout:      gn('autoSquadTimeout',15),
-    checkInEnabled:        gn('checkInEnabled',1),
-    checkInOpenMins:       gn('checkInOpenMins',30),
-    checkInCloseMins:      gn('checkInCloseMins',5),
+    /* ✅ B30: checkInEnabled / checkInOpenMins / checkInCloseMins payload se
+       hata diye (upar rows wale note ki wajah — pre-match check-in gaya). */
     watchEarnEnabled:      gn('watchEarnEnabled',1),
     watchCoinsPerInterval: gn('watchCoinsPerInterval',2),
     /* ✅ FIX (2026-10-06): default 5 → 1 (2 coins per MINUTE — owner-confirmed).
