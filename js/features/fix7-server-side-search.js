@@ -1,171 +1,75 @@
 /* ============================================================
    FIX 7: SERVER-SIDE SEARCH (Admin Panel)
-   - fa02-smart-search.js ka enhancement
-   - 5000+ users ke liye: orderByChild().startAt().endAt() use karo
-   - Client-side cache sirf small result sets ke liye
+   - Users tab me wo users bhi milen jo local cache (500) me nahi hain
+   - Backend: SUPABASE (pehle ye Firebase RTDB par jata tha — par admin
+     panel Supabase par migrate ho chuka hai, isliye wo search KHAALI
+     lautta tha; Users tab me 500 se zyada users par kuch bhi na milta)
+
+   ✅ B1 FIX (2026-10-06): poori file saaf ki gayi.
+   Pehle ye file window.renderUsers ko OVERRIDE karti thi (fa02 ke saath
+   mil kar TEEN parat ban jati thi) aur apne alag filter naam
+   ('unverified', 'active') istemal karti thi — isliye All/Verified/
+   Pending/Banned tabs kaam nahi karte the aur search ke waqt filter
+   bekaar ho jata tha.
+   Ab: koi renderUsers hook NAHI. Sirf ek saaf function:
+       window._fa07ServerSearch(query, cb)  →  Supabase se seedha search
+   Jise EK hi renderer (admin-inline-b.js ka renderUsers) tab bulata hai
+   jab local cache me query ka koi natija na mile — isliye search aur
+   filter dono hamesha saath lagte hain.
    ============================================================ */
 
 (function() {
   'use strict';
 
-  var CACHE_SIZE_THRESHOLD = 500;  // Isse zyada users → server-side search
-  var _lastQuery = '', _lastFilter = 'all', _serverSearchTimeout = null;
+  var _fa07Busy = false;   /* ek waqt me ek hi server search (spam rok) */
 
-  /* ── Server-side IGN search ── */
-  function serverSearchByIgn(query, cb) {
-    var q = query.toLowerCase().trim();
-    db.ref('users')
-      .orderByChild('ign')
-      .startAt(q)
-      .endAt(q + '\uf8ff')
-      .limitToFirst(50)
-      .once('value', function(s) {
-        var results = [];
-        if (s.exists()) s.forEach(function(c) { results.push(Object.assign({ _uid: c.key }, c.val())); });
-        cb(results);
+  /* Supabase se seedha search — IGN, FF UID, phone, ya UID se.
+     Nateeja wahi shakl me lauta hai jo renderUsers samajhta hai
+     (_fa02/_fa07 dono ek hi renderer use karte hain). */
+  function serverSearch(query, cb) {
+    query = (query || '').trim();
+    cb = cb || function() {};
+    if (!query || !window._supa) { cb([]); return; }
+    if (_fa07Busy) { cb([]); return; }
+
+    /* SQL-injection se bachne ke liye % _ \ \ ko escape karo (PostgREST filter) */
+    var like = '%' + query.replace(/([\\%_])/g, '\\$1') + '%';
+    _fa07Busy = true;
+
+    window._supa.from('users')
+      .select('*')
+      .or('ign.ilike.' + like + ',ff_uid.ilike.' + like + ',phone.ilike.' + like + ',id.ilike.' + like)
+      .eq('is_deleted', false)
+      .limit(50)
+      .then(function(r) {
+        _fa07Busy = false;
+        if (r.error) { console.warn('[FA07] server search fail:', r.error.message); cb([]); return; }
+        var mapper = window._supaUserToFirebase || function(u) { return u; };
+        var out = (r.data || []).map(function(u) {
+          var m = mapper(u) || {};
+          m._uid = u.id;
+          m._fromServer = true;
+          return m;
+        });
+        cb(out);
+      }, function(e) {
+        _fa07Busy = false;
+        console.warn('[FA07] server search error:', e && e.message);
+        cb([]);
       });
   }
 
-  /* ── Server-side FF UID search ── */
-  function serverSearchByFfUid(query, cb) {
-    var q = query.trim();
-    db.ref('users')
-      .orderByChild('ffUid')
-      .startAt(q)
-      .endAt(q + '\uf8ff')
-      .limitToFirst(20)
-      .once('value', function(s) {
-        var results = [];
-        if (s.exists()) s.forEach(function(c) { results.push(Object.assign({ _uid: c.key }, c.val())); });
-        cb(results);
-      });
-  }
+  window._fa07ServerSearch = serverSearch;
 
-  /* ── Merge results (deduplicate by _uid) ── */
-  function mergeResults(a, b) {
-    var seen = {}, out = [];
-    a.concat(b).forEach(function(u) {
-      if (!seen[u._uid]) { seen[u._uid] = true; out.push(u); }
-    });
-    return out;
-  }
-
-  /* ── Apply filter (status/activity) ── */
-  function applyFilter(users, filter) {
-    if (filter === 'all') return users;
-    return users.filter(function(u) {
-      if (filter === 'banned')     return u.isBanned || u.blocked;
-      if (filter === 'verified')   return !!u.profileVerified;
-      if (filter === 'unverified') return !u.profileVerified;
-      if (filter === 'active') {
-        var ls = Number(u.lastSeen || u.lastLoginAt || 0);
-        return Date.now() - ls <= 7 * 86400000;
-      }
-      return true;
-    });
-  }
-
-  /* ── Main enhanced search ── */
-  function enhancedSearchSmart(query, filter, cb) {
-    query  = (query || '').trim();
-    filter = filter || 'all';
-
-    /* Decide: client or server? */
-    var cacheSize = window.usersCache ? Object.keys(window.usersCache).length : 0;
-    var useServer = cacheSize > CACHE_SIZE_THRESHOLD || !cacheSize;
-
-    if (!query) {
-      /* Empty query — show all from cache (server fetch would be too large) */
-      if (window.usersCache) {
-        var all = Object.keys(window.usersCache).map(function(uid) {
-          return Object.assign({ _uid: uid }, window.usersCache[uid]);
-        });
-        return cb(applyFilter(all, filter));
-      }
-      return cb([]);
-    }
-
-    if (!useServer) {
-      /* ─ CLIENT-SIDE (cache small enough) ─ */
-      var q = query.toLowerCase();
-      var results = Object.keys(window.usersCache).filter(function(uid) {
-        var u = window.usersCache[uid]; if (!u) return false;
-        return (u.ign||'').toLowerCase().includes(q) ||
-               (u.ffUid||'').toLowerCase().includes(q) ||
-               uid.toLowerCase().includes(q) ||
-               (u.phone||'').includes(q) ||
-               (u.displayName||'').toLowerCase().includes(q);
-      }).map(function(uid) { return Object.assign({ _uid: uid }, window.usersCache[uid]); });
-      return cb(applyFilter(results, filter));
-    }
-
-    /* ─ SERVER-SIDE ─ */
-    /* Show loading indicator */
-    var searchEl = document.getElementById('searchUser');
-    if (searchEl) searchEl.style.opacity = '0.6';
-
-    /* Run parallel searches by IGN + ffUid */
-    var ignResults = [], ffResults = [], done = 0;
-
-    function finish() {
-      done++;
-      if (done < 2) return;
-      var merged = applyFilter(mergeResults(ignResults, ffResults), filter);
-      if (searchEl) searchEl.style.opacity = '1';
-      cb(merged);
-    }
-
-    serverSearchByIgn(query, function(r) { ignResults = r; finish(); });
-    serverSearchByFfUid(query, function(r) { ffResults = r; finish(); });
-  }
-
-  /* ── Debounced hook into existing renderUsers ── */
-  function hookRenderUsers() {
-    var orig = window.renderUsers;
-    if (!orig || window._fa07SearchHooked) return;
-    window._fa07SearchHooked = true;
-
-    window.renderUsers = function() {
-      var searchEl = document.getElementById('searchUser');
-      var query    = searchEl ? searchEl.value : '';
-      var filter   = window._fa02ActiveFilter || 'all';
-
-      /* Debounce */
-      clearTimeout(_serverSearchTimeout);
-      _serverSearchTimeout = setTimeout(function() {
-        enhancedSearchSmart(query, filter, function(results) {
-          /* Temporarily override usersCache with filtered results for orig render */
-          var _origCache = window.usersCache;
-          var tempCache = {};
-          results.forEach(function(u) { tempCache[u._uid] = u; });
-          window._fa07Results = results;
-          window.usersCache = tempCache;
-          orig.call(this);
-          window.usersCache = _origCache;
-        });
-      }, query.length > 0 ? 400 : 0);
-    };
-
-    console.log('[FA07] renderUsers hooked for server-side search.');
-  }
-
-  /* ── Wait for page ready ── */
-  var _hookInterval = setInterval(function() {
-    if (window.renderUsers && window.db) {
-      hookRenderUsers();
-      clearInterval(_hookInterval);
-    }
-  }, 500);
-
-  /* ── Index creation helper (run once in console to set up Firebase indexes) ── */
-  window.fa07_createIndexes = function() {
-    console.log('Add these indexes to Firebase Console → Database → Rules:');
-    console.log(JSON.stringify({
-      "users": {
-        ".indexOn": ["ign", "ffUid", "phone", "lastSeen", "isBanned", "profileVerified"]
-      }
-    }, null, 2));
+  /* Admin ke liye: bade users table par search tez rakhne ke liye
+     ye indexes ek baar Supabase me bana do (idempotent, safe). */
+  window.fa07_indexSql = function() {
+    return [
+      'create index if not exists idx_users_ign_lower  on public.users (lower(ign));',
+      'create index if not exists idx_users_ffuid       on public.users (ff_uid);',
+      'create index if not exists idx_users_phone       on public.users (phone);'
+    ].join('\n');
   };
 
-  console.log('[Mini eSports] ✅ Fix 7: Server-Side Search loaded. Cache threshold:', CACHE_SIZE_THRESHOLD, 'users.');
+  console.log('[Mini eSports] ✅ Fix 7: Server-side search ready (Supabase)');
 })();

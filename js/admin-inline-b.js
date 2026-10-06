@@ -1318,6 +1318,20 @@ async function approveProfileUpdate(rid, evt){
 /* =============================================
    USERS
    ============================================= */
+/* ✅ B1 FIX (2026-10-06): Users tab ke filter tabs ka handler.
+   Tab badalte hi table turant re-render hoti hai (koi reload nahi) aur
+   active tab ka rang badalta hai — matches ke filterTournaments() jaisa hi
+   vyavhaar, taki dono jagah ek jaisa lage. */
+window._usersFilter = 'all';
+window.filterUsers = function(f, btn){
+  window._usersFilter = (f || 'all');
+  var bar = (btn && btn.parentNode) ? btn.parentNode : document;
+  var tabs = bar.querySelectorAll ? bar.querySelectorAll('.filter-tab') : [];
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  if (btn) btn.classList.add('active');
+  renderUsers();
+};
+
 function setupUsersListener(){rtdb.ref(DB_USERS).on('value',function(s){usersSnapshot=s;usersCache={};s.forEach(function(c){usersCache[c.key]=c.val();});renderUsers();});}
 /* getUserName — Smart fallback: ign → displayName → name → email prefix → UID truncated */
 function getUserName(uid){
@@ -1341,13 +1355,50 @@ function getUserInfo(uid){
 }
 function renderUsers(){
   if(!usersSnapshot)return;var tb=document.getElementById('usersTable'),q=(document.getElementById('searchUser').value||'').toLowerCase().trim();tb.innerHTML='';var c=0;
+  /* ✅ B1 FIX (2026-10-06): All / Verified / Pending / Banned filter.
+     Pehle koi filter hi nahi tha (jabki Matches tab me 7 hain). "Verified"
+     ka matlab profile_status==='approved' hai — yahi peer-checked field hai
+     (users.approved column DB me hi nahi hai, isliye purana status badge
+     HAMESHA 'Pending' dikhata tha — wo bhi is fix me theek kiya gaya). */
+  var _flt = window._usersFilter || 'all';
+  var _cnt = { all:0, verified:0, pending:0, banned:0 };
+  usersSnapshot.forEach(function(ch){
+    var u0 = ch.val() || {};
+    var b0 = !!(u0.isBanned || u0.blocked);
+    var v0 = (u0.profileStatus === 'approved') || u0.profileVerified === true;
+    _cnt.all++;
+    if (b0) _cnt.banned++; else if (v0) _cnt.verified++; else _cnt.pending++;
+  });
+  ['all','verified','pending','banned'].forEach(function(k){
+    var el = document.getElementById('uCount' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.textContent = _cnt[k];
+  });
   usersSnapshot.forEach(function(ch){
     var u=ch.val(),uid=ch.key,ign=u.ign||'N/A',ff=u.ffUid||'N/A';
-    if(q&&ign.toLowerCase().indexOf(q)<0&&ff.toLowerCase().indexOf(q)<0&&uid.toLowerCase().indexOf(q)<0)return;c++;
+    /* filter pehle, search baad me — dono lagti hain */
+    var _isBannedRow = !!(u.isBanned || u.blocked);
+    var _isVerifiedRow = (u.profileStatus === 'approved') || u.profileVerified === true;
+    if (_flt === 'banned'   && !_isBannedRow) return;
+    if (_flt === 'verified' && (_isBannedRow || !_isVerifiedRow)) return;
+    if (_flt === 'pending'  && (_isBannedRow || _isVerifiedRow)) return;
+    /* ✅ B1 FIX: search pehle basic tha (IGN/UID only). Ab fa02 ka behtar
+       search (phone + displayName samet) use hota hai jab available ho —
+       isliye phone number se bhi user milta hai, aur filter saath lagta hai. */
+    if (q) {
+      var _hit = false;
+      if (typeof window._fa02EnhancedSearch === 'function') {
+        _hit = window._fa02EnhancedSearch(q).some(function(x) { return x._uid === uid; });
+      }
+      if (!_hit && ign.toLowerCase().indexOf(q) < 0 && ff.toLowerCase().indexOf(q) < 0 && uid.toLowerCase().indexOf(q) < 0) {
+        var _ph = String(u.phone || '').toLowerCase();
+        if (_ph.indexOf(q) < 0) return;
+      }
+    }
+    c++;
     var db_=u.wallet?u.wallet.depositBalance||0:u.realMoney?u.realMoney.deposited||0:0;
     var wb=u.wallet?u.wallet.winningBalance||0:u.realMoney?u.realMoney.winnings||0:0;
     var bal=db_+wb,mt=u.stats?u.stats.matches||0:0,lv=u.level||1,bn=u.isBanned||u.blocked;
-    var st=bn?'<span class="badge red">Banned</span>':u.approved?'<span class="badge green">Active</span>':'<span class="badge yellow">Pending</span>';
+    var st=bn?'<span class="badge red">Banned</span>':(_isVerifiedRow?'<span class="badge green">Active</span>':'<span class="badge yellow">Pending</span>');
     /* ✅ FIX (2026-08-17): 'complete' just meant "profile info filled in"
        (and was users.profile_status's old column default, now fixed
        separately) — not "approved by admin". Only 'approved' should show
@@ -1364,6 +1415,10 @@ function renderUsers(){
     row+='<td>'+mt+'</td>';
     row+='<td><span class="badge cyan">Lv'+lv+'</span></td>';
     row+='<td>'+vf+'</td>';
+    /* ✅ B1 FIX: Status cell — pehle ye badge banTA to tha par table me kahin
+       render hi nahi hota tha, isliye All/Verified/Pending/Banned filter ka
+       natija dekhkar samajh nahi aata tha ki user kis shreni me hai. */
+    row+='<td>'+st+'</td>';
     row+='<td style="white-space:nowrap">';
     row+='<button class="btn btn-ghost btn-xs" onclick="openUserModal(\''+uid+'\')" title="View"><i class="fas fa-eye"></i></button> ';
     row+=bn?'<button class="btn btn-primary btn-xs" onclick="unbanUser(\''+uid+'\')" title="Unban"><i class="fas fa-unlock"></i></button>':'<button class="btn btn-warning btn-xs" onclick="banUser(\''+uid+'\')" title="Ban"><i class="fas fa-ban"></i></button>';
@@ -1373,6 +1428,38 @@ function renderUsers(){
     tb.innerHTML+=row;
   });
   document.getElementById('userCount').textContent=c;
+  /* ✅ B1 FIX: local cache me kuch na mila to SUPABASE se seedha dhoondo
+     (admin ke paas 500 se zyada users ho sakte hain, tab cache adhoora hota
+     hai). Nateeja cache me daal kar ek hi baar dobara render — isliye search
+     ab kabhi khaali nahi lautta. (Pehle ye kaam fix7-server-side-search.js
+     Firebase par karta tha, jo migrate hone ke baad khaali lautta tha.) */
+  if (c === 0 && q && typeof window._fa07ServerSearch === 'function' && window._fa07TriedFor !== q) {
+    window._fa07TriedFor = q;
+    var _uc = document.getElementById('userCount');
+    if (_uc) _uc.textContent = '…';
+    window._fa07ServerSearch(q, function(list) {
+      if (!list || !list.length) return;
+      window.usersCache = window.usersCache || {};
+      list.forEach(function(x) { if (x && x._uid) window.usersCache[x._uid] = x; });
+      /* snapshot dobara banao — _mkSnap private hai (admin-fixes-v25 ka IIFE),
+         isliye yahin wahi chhota shim bana lete hain */
+      usersSnapshot = { forEach: function(cb) {
+        Object.keys(window.usersCache).forEach(function(k) {
+          cb({ key: k, val: function() { return window.usersCache[k]; } });
+        });
+      } };
+      window.renderUsers();
+    });
+  }
+  /* ✅ B1 FIX: khaali avastha — pehle filter se 0 user hone par table bilkul
+     khaali dikhti thi (pata hi nahi chalta tha ki filter laga hai ya data nahi). */
+  if (c === 0) {
+    var _fltName = { all:'', verified:' (Verified)', pending:' (Pending)', banned:' (Banned)' }[_flt] || '';
+    tb.innerHTML = '<tr><td colspan="10" class="text-muted text-xs" style="text-align:center;padding:20px">' +
+      '<i class="fas fa-users" style="font-size:20px;opacity:0.3;display:block;margin-bottom:6px"></i>' +
+      (q ? ('Koi user nahi mila — search: "' + String(q).replace(/</g,'&lt;') + '"' + _fltName)
+         : ('Is filter me koi user nahi hai' + _fltName)) + '</td></tr>';
+  }
 }
 
 async function openUserModal(uid){
@@ -1391,7 +1478,7 @@ async function openUserModal(uid){
      printed to the page verbatim. Also swapped the stray `db_`
      fallback (a wallet-deposit variable, unrelated to sky diamonds)
      for a plain 0, matching every other stat's fallback pattern. */
-  bd.innerHTML='<div class="flex items-center gap-3 mb-3"><div class="chat-avatar" style="width:44px;height:44px;font-size:16px">'+(window.admEsc?window.admEsc((u.ign||'U').charAt(0)):(u.ign||'U').charAt(0))+'</div><div><div class="font-bold" style="font-size:14px">'+(window.admEsc?window.admEsc(u.ign||'N/A'):(u.ign||'N/A'))+'</div><div class="text-xxs text-muted font-mono">'+uid+'</div><div class="text-xxs text-dim">FF: '+(u.ffUid||'N/A')+' | Ph: '+(u.phone||'N/A')+'</div></div></div><div class="detail-tabs"><div class="detail-tab active" onclick="switchTab(this,\'to_'+uid+'\')">Overview</div><div class="detail-tab" onclick="switchTab(this,\'th_'+uid+'\')">History</div><div class="detail-tab" onclick="switchTab(this,\'tl_'+uid+'\')">Level</div></div><div class="detail-panel active" id="to_'+uid+'"><div class="user-stat-row"><div class="stat-label"><i class="fas fa-gem" style="color:#00d4ff"></i> Sky Diamond</div><div class="stat-val" style="color:#00d4ff">💎'+(u.skyDiamonds||0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-circle" style="color:#00ff64"></i> Green Diamond</div><div class="stat-val" style="color:#00ff64"><img src="green-diamond.png?v=20261006d" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">'+(u.greenDiamonds||0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-coins" style="color:#ffd700"></i> Coins</div><div class="stat-val" style="color:#ffd700">🪙'+(u.coins||0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-gamepad"></i> Matches</div><div class="stat-val">'+(u.stats?u.stats.matches||0:0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-crown"></i> Wins</div><div class="stat-val">'+(u.stats?u.stats.wins||0:0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-crosshairs"></i> Kills</div><div class="stat-val">'+(u.totalKills||(u.stats?u.stats.kills||0:0))+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-coins"></i> Earnings</div><div class="stat-val text-primary">₹'+(u.totalWinnings||(u.stats?u.stats.earnings||0:0))+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-users"></i> Referrals</div><div class="stat-val">'+ref+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-shield-halved"></i> Profile</div><div class="stat-val">'+(u.profile_status==='approved'?'<span class="badge green">Verified</span>':'<span class="badge yellow">Unverified</span>')+'</div></div></div><div class="detail-panel" id="th_'+uid+'">'+mh+'</div><div class="detail-panel" id="tl_'+uid+'"><div class="user-stat-row"><div class="stat-label"><i class="fas fa-star"></i> Level</div><div class="stat-val"><span class="badge cyan">Lv '+lv+'</span></div></div><div class="mb-3"><div class="flex justify-between text-xxs mb-1"><span class="text-dim">EXP</span><span class="text-primary">'+xp+'/'+mx+'</span></div><div class="exp-bar"><div class="exp-fill" style="width:'+pct+'%"></div></div></div><div class="grid-2 mt-3"><div class="form-group"><label>Level</label><input type="number" id="eL_'+uid+'" class="form-input" value="'+lv+'" min="1"></div><div class="form-group"><label>EXP</label><input type="number" id="eX_'+uid+'" class="form-input" value="'+xp+'" min="0"></div></div><button class="btn btn-primary btn-sm" onclick="saveUserLevel(\''+uid+'\')"><i class="fas fa-save"></i> Save</button></div>';
+  bd.innerHTML='<div class="flex items-center gap-3 mb-3"><div class="chat-avatar" style="width:44px;height:44px;font-size:16px">'+(window.admEsc?window.admEsc((u.ign||'U').charAt(0)):(u.ign||'U').charAt(0))+'</div><div><div class="font-bold" style="font-size:14px">'+(window.admEsc?window.admEsc(u.ign||'N/A'):(u.ign||'N/A'))+'</div><div class="text-xxs text-muted font-mono">'+uid+'</div><div class="text-xxs text-dim">FF: '+(u.ffUid||'N/A')+' | Ph: '+(u.phone||'N/A')+'</div></div></div><div class="detail-tabs"><div class="detail-tab active" onclick="switchTab(this,\'to_'+uid+'\')">Overview</div><div class="detail-tab" onclick="switchTab(this,\'th_'+uid+'\')">History</div><div class="detail-tab" onclick="switchTab(this,\'tl_'+uid+'\')">Level</div></div><div class="detail-panel active" id="to_'+uid+'"><div class="user-stat-row"><div class="stat-label"><i class="fas fa-gem" style="color:#00d4ff"></i> Sky Diamond</div><div class="stat-val" style="color:#00d4ff">💎'+(u.skyDiamonds||0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-circle" style="color:#00ff64"></i> Green Diamond</div><div class="stat-val" style="color:#00ff64"><img src="green-diamond.png?v=20261006e" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">'+(u.greenDiamonds||0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-coins" style="color:#ffd700"></i> Coins</div><div class="stat-val" style="color:#ffd700">🪙'+(u.coins||0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-gamepad"></i> Matches</div><div class="stat-val">'+(u.stats?u.stats.matches||0:0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-crown"></i> Wins</div><div class="stat-val">'+(u.stats?u.stats.wins||0:0)+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-crosshairs"></i> Kills</div><div class="stat-val">'+(u.totalKills||(u.stats?u.stats.kills||0:0))+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-coins"></i> Earnings</div><div class="stat-val text-primary">₹'+(u.totalWinnings||(u.stats?u.stats.earnings||0:0))+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-users"></i> Referrals</div><div class="stat-val">'+ref+'</div></div><div class="user-stat-row"><div class="stat-label"><i class="fas fa-shield-halved"></i> Profile</div><div class="stat-val">'+(u.profile_status==='approved'?'<span class="badge green">Verified</span>':'<span class="badge yellow">Unverified</span>')+'</div></div></div><div class="detail-panel" id="th_'+uid+'">'+mh+'</div><div class="detail-panel" id="tl_'+uid+'"><div class="user-stat-row"><div class="stat-label"><i class="fas fa-star"></i> Level</div><div class="stat-val"><span class="badge cyan">Lv '+lv+'</span></div></div><div class="mb-3"><div class="flex justify-between text-xxs mb-1"><span class="text-dim">EXP</span><span class="text-primary">'+xp+'/'+mx+'</span></div><div class="exp-bar"><div class="exp-fill" style="width:'+pct+'%"></div></div></div><div class="grid-2 mt-3"><div class="form-group"><label>Level</label><input type="number" id="eL_'+uid+'" class="form-input" value="'+lv+'" min="1"></div><div class="form-group"><label>EXP</label><input type="number" id="eX_'+uid+'" class="form-input" value="'+xp+'" min="0"></div></div><button class="btn btn-primary btn-sm" onclick="saveUserLevel(\''+uid+'\')"><i class="fas fa-save"></i> Save</button></div>';
   var ft=document.getElementById('userModalFooter'),bn=u.isBanned||u.blocked,lbHid=u.leaderboardHidden;
   ft.innerHTML=(bn?'<button class="btn btn-primary btn-sm" onclick="unbanUser(\''+uid+'\');closeModal(\'userModal\')"><i class="fas fa-unlock"></i> Unban</button>':'<button class="btn btn-warning btn-sm" onclick="banUser(\''+uid+'\');closeModal(\'userModal\')"><i class="fas fa-ban"></i> Ban</button>')+' '+(lbHid?'<button class="btn btn-primary btn-sm" onclick="toggleLeaderboardHidden(\''+uid+'\',false)"><i class="fas fa-eye"></i> Show on Leaderboard</button>':'<button class="btn btn-ghost btn-sm" onclick="toggleLeaderboardHidden(\''+uid+'\',true)"><i class="fas fa-eye-slash"></i> Hide from Leaderboard</button>')+' <button class="btn btn-danger btn-sm" onclick="deleteUser(\''+uid+'\');closeModal(\'userModal\')"><i class="fas fa-trash"></i> Delete</button> <button class="btn btn-ghost btn-sm" onclick="closeModal(\'userModal\')">Close</button>';
   document.getElementById('userModal').classList.add('show');
