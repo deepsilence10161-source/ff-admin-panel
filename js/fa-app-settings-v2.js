@@ -277,6 +277,9 @@ function _renderAppSettings() {
      Notification wale timings yahan Settings me hi rehte hain. */
   html += section('Notification Timing Settings', 'fas fa-bell', '#00ff9c',
     row('matchReminderMins', '🔔 Match reminder notification (minute pehle)', val('matchReminderMins', 30), 'number', 'User ko match se pehle notification jaegi (user khud bhi match se pehle ka samay chun sakta hai)') +
+    /* ✅ B4 (2026-10-07): match shuru hone se pehle ka push — SERVER (cron) bhejta
+       hai, is liye panel band hone par bhi pahunchta hai. Default 5 minute. */
+    row('matchStartAlertMins', '⚡ Match start alert (minute pehle) — OneSignal push', val('matchStartAlertMins', 5), 'number', 'Match ke saare joined players ko server se push jaega (app band ho tab bhi). Default 5 minute.') +
     /* ✅ A9 (2026-10-06): purani broadcast naye users ko kitne din tak dikhe — 0 = sab */
     row('notifBroadcastDays', '📣 Purani broadcast notification kitne din tak dikhe', val('notifBroadcastDays', 7), 'number', 'Naye user ko sirf itne din ki admin broadcast dikhegi (0 = sab dikhe)')
   );
@@ -517,6 +520,10 @@ window.saveAppSettings = function() {
        commission system clean (single source = creator_system.sdMatchCommissionPct). */
     creatorMinPayout:   gn('minPayout', 100),
     matchReminderMins: gn('matchReminderMins', 30),
+    /* ✅ B4 (2026-10-07): server cron isi value se "match shuru hone wala hai"
+       push bhejta hai (public.send_match_start_alerts → live_config.
+       matchStartAlertMins). Default 5 minute. */
+    matchStartAlertMins: gn('matchStartAlertMins', 5),
     notifBroadcastDays: gn('notifBroadcastDays', 7),
     missions: {
       /* ✅ BUG FIX (2026-09-16): daily_login / daily_checkin removed —

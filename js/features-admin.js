@@ -739,35 +739,110 @@
     _close();
   };
 
-  /* ─── FEATURE 22: MATCH BROADCAST TO PLAYERS ─── */
+  /* ─── FEATURE 22: MATCH BROADCAST TO PLAYERS ───
+     ✅ B29 FIX (2026-10-07) — pehle yeh poora system KHARAB tha:
+       (1) players Firebase RTDB ki `joinRequests` se dhoonde jate the, par
+           join requests ab Supabase (`join_requests`) me rehti hain →
+           natija hamesha "0 players" (user ki shikayat: "Match Broadcast
+           kaam nahi karta"),
+       (2) notification sirf Firebase `users/<uid>/notifications` me likhi
+           jati thi — user panel notification Supabase se padhta hai →
+           ghanti me kuch dikhta hi nahi tha,
+       (3) koi PUSH nahi jata tha → app band ho to user ko pata bhi na chale.
+     AB:
+       (1) players Supabase `join_requests` (match_id) se — distinct user_id,
+           rejected/cancelled/refunded chhod kar,
+       (2) har player ke liye window._adminNotifyUser() — woh Firebase +
+           Supabase DONO me likhta hai; Supabase `notifications` table ka
+           trigger (notifications_push_hook) OneSignal PUSH bhej deta hai,
+           is liye panel/app band hone par bhi notification pahunchti hai,
+       (3) chaho to saath me "sab users" ko bhi bhej sakte ho (alag checkbox,
+           default OFF) — woh _adminNotifyAll() se jata hai,
+       (4) bhejte waqt button band + live progress (duplicate click se bachne
+           ke liye), aur kuch na mile to saaf message. */
   window.broadcastToMatch = function (matchId, matchName) {
     var h = '<div>';
-    h += '<p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">Send notification to all players in <strong>' + matchName + '</strong></p>';
+    h += '<p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">Match ke saare joined players ko notification + push jayega — <strong>' + matchName + '</strong></p>';
     h += '<input type="text" id="bcTitle" class="form-input" placeholder="Title" style="margin-bottom:8px">';
     h += '<textarea id="bcMsg" class="form-input" style="height:70px" placeholder="Message..."></textarea>';
-    h += '<button class="btn btn-primary w-full" style="margin-top:10px" onclick="window._sendBroadcast(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-broadcast-tower"></i> Broadcast</button></div>';
+    h += '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted)">'
+       + '<input type="checkbox" id="bcAllUsers" style="width:16px;height:16px"> '
+       + 'Sirf is match ke players ke saath <b>poore app ke sab users</b> ko bhi bhejo</label>';
+    h += '<div id="bcProgress" style="font-size:12px;color:var(--info);margin-top:8px;min-height:16px"></div>';
+    h += '<button class="btn btn-primary w-full" style="margin-top:10px" id="bcSendBtn" onclick="window._sendBroadcast(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-broadcast-tower"></i> Broadcast</button></div>';
     _modal('📡 Match Broadcast', h);
   };
   window._sendBroadcast = function (matchId, matchName) {
-    var title = (_$('bcTitle') || {}).value;
-    var msg = (_$('bcMsg') || {}).value;
-    if (!title || !msg) { _toast('Fill all fields', true); return; }
-    rtdb.ref('joinRequests').orderByChild('matchId').equalTo(matchId).once('value', function (s) {
-      var sent = 0, notified = {};
-      s.forEach(function (c) {
-        var d = c.val(), uid = d.userId;
-        if (!uid || notified[uid]) return;
-        notified[uid] = true;
-        var nid = rtdb.ref('users/' + uid + '/notifications').push().key;
-        rtdb.ref('users/' + uid + '/notifications/' + nid).set({
-          type: 'match', title: title, body: msg, matchId: matchId, read: false, createdAt: Date.now()
+    var title = ((_$('bcTitle') || {}).value || '').trim();
+    var msg   = ((_$('bcMsg')   || {}).value || '').trim();
+    var allUsers = !!((_$('bcAllUsers') || {}).checked);
+    var btn = _$('bcSendBtn');
+    var prog = _$('bcProgress');
+    function say(t) { if (prog) prog.textContent = t; }
+    if (!title || !msg) { _toast('Title aur message dono bharo', true); return; }
+    if (!window._supa) { _toast('Supabase taiyar nahi — page reload karo', true); return; }
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+    say('Players dhoonde ja rahe hain…');
+
+    /* supabase-js .then() dono taraf kaam karta hai (yeh repo isi pattern par
+       chalta hai) — is liye .catch() ke bharose nahi, res.error check karte hain */
+    window._supa.from('join_requests').select('user_id,status').eq('match_id', matchId)
+      .then(function (res) {
+        if (res && res.error) {
+          if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+          _toast('Players nahi mil paye: ' + (res.error.message || ''), true);
+          say('');
+          return;
+        }
+        var rows = (res && res.data) || [];
+        var skip = { rejected: 1, cancelled: 1, refunded: 1, 'no_show': 0 };
+        var uids = [], seen = {};
+        rows.forEach(function (r) {
+          var uid = r && r.user_id;
+          if (!uid || seen[uid]) return;
+          var st = String((r && r.status) || 'joined');
+          if (skip[st] === 1) return;          /* nikal diya gaya player */
+          seen[uid] = 1; uids.push(uid);
         });
-        sent++;
+
+        if (!uids.length && !allUsers) {
+          if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+          _toast('Is match me abhi koi joined player nahi hai', true);
+          say('');
+          return;
+        }
+
+        /* ek-ek player ko — _adminNotifyUser Firebase + Supabase dono me likhta
+           hai, aur Supabase trigger OneSignal push bhej deta hai */
+        var done = 0, failed = 0;
+        function nextUser(i) {
+          if (i >= uids.length) { finish(); return; }
+          say('Bheja ja raha hai… ' + (i + 1) + '/' + uids.length + ' players');
+          var p;
+          try {
+            p = window._adminNotifyUser ? window._adminNotifyUser(uids[i], {
+              type: 'match_broadcast', title: title, message: msg, matchId: matchId
+            }) : null;
+          } catch (e) { p = null; }
+          if (!p || !p.then) { done++; nextUser(i + 1); return; }
+          p.then(function () { done++; nextUser(i + 1); },
+                 function () { failed++; nextUser(i + 1); });
+        }
+        function finish() {
+          if (allUsers && window._adminNotifyAll) {
+            try { window._adminNotifyAll(title, msg, 'admin_alert'); } catch (e) {}
+          }
+          _logAction('broadcast', matchId, { title: title, sent: done, failed: failed, allUsers: allUsers });
+          _toast('✅ ' + done + ' players ko bheja' + (failed ? (' • ' + failed + ' fail') : '') +
+                 (allUsers ? ' + sab users' : '') + ' (push bhi gaya)');
+          _close();
+        }
+        nextUser(0);
+      }, function (e) {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        _toast('Players nahi mil paye: ' + ((e && e.message) || ''), true);
+        say('');
       });
-      _logAction('broadcast', matchId, { title: title, sent: sent });
-      _toast('✅ Broadcast sent to ' + sent + ' players!');
-      _close();
-    });
   };
 
   /* ─── FEATURE 23: PLATFORM HEALTH MONITOR ─── */
