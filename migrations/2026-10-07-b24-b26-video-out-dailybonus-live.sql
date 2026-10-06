@@ -136,12 +136,20 @@ GRANT EXECUTE ON FUNCTION public.process_daily_checkin(numeric[], numeric, integ
 -- 1) live_config: dailyBonusRewards ki asli jagah banao (agar pehle se nahi
 --    hai to defaults daalo — wahi jo server constants the, taki behaviour
 --    bilkul same rahe).
+--    ⚠️ `dailyBonusRewardsLive: true` MARKER zaroori hai: user panel usi ko
+--    dekh kar config lagata hai (aur admin editor bhi usi se "applied" batata
+--    hai). Iske bina client jaan-bujh kar purane server constants dikhata hai —
+--    taki button naya reward dikha kar server purana na de (UI ka jhooth na ho).
 UPDATE public.app_settings
    SET value = jsonb_set(
-         value - 'checkinCoins' - 'checkinStreakBonus7',
-         '{dailyBonusRewards}',
-         COALESCE(value -> 'dailyBonusRewards',
-                  '{"day1":5,"day2":7,"day3":10,"day4":12,"day5":15,"day6":20,"day7":30,"day30Bonus":100}'::jsonb),
+         jsonb_set(
+           value - 'checkinCoins' - 'checkinStreakBonus7',
+           '{dailyBonusRewards}',
+           COALESCE(value -> 'dailyBonusRewards',
+                    '{"day1":5,"day2":7,"day3":10,"day4":12,"day5":15,"day6":20,"day7":30,"day30Bonus":100}'::jsonb),
+           true),
+         '{dailyBonusRewardsLive}',
+         'true'::jsonb,
          true)
  WHERE key = 'live_config';
 

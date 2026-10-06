@@ -202,6 +202,8 @@ console.log('\n── TEST 7: B24/B26 video safai + Daily Bonus Editor ka sach �
   ok(f7.indexOf("eq('key', 'live_config')") !== -1 && f7.indexOf('val.dailyBonusRewards = data') !== -1,
      'Daily Bonus Editor live_config.dailyBonusRewards save karta hai (read-modify-write)');
   ok(/function _dbBonusDefaults\(\)/.test(f7), 'editor ke defaults server constants se match hain');
+  ok(f7.indexOf('_liveApplied') !== -1 && f7.indexOf('Server setting abhi apply nahi hui') !== -1,
+     'editor warning dikhata hai jab server migration baaki ho');
 }
 
 console.log('\n══════════════════════════════');

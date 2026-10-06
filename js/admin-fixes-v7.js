@@ -201,9 +201,19 @@
     if (!window._supa) { _toast('Supabase ready nahi hai — thodi der baad try karo'); return; }
     window._supa.from('app_settings').select('value').eq('key', 'live_config').limit(1)
       .then(function (r) {
-        var saved = (r && r.data && r.data[0] && r.data[0].value && r.data[0].value.dailyBonusRewards) || null;
+        var _rowVal = (r && r.data && r.data[0] && r.data[0].value) || {};
+        var saved = _rowVal.dailyBonusRewards || null;
         var cfg = Object.assign(_dbBonusDefaults(), saved || {});
+        var _liveApplied = _rowVal.dailyBonusRewardsLive === true;
         var h = '<div>';
+        /* ⚠️ Agar server-side migration (2026-10-07-b24-b26) abhi apply nahi
+           hui to process_daily_checkin in values ko padhta hi nahi — us haalat
+           me yeh editor jhoothi tasveer na de, isliye saaf warning. */
+        if (!_liveApplied) {
+          h += '<div style="background:rgba(255,60,60,.10);border:1px solid rgba(255,60,60,.35);border-radius:10px;padding:10px;margin-bottom:12px;font-size:12px;color:#ff8f8f">';
+          h += '⚠️ <b>Server setting abhi apply nahi hui.</b> Values save hongi, par user ko naya reward tabhi milega jab server migration (2026-10-07-b24-b26) apply ho jaye — tab tak check-in par server ke purane fixed rewards (5,7,10,12,15,20,30 + day-30 bonus 100) hi milte rahenge.';
+          h += '</div>';
+        }
         h += '<div style="background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.2);border-radius:10px;padding:10px;margin-bottom:14px;font-size:12px;color:#ffaa00">';
         h += '⚡ Yeh rewards user ko daily login streak par milte hain (coins) — yahi asli source hai (live_config.dailyBonusRewards). Save ke baad user panel 5 min ke andar (ya app kholte hi) naya reward use karega.';
         h += '</div>';
