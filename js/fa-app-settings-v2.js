@@ -270,10 +270,17 @@ function _renderAppSettings() {
   );
 
   /* 4. REFERRAL SETTINGS */
+  /* ✅ B20 (2026-10-07): teeno referral rewards ab DB me WAKAI lagu hain —
+     join bonus dono ko (apply_referral_code + claim_referral_reward),
+     SD bonus sirf dost ki PEHLI SD purchase par (resolve_sd_request →
+     referrals.sd_bonus_paid), match bonus jab dost ke total_matches
+     threshold paar karein (users par trg_ref_match_bonus). Match
+     milestone bhi ab yahin se setting hai (referralMatchThreshold). */
   html += section('Refer & Earn Settings', 'fas fa-user-friends', '#b964ff',
     row('refJoinCoins',      '👥 Dost join kare → Coins',         val('referralJoinCoins', 50),         'number', 'Dono ko milenge') +
-    row('refSDBonus',        '💎 Dost SD kharido → Sky Diamond Bonus', val('referralSDBonusDiamonds', 10), 'number', 'Referrer ko milenge') +
-    row('refMatchCoins',     '🎮 Dost 5 matches khele → Coins',   val('referralMatchCoins', 30),        'number', 'Referrer ko milenge')
+    row('refSDBonus',        '💎 Dost SD kharido → Sky Diamond Bonus', val('referralSDBonusDiamonds', 10), 'number', 'Referrer ko — sirf dost ki PEHLI SD purchase par') +
+    row('refMatchThreshold', '🎮 Match Milestone (kitne matches?)', val('referralMatchThreshold', 5),   'number', 'Dost itne matches poore kare') +
+    row('refMatchCoins',     '🎮 Dost ' + val('referralMatchThreshold', 5) + ' matches khele → Coins', val('referralMatchCoins', 30), 'number', 'Referrer ko milenge')
   );
 
   /* 5. PREMIUM SETTINGS */
@@ -531,6 +538,10 @@ window.saveAppSettings = function() {
     referralJoinCoins:  gn('refJoinCoins', 50),
     referralSDBonusDiamonds: gn('refSDBonus', 10),
     referralMatchCoins: gn('refMatchCoins', 30),
+    /* ✅ B20 (2026-10-07): match milestone bhi ab setting — DB trigger
+       (trg_ref_match_bonus) aur user panel dono isi key se threshold
+       uthate hain. Default 5. */
+    referralMatchThreshold: gn('refMatchThreshold', 5),
     /* ✅ BUG FIX (2026-10-04): 'commission' key save band — duplicate
        commission system clean (single source = creator_system.sdMatchCommissionPct). */
     creatorMinPayout:   gn('minPayout', 100),

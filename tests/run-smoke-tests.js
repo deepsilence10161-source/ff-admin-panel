@@ -318,6 +318,23 @@ console.log('\n── TEST 10: B18 Seasonal League (toggle + asli tareekh + ek h
      'B11: bridge prize_type padhta hai');
 }
 
+/* ── TEST 11: B20 — Referral niyam (dono ko join bonus, SD bonus sirf pehli
+   purchase par, match bonus threshold poore hone par) ── */
+console.log('\n── TEST 11: B20 Referral rules (dono ko join bonus + SD pehli purchase + match threshold) ──');
+{
+  const setSrc = fs.readFileSync(path.join(REPO, 'js/fa-app-settings-v2.js'), 'utf8');
+  ok(setSrc.indexOf("row('refMatchThreshold'") !== -1,
+     'B20: match milestone (kitne matches) ab apni setting row me hai');
+  ok(setSrc.indexOf("val('referralMatchThreshold', 5)") !== -1,
+     'B20: threshold default 5 aur label threshold se hi banta hai');
+  ok(setSrc.indexOf("referralMatchThreshold: gn('refMatchThreshold', 5)") !== -1,
+     'B20: save payload me referralMatchThreshold jaata hai');
+  ok(setSrc.indexOf('PEHLI SD purchase') !== -1,
+     'B20: SD bonus ka hint sach kehta hai (sirf dost ki pehli SD purchase par)');
+  ok(setSrc.indexOf("row('refSDBonus'") !== -1 && setSrc.indexOf("row('refMatchCoins'") !== -1,
+     'B20: teeno referral reward rows maujood hain (join / SD / match)');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }
