@@ -9,16 +9,16 @@
 (function(){
 'use strict';
 
-var GD = '<img src="green-diamond.png?v=20261007o" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
-var GD_LG = '<img src="green-diamond.png?v=20261007o" style="width:18px;height:18px;vertical-align:middle;object-fit:contain;display:inline-block">';
+var GD = '<img src="green-diamond.png?v=20261007p" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+var GD_LG = '<img src="green-diamond.png?v=20261007p" style="width:18px;height:18px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window.ADMIN_GD = GD;
 
 function replaceGDInNode(node){
   if(!node) return;
   if(node.nodeType===3){
-    if(node.textContent.indexOf('<img src="green-diamond.png?v=20261007o" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">')!==-1){
+    if(node.textContent.indexOf('<img src="green-diamond.png?v=20261007p" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">')!==-1){
       var sp=document.createElement('span');
-      sp.innerHTML=node.textContent.replace(/<img src="green-diamond.png?v=20261007o" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">/g,GD);
+      sp.innerHTML=node.textContent.replace(/<img src="green-diamond.png?v=20261007p" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">/g,GD);
       node.parentNode.replaceChild(sp,node);
     }
     return;
