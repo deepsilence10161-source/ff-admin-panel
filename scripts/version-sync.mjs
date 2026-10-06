@@ -73,7 +73,13 @@ const commitCount    = parseInt(git('git rev-list --count HEAD', '0'), 10) || 0;
 const headDate       = git('git log -1 --format=%cd --date=format:%Y%m%d', today());
 const stagedFiles    = git('git diff --cached --name-only').split('\n').filter(Boolean);
 const committedFiles = git('git diff --name-only HEAD^ HEAD').split('\n').filter(Boolean);
-const isCacheable = (f) => CACHE_EXT.has(path.extname(f).toLowerCase()) && !f.startsWith('tests/') && !f.startsWith('docs/');
+/* ✅ (2026-10-06): sirf WO files jinhe users ko serve kiya jata hai — script
+   tooling (.github/, scripts/, .githooks/, tests/, docs/) inme nahi aate,
+   warna ek tooling-only commit bhi bekaar me stamp bump + naya APK banata. */
+const isCacheable = (f) =>
+  CACHE_EXT.has(path.extname(f).toLowerCase()) &&
+  !f.startsWith('tests/') && !f.startsWith('docs/') &&
+  !f.startsWith('scripts/') && !f.startsWith('.githooks/') && !f.startsWith('.github/');
 
 /* ══════════════════════════════════════════════════════════════════════════
    MASK BUILDER — कमेंट को हटाकर वैसी ही लंबाई का "अंधा" टेक्स्ट बनाता है।
@@ -241,7 +247,7 @@ function runCheck() {
      "fix lagta hi nahi" bimari). Isliye: is commit me cacheable files
      badli hain aur stamp pichhle commit ke stamp jaisa hi hai → FAIL. */
   if (REQ_IF_CHANGED && relevantChanges.length > 0) {
-    const hs = headStamp();
+    const hs = prevStamp();
     if (hs && hs === current) {
       problems.push(`इस commit में cacheable फ़ाइलें बदली हैं पर स्टैम्प नहीं बढ़ा (${current} — पिछले commit jaisa hi) — same-day release me bhi bump zaroori hai`);
     }
@@ -269,11 +275,28 @@ function doBump() {
   return 0;
 }
 
-/* HEAD (पिछले commit) में जो स्टैम्प था — यह जानने के लिए कि इस commit में
-   नंबर पहले ही बढ़ाया जा चुका है या नहीं (दोबारा बढ़ाने की ज़रूरत नहीं) */
+/* ✅ FIX (2026-10-06): HEAD~1 (PICHLE commit) ka stamp — yeh jaanne ke liye ki
+   IS commit me number badha ya nahi.
+   Pehle yeh HEAD ka stamp padhta tha — jo CI par galat tha, kyunki wahan HEAD
+   khud wahi commit hota hai jo test ho raha hai, isliye stamp kabhi bhi
+   "badla hua" nahi dikhta aur har release FAIL ho jati thi. */
+/* HEAD (AAKHRI commit) ka stamp — hook ke liye: "kya is commit me abhi tak
+   bump hua hai?" Jawab: agar working-tree stamp HEAD ke stamp se alag hai to
+   haan (bump ho chuka) — isliye hook HEAD se tulna karta hai, HEAD~1 se NAHI. */
 function headStamp() {
   try {
     const html = execSync('git show HEAD:index.html', { encoding: 'utf8', cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] });
+    const m = html.match(/[?&]v=([0-9a-z]+)/i);
+    return m ? m[1] : null;
+  } catch (e) { return null; }
+}
+
+/* PICHLE commit (HEAD~1) ka stamp — CI ke liye: "jo commit test ho raha hai,
+   usme stamp badha tha ya nahi?" CI par HEAD khud wahi commit hota hai,
+   isliye tulna HEAD~1 se hi honi chahiye. */
+function prevStamp() {
+  try {
+    const html = execSync('git show HEAD~1:index.html', { encoding: 'utf8', cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] });
     const tally = {};
     for (const m of buildMask(html).matchAll(new RegExp(STAMP_RE.source, 'g')))
       tally[m[1]] = (tally[m[1]] || 0) + 1;
