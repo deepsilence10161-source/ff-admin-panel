@@ -1083,6 +1083,49 @@
     }
   };
 
+  /* ✅ B7 (2026-10-06) — Room Manager ke do buttons ka saajha saamaan:
+     (a) input padhna: aage-peeche ki khaali jagah (spaces) hata kar, aur
+         release-minutes ko 1..60 ke andar (input par max=60 likha hai —
+         pehle code 0 ya 999 bhi chup-chaap le leta tha).
+     (b) dono buttons ko lock/unlock karna: jab tak DB write chal rahi ho,
+         Save/Release dobara dabaya na ja sake (warna do baar release hokar
+         players ko duplicate notification jati thi).
+     (c) modal ke andar turant status dikhana — admin ko foran pata chale ki
+         kya hua (toast chala bhi jaye to yahan likha rehta hai). */
+  function _rmReadInputs() {
+    var elId  = _$('rmRoomId'), elPw = _$('rmRoomPw'), elMin = _$('rmRelMin');
+    var roomId = String((elId || {}).value || '').replace(/^\s+|\s+$/g, '');
+    var roomPw = String((elPw || {}).value || '').replace(/^\s+|\s+$/g, '');
+    var relMin = Number((elMin || {}).value);
+    if (!isFinite(relMin) || relMin < 1) relMin = 5;
+    if (relMin > 60) relMin = 60;
+    if (elId)  elId.value  = roomId;   /* trailing space = players ka login fail */
+    if (elPw)  elPw.value  = roomPw;
+    if (elMin) elMin.value = relMin;
+    return { roomId: roomId, roomPw: roomPw, relMin: relMin };
+  }
+  /* ✅ B7: in-flight flag — button disable hone ke saath-saath ek guard bhi,
+     taki tez double-tap / dobara-fire hone par bhi DOOSRI write (aur
+     duplicate release-notification) kabhi na jaye. */
+  var _rmInFlight = false;
+  function _rmBusy(on) {
+    _rmInFlight = !!on;
+    ['rmSaveBtn', 'rmReleaseBtn'].forEach(function (id) {
+      var b = document.getElementById(id);
+      if (b) { b.disabled = !!on; b.style.opacity = on ? '0.6' : ''; }
+    });
+  }
+  function _rmStatus(html, kind) {
+    var el = document.getElementById('rmActionStatus');
+    if (!el) return;
+    var ok = (kind !== 'err');
+    el.style.display = 'block';
+    el.style.background = ok ? 'rgba(0,255,156,.08)' : 'rgba(255,68,68,.10)';
+    el.style.border = '1px solid ' + (ok ? 'rgba(0,255,156,.28)' : 'rgba(255,68,68,.32)');
+    el.style.color = ok ? 'var(--success)' : '#ff6b6b';
+    el.innerHTML = html;
+  }
+
   window.showRoomManager = function (matchId, matchName) {
     rtdb.ref('matches/' + matchId).once('value', function (s) {
       var m = s.val() || {};
@@ -1148,8 +1191,13 @@
         }
       }
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-      h += '<button class="btn btn-ghost w-full" onclick="window._saveRoomOnly(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-save"></i> Save Only</button>';
-      h += '<button class="btn btn-primary w-full" onclick="window._releaseRoom(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-key"></i> Release Now</button>';
+      /* ✅ B7 (2026-10-06): dono buttons par id di — jab tak DB write chal rahi
+         ho dono lock rehte hain (double-tap se do baar release/notification
+         nahi hota), aur neeche ek status box hai jisme kaam hote hi saaf
+         jawab dikhta hai (list refresh ka intezaar nahi). */
+      h += '<div id="rmActionStatus" style="display:none;margin-bottom:10px;padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.5"></div>';
+      h += '<button id="rmSaveBtn" class="btn btn-ghost w-full" onclick="window._saveRoomOnly(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-save"></i> Save Only</button>';
+      h += '<button id="rmReleaseBtn" class="btn btn-primary w-full" onclick="window._releaseRoom(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-key"></i> Release Now</button>';
       h += '</div>';
       h += '</div>';
       _modal('🔑 Room Manager', h);
@@ -1157,82 +1205,79 @@
   };
 
   /* Save room details without releasing to players yet */
+  /* Save room details without releasing to players yet */
   window._saveRoomOnly = function (matchId, matchName) {
-    var roomId = (_$('rmRoomId') || {}).value;
-    var roomPw = (_$('rmRoomPw') || {}).value;
-    var relMin = Number((_$('rmRelMin') || {}).value) || 5;
-    if (!roomId || !roomPw) { _toast('Room ID and Password required', true); return; }
-    rtdb.ref('matches/' + matchId).update({
-      roomId: roomId, roomPassword: roomPw,
-      roomStatus: 'saved',  // saved but not yet released
-      roomReleaseMinutes: relMin,
-      roomSavedAt: Date.now()
+    if (_rmInFlight) return;   /* ✅ B7: pehli write chal rahi hai to kuch nahi karte */
+    var v = _rmReadInputs();
+    if (!v.roomId || !v.roomPw) { _toast('Room ID and Password required', true); _rmStatus('⚠️ Room ID aur Password dono likho', 'err'); return; }
+    _rmBusy(true);
+    /* ✅ B7: pehle seedha roomStatus:'saved' likh diya jata tha — agar room
+       PEHLE SE released tha to ye usse wapas "chhupa" deta tha (jinko Room ID
+       mil chuki thi, unke liye wo gayab, jab tak cron dobara release na kare).
+       Ab pehle current status dekhte hain: released ho to status waisa hi
+       rehta hai, sirf creds/timing update hoti hai. */
+    rtdb.ref('matches/' + matchId).once('value').then(function (s) {
+      var m = (s && s.val && s.val()) || {};
+      var wasReleased = (m.roomStatus === 'released');
+      var patch = { roomId: v.roomId, roomPassword: v.roomPw, roomReleaseMinutes: v.relMin };
+      if (!wasReleased) patch.roomStatus = 'saved';
+      /* (roomSavedAt nahi bhejte — matches table me aisa koi column hi nahi
+         hai, isliye pehle wo value chup-chaap gir jati thi) */
+      return rtdb.ref('matches/' + matchId).update(patch).then(function () {
+        return wasReleased;
+      });
+    }).then(function (wasReleased) {
+      _rmBusy(false);
+      _logAction('save_room', matchId, { matchName: matchName, releaseMin: v.relMin, stillReleased: !!wasReleased });
+      _toast('💾 Room details saved! ' + (wasReleased ? 'Room pehle se released hai — released hi rahega.' : 'Will auto-release ' + v.relMin + ' min before match.'));
+      _rmStatus(wasReleased
+        ? '💾 <b>Saved!</b> Room details update ho gayi. Room <b>pehle se released</b> hai, isliye players ko dikhta rahega (match - ' + v.relMin + ' min ka niyam sirf naye room par lagta hai).'
+        : '💾 <b>Saved!</b> Players ko abhi nahi dikhega — match se <b>' + v.relMin + ' min pehle</b> khud release ho jayega (server cron). Turant dena ho to "Release Now" dabao.');
+    }, function (err) {
+      _rmBusy(false);
+      _rmStatus('❌ Save nahi hua: ' + ((err && err.message) || 'DB error') + ' — dobara try karo', 'err');
+      _toast('❌ Room save fail', true);
     });
-    _logAction('save_room', matchId, { matchName: matchName, releaseMin: relMin });
-    _toast('💾 Room details saved! Will auto-release ' + relMin + ' min before match.');
-    _close();
   };
 
   window._releaseRoom = function (matchId, matchName) {
-    var roomId = (_$('rmRoomId') || {}).value;
-    var roomPw = (_$('rmRoomPw') || {}).value;
-    var relMin = Number((_$('rmRelMin') || {}).value) || 5;
-    if (!roomId || !roomPw) { _toast('Room ID and Password required', true); return; }
-    rtdb.ref('matches/' + matchId).update({ roomId: roomId, roomPassword: roomPw, roomStatus: 'released', roomReleaseMinutes: relMin, roomReleasedAt: Date.now() });
-    /* ✅ BUG FIX (2026-08-22): this used to run its own independent
-       notify-loop, duplicating whatever saveTournament()'s room-change
-       handler or the auto-release scheduler already sent for the same
-       release — confirmed live as the same "Room Details Released!"
-       notification appearing 2-4x. Now routes through the single
-       deduped sendRoomNotificationToMatch(), same as every other
-       room-release trigger in the app. */
-    if (typeof window.sendRoomNotificationToMatch === 'function') {
-      window.sendRoomNotificationToMatch(matchId, roomId, roomPw, matchName).then(function (count) {
-        _logAction('release_room', matchId, { matchName: matchName });
-        _toast('✅ Room ID released! ' + count + ' players notified.');
-        _close();
-      });
-    } else {
-      _logAction('release_room', matchId, { matchName: matchName });
+    if (_rmInFlight) return;   /* ✅ B7: double-tap = double notification nahi */
+    var v = _rmReadInputs();
+    if (!v.roomId || !v.roomPw) { _toast('Room ID and Password required', true); _rmStatus('⚠️ Room ID aur Password dono likho', 'err'); return; }
+    _rmBusy(true);
+    rtdb.ref('matches/' + matchId).update({
+      roomId: v.roomId, roomPassword: v.roomPw,
+      roomStatus: 'released',
+      roomReleaseMinutes: v.relMin,
+      roomReleasedAt: Date.now()
+    }).then(function () {
+      /* ✅ BUG FIX (2026-08-22): this used to run its own independent
+         notify-loop, duplicating whatever saveTournament()'s room-change
+         handler or the auto-release scheduler already sent for the same
+         release — confirmed live as the same "Room Details Released!"
+         notification appearing 2-4x. Now routes through the single
+         deduped sendRoomNotificationToMatch(), same as every other
+         room-release trigger in the app. */
+      _rmStatus('✅ <b>Room released!</b> Players ko abhi dikh raha hai — notification bheji ja rahi hai…');
+      if (typeof window.sendRoomNotificationToMatch === 'function') {
+        return window.sendRoomNotificationToMatch(matchId, v.roomId, v.roomPw, matchName).then(function (count) {
+          _rmBusy(false);
+          _logAction('release_room', matchId, { matchName: matchName, notified: count });
+          _toast('✅ Room ID released! ' + count + ' players notified.');
+          _rmStatus('✅ <b>Room released!</b> Abhi ke liye players ko dikh raha hai · <b>' + count + '</b> joined players ko notification chali gayi.');
+        });
+      }
+      _rmBusy(false);
+      _logAction('release_room', matchId, { matchName: matchName, notified: 0 });
       _toast('✅ Room ID released! (notify function unavailable)');
-      _close();
-    }
-  };
-
-  /* Auto-release room IDs based on roomReleaseMinutes setting */
-  window._autoReleaseRooms = function() {
-    var now = Date.now();
-    rtdb.ref('matches').orderByChild('status').equalTo('upcoming').once('value', function(s) {
-      s.forEach(function(c) {
-        var m = c.val(); if (!m) return;
-        var mid = c.key;
-        // Already released or no room saved
-        if (m.roomStatus === 'released' || !m.roomId || !m.roomPassword) return;
-        if (m.status === 'cancelled' || m.status === 'completed') return;
-        var relMin = Number(m.roomReleaseMinutes) || 5;
-        var releaseAt = Number(m.matchTime) - (relMin * 60000);
-        if (now >= releaseAt) {
-          /* ✅ BUG FIX (2026-08-22): this ran its OWN 4th independent
-             notify-loop (on top of saveTournament's, _releaseRoom's, and
-             sendRoomNotificationToMatch's own callers) every 60 seconds —
-             the roomStatus==='released' guard above stops it from
-             re-firing on ITS OWN on a later tick, but it could still
-             double-fire alongside a manual release that happens in the
-             same ~60s window before this check runs. Routing through the
-             single sendRoomNotificationToMatch() removes that overlap
-             entirely, since it's the same one deduped implementation
-             every trigger now shares. */
-          rtdb.ref('matches/' + mid).update({ roomStatus: 'released', roomReleasedAt: now });
-          if (typeof window.sendRoomNotificationToMatch === 'function') {
-            window.sendRoomNotificationToMatch(mid, m.roomId, m.roomPassword, m.name || 'Match');
-          }
-        }
-      });
+      _rmStatus('✅ <b>Room released!</b> Players ko abhi dikh raha hai. (notification function available nahi tha — app reload karke dobara try karo)');
+    }, function (err) {
+      _rmBusy(false);
+      _rmStatus('❌ Release nahi hua: ' + ((err && err.message) || 'DB error') + ' — dobara try karo', 'err');
+      _toast('❌ Room release fail', true);
     });
   };
-  // Run auto-release check every 60 seconds
-  setInterval(function() { window._autoReleaseRooms && window._autoReleaseRooms(); }, 60000);
-  setTimeout(function() { window._autoReleaseRooms && window._autoReleaseRooms(); }, 3000); // immediate check on load
+
 
   /* ─── FEATURE 31: MATCH RESULT PUBLISHER ─── */
   window.showResultPublisher = function (matchId, matchName) {
