@@ -285,8 +285,10 @@ console.log('\n── TEST 9: B5 notification/alerts timing settings se aate hai
   const brSrc = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
   ok(brSrc.indexOf('_cfgAuthPending()') !== -1 && (brSrc.match(/_cfgAuthPending\(\)\) \{ _cfgQueueWrite/g) || []).length >= 2,
      'B5: auth se pehle app_settings writes queue hoti hain (throw nahi)');
-  ok(brSrc.indexOf("addEventListener('supabase:authenticated'") !== -1,
-     'B5: login ke baad queue khud-b-khud chalti hai');
+  ok(brSrc.indexOf("addEventListener('supabase:authenticated'") !== -1
+     && brSrc.indexOf('function _cfgFlushQueue()') !== -1
+     && /setInterval\(function \(\) \{ _cfgFlushQueue\(\); \}, 2500\)/.test(brSrc),
+     'B5: login ke baad queue khud-b-khud chalti hai (event + 2.5s retry)');
   ok((brSrc.match(/window\._supa\.from\('app_settings'\)\.upsert/g) || []).length >= 3,
      'B5: queue flush NAYE authenticated client (window._supa) par hota hai');
   const _fnBody = alertSrc.slice(alertSrc.indexOf('function _admAlertLoadCfg()'),

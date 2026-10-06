@@ -2680,8 +2680,9 @@
     if (_pendingCfgWrites.length > 100) _pendingCfgWrites.shift();
     console.warn('[Bridge] app_settings write queue me (auth baaki hai): ' + pathTxt);
   }
-  document.addEventListener('supabase:authenticated', function () {
-    if (!_pendingCfgWrites.length) return;
+  function _cfgFlushQueue() {
+    if (!_pendingCfgWrites.length) return false;
+    if (_cfgAuthPending()) return false;           /* abhi bhi anon — ruko */
     var q = _pendingCfgWrites.slice(); _pendingCfgWrites.length = 0;
     console.info('[Bridge] ' + q.length + ' queued app_settings write(s) ab chala rahe hain');
     var i = 0;
@@ -2693,7 +2694,14 @@
         next();
       });
     })();
-  });
+    return true;
+  }
+  /* Do raste (live-testing sabak 2026-10-07: sirf event par bharosa kaafi nahi
+     tha — kisi wajah se event listener tak baat na pahunche to queue hamesha
+     ke liye padi reh jaati thi): (1) event par turant, (2) har 2.5s par khud
+     check karke — jaise hi auth aa jaaye, queue khud chal pade. */
+  document.addEventListener('supabase:authenticated', function () { _cfgFlushQueue(); });
+  setInterval(function () { _cfgFlushQueue(); }, 2500);
 
   function installBridge() {
     if (!window.rtdb || !window.rtdb.ref) {
