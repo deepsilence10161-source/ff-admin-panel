@@ -2678,9 +2678,12 @@
   function _cfgQueueWrite(fn, pathTxt) {
     _pendingCfgWrites.push({ fn: fn, path: pathTxt });
     if (_pendingCfgWrites.length > 100) _pendingCfgWrites.shift();
+    window.__cfgQueueDebug = { len: _pendingCfgWrites.length, last: pathTxt, at: Date.now() };
     console.warn('[Bridge] app_settings write queue me (auth baaki hai): ' + pathTxt);
   }
   function _cfgFlushQueue() {
+    window.__cfgFlushTries = (window.__cfgFlushTries || 0) + 1;
+    window.__cfgFlushDebug = { len: _pendingCfgWrites.length, pendingAuth: _cfgAuthPending(), at: Date.now() };
     if (!_pendingCfgWrites.length) return false;
     if (_cfgAuthPending()) return false;           /* abhi bhi anon — ruko */
     var q = _pendingCfgWrites.slice(); _pendingCfgWrites.length = 0;
