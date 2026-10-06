@@ -1,5 +1,5 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
-window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006n" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006o" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window._admEntrySym = function(m, j) {
   var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
   if (et === 'coin' || et === 'coins') return '🪙';
@@ -374,7 +374,7 @@ function onEntryTypeChange(){
   if(t==='paid'){
     h.className='info-box green';
     if(entryFeeLabel) entryFeeLabel.textContent='💠 Entry Fee (Sky Diamond) *';
-    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006n" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
+    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006o" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
   } else if(t==='coin'){
     h.className='info-box purple';
     if(entryFeeLabel) entryFeeLabel.textContent='🪙 Entry Fee (Coins) *';

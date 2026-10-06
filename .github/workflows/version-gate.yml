@@ -1,0 +1,65 @@
+# ================================================================
+# version-gate.yml — cache-busting स्टैम्प का पहरा (server-side, हमेशा)
+# ----------------------------------------------------------------
+# KYU (B31 ऑडिट में पकड़ा गया, 2026-10-06): इस repo का pre-commit hook
+#      (`.githooks/pre-commit` → `scripts/version-sync.mjs --bump-if-needed`)
+#      लिखा तो हुआ था, पर **install कभी नहीं हुआ था** (core.hooksPath सेट नहीं
+#      था)। नतीजा: B7 (ee5e009) और B13 (44edff6) में js/index.html बदले,
+#      पर `?v=` स्टैम्प 20261006n पर ही अटका रहा → पुरानी cache वाले ब्राउज़र
+#      में नया कोड देर से पहुँचता है (यही “फिक्स लगा ही नहीं” वाली बीमारी है)।
+#
+#      Hook लोकल मशीन पर नज़र रखता है, पर उसका भरोसा नहीं किया जा सकता
+#      (हर मशीन पर install करना पड़ता है)। इसलिए वही जाँच CI में — हर push पर।
+#
+# KYA CHECK HOTA HAI: `--check --require-if-changed` —
+#   * इस commit में cacheable फ़ाइलें (html/js/css/json) बदली हैं और स्टैम्प
+#     पिछले commit जैसा ही है → FAIL (same-day दूसरी release में भी बम्प ज़रूरी)
+#   * स्टैम्प commit की तारीख़ से पुराना है → FAIL
+#   * अलग-अलग फ़ाइलों में अलग स्टैम्प → FAIL
+#
+# ठीक करने का तरीक़ा (एक कमांड):
+#     node scripts/version-sync.mjs --bump
+#     git add -A && git commit -m "chore(version): stamp bump" && git push
+# ================================================================
+name: Version Sync Gate
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-sync:
+    name: Cache-busting stamp check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (poori history — HEAD~1 se tulna hoti hai)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Node setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Version Sync Gate
+        shell: bash
+        run: node scripts/version-sync.mjs --check --require-if-changed
+
+      - name: Stamp ki jankari (log me proof)
+        if: always()
+        shell: bash
+        run: |
+          echo "--- index.html ke ?v= (unique) ---"
+          grep -o '?v=[0-9a-z]*' index.html | sort | uniq -c || true
+          echo "--- yeh commit ki files ---"
+          git show --stat --oneline HEAD | head -20 || true
