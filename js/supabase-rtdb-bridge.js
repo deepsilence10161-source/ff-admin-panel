@@ -1961,7 +1961,7 @@
           var _kvRow = Object.assign({}, patch, { key: _kvKey, updated_at: new Date().toISOString() });
           var _kvWho = _appSettingsUpdater();
           if (_kvWho) _kvRow.updated_by = _kvWho;
-          if (_cfgAuthPending()) { _cfgQueueWrite(function () { return supa.from('app_settings').upsert(_kvRow, { onConflict: 'key' }); }, p.raw); return; }
+          if (_cfgAuthPending()) { _cfgQueueWrite(function () { return window._supa.from('app_settings').upsert(_kvRow, { onConflict: 'key' }); }, p.raw); return; }
           var _kvRes = await supa.from('app_settings').upsert(_kvRow, { onConflict: 'key' });
           if (_kvRes && _kvRes.error) {
             console.error('[Bridge] app_settings write FAILED (path: ' + p.raw + '):', _kvRes.error.message);
@@ -1989,7 +1989,7 @@
         var _mRow = { key: _mKey, value: _mNew, updated_at: new Date().toISOString() };
         var _mWho = _appSettingsUpdater();
         if (_mWho) _mRow.updated_by = _mWho;
-        if (_cfgAuthPending()) { _cfgQueueWrite(function () { return supa.from('app_settings').upsert(_mRow, { onConflict: 'key' }); }, p.raw); return; }
+        if (_cfgAuthPending()) { _cfgQueueWrite(function () { return window._supa.from('app_settings').upsert(_mRow, { onConflict: 'key' }); }, p.raw); return; }
           var _mRes = await supa.from('app_settings').upsert(_mRow, { onConflict: 'key' });
         if (_mRes && _mRes.error) {
           console.error('[Bridge] app_settings merge-write FAILED (path: ' + p.raw + '):', _mRes.error.message);
@@ -2099,7 +2099,7 @@
           var _setWho = _appSettingsUpdater();
           if (_setWho) upsertPatch.updated_by = _setWho;
           if (_cfgAuthPending()) {
-            _cfgQueueWrite(function () { return supa.from('app_settings').upsert(upsertPatch, { onConflict: 'key' }); }, p.raw);
+            _cfgQueueWrite(function () { return window._supa.from('app_settings').upsert(upsertPatch, { onConflict: 'key' }); }, p.raw);
             return;
           }
           var _setRes = await supa.from('app_settings').upsert(upsertPatch, { onConflict: 'key' });
@@ -2672,6 +2672,9 @@
      ═══════════════════════════════════════════════════════════════════ */
   var _pendingCfgWrites = [];
   function _cfgAuthPending() { return window._supaAuthed !== true; }
+  /* Note: queue me closure `window._supa` istemal karti hai (captured local
+     `supa` nahi) — login ke baad syncFirebaseToken NAYA authenticated client
+     banata hai, aur flush usi naye client par hona chahiye. */
   function _cfgQueueWrite(fn, pathTxt) {
     _pendingCfgWrites.push({ fn: fn, path: pathTxt });
     if (_pendingCfgWrites.length > 100) _pendingCfgWrites.shift();

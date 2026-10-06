@@ -557,16 +557,28 @@ var _alertTimers = {};
 var _admAlertCfg = { early: 15, urgent: 5 };
 
 function _admAlertLoadCfg() {
+  /* ⚠️ LIVE-TESTING SABAK (2026-10-07): pehle yahan rtdb.ref('appConfig').once()
+     likha tha — wo path bridge me sirf NESTED roop me mapped hai
+     (appConfig/<key>), poora root padhne par bridge "Path not mapped" warn karke
+     khaali snapshot deta hai ⇒ settings kabhi asar hi nahi karti thi (E2E me
+     pakda gaya: DB me 20/7 pade the, alerts phir bhi 15/5 chal rahe the).
+     Ab seedha Supabase se live_config padhte hain (app_settings par SELECT sab
+     ke liye khula hai — RLS as_select_all true). */
   try {
-    var db_ = getDB();
-    if (!db_ || !db_.ref) return;
-    db_.ref('appConfig').once('value', function (s) {
-      var v = (s && s.val && s.val()) || {};
+    var supa = window._supa;
+    if (!supa || !supa.from) return;
+    var _apply = function (v) {
+      v = v || {};
       var e = Number(v.admAlertEarlyMins), u = Number(v.admAlertUrgentMins);
-      _admAlertCfg.early  = (isFinite(e) && e  > 0) ? Math.min(1440, Math.round(e)) : 15;
-      _admAlertCfg.urgent = (isFinite(u) && u  > 0) ? Math.min(1440, Math.round(u)) : 5;
+      _admAlertCfg.early  = (isFinite(e) && e > 0) ? Math.min(1440, Math.round(e)) : 15;
+      _admAlertCfg.urgent = (isFinite(u) && u > 0) ? Math.min(1440, Math.round(u)) : 5;
       if (_admAlertCfg.urgent > _admAlertCfg.early) _admAlertCfg.urgent = _admAlertCfg.early;
-    }, function () {});
+    };
+    var r = supa.from('app_settings').select('value').eq('key', 'live_config').maybeSingle();
+    if (r && typeof r.then === 'function') {
+      r.then(function (res) { if (!res || !res.error) _apply(res && res.data && res.data.value); },
+             function () {});
+    }
   } catch (e) {}
 }
 setTimeout(_admAlertLoadCfg, 4000);
@@ -674,7 +686,7 @@ function _showAlert(matchId, matchName, minutesLeft) {
   if (window.Notification && Notification.permission === 'granted') {
     new Notification('Mini eSports — Match Alert', {
       body: minutesLeft + ' min mein "' + matchName + '" shuru hoga!',
-      icon: 'app-icon.png?v=20261007h',
+      icon: 'app-icon.png?v=20261007i',
     });
   }
 

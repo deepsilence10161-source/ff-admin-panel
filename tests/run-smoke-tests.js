@@ -287,6 +287,10 @@ console.log('\n── TEST 9: B5 notification/alerts timing settings se aate hai
      'B5: auth se pehle app_settings writes queue hoti hain (throw nahi)');
   ok(brSrc.indexOf("addEventListener('supabase:authenticated'") !== -1,
      'B5: login ke baad queue khud-b-khud chalti hai');
+  ok((brSrc.match(/window\._supa\.from\('app_settings'\)\.upsert/g) || []).length >= 3,
+     'B5: queue flush NAYE authenticated client (window._supa) par hota hai');
+  ok(alertSrc.indexOf("rtdb.ref('appConfig').once") === -1 && alertSrc.indexOf(".eq('key', 'live_config')") !== -1,
+     'B5: alert timings seedha Supabase live_config se aate hain (khaali appConfig root nahi)');
 
   const br = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
   ok(br.indexOf('if (d.prizeType !== undefined) s.prize_type = d.prizeType;') !== -1,
