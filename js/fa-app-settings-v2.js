@@ -295,6 +295,17 @@ function _renderAppSettings() {
         '<span id="paytmToggleLabel" style="font-size:12px;color:' + (val('paytmEnabled', false) ? '#00ff9c' : '#888') + '">' + (val('paytmEnabled', false) ? '✅ Button visible to users' : '🔴 Button hidden from users') + '</span>' +
       '</div>' +
       '<div style="font-size:10px;color:#666;margin-top:4px">ON = "Pay Instantly via Paytm" button wallet mein dikhega</div>' +
+      /* ✅ B23 (2026-10-06): ONLINE PAYMENT KI SEEMA — user ka niyam:
+         "Paytm ON ho to har transaction par ₹2000 ki seema (₹2000 se upar
+          online payment par shopkeeper charge lagta hai)".
+         Isliye ye value live_config.paytmMaxTxn me jati hai aur user panel
+         (js/paytm-checkout.js) isse pehle hi rok deta hai — order banta hi
+         nahi, paisa kat bhi nahi sakta, aur koi payment atka nahi rehta.
+         Isse upar ka amount user UPI/QR (manual) se deta hai. */
+      '<div class="form-group" style="margin-bottom:10px"><label style="font-size:12px">⚡ Online Payment ki Seema (₹ max per transaction)</label>' +
+        '<input type="number" id="as_paytmMaxTxn" class="form-input" value="' + String(val('paytmMaxTxn', 2000)) + '" min="10" style="font-size:13px">' +
+        '<div style="font-size:10px;color:#666;margin-top:3px">Itne se upar ka payment user ko sIdha UPI/QR (manual) se lena hoga — online payment isi seema tak (atki/fail payment se bachne ke liye)</div>' +
+      '</div>' +
     '</div>' +
     /* ✅ BUG 16 (2026-10-04): Manual Payment (UPI QR) system — pehle user
        panel mein hardcoded "miniesports@upi" text line thi, koi QR nahi,
@@ -557,6 +568,9 @@ window.saveAppSettings = function() {
     sdPackages: sdPkgs.length ? sdPkgs : null,
     /* ── Paytm Instant Checkout toggle ── */
     paytmEnabled: !!(document.getElementById('as_paytmEnabled') && document.getElementById('as_paytmEnabled').checked),
+    /* ✅ B23: online payment ki seema (₹, default 2000) — user panel ka
+       paytm-checkout.js isse pehle hi rok deta hai (order banta hi nahi). */
+    paytmMaxTxn: (function () { var el = document.getElementById('as_paytmMaxTxn'); var v = el ? Number(el.value) : 2000; return (isFinite(v) && v > 0) ? v : 2000; })(),
     /* ✅ BUG 16 (2026-10-04): Manual UPI payment (QR) — single source
        live_config.manualPayment, quick-deposit.js isi ko render karta hai. */
     manualPayment: {
