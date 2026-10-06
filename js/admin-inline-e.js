@@ -795,32 +795,9 @@ window.exportCSV = function(type) {
   }
 };
 
-window._rosterData = [];
-;
-window._toggleRosterStatus = async function(key,idx){
-  var r=window._rosterData[idx];if(!r)return;
-  var ns=r.status==='kicked'?'present':'kicked'; r.status=ns;
-  try{
-    /* ✅ Supabase join_requests.roster_status */
-    if(window._supa) await window._supa.from('join_requests').update({roster_status:ns}).eq('id',key);
-    else if(typeof rtdb!=='undefined') await rtdb.ref('joinRequests/'+key).update({rosterStatus:ns});
-    window.loadRoster();showToast((ns==='kicked'?'🚫 Kicked: ':'✅ Restored: ')+r.ign);
-  }catch(e){showToast('Error: '+e.message,true);}
-};
-;
-window.clearRosterStatus = async function(){
-  var rows=window._rosterData||[];if(!rows.length){showToast('Pehle match select karo',true);return;}
-  if(!confirm('Sab players ki roster status clear karni hai?'))return;
-  /* ✅ Supabase join_requests — safe fallback */
-  if(window._supa){
-    await Promise.all(rows.map(function(r){ return window._supa.from('join_requests').update({roster_status:'present'}).eq('id',r.key).then(null, function(){}); }));
-  } else if(typeof rtdb!=='undefined'){
-    await Promise.all(rows.map(function(r){return rtdb.ref('joinRequests/'+r.key).update({rosterStatus:'present'});}));
-  }
-  window._rosterData.forEach(function(r){r.status='present';});
-  window.loadRoster();showToast('✅ All status cleared');
-};
-
+/* ✅ B8 (2026-10-06): _rosterData / _toggleRosterStatus / clearRosterStatus
+   hata diye — ye sirf Live Roster section ke table ke liye the, jo ab hai hi
+   nahi. (join_requests.roster_status column DB me waise hi rehta hai.) */
 window._activityLogData = [];
 window._activityLogFilter = 'all';
 window.loadActivityLog = async function(){

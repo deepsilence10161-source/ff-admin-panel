@@ -969,7 +969,7 @@ async function sendCustomNotification(){
    kabhi kisi ek player ko bhi notification nahi bhejte the — chup-chaap
    "✅ Sent to 0 players" dikhta tha (live-proven: QA match + QA join hone
    par bhi 0 notifications rows bani). Ab wahi vocabulary use hoti hai jo
-   admin-roster.js me already hai (approved/joined/confirmed/blank). */
+   join_requests me sach me hoti hai (approved/joined/confirmed/blank). */
 function _isActiveJoinAdmin(j){
   var st=(j&&j.status||'').toString().toLowerCase().trim();
   return st==='approved'||st==='joined'||st==='confirmed'||st===''||st==='active';
@@ -1384,8 +1384,8 @@ async function deleteVoucher(id){if(!confirm('Delete?'))return;try{await rtdb.re
    UI NAVIGATION WITH BACK BUTTON SUPPORT
    ============================================= */
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('show');}
-var sIcons={bracketAdmin:'fa-sitemap',clanWarAdmin:'fa-shield-alt',cityChampAdmin:'fa-city',mentorAdmin:'fa-graduation-cap',cleanBadgeAdmin:'fa-check-circle',quicktools:'fa-tools',disputes:'fa-exclamation-triangle',dashboard:'fa-chart-line',profileVerification:'fa-user-check',profileUpdates:'fa-user-edit',users:'fa-users',tournaments:'fa-trophy',joinedPlayers:'fa-clipboard-check',matchResult:'fa-trophy',results:'fa-bullseye',wallets:'fa-wallet',teams:'fa-user-friends',support:'fa-comments',notifications:'fa-bell',settings:'fa-cog',roster:'fa-shield-alt',analytics:'fa-chart-bar',lookup:'fa-search',activity:'fa-history'};
-var sTitles={bracketAdmin:'Brackets',clanWarAdmin:'Clan Wars',cityChampAdmin:'City Championship',mentorAdmin:'Mentor Management',cleanBadgeAdmin:'Clean Badges',quicktools:'Quick Tools',disputes:'Disputes',dashboard:'Dashboard',sponsoredTournaments:'Sponsored Prizes',appSettings:'App Settings',profileVerification:'New Verifications',profileUpdates:'Profile Updates',users:'Users',tournaments:'Matches',joinedPlayers:'Joined Players',matchResult:'Match Result',results:'Match Results',wallets:'Wallet Requests',teams:'Team Requests',support:'Support Chat',notifications:'Notifications',settings:'Settings',roster:'Live Roster',analytics:'Analytics',lookup:'Player Lookup',activity:'Activity Log'};
+var sIcons={bracketAdmin:'fa-sitemap',clanWarAdmin:'fa-shield-alt',cityChampAdmin:'fa-city',mentorAdmin:'fa-graduation-cap',cleanBadgeAdmin:'fa-check-circle',quicktools:'fa-tools',disputes:'fa-exclamation-triangle',dashboard:'fa-chart-line',profileVerification:'fa-user-check',profileUpdates:'fa-user-edit',users:'fa-users',tournaments:'fa-trophy',joinedPlayers:'fa-clipboard-check',matchResult:'fa-trophy',results:'fa-bullseye',wallets:'fa-wallet',teams:'fa-user-friends',support:'fa-comments',notifications:'fa-bell',settings:'fa-cog',analytics:'fa-chart-bar',lookup:'fa-search',activity:'fa-history'};
+var sTitles={bracketAdmin:'Brackets',clanWarAdmin:'Clan Wars',cityChampAdmin:'City Championship',mentorAdmin:'Mentor Management',cleanBadgeAdmin:'Clean Badges',quicktools:'Quick Tools',disputes:'Disputes',dashboard:'Dashboard',sponsoredTournaments:'Sponsored Prizes',appSettings:'App Settings',profileVerification:'New Verifications',profileUpdates:'Profile Updates',users:'Users',tournaments:'Matches',joinedPlayers:'Joined Players',matchResult:'Match Result',results:'Match Results',wallets:'Wallet Requests',teams:'Team Requests',support:'Support Chat',notifications:'Notifications',settings:'Settings',analytics:'Analytics',lookup:'Player Lookup',activity:'Activity Log'};
 
 /* Track current section for back button */
 var currentSection='dashboard';
@@ -1462,9 +1462,7 @@ function showSection(sec,el,skipHistory){
   if(sec==='analytics'){if(window.loadAnalytics)loadAnalytics();}
   if(sec==='activity'){if(window.loadActivityLog)loadActivityLog();}
   if(sec==='match-history'){if(window.loadMatchHistorySection)loadMatchHistorySection();}
-  /* ✅ FIX (bug D): Live Roster section ke liye loader hook — dono jagah se
-     khulne par (nav item ya purana bookmark) match dropdown khud bhar jata hai. */
-  if(sec==='roster'){if(window.loadRosterMatches)loadRosterMatches();}
+  /* ✅ B8 (2026-10-06): Live Roster ka loader hook hata diya — section hi nahi raha. */
   if(sec==='quicktools'){} // Quick Tools section
   if(sec==='disputes'){loadDisputes();}
 }
