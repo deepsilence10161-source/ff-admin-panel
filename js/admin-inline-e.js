@@ -1232,7 +1232,11 @@ window.loadPremiumReqSection = async function() {
     }
     var tierColors = { '1': '#ffd700', '2': '#00d4ff', '3': '#b964ff' };
     var tierNames  = { '1': 'Tier 1 — ₹49', '2': 'Tier 2 — ₹99', '3': 'Tier 3 — ₹199' };
-    var h = '<div class="table-wrapper"><table><thead><tr><th>User</th><th>FF UID</th><th>Plan</th><th>Price</th><th>Screenshot</th><th>Requested</th><th>Actions</th></tr></thead><tbody>';
+    /* ✅ B16 (2026-10-06): "UTR / UPI Ref" column joda — user panel ab premium
+       ke teeno manual-payment forms (monthly/bundle/annual) me UTR zaroori
+       karta hai, aur admin ise screenshot se match karke verify karta hai.
+       Khaali ho to "＋ UTR" button se add/correct kiya ja sakta hai. */
+    var h = '<div class="table-wrapper"><table><thead><tr><th>User</th><th>FF UID</th><th>Plan</th><th>Price</th><th>Screenshot</th><th>UTR / UPI Ref</th><th>Requested</th><th>Actions</th></tr></thead><tbody>';
     rows.forEach(function(item) {
       var r = item.data; var id = item.id;
       var uid = r.uid || '';
@@ -1257,6 +1261,16 @@ window.loadPremiumReqSection = async function() {
            (planType === 'annual' ? '<div style="margin-top:4px;font-size:10px;font-weight:700;color:#00ff9c">📅 Annual plan</div>' : '') + '</td>';
       h += '<td><span style="font-weight:700;color:#00ff9c">₹' + price + '</span></td>';
       h += '<td>' + ssHtml + '</td>';
+      /* ✅ B16: UTR cell — value + copy, ya "＋ UTR" add button */
+      var utr = r.utr || '';
+      if (utr) {
+        h += '<td><span style="font-family:monospace;font-size:11px;color:#00ff9c;background:rgba(0,255,156,.08);padding:3px 7px;border-radius:6px">' + utr + '</span>' +
+             ' <button class="btn btn-ghost btn-xs" title="Copy UTR" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + utr + '\');showToast(\'📋 UTR copy ho gaya\')"><i class="fas fa-copy"></i></button> ' +
+             '<button class="btn btn-ghost btn-xs" title="UTR badlo" onclick="window._editPremiumUtr(\'' + id + '\',\'' + utr + '\')"><i class="fas fa-pen"></i></button></td>';
+      } else {
+        h += '<td><span class="text-muted text-xxs">—</span> ' +
+             '<button class="btn btn-ghost btn-xs" title="UTR add karo" onclick="window._editPremiumUtr(\'' + id + '\',\'\')"><i class="fas fa-plus"></i> UTR</button></td>';
+      }
       h += '<td style="font-size:11px;color:#666">' + time + '</td>';
       h += '<td><button class="btn btn-primary btn-xs" style="background:linear-gradient(135deg,' + col + ',#ff8c00);border:none;color:#000" onclick="approvePremiumReq(\'' + id + '\',\'' + uid + '\',' + tier + (planType === 'bundle' ? ',true' : ',false') + ')"><i class="fas fa-crown"></i> Approve 30d</button> <button class="btn btn-danger btn-xs" onclick="rejectPremiumReq(\'' + id + '\')"><i class="fas fa-times"></i></button></td>';
       h += '</tr>';
@@ -1266,6 +1280,25 @@ window.loadPremiumReqSection = async function() {
   } catch(e) {
     list.innerHTML = '<div style="color:var(--danger);padding:16px">Error: ' + e.message + '</div>';
   }
+};
+
+/* ✅ B16 (2026-10-06): admin UTR add/edit — user ne galat likha ho ya khaali
+   chhod diya ho to yahin se sudhara ja sakta hai. B3 ke app-UI dialog se
+   poochta hai (koi native browser popup nahi). */
+window._editPremiumUtr = async function(reqId, current) {
+  var v = await window.appPrompt('UTR / UPI Reference Number' + (current ? ' (badlo)' : ' (add karo)') + ':',
+                                 current || '', { icon: '🧾', okText: 'Save karo' });
+  if (v === null || v === undefined) return;                 /* cancel */
+  v = String(v).trim();
+  if (!v) { showToast('UTR khaali nahi ho sakta', true); return; }
+  if (v.length < 6) { showToast('UTR poora likho (kam se kam 6 characters)', true); return; }
+  try {
+    if (!window._supa) { showToast('Supabase ready nahi', true); return; }
+    var r = await window._supa.from('premium_requests').update({ utr: v }).eq('id', reqId);
+    if (r.error) { showToast('❌ ' + r.error.message, true); return; }
+    showToast('✅ UTR save ho gaya');
+    window.loadPremiumReqSection();
+  } catch (e) { showToast('Error: ' + e.message, true); }
 };
 
 window.approvePremiumReq = async function(reqId, uid, tier, grantBp) {

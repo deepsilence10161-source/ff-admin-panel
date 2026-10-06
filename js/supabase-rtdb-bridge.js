@@ -954,6 +954,9 @@
       gdBonus:          row.gd_bonus   || 0,
       planType:         row.plan_type  || 'monthly',
       bundleId:         row.bundle_id  || null,
+      /* ✅ B16 (2026-10-06): UTR/UPI reference — user panel ab ise zaroor
+         bharta hai (premium monthly / bundle / annual, teeno). */
+      utr:              row.utr        || '',
       screenshotBase64: row.screenshot_url || '',
       status:           row.status     || 'pending',
       approvedBy:       row.approved_by || null,
@@ -983,6 +986,8 @@
   function premiumReqToSupa(d) {
     if (!d) return {};
     var s = {};
+    /* ✅ B16 (2026-10-06): admin UTR baad me bhi add/correct kar sakta hai */
+    if (d.utr !== undefined) s.utr = d.utr;
     if (d.status)      s.status      = d.status;
     if (d.approvedBy)  s.approved_by = d.approvedBy;
     if (d.reviewedBy)  s.reviewed_by = d.reviewedBy;
