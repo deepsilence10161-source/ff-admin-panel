@@ -1099,6 +1099,24 @@
   window.showRoomManager = function (matchId, matchName) {
     rtdb.ref('matches/' + matchId).once('value', function (s) {
       var m = s.val() || {};
+      /* ✅ B6/B21 (2026-10-06): room creds matches me NAHI rehte — trigger
+         `redirect_match_room_secrets` unhe `match_rooms` me bhej deta hai aur
+         matches ke room_id/room_password NULL kar deta hai. Isliye pehle
+         wahi se creds laao, warna Room Manager hamesha khaali dikhta tha aur
+         admin ko lagta tha ki room ID save hi nahi hui (jabki DB me thi). */
+      rtdb.ref('matchRooms/' + matchId).once('value', function (rs) {
+        var rc = (rs && rs.val && rs.val()) || {};
+        /* bridge generic table hai — row jaisa hai waisa (snake_case) milta
+           hai; dono shakal sambhaal lo */
+        var _rid  = rc.room_id || rc.roomId || '';
+        var _rpw  = rc.room_password || rc.roomPassword || '';
+        if (!m.roomId && _rid) m.roomId = _rid;
+        if (!m.roomPassword && _rpw) m.roomPassword = _rpw;
+        _renderRoomManager(matchId, matchName, m);
+      });
+    });
+
+    function _renderRoomManager(matchId, matchName, m) {
       var relMin = m.roomReleaseMinutes || 5; // default 5 minutes
       var h = '<div>';
       h += '<p class="text-muted" style="font-size:12px;margin-bottom:12px">Room details for: <strong>' + matchName + '</strong></p>';
@@ -1148,7 +1166,7 @@
       h += '</div>';
       h += '</div>';
       _modal('🔑 Room Manager', h);
-    });
+    }
   };
 
   /* Save room details without releasing to players yet */

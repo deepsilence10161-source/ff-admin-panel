@@ -72,6 +72,18 @@
   ═══════════════════════════════════════════════════════════════════ */
   var TABLE_MAP = {
     'matches':               { table: 'matches',             id: 'id'      },
+    /* ✅ B6/B21 (2026-10-06): ROOM CREDS `matches` ME NAHI REHTE.
+       Trigger `redirect_match_room_secrets` har room_id/room_password write ko
+       `match_rooms` table me le jata hai aur matches ke wo columns NULL kar
+       deta hai (secrets ek hi jagah, admin-only RLS — live jaanch me
+       matches.room_id har row me khaali tha jabki match_rooms me asli creds
+       pade the). Isliye admin ka Room Manager creds YAHAN se padhta hai —
+       warna wo khaali dikhta tha aur "Release Now" bina creds ke chalta tha.
+       LIKHNA yahan se nahi hota (is table me sirf match_id/room_id/
+       room_password/updated_at columns hain) — likhna hamesha
+       `matches/<id>` par `roomId`/`roomPassword` se hota hai, trigger khud
+       redirect kar deta hai. */
+    'matchRooms':            { table: 'match_rooms',         id: 'match_id' },
     'users':                 { table: 'users',               id: 'id'      },
     'joinRequests':          { table: 'join_requests',       id: 'id'      },
     'walletRequests':        { table: 'sd_requests',         id: 'id'      },

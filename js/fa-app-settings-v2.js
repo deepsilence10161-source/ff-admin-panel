@@ -258,9 +258,14 @@ function _renderAppSettings() {
     row('battlePassPrice', '🎫 Battle Pass Price ₹/season', val('battlePassPrice', 49), 'number', 'Ek season unlock karne ki price — features/battle-pass.js isi ko live padhta hai')
   );
 
-  /* 5c. ROOM RELEASE TIMING */
-  html += section('Room ID Auto-Release Settings', 'fas fa-key', '#00ff9c',
-    row('roomReleaseMins', '⏰ Room ID kitne minute pehle jaega (default: 10)', val('roomReleaseMins', 10), 'number', 'Ye time Firebase "appSettings/liveConfig/roomReleaseMins" mein save hoga') +
+  /* 5c. NOTIFICATION TIMING (pehle yahan 'Room ID Auto-Release Settings' ke
+     naam se ek roomReleaseMins row thi — ✅ B6/B21 (2026-10-06): wo row
+     Room Manager ki per-match setting ka DUPLICATE thi aur use koi
+     padhta bhi nahi tha (asli release har match ke `room_release_minutes`
+     se hota hai, jo Room Manager me chips se set hota hai). User ka niyam:
+     "Room ID/password timing SIRF Room Manager me" — isliye hata di gayi.
+     Notification wale timings yahan Settings me hi rehte hain. */
+  html += section('Notification Timing Settings', 'fas fa-bell', '#00ff9c',
     row('matchReminderMins', '🔔 Match reminder notification (minute pehle)', val('matchReminderMins', 30), 'number', 'User ko match se pehle notification jaegi (user khud bhi match se pehle ka samay chun sakta hai)') +
     /* ✅ A9 (2026-10-06): purani broadcast naye users ko kitne din tak dikhe — 0 = sab */
     row('notifBroadcastDays', '📣 Purani broadcast notification kitne din tak dikhe', val('notifBroadcastDays', 7), 'number', 'Naye user ko sirf itne din ki admin broadcast dikhegi (0 = sab dikhe)')
@@ -470,7 +475,6 @@ window.saveAppSettings = function() {
     /* ✅ BUG FIX (2026-10-04): 'commission' key save band — duplicate
        commission system clean (single source = creator_system.sdMatchCommissionPct). */
     creatorMinPayout:   gn('minPayout', 100),
-    roomReleaseMins:  gn('roomReleaseMins', 10),
     matchReminderMins: gn('matchReminderMins', 30),
     notifBroadcastDays: gn('notifBroadcastDays', 7),
     missions: {

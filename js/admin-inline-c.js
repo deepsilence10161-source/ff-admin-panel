@@ -1,5 +1,5 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
-window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006j" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261006k" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window._admEntrySym = function(m, j) {
   var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
   if (et === 'coin' || et === 'coins') return '🪙';
@@ -374,7 +374,7 @@ function onEntryTypeChange(){
   if(t==='paid'){
     h.className='info-box green';
     if(entryFeeLabel) entryFeeLabel.textContent='💠 Entry Fee (Sky Diamond) *';
-    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006j" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
+    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261006k" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
   } else if(t==='coin'){
     h.className='info-box purple';
     if(entryFeeLabel) entryFeeLabel.textContent='🪙 Entry Fee (Coins) *';
@@ -396,7 +396,7 @@ function onEntryTypeChange(){
 }
 /* ✅ Helper: update prize column labels when prize type changes */
 function _updatePrizeLabels(pt, p1lbl, p2lbl, p3lbl){
-  var sym = pt==='greenDiamond' ? '<img src="green-diamond.png?v=20261006j" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD'
+  var sym = pt==='greenDiamond' ? '<img src="green-diamond.png?v=20261006k" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD'
            : pt==='skyDiamond'  ? '💠 SD'
            : '🪙 Coins';
   if(p1lbl) p1lbl.textContent='1st Prize (' + sym.replace(/<[^>]+>/g,'').trim() + ')';
@@ -590,8 +590,10 @@ function editTournament(id){
   
   document.getElementById('tRoomId').value=d.roomId||'';
   document.getElementById('tRoomPass').value=d.roomPassword||'';
-  var rrm = document.getElementById('tRoomReleaseMin');
-  if (rrm) rrm.value = d.roomReleaseMinutes || 5;
+  /* ✅ B6/B21 (2026-10-06): match create/edit form me room-release timing ka
+     field hi nahi raha — Room ID/password aur unke release ka time ab SIRF
+     Room Manager (🔑 button) me set hota hai (user ka niyam: "ek hi jagah").
+     Isliye yahan tRoomReleaseMin prefill karne ka koi kaam nahi bacha. */
   // Set special category dropdown
   var sc = d.specialCategory || (d.isSundaySpecial ? 'sunday_special' : d.isMonthlySpecial ? 'monthly_special' : 'none');
   var scEl = document.getElementById('tSpecialCategory');
@@ -726,7 +728,6 @@ async function saveTournament(){
      tMatchTime.value here, that would undo the settle-check. */
   var ri=document.getElementById('tRoomId').value.trim();
   var rp=document.getElementById('tRoomPass').value.trim();
-  var roomReleaseMin = Number((document.getElementById('tRoomReleaseMin')||{}).value)||5;
   var matchSubType = (document.getElementById('tMatchSubType')||{}).value || 'battle_royale';
   var tournamentFormat = (document.getElementById('tTournamentFormat')||{}).value || 'normal';
   // sp already set above from specialCat
@@ -863,10 +864,6 @@ async function saveTournament(){
         secondPrize:f2, prize2nd:f2,
         thirdPrize:f3, prize3rd:f3,
         matchTime:mt,
-        roomId:ri,
-        roomPassword:rp,
-        roomStatus: (ri && rp) ? 'released' : 'pending',
-        roomReleaseMinutes: roomReleaseMin,
         isSpecial:sp,
         specialCategory:specialCat,
         matchSubType:matchSubType,
@@ -875,7 +872,30 @@ async function saveTournament(){
         creatorCode:((document.getElementById('tCreatorCode')||{}).value||'').toUpperCase().trim()||null,
         updatedAt:Date.now()
         /* ⛔ NO status field here — added conditionally below */
+        /* ⛔ NO roomId/roomPassword/roomStatus/roomReleaseMinutes yahan —
+           dekho neeche wala block (B6/B21 fix). */
       };
+
+      /* ✅ B6/B21 + room-release fix (2026-10-06):
+         (1) Match create/edit form me ab room creds ke visible field hi nahi
+             hain (secrets Room Manager se hi jaate hain). Purana code yahan
+             har edit par `roomStatus: (ri&&rp)?'released':'pending'` aur
+             `roomReleaseMinutes: 5` bhej deta tha — aur chuunki ri/rp khaali
+             hote hain, HAR EDIT released match ko wapas 'pending' kar deta
+             tha (aur admin ka chuna hua release time 5 min par reset kar deta
+             tha). User ko room ID phir der se/wapas band milti thi.
+         (2) Ab: creds sirf tab bheje jate hain jab asli value ho; warna ye
+             keys payload me hain hi nahi → partial update hone ki wajah se
+             DB me purani value (aur released state) jyon ki tyon rehti hai.
+         (3) Room ID/password write hone par `roomStatus` bhi 'released' hi
+             sahi hai (creds bhejne ka matlab hai admin ne naye creds diye). */
+      if(ri && rp){
+        updateData.roomId=ri;
+        updateData.roomPassword=rp;
+        updateData.roomStatus=(currentDbStatus==='resultPublished'||currentDbStatus==='cancelled')
+          ? updateData.roomStatus /* terminal match ka room status nahi chhedte */
+          : 'released';
+      }
       
       /* ── SMART STATUS DECISION ──
          Only recalculate status if matchTime ACTUALLY changed.
@@ -1009,11 +1029,14 @@ async function saveTournament(){
         roomId:ri,
         roomPassword:rp,
         roomStatus: (ri && rp) ? 'released' : 'pending',
+        /* ✅ B6/B21 (2026-10-06): `roomReleaseMinutes` yahan set nahi hota —
+           release ka time SIRF Room Manager se aata hai. Naye match ke liye DB
+           ka default (5 min) hi rehta hai, aur admin Room Manager me chips se
+           apne hisaab se badal leta hai. */
         isSpecial:sp,
         specialCategory:specialCat,
         matchSubType:matchSubType,
         tournamentFormat:tournamentFormat,
-        roomReleaseMinutes: roomReleaseMin,
         status:initialStatus,
         filledSlots:0,
         createdAt:Date.now()
