@@ -235,6 +235,17 @@ function runCheck() {
   if (REQ_IF_CHANGED && relevantChanges.length === 0) {
     log(`   ℹ️  इस commit में cacheable फ़ाइल नहीं बदली (${committedFiles.length} फ़ाइलें) — बम्प ज़रूरी नहीं`);
   }
+  /* ✅ FIX (2026-10-06): ek hi din me DOOSRI release par bhi stamp badalna
+     ZAROORI hai — warna nayi build purane stamp ke saath publish hoti hai
+     aur users ke WebView me purani cache hi serve hoti rehti hai (wahi
+     "fix lagta hi nahi" bimari). Isliye: is commit me cacheable files
+     badli hain aur stamp pichhle commit ke stamp jaisa hi hai → FAIL. */
+  if (REQ_IF_CHANGED && relevantChanges.length > 0) {
+    const hs = headStamp();
+    if (hs && hs === current) {
+      problems.push(`इस commit में cacheable फ़ाइलें बदली हैं पर स्टैम्प नहीं बढ़ा (${current} — पिछले commit jaisa hi) — same-day release me bhi bump zaroori hai`);
+    }
+  }
 
   if (!problems.length) {
     log(`\n✅ VERSION SYNC OK — स्टैम्प ${current} हर जगह एक जैसा` + (REQ_IF_CHANGED ? '' : `  |  CACHE_VER: ${swVars() ? swVars().cacheCount : '-'}`));
@@ -277,6 +288,9 @@ function bumpIfNeeded() {
   const stagedCacheable = stagedFiles.filter(isCacheable);
   const hs = headStamp();
   const alreadyBumped = !!hs && hs !== current;   // इस commit me pehle hi bump ho chuka
+  /* ✅ FIX (2026-10-06): same-day second release bhi bump karegi — dekho runCheck
+     me diya explanation. Yaani: cacheable changes staged + stamp == HEAD ka
+     stamp → bump. */
   const must = p.length > 0 || stale || (stagedCacheable.length > 0 && !alreadyBumped);
   if (!must) {
     log('\nℹ️  स्टैम्प पहले से ताज़ा/एक जैसा' + (alreadyBumped ? ` (इस commit में ${hs} → ${current} हो चुका)` : '') + ' — कुछ बदलना नहीं पड़ा');
