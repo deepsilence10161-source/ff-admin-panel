@@ -388,8 +388,15 @@ function _renderAppSettings() {
        hosted Sky Diamond match par). Single commission setting = SD %. */
     row('cvSDMatchComm',         '💎 SD Match Commission %',          ccVal('sdMatchCommissionPct',15), 'number', 'Hosted Sky Diamond match par user ke sky diamond spend ka X% creator ko ₹ payout queue mein jaayega (coin/GD matches par koi commission nahi)') +
     row('cvHoldDays',            '🔒 Commission Hold Days',           ccVal('commissionHoldDays',7),    'number', 'SD match commission itne din hold rahega payout ke pehle') +
-    row('cvMaxCreatorMatches',   '📋 Max Active Matches per Creator', ccVal('maxCreatorMatches',3),     'number', 'Creator ek saath kitne live/upcoming matches rakh sakta hai') +
-    row('cvMinFollowersSD',      '👥 Min Followers to Host SD Match', ccVal('minFollowersForSD',1000),  'number', 'Creator ne declare karne honge ≥ ye followers SD match ke liye');
+    /* ✅ B25 (2026-10-06): 'Min Followers to Host SD Match' row HATA di gayi.
+       Wajah: is setting ko poore app me KAHIN check hi nahi kiya jata tha
+       (na user panel me, na creator-match hosting me) — sirf value save hoti
+       thi aur user ke apne bayan (1k-5k dropdown) se koi taalluq nahi tha.
+       Yani admin ise badal kar kuch bhi control nahi kar sakta tha — aur
+       followers asli me verify karna mumkin bhi nahi. Isliye bekaar dava
+       dikhane se behtar hai row hi na ho. Baaki creator settings jaisi hain
+       waisi hi kaam karti hain. */
+    row('cvMaxCreatorMatches',   '📋 Max Active Matches per Creator', ccVal('maxCreatorMatches',3),     'number', 'Creator ek saath kitne live/upcoming matches rakh sakta hai');
 
   html += section('Creator Video System', 'fas fa-video', '#ff6b35',
     '<div style="font-size:11px;color:#888;margin-bottom:12px">Video sharing settings — Creators YouTube/Instagram links share karte hain, users earn karte hain</div>' + vidHtml
@@ -552,7 +559,6 @@ window.saveAppSettings = function() {
     sdMatchCommissionPct:  gn('cvSDMatchComm',15),
     commissionHoldDays:    gn('cvHoldDays',7),
     maxCreatorMatches:     gn('cvMaxCreatorMatches',3),
-    minFollowersForSD:     gn('cvMinFollowersSD',1000),
     updatedAt: Date.now(),
   };
 
