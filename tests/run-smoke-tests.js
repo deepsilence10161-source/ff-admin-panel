@@ -257,6 +257,12 @@ console.log('\n── TEST 8: B9/B10/B11 sponsored system (table, modal jagah, p
   ok(ss.indexOf('window.appConfirm') !== -1 && !/if \(!confirm\('Approve this sponsored withdrawal\?'\)\)/.test(ss),
      'B11: approve/reject native popup se azaad (app dialog)');
   ok(ss.indexOf('Payout ref') !== -1, 'B11: table me payout reference dikhta hai');
+  /* live E2E me pakda gaya: B13 wrapper resolve par row hata deta hai — isliye
+     cancel aur "reference nahi mila" dono par error-toast dena LAZMI hai. */
+  ok(/if \(!ok\) \{ if \(window\.showToast\) showToast\('\u23f8 Cancel kiya/.test(ss),
+     'B11: cancel par error-toast (B13 wrapper row ko galat nahi hatata)');
+  ok(ss.indexOf("Payout reference zaroori hai (UTR / UPI txn id) — approve nahi hua") !== -1,
+     'B11: reference-gayab par error-toast + saaf wajah');
 
   const br = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
   ok(br.indexOf('if (d.prizeType !== undefined) s.prize_type = d.prizeType;') !== -1,

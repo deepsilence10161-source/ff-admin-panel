@@ -81,13 +81,20 @@ function _initSponsoredWd() {
       var ok = window.appConfirm
         ? await window.appConfirm('₹' + _amt + ' ka sponsored prize withdrawal approve karna hai?\n\nUser ke UPI par paisa bhejne ke BAAD uska UTR / transaction id daalna hoga.', { icon: '💰', okText: 'Haan, aage badho' })
         : true;
-      if (!ok) return;
+      /* ⚠️ ZAROORI (live E2E me pakda gaya): B13 ka instant-action wrapper
+         (adm-fast-actions.js) har approve/reject handler ko wrap karta hai aur
+         promise RESOLVE hone par maan leta hai ki "kaam ban gaya" → row DOM se
+         hata deta hai. Error sirf tab pata chalta hai jab handler `showToast(msg,
+         true)` bulaye. Isliye cancel aur "reference nahi mila" — dono par error
+         toast dena LAZMI hai, warna row bina paisa bheje gayab ho jaati thi. */
+      if (!ok) { if (window.showToast) showToast('⏸ Cancel kiya — withdrawal pending hi hai (kuch nahi hua)', true); return; }
 
       var ref = window.appPrompt
         ? await window.appPrompt('Payout reference daalo (UTR / UPI transaction id — kam se kam 6 akshar):', '', { placeholder: 'e.g. 412345678901 / UPI-TXN-ID' })
         : '';
       ref = (ref || '').trim();
       if (ref.length < 6) {
+        if (window.showToast) showToast('❌ Payout reference zaroori hai (UTR / UPI txn id) — approve nahi hua', true);
         if (window.appAlert) window.appAlert('❌ Payout reference zaroori hai (kam se kam 6 akshar). Bina reference ke approve nahi hota — ye jaan-bujh kar lagaya gaya suraksha-niyam hai.', { icon: '⚠️' });
         return;
       }
