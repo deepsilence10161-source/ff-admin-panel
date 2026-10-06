@@ -2687,12 +2687,24 @@
     if (!_pendingCfgWrites.length) return false;
     if (_cfgAuthPending()) return false;           /* abhi bhi anon — ruko */
     var q = _pendingCfgWrites.slice(); _pendingCfgWrites.length = 0;
-    console.info('[Bridge] ' + q.length + ' queued app_settings write(s) ab chala rahe hain');
+    /* console.info kabhi-kabhi panel ke apne shim me dab jaata hai — info ke
+       saath warn bhi (E2E aur debugging dono me saaf dikhe). */
+    try { console.info('[Bridge] ' + q.length + ' queued app_settings write(s) ab chala rahe hain'); } catch (e) {}
+    console.warn('[Bridge] ' + q.length + ' queued app_settings write(s) ab chala rahe hain');
     var i = 0;
     (function next() {
       if (i >= q.length) return;
       var job = q[i++];
-      Promise.resolve().then(job.fn).then(next, function (e) {
+      /* supabase upsert ERROR ko reject nahi, {error} ke roop me resolve karta
+         hai — is liye dono raste dekhe jaate hain (live-testing me yahi chhupa
+         hua failure pakda gaya). */
+      Promise.resolve().then(job.fn).then(function (res) {
+        if (res && res.error) {
+          console.error('[Bridge] queued write FAILED: ' + job.path + ' — ' + res.error.message);
+          window.__cfgQueueFail = { path: job.path, msg: res.error.message, at: Date.now() };
+        }
+        next();
+      }, function (e) {
         console.error('[Bridge] queued write fail: ' + job.path, e && e.message);
         next();
       });
