@@ -296,6 +296,20 @@ console.log('\n── TEST 9: B5 notification/alerts timing settings se aate hai
   const _fnCode = _fnBody.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');  /* comments hata ke */
   ok(_fnCode.length > 100 && _fnCode.indexOf('.once(') === -1 && _fnCode.indexOf("eq('key', 'live_config')") !== -1,
      'B5: alert timings seedha Supabase live_config se aate hain (khaali appConfig root nahi)');
+}
+
+/* ── TEST 10: B18 — Seasonal League setting saaf/saral + user panel tak pahunche ── */
+console.log('\n── TEST 10: B18 Seasonal League (toggle + asli tareekh + ek hi save dono jagah) ──');
+{
+  const setSrc = fs.readFileSync(path.join(REPO, 'js/fa-app-settings-v2.js'), 'utf8');
+  ok(setSrc.indexOf("id=\"as_seasonActive\"") !== -1,
+     'B18: Season Active ab ON/OFF toggle (1/0 likhna khatam)');
+  ok(setSrc.indexOf("row('seasonEndDate'") !== -1 && setSrc.indexOf("row('seasonEndDays'") === -1,
+     'B18: "days from today" ki jagah ASLI tareekh (seasonEndDate)');
+  ok(setSrc.indexOf("_seasonDateHint") !== -1 && setSrc.indexOf('din baaki') !== -1,
+     'B18: admin ko live dikhta hai ki user ko kitne din baaki dikhenge');
+  ok(setSrc.indexOf("upsert({ key: 'currentSeason'") !== -1,
+     'B18: ek hi save live_config + currentSeason (user panel ki row) dono likhta hai');
 
   const br = fs.readFileSync(path.join(REPO, 'js/supabase-rtdb-bridge.js'), 'utf8');
   ok(br.indexOf('if (d.prizeType !== undefined) s.prize_type = d.prizeType;') !== -1,

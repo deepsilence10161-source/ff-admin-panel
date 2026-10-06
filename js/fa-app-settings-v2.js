@@ -189,10 +189,31 @@ function _renderAppSettings() {
     row('watchDailyLimitMins',   '📅 Daily limit (minutes)', val('watchDailyLimitMins',30),    'number', 'Din mein kitne min tak earn kar sakte hain')
   );
 
+  /* ✅ B18 (2026-10-07): ye section admin ko samajh hi nahi aata tha —
+     (a) "Season end (days from today)" har save par aaj se dobara ginta tha
+         (tareekh kabhi theek nahi baithti thi),
+     (b) "Season Active (1/0)" me 1/0 likhna padta tha (galat number bhi chal jaata),
+     (c) सबसे बड़ी बात: in settings ka USER PANEL par koi asar hi nahi tha —
+         user ki season ek ALAG row (app_settings.currentSeason) se aati thi,
+         jo 2026-09-08 se waisi hi padi thi (endDate: null ⇒ user ko jhoothi
+         "30 din baaki" dikhti thi).
+     Ab: naam + ON/OFF toggle + ASLI tareekh, aur ek hi save dono jagah
+     (live_config + currentSeason) likhta hai — dono panel ek hi sach dekhte hain. */
+  var _sEndMs = Number(val('seasonEndDate', 0)) || (Date.now() + (Number(val('seasonEndDays', 90)) || 90) * 86400000);
+  var _sEndD  = new Date(_sEndMs);
+  var _sEndVal = isNaN(_sEndD.getTime()) ? '' :
+        (_sEndD.getFullYear() + '-' + String(_sEndD.getMonth() + 1).padStart(2, '0') + '-' + String(_sEndD.getDate()).padStart(2, '0'));
   html += section('Seasonal League', 'fas fa-trophy', '#ffd700',
-    row('seasonName',      '🏆 Season Name',         val('seasonName','Season 1'),    'text',   'e.g. "Season 1" ya "Spring 2026"') +
-    row('seasonEndDays',   '📅 Season end (days from today)', val('seasonEndDays',90), 'number', 'Kitne din mein season khatam hoga') +
-    row('seasonActive',    '✅ Season Active (1/0)',   val('seasonActive',1),           'number', '1 = Active season, 0 = Off-season')
+    row('seasonName', '🏆 Season ka naam', val('seasonName','Season 1'), 'text', 'User panel (profile/rank screen) par yahi naam dikhta hai') +
+    '<div class="form-group" style="margin-bottom:10px">' +
+      '<label style="font-size:12px">📅 Season chal raha hai?</label>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-top:6px">' +
+        '<label class="toggle"><input type="checkbox" id="as_seasonActive" ' + ((Number(val('seasonActive',1)) !== 0) ? 'checked' : '') + '><span class="toggle-slider"></span></label>' +
+        '<span style="font-size:11px;color:#888">ON = season chalu (rank points gine jaate hain) · OFF = off-season</span>' +
+      '</div>' +
+    '</div>' +
+    row('seasonEndDate', '⏳ Season khatam hone ki tareekh', _sEndVal, 'date', 'Jab tak season chalu hai, ye tareekh user ko dikhti hai') +
+    '<div id="as_seasonLeft" style="font-size:11px;color:#00ff9c;margin:-4px 0 10px"></div>'
   );
 
   /* 1. EARN SETTINGS */
@@ -448,6 +469,8 @@ function _renderAppSettings() {
   if (cont) cont.innerHTML = html;
   /* ✅ B22: QR pehle se saved ho (data-URI ya link) to preview + info dikhao */
   try { if (window._manualPayQrHydrate) window._manualPayQrHydrate(); } catch (e) {}
+  /* ✅ B18: "kitne din baaki" live hint (tareekh badalte hi) */
+  try { if (window._seasonDateHint) window._seasonDateHint(); } catch (e) {}
   } catch (e) {
     /* ✅ BUG FIX (2026-09-17): "App Settings tab pe jaate hi crash" —
        this whole function had no try/catch, so any unexpected data
@@ -564,8 +587,23 @@ window.saveAppSettings = function() {
     watchIntervalMins:     gn('watchIntervalMins',1),
     watchDailyLimitMins:   gn('watchDailyLimitMins',30),
     seasonName:            document.getElementById('as_seasonName')&&document.getElementById('as_seasonName').value||'Season 1',
-    seasonEndDays:         gn('seasonEndDays',90),
-    seasonActive:          gn('seasonActive',1),
+    /* ✅ B18: ON/OFF toggle (1/0 likhne ki zaroorat khatam) */
+    seasonActive:          (function () { var el = document.getElementById('as_seasonActive'); return (el && el.checked) ? 1 : 0; })(),
+    /* ✅ B18: ASLI tareekh (local din ke aakhir tak) + backward-compat ke liye
+       din bhi (purane readers ke liye) */
+    seasonEndDate:         (function () {
+                              var el = document.getElementById('as_seasonEndDate');
+                              if (!el || !el.value) return null;
+                              var d = new Date(el.value + 'T23:59:59');
+                              return isNaN(d.getTime()) ? null : d.getTime();
+                            })(),
+    seasonEndDays:         (function () {
+                              var el = document.getElementById('as_seasonEndDate');
+                              if (!el || !el.value) return gn('seasonEndDays', 90);
+                              var d = new Date(el.value + 'T23:59:59');
+                              if (isNaN(d.getTime())) return gn('seasonEndDays', 90);
+                              return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000));
+                            })(),
     battlePassPrice:       gn('battlePassPrice',49),
     sdPackages: sdPkgs.length ? sdPkgs : null,
     /* ── Paytm Instant Checkout toggle ── */
@@ -651,7 +689,24 @@ window.saveAppSettings = function() {
       /* ✅ B24: video_moderation upsert hata; sirf creator_system bacha */
       var p3 = window._supa.from('app_settings')
         .upsert({ key: 'creator_system', value: creatorSystemConfig, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-      return Promise.all([p2, p3]);
+      /* ✅ B18: user panel ki season row (app_settings.currentSeason) bhi isi
+         save se update — pehle wo hamesha ke liye padi rehti thi aur admin ki
+         koi bhi season setting user tak pahunchti hi nahi thi. Purane
+         seasonNum/id barqarar rehte hain (read-modify-write). */
+      var p4 = window._supa.from('app_settings').select('value').eq('key', 'currentSeason').limit(1)
+        .then(function (cur) {
+          var old = (cur && cur.data && cur.data[0] && cur.data[0].value) || {};
+          var _end = config.seasonEndDate ? new Date(config.seasonEndDate).toISOString() : null;
+          var row = Object.assign({}, old, {
+            name:      config.seasonName || 'Season 1',
+            active:    Number(config.seasonActive) !== 0,
+            endDate:   _end,
+            seasonNum: Number(old.seasonNum) || 1
+          });
+          return window._supa.from('app_settings')
+            .upsert({ key: 'currentSeason', value: row, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        }, function () { return null; });
+      return Promise.all([p2, p3, p4]);
     })
     .then(function(results) {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
@@ -667,6 +722,25 @@ window.saveAppSettings = function() {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
       if (window.showToast) showToast('Error: ' + (e.message || e), true);
     });
+};
+
+/* ✅ B18 — "kitne din baaki" live hint (tareekh badalte hi update) */
+window._seasonDateHint = function () {
+  var el = document.getElementById('as_seasonEndDate');
+  var box = document.getElementById('as_seasonLeft');
+  if (!el || !box) return;
+  function upd() {
+    if (!el.value) { box.textContent = '⚠️ Koi tareekh nahi chuni — user ko season ka ant nahi dikhega'; box.style.color = '#ffb84d'; return; }
+    var d = new Date(el.value + 'T23:59:59');
+    if (isNaN(d.getTime())) { box.textContent = '⚠️ Tareekh samajh nahi aayi'; box.style.color = '#ff6b6b'; return; }
+    var days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+    box.textContent = days > 0
+      ? '👀 User ko dikhega: ' + days + ' din baaki (khatam: ' + d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) + ')'
+      : '⛔ Ye tareekh nikal chuki hai (season khatam dikhega)';
+    box.style.color = days > 0 ? '#00ff9c' : '#ff6b6b';
+  }
+  el.onchange = upd; el.oninput = upd;
+  upd();
 };
 
 /* SD Package add/remove */
