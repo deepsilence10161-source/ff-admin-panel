@@ -546,3 +546,34 @@ tr:hover td {
   .section-header h2, .section-title { font-size: 17px; }
   .card-body, .section { padding-left: 10px; padding-right: 10px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ✅ B32b (2026-10-08) — Mobile sweep ke do asli bug (phone par कटे हुए UI)
+   ══════════════════════════════════════════════════════════════════════════
+   1) SUPPORT CHAT: 390px phone par #waChatSidebar 475px chauda ban raha tha
+      (viewport 390) aur uske right ka ~96px KAT jata tha — yaani user-list ke
+      naam/waqt ka hissa gayab. Wajah: .wa-chat-container ka mobile rule
+      `grid-template-columns: 1fr` tha, aur CSS grid me `1fr` = `minmax(auto,1fr)`
+      hota hai — agar andar ke content ki min-content width badi ho (lamba IGN,
+      nowrap naam) to track apne aap faila deta hai; container par overflow:hidden
+      hone se bahar ka hissa chup-chaap kat jata hai. Fix: track ko
+      `minmax(0, 1fr)` karo (ye content ko shrink hone deta hai) + items par
+      min-width:0, aur naam ke liye dakhal-truncate.
+   2) MATCH RESULT ka 'Clear' button (padding 5px 10px, .btn class ke bina) aur
+      users table me UID copy wali 9px ki chhoti line — dono tap karne me bahut
+      chhote the (24px / 10px). Ab mobile par dono ka tap-area bada.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .wa-chat-container { grid-template-columns: minmax(0, 1fr) !important; }
+  .wa-chat-sidebar, .wa-chat-main { min-width: 0 !important; max-width: 100% !important; }
+  .wa-chat-list-item, .wa-chat-list-item * { min-width: 0 !important; }
+  .wa-chat-sidebar .text-ellipsis, .wa-chat-sidebar [class*="name"] {
+    overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
+  }
+}
+@media (max-width: 720px) {
+  /* .btn class ke bina chhote buttons (jaise Match Result ka 'Clear') */
+  .section button, .card button, .filter-tabs button { min-height: 32px; }
+  /* table ke andar click-wali chhoti text-lines (UID copy 📋) */
+  table td [onclick] { display: inline-block; min-height: 26px; padding-top: 4px; padding-bottom: 4px; }
+}
