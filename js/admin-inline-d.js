@@ -1376,7 +1376,20 @@ async function saveSpectateLink(){try{await rtdb.ref('appSettings/spectateLink')
 /* =============================================
    VOUCHERS
    ============================================= */
-async function loadVouchers(){try{var s=await rtdb.ref(DB_VOUCHERS).once('value');var t=document.getElementById('vouchersTable');t.innerHTML='';s.forEach(function(c){var v=c.val();t.innerHTML+='<tr><td class="font-bold text-primary">'+v.code+'</td><td>₹'+v.value+'</td><td>'+(v.usedCount||0)+'</td><td>'+v.maxUses+'</td><td><button class="btn btn-danger btn-xs" onclick="deleteVoucher(\''+c.key+'\')"><i class="fas fa-trash"></i></button></td></tr>';});}catch(e){}}
+async function loadVouchers(){try{var s=await rtdb.ref(DB_VOUCHERS).once('value');var t=document.getElementById('vouchersTable');t.innerHTML='';s.forEach(function(c){var v=c.val();
+  /* ✅ FIX (live-testing 2026-10-07, "₹undefined" bug): is table me pehle
+     seedha `'₹'+v.value` likha tha. Do jagah se voucher bante hain —
+     (a) purana createVoucher() {code,value,maxUses} aur
+     (b) Voucher Manager ka window._createVoucher() {rewardType,rewardAmount,...}.
+     Manager wale vouchers me `value` field hota HI nahi, isliye un sab par
+     ghalat "₹undefined" dikhta tha (aur coins-voucher bhi ghalat ₹ me). Ab
+     dono schema padhe jaate hain — asli type/amount jo bhi mile, wahi dikhta
+     hai; kuch bhi na mile to "—". */
+  var _amt = (v.value != null) ? v.value : (v.rewardAmount != null ? v.rewardAmount : null);
+  var _type = (v.rewardType || (v.value != null ? 'money' : 'coins')).toString().toLowerCase();
+  var _valLabel = (_amt == null) ? '—' : ((_type === 'coins' && v.value == null) ? '🪙 ' + _amt : '₹' + _amt);
+  var _max = (v.maxUses == null || v.maxUses === 0) ? '∞' : v.maxUses;
+  t.innerHTML+='<tr><td class="font-bold text-primary">'+(v.code||c.key)+'</td><td>'+_valLabel+'</td><td>'+(v.usedCount||0)+'</td><td>'+_max+'</td><td><button class="btn btn-danger btn-xs" onclick="deleteVoucher(\''+c.key+'\')"><i class="fas fa-trash"></i></button></td></tr>';});}catch(e){}}
 async function createVoucher(){var cd=document.getElementById('voucherCode').value.trim().toUpperCase(),vl=Number(document.getElementById('voucherValue').value)||0,mx=Number(document.getElementById('voucherMaxUses').value)||100;if(!cd||!vl)return showToast('Code & value required',true);try{await rtdb.ref(DB_VOUCHERS).push({code:cd,value:vl,maxUses:mx,usedCount:0,createdAt:Date.now()});document.getElementById('voucherCode').value='';document.getElementById('voucherValue').value='';document.getElementById('voucherMaxUses').value='';showToast('Created!');loadVouchers();}catch(e){showToast('Error: '+e.message,true);}}
 async function deleteVoucher(id){if(!confirm('Delete?'))return;try{await rtdb.ref(DB_VOUCHERS+'/'+id).remove();showToast('Deleted');loadVouchers();}catch(e){showToast('Error: '+e.message,true);}}
 
