@@ -500,8 +500,8 @@ console.log('\n── TEST 16: B32 mobile tap-targets + responsive block ──'
   ok(css.indexOf('@media (max-width: 720px)') !== -1,
      'B32: chhoti screen ke liye @media block maujood (pehle ek bhi media query nahi thi)');
   const mob = css.slice(css.indexOf('@media (max-width: 720px)'));
-  ok(/table button[^{]*\{[^}]*min-height:\s*34px/.test(mob),
-     'B32: table ke buttons ka min-height 34px (pehle 22-27px = ungli ke liye bahut chhote)');
+  ok(/table button[^{]*\{[^}]*min-height:\s*38px\s*!important/.test(mob),
+     'B32: table ke buttons ka min-height 38px !important (base CSS ka 26px chhote tap-target se bachne ke liye)');
   ok(/input, select, textarea[^{]*\{[^}]*font-size:\s*16px/.test(mob),
      'B32: mobile par input/select ka font 16px (iOS ka auto-zoom band)');
   ok(mob.indexOf('scrollbar-width: thin') !== -1 && mob.indexOf('::-webkit-scrollbar') !== -1,

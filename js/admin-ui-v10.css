@@ -506,10 +506,13 @@ tr:hover td {
    ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 720px) {
   /* 1) Tap targets — table/dense area ke saare buttons thoda bade */
+  /* ⚠️ base CSS me .btn{min-height:26px} hai — is liye yahan !important zaroori hai,
+     warna mobile par bhi 26px hi rehta (live probe: computed min-height 26px dikha raha tha). */
   table button, .table-wrapper button, .btn, button.btn-ghost, .btn-xs {
-    min-height: 34px;
-    padding-top: 7px;
-    padding-bottom: 7px;
+    min-height: 38px !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+    font-size: 13px !important;
   }
   /* icon-only buttons ka click-area bhi bada */
   .table-wrapper button i, table button i { padding: 2px 1px; }
