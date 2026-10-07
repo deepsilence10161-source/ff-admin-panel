@@ -677,22 +677,40 @@ window.saveAppSettings = function() {
      Isliye ab save se pehle DB ki current value padhi jaati hai aur
      max() rakha jaata hai. Select fail ho jaye to bhi save rukta nahi
      (bina guard ke normal save chalta hai). */
-  function _upsertLive() {
+  /* ✅ FIX (gehri audit, 2026-10-07) — LIVE_CONFIG KA SILENT WIPE:
+     Pehle ye save poori live_config ko is form ke object se REPLACE kar deta tha
+     (upsert → value = config). Iska matlab: jo key is payload me nahi hai, wo
+     save par CHUP-CHAAP delete ho jaati thi. Live me bilkul yahi hua — B24/B26
+     migration ne live_config me `dailyBonusRewards` + marker `dailyBonusRewardsLive`
+     daale the, aur in dono ko is Save ne uda diya (DB me aaj dono gayab the),
+     jisse admin ka Daily Bonus Editor bekaar ho gaya tha (client marker na dekh kar
+     purane constants dikhata, jabki server config padhta hai = UI vs server ka
+     mismatch). Ab: current row ko BASE bana kar uske upar form ki values chadhati
+     hain (read-modify-write) — yani is form se bahar ki koi bhi key zinda rehti hai.
+     Sirf woh keys jaan-bujh kar hataayi jaati hain jo features ke saath poori tarah
+     mar chuki hain (neeche list), warna purane kachre rows me pade rehte. */
+  var _DEAD_CFG_KEYS = ['checkinCoins', 'checkinStreakBonus7', 'shareCoins', 'commission',
+                        'checkInEnabled', 'checkInOpenMins', 'checkInCloseMins',
+                        'videoModeration', 'bannedKeywords'];
+  function _upsertLive(mergedValue) {
+    var _val = mergedValue || config;
+    _DEAD_CFG_KEYS.forEach(function (k) { try { delete _val[k]; } catch (e) {} });
     return window._supa.from('app_settings')
-      .upsert({ key: 'live_config', value: config, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      .upsert({ key: 'live_config', value: _val, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   }
 
   window._supa.from('app_settings').select('value').eq('key', 'live_config').limit(1)
     .then(function(_cur) {
+      var _row = (_cur && _cur.data && _cur.data[0]) || null;
       try {
-        var _row   = (_cur && _cur.data && _cur.data[0]) || null;
         var _dbVer = _row && _row.value && _row.value.appLatestVersion;
         if (_dbVer && _verCmp(config.appLatestVersion, _dbVer) < 0) {
           config.appLatestVersion = _dbVer;
           if (window.showToast) showToast('🤖 Latest Version auto-managed hai — ' + _dbVer + ' hi rakha gaya', false);
         }
       } catch (e) { /* compare fail → jaisa hai waisa save */ }
-      return _upsertLive();
+      var _merged = Object.assign({}, (_row && _row.value) || {}, config);
+      return _upsertLive(_merged);
     }, function() { return _upsertLive(); })
     .then(function(r1) {
       if (r1.error) throw r1.error;

@@ -261,6 +261,15 @@
       .then(function (r) {
         var val = (r && r.data && r.data[0] && r.data[0].value) || {};
         val.dailyBonusRewards = data;
+        /* ✅ FIX (gehri audit, 2026-10-07): marker bhi yahin set karta hai.
+           User panel sirf tab in values ko lagata hai jab `dailyBonusRewardsLive`
+           true ho (warna wo purane server constants dikhata hai — B26 ka jaan-bujh kar
+           lagaya gate, taki UI jhooth na bole). Pehle ye marker sirf ek migration
+           set karti thi — aur admin ke Settings-Save ne (poora value replace karke)
+           use uda diya tha, jisse editor "connected" dikhne ke baad bhi bekaar ho
+           gaya tha. Ab editor khud marker lagata hai + Settings-Save bhi
+           read-modify-write hai, to ye kabhi chup-chaap nahi tootega. */
+        val.dailyBonusRewardsLive = true;
         return window._supa.from('app_settings')
           .update({ value: val, updated_at: new Date().toISOString() })
           .eq('key', 'live_config');
