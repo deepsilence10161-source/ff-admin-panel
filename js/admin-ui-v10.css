@@ -578,5 +578,5 @@ tr:hover td {
   /* .btn class ke bina chhote buttons (jaise Match Result ka 'Clear') */
   .section button, .card button, .filter-tabs button { min-height: 32px; }
   /* table ke andar click-wali chhoti text-lines (UID copy 📋) */
-  table td [onclick] { display: inline-block; min-height: 26px; padding-top: 4px; padding-bottom: 4px; }
+  table td [onclick] { display: inline-block; min-height: 30px; padding-top: 6px; padding-bottom: 6px; }
 }
