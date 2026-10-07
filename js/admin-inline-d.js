@@ -384,7 +384,10 @@ function renderSupportChatList(filterQuery) {
     var ts = u.lastTime ? formatChatTime(u.lastTime) : (u.ffUid ? ('FF: ' + eh(u.ffUid)) : 'Player');
     var isImgUrl = u.avatarUrl && /^https?:\/\//i.test(String(u.avatarUrl).trim());
     var avatarHtml = isImgUrl
-      ? '<div class="wa-avatar"><img src="' + eh(u.avatarUrl) + '" alt="" onerror="this.style.display=\'none\'"></div>'
+      /* ✅ B30 (2026-10-08): pehle CSP/kharab image par sirf img chhup jati thi aur
+         avatar ka gol dayra KHAALI dikhta tha (kuch bhi nahi). Ab fallback me IGN ka
+         pehla akshar wapas aa jata hai — data-ini me pehle se escaped akshar rakha hai. */
+      ? '<div class="wa-avatar"><img src="' + eh(u.avatarUrl) + '" alt="" data-ini="' + eh(ini) + '" onerror="this.style.display=\'none\';try{this.parentNode.textContent=this.getAttribute(\'data-ini\')||\'?\'}catch(e){}"></div>'
       : '<div class="wa-avatar">' + eh(ini) + '</div>';
 
     var tickHtml = u.lastSender === 'admin'
@@ -450,7 +453,8 @@ function openChat(uid) {
   var ini = (un || uid || 'P').charAt(0).toUpperCase();
   var isImgUrl = cd.avatarUrl && /^https?:\/\//i.test(String(cd.avatarUrl).trim());
   var avatarHtml = isImgUrl
-    ? '<div class="wa-avatar" style="width:38px!important;height:38px!important;font-size:14px!important"><img src="' + eh(cd.avatarUrl) + '" alt="" onerror="this.style.display=\'none\'"></div>'
+    /* ✅ B30: same fallback — image block ho to akshar dikhe, khaali dayra nahi */
+    ? '<div class="wa-avatar" style="width:38px!important;height:38px!important;font-size:14px!important"><img src="' + eh(cd.avatarUrl) + '" alt="" data-ini="' + eh(ini) + '" onerror="this.style.display=\'none\';try{this.parentNode.textContent=this.getAttribute(\'data-ini\')||\'?\'}catch(e){}"></div>'
     : '<div class="wa-avatar" style="width:38px!important;height:38px!important;font-size:14px!important">' + eh(ini) + '</div>';
 
   var qEl = document.getElementById('chatSearchInput');
