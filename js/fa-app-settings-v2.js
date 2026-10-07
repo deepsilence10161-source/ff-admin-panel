@@ -715,7 +715,13 @@ window.saveAppSettings = function() {
     .then(function(r1) {
       if (r1.error) throw r1.error;
       _AS = config;
-      /* ✅ B24: video_moderation upsert hata; sirf creator_system bacha */
+      /* ✅ B24: video_moderation upsert hata; sirf creator_system bacha.
+         ⚠️ 2026-10-07 fix: pehle yahan `var p3` tha par neeche Promise.all me
+         [p2, p3, p4] likha reh gaya tha (p2 kabhi define hi nahi hua) →
+         poore save par ReferenceError: p2 is not defined aata tha, isliye
+         "Settings saved!" toast kabhi nahi dikhta tha (DB write ho jaati thi
+         par user ko hamesha error milta tha). Ab sirf define kiye gaye
+         promises hi all() me jaate hain. */
       var p3 = window._supa.from('app_settings')
         .upsert({ key: 'creator_system', value: creatorSystemConfig, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       /* ✅ B18: user panel ki season row (app_settings.currentSeason) bhi isi
@@ -735,7 +741,7 @@ window.saveAppSettings = function() {
           return window._supa.from('app_settings')
             .upsert({ key: 'currentSeason', value: row, updated_at: new Date().toISOString() }, { onConflict: 'key' });
         }, function () { return null; });
-      return Promise.all([p2, p3, p4]);
+      return Promise.all([p3, p4]);
     })
     .then(function(results) {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save All Settings'; }
