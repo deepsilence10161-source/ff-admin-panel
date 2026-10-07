@@ -86,6 +86,7 @@
   function _show(mode, message, opts) {
     _build();
     _mode = mode; _opts = opts || {};
+    _shimFlow = !!_opts._shim;
     _open = true;
     var ov = document.getElementById('_appDlgOv');
     document.getElementById('_appDlgIcon').textContent = _opts.icon ||
@@ -114,7 +115,7 @@
   function _answer(yes) {
     if (!_open) return;
     var val = document.getElementById('_appDlgIn').value;
-    var mode = _mode, res = _resolve, opts = _opts;
+    var mode = _mode, res = _resolve, opts = _opts, shim = _shimFlow;
     _resolve = null;
     _hide();
     if (res) {
@@ -125,10 +126,16 @@
       if (!yes && typeof opts.onNo === 'function') opts.onNo();
     } catch (e) { console.warn('[AppDialog] callback fail:', e && e.message); }
     if (yes) {
-      _q.push({ mode: mode, v: (mode === 'prompt' ? val : true) });   /* jawab yaad rakho */
-      _startReplay();                                                /* wahi button dobara, jawab sath */
+      /* ✅ BUG FIX (2026-10-08): sirf SURAKSHA-JAAL wale dialog ka jawab
+         yaad rakho aur wahi button dobara chalao. Seedhe
+         appConfirm/appPrompt (promise andaaz) ka jawab purani queue me
+         ghusne se wo kisi purane button ko dobara chala deta tha. */
+      if (shim) {
+        _q.push({ mode: mode, v: (mode === 'prompt' ? val : true) }); /* jawab yaad rakho */
+        _startReplay();                                              /* wahi button dobara, jawab sath */
+      }
     } else {
-      _q = []; _cur = 0; _replay = null;                             /* cancel — kuch nahi, saaf */
+      _q = []; _cur = 0; _replay = null; _shimFlow = false;          /* cancel — kuch nahi, saaf */
     }
   }
 
@@ -171,6 +178,13 @@
      "Cancel" dabane par kuch nahi hota (bilkul native jaisa) aur queue
      saaf ho jati hai, taki agli baar button dabane par fresh shuru ho. */
   var _q = [], _cur = 0, _bypass = false, _replaying = false, _replay = null;
+  /* ✅ BUG FIX (2026-10-08, live E2E): ye dialog kis type ka hai —
+     (a) purane native confirm()/prompt()/alert() ki jagah (SURAKSHA-JAAL, _shim),
+         to jawab yaad rakhna + wahi button dobara chalana THEEK hai;
+     (b) seedha window.appConfirm/appPrompt/appAlert (promise andaaz) —
+         iska jawab queue me nahi ghusna chahiye (warna purana button
+         apne aap dobara chal jata tha = duplicate action ka khatra). */
+  var _shimFlow = false;
 
   function _nextQueued(mode) {
     var e = _q[_cur];
@@ -211,7 +225,21 @@
     var el = (t && t.closest && !inDlg)
       ? t.closest('[onclick], button, a, .nav-item, .filter-tab, .tab') : null;
     if (el) window.__appDialogLastEl = el;
-    if (!_replaying && !_bypass && !inDlg) { _q = []; _cur = 0; }
+    /* ⚠️ BUG FIX (2026-10-08, live E2E me pakda gaya): pehle yahan
+       `!_bypass` bhi shart thi. Lekin ek flow poora hone ke baad _bypass
+       TRUE hi reh jata hai (usko reset karne wala 1.8s wala timer sirf
+       window.__appDialogBypass ko chhoota hai), is liye agli ASLI click
+       par purani queue saaf hoti hi nahi thi.
+       Asli asar (admin panel, live): Ban (prompt+confirm) ke baad Unban
+       (sirf confirm) — “Unban?” dialog baar-baar khulta rehta tha, OK
+       dabane par kuch nahi hota tha, DB me is_banned=true hi padi rehti
+       thi (page reload ke bina chhutkara nahi).
+       Ab: asli user ke click (isTrusted) par HAMESHA saaf — replay ke
+       andar ke apne-aap wale clicks par kabhi nahi (_replaying true rehta hai). */
+    var _asliUserClick = !!(e && e.isTrusted);
+    if (!inDlg && !_replaying && (_asliUserClick || !_bypass)) {
+      _q = []; _cur = 0; _bypass = false; _shimFlow = false;
+    }
   }, true);
 
   function _replayFromLastEl() {
@@ -220,39 +248,59 @@
     return null;
   }
 
+  /* ⚠️ BUG FIX (2026-10-08): queue me is soorten ka jawab na mila = nayi
+     shakh. Tab recording theek karo:
+       • replay ke ANDAR (isi flow ka aage ka hissa, jaise Ban me reason
+         ke baad “pakka?”) → sirf utne jawab rakho jitne sach me kharch
+         hue (_cur tak); baaki bekaar hain;
+       • warna (bilkul naya flow) → poori queue saaf.
+     Pehle yahan sirf _bypass=false hota tha aur purane jawab queue me
+     pade rehte the — is liye agla plain confirm unse takra kar phir “nayi
+     shakh” maan leta tha: infinite “OK dabao, wahi dialog phir” loop. */
+  function _shimBranchReset() {
+    if (_replaying) { _q = _q.slice(0, _cur); } else { _q = []; _cur = 0; }
+    _bypass = false;
+  }
+
   var _nativeAlert = window.alert, _nativeConfirm = window.confirm, _nativePrompt = window.prompt;
   window.alert = function (msg) {
-    if (_bypass) {                 /* replay ke dauran alert chup-chaap nigal lo */
-      var r = _nextQueued('alert');
-      if (r.hit) return;
-      _bypass = false;
-    }
+    /* ✅ BUG FIX (2026-10-08, live-testing): alert ka jawab flow ke natije ko
+       badalta nahi — is liye ise na queue me likho, na apne-aap-replay karo.
+       Pehle aisa hota tha, aur uski wajah se "kaam ke baad ka alert"
+       (jaise confirm → delete → alert('Delete ho gaya')) poore action ko
+       DOBARA chala deta tha — yani delete/credit DO baar! (Live E2E me pakda
+       gaya.) Ab: replay ke dauran, jab user wahi alert pehle hi dekh chuka
+       hai, chup-chaap nikal jata hai; warna app-UI me saaf dikhta hai. */
+    if (_bypass) return;
+    _shimFlow = false;
     window.appAlert(msg, { icon: 'ℹ️' });
   };
   window.confirm = function (msg) {
     if (_bypass) {
       var r = _nextQueued('confirm');
       if (r.hit) return !!r.v;
-      _bypass = false;             /* nayi shakh — app-UI me poocho */
+      _shimBranchReset();          /* nayi shakh — app-UI me poocho */
     }
     _replay = _replayFromLastEl();
-    window.appConfirm(msg, { icon: '⚠️' });
+    _shimFlow = true;
+    window.appConfirm(msg, { icon: '⚠️', _shim: true });
     return false;                  /* natija dialog se (replay ke zariye) */
   };
   window.prompt = function (msg, def) {
     if (_bypass) {
       var r = _nextQueued('prompt');
       if (r.hit) return r.v;
-      _bypass = false;
+      _shimBranchReset();          /* nayi shakh — app-UI me poocho */
     }
     _replay = _replayFromLastEl();
-    window.appPrompt(msg, def || '', {});
+    _shimFlow = true;
+    window.appPrompt(msg, def || '', { _shim: true });
     return null;
   };
 
   /* E2E/debug ke liye — kis waqt kaun sa jawab line me hai, ye dikhata hai */
   window.__appDialogState = function () {
-    return { q: _q.slice(), cur: _cur, bypass: _bypass, replaying: _replaying,
+    return { q: _q.slice(), cur: _cur, bypass: _bypass, replaying: _replaying, shim: _shimFlow,
              lastEl: window.__appDialogLastEl ? (window.__appDialogLastEl.id || window.__appDialogLastEl.className || '?') : null };
   };
   window._appDialogNatives = { alert: _nativeAlert, confirm: _nativeConfirm, prompt: _nativePrompt };
