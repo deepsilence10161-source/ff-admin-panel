@@ -998,9 +998,16 @@ window._v10CopyIGNs = function (matchId) {
       });
       if (!igns.length) { toast('Koi present player nahi', true); return; }
       var text = igns.join('\n');
-      if (navigator.clipboard) {
+      /* ✅ B31: pehle sirf .then tha — clipboard reject hone par (permission
+         denied / page background) admin ko koi feedback hi nahi milta tha. Ab
+         copyText(): pehle clipboard, na chale to execCommand fallback, warna
+         saaf error toast. */
+      if (window.copyText) {
+        copyText(text, '✅ ' + igns.length + ' IGNs copied!');
+      } else if (navigator.clipboard) {
         navigator.clipboard.writeText(text)
-          .then(function () { toast('✅ ' + igns.length + ' IGNs copied!'); });
+          .then(function () { toast('✅ ' + igns.length + ' IGNs copied!'); },
+                function () { toast('Copy nahi ho paya — dobara try karo', true); });
       } else {
         /* Fallback */
         var ta = document.createElement('textarea');

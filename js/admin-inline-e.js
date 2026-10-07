@@ -1265,7 +1265,7 @@ window.loadPremiumReqSection = async function() {
       var utr = r.utr || '';
       if (utr) {
         h += '<td><span style="font-family:monospace;font-size:11px;color:#00ff9c;background:rgba(0,255,156,.08);padding:3px 7px;border-radius:6px">' + utr + '</span>' +
-             ' <button class="btn btn-ghost btn-xs" title="Copy UTR" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + utr + '\');showToast(\'📋 UTR copy ho gaya\')"><i class="fas fa-copy"></i></button> ' +
+             ' <button class="btn btn-ghost btn-xs" title="Copy UTR" onclick="window.copyText&&copyText(\'' + utr + '\'),\'📋 UTR copy ho gaya\')"><i class="fas fa-copy"></i></button> ' +
              '<button class="btn btn-ghost btn-xs" title="UTR badlo" onclick="window._editPremiumUtr(\'' + id + '\',\'' + utr + '\')"><i class="fas fa-pen"></i></button></td>';
       } else {
         h += '<td><span class="text-muted text-xxs">—</span> ' +

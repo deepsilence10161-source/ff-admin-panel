@@ -426,6 +426,38 @@ console.log('\n── TEST 13: B22 New Season (dead native-prompt button → app
      'B22: RPC bilkul wahi keys/shape likhta hai jo admin Settings (B18) likhta hai (ek hi sach)');
 }
 
+/* ── TEST 14: B31 — copy buttons ab chup-fail nahi hote (copyText helper) ── */
+console.log('\n── TEST 14: B31 copy-buttons (clipboard fail par bhi feedback) ──');
+{
+  const dlg = fs.readFileSync(path.join(REPO, 'js/app-dialog.js'), 'utf8');
+  ok(dlg.indexOf('window.copyText = function') !== -1,
+     'B31: window.copyText public helper maujood hai (ek jagah se copy)');
+  ok(dlg.indexOf('navigator.clipboard.writeText(t).then(done, fail)') !== -1,
+     'B31: clipboard reject hone par bhi fail() chalta hai (sirf .then nahi)');
+  ok(dlg.indexOf("_fallbackCopy(t)") !== -1 && dlg.indexOf("execCommand('copy')") !== -1,
+     'B31: clipboard API na chale to chhupa textarea + execCommand fallback');
+  ok(dlg.indexOf('Copy nahi ho paya') !== -1,
+     'B31: dono raaste fail ho jayen to saaf ERROR toast (chup nahi)');
+  const files = ['js/admin-inline-b.js', 'js/admin-fixes-v7.js', 'js/admin-inline-e.js'];
+  let purane = 0;
+  files.forEach(f => {
+    const t = fs.readFileSync(path.join(REPO, f), 'utf8');
+    purane += (t.match(/navigator\.clipboard(&&navigator\.clipboard)?\.writeText\(/g) || []).length;
+  });
+  ok(purane === 0, 'B31: 3 files me purane seedhe clipboard.writeText call khatam (mila: ' + purane + ')');
+  const v7 = fs.readFileSync(path.join(REPO, 'js/admin-fixes-v7.js'), 'utf8');
+  ok(v7.indexOf('window.copyText&&copyText(') !== -1 && v7.indexOf("showToast('Copied!')") === -1,
+     'B31: Copy Message button ab copyText se, purana .then-only toast gaya');
+  const inE = fs.readFileSync(path.join(REPO, 'js/admin-inline-e.js'), 'utf8');
+  const utrBtn = inE.slice(inE.indexOf('Copy UTR'), inE.indexOf('Copy UTR') + 180);
+  ok(utrBtn.indexOf('window.copyText&&copyText(') !== -1 && utrBtn.indexOf(';showToast(') === -1,
+     'B31: UTR copy pehle bina copy hue bhi success toast dikhata tha — ab asli nateeja');
+  const fa10 = fs.readFileSync(path.join(REPO, 'js/fa-admin-v10-final.js'), 'utf8');
+  const clip = fa10.slice(fa10.indexOf('window._v10CopyIGNs'));
+  ok(clip.indexOf('if (window.copyText)') !== -1 && clip.indexOf('function () { toast(\'Copy nahi ho paya') !== -1,
+     'B31: IGN-list copy par bhi reject/fallback ka raasta maujood hai');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }

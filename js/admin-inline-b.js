@@ -756,7 +756,7 @@ function renderProfileRequests(snap){
     var _eh=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
     tb.innerHTML+='<tr>'+
       /* Col 1: User Name */
-      '<td style="white-space:nowrap"><div style="font-size:13px;font-weight:800">'+_eh(displayName)+'</div><div class="font-mono text-xxs" style="color:var(--info);cursor:pointer;margin-top:2px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+_eh(uid)+'\').then(function(){showToast(\'UID copied!\')})">'+_eh(uid.substring(0,14))+'... <i class="fas fa-copy" style="font-size:8px"></i></div><div class="font-mono text-xxs" style="color:var(--primary);margin-top:1px">FF: '+_eh(currentUser.ffUid||d.ffUid||'—')+'</div></td>'+
+      '<td style="white-space:nowrap"><div style="font-size:13px;font-weight:800">'+_eh(displayName)+'</div><div class="font-mono text-xxs" style="color:var(--info);cursor:pointer;margin-top:2px" onclick="window.copyText&&copyText(\''+_eh(uid)+'\'),\'📋 UID copied!\')">'+_eh(uid.substring(0,14))+'... <i class="fas fa-copy" style="font-size:8px"></i></div><div class="font-mono text-xxs" style="color:var(--primary);margin-top:1px">FF: '+_eh(currentUser.ffUid||d.ffUid||'—')+'</div></td>'+
       /* Col 3: Requested IGN — the IGN user wants */
       '<td><div class="proposed-val"><i class="fas fa-gamepad"></i> '+_eh(proposedIgn)+'</div><div class="text-xxs text-muted mt-1">Will be set as IGN</div></td>'+
       /* Col 4: Requested FF UID — the FF UID user wants */
@@ -1122,7 +1122,7 @@ function renderProfileUpdates(snap){
       /* Col 1: User Name */
       '<td><strong class="text-sm">'+displayName+'</strong>'+requestCountBadge+uidChangeBadge+'<div class="text-xxs text-muted mt-1"><i class="fas fa-user-shield" style="font-size:8px;color:var(--primary)"></i> Verified User</div>'+paymentProofHtml+'</td>'+
       /* Col 2: User UID — FULL, always visible */
-      '<td><div class="font-mono text-xxs" style="color:var(--info);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;cursor:pointer" title="Click to copy" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+uid+'\').then(function(){showToast(\'UID copied!\')})">'+uid+'</div><div class="text-xxs text-muted mt-1"><i class="fas fa-copy" style="font-size:8px;opacity:.5;margin-left:3px"></i></div></td>'+
+      '<td><div class="font-mono text-xxs" style="color:var(--info);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;cursor:pointer" title="Click to copy" onclick="window.copyText&&copyText(\''+uid+'\'),\'📋 UID copied!\')">'+uid+'</div><div class="text-xxs text-muted mt-1"><i class="fas fa-copy" style="font-size:8px;opacity:.5;margin-left:3px"></i></div></td>'+
       /* Col 3: Current IGN */
       '<td><span class="text-xs font-bold">'+currentIgn+'</span></td>'+
       /* Col 4: Current FF UID */
@@ -1407,7 +1407,7 @@ function renderUsers(){
     /* Bug#1 Fix: escape user-supplied IGN, ffUid, phone, email before HTML injection */
     var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
     var row='<tr>';
-    row+='<td style="min-width:110px"><span style="font-weight:700;color:var(--primary)">'+_e(ign)+'</span><div onclick="navigator.clipboard.writeText(\''+_e(uid)+'\').then(function(){showToast(\'Firebase UID copied!\')})" style="font-size:9px;color:var(--text-muted);font-family:monospace;cursor:pointer" title="Click to copy full UID">'+_e(uid.substring(0,10))+'…📋</div></td>';
+    row+='<td style="min-width:110px"><span style="font-weight:700;color:var(--primary)">'+_e(ign)+'</span><div onclick="window.copyText&&copyText(\''+_e(uid)+'\'),\'📋 Firebase UID copied!\')" style="font-size:9px;color:var(--text-muted);font-family:monospace;cursor:pointer" title="Click to copy full UID">'+_e(uid.substring(0,10))+'…📋</div></td>';
     row+='<td><span style="font-family:monospace;font-size:11px;color:var(--info);background:rgba(0,212,255,.08);padding:2px 6px;border-radius:5px">'+_e(ff)+'</span></td>';
     row+='<td style="font-size:11px;color:var(--text-dim)">'+_e(ph)+'</td>';
     row+='<td style="font-size:10px;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_e(em)+'</td>';

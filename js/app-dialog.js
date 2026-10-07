@@ -259,3 +259,68 @@
 
   console.log('[AppDialog] ready — koi browser popup nahi, sab app-UI (B3)');
 })();
+
+/* ================================================================
+   COPY TEXT — ek hi bharosemand copy-helper
+   ✅ B31 (2026-10-08, live-testing se pakda):
+   Admin panel me 6 jagah copy-button seedha `navigator.clipboard.writeText(...)`
+   bulate the aur SUCCESS `.then()` ke andar hi toast dikhate the. Jab clipboard
+   likhna fail ho jaye (permission denied, page background me / focus na ho,
+   purana browser, http context) to `.then()` kabhi chalta hi nahi aur admin ko
+   koi feedback NAHI milta — button daba kar kuch bhi na hone jaisa lagta hai
+   (chup-fail). User panel me yahi sabak pehle hi theek ho chuka tha (core/utils.js
+   ka copyTxt — document.hasFocus() check + execCommand fallback), par admin panel
+   me chhoot gaya tha.
+   Ab: ek jagah copyText(text, okMsg, errMsg) —
+     • clipboard API se copy → safalta par okMsg toast
+     • API fail / na ho → chhupa hua textarea + execCommand('copy') fallback
+     • wo bhi fail → saaf error toast (chup nahi).
+   Public API: window.copyText(text, okMsg, errMsg)
+================================================================ */
+(function () {
+  'use strict';
+  if (window.copyText) return;
+
+  function _toast(msg, isErr) {
+    try {
+      if (window.showToast) window.showToast(msg, isErr ? true : undefined);
+      else if (window.toast) window.toast(msg, isErr ? 'err' : 'ok');
+    } catch (e) {}
+  }
+
+  /* Purana bharosemand tarika — clipboard API block ho to yahi chalta hai */
+  function _fallbackCopy(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ta.setSelectionRange(0, text.length); } catch (e) {}
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  window.copyText = function (text, okMsg, errMsg) {
+    var t = String(text == null ? '' : text);
+    if (!t.trim()) { _toast(errMsg || 'Copy karne ko kuch nahi mila', true); return; }
+    var done = function () { _toast(okMsg || '\u{1F4CB} Copied!'); };
+    var fail = function () {
+      if (_fallbackCopy(t)) done();
+      else _toast(errMsg || 'Copy nahi ho paya — text khud select karke copy karo', true);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(done, fail);
+      } else { fail(); }
+    } catch (e) { fail(); }
+  };
+
+  console.log('[CopyText] ready — copy par hamesha feedback (safalta ya saaf error)');
+})();
