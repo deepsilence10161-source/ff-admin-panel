@@ -686,7 +686,7 @@ function _showAlert(matchId, matchName, minutesLeft) {
   if (window.Notification && Notification.permission === 'granted') {
     new Notification('Mini eSports — Match Alert', {
       body: minutesLeft + ' min mein "' + matchName + '" shuru hoga!',
-      icon: 'app-icon.png?v=20261007r',
+      icon: 'app-icon.png?v=20261007s',
     });
   }
 
@@ -1180,30 +1180,69 @@ console.log('[Admin v10 Final] All systems loaded ✅');
 
 
 /* ── SEASON MANAGEMENT ── */
+/* ✅ B22 (2026-10-07) — "New Season" button ab WAKAI kaam karta hai.
+   Pehle isme teen NATIVE prompt()/confirm() the: B3 ke app-dialog shim
+   (js/app-dialog.js) unhe app-UI dialog me badal deta hai aur turant
+   null/false return karta hai — isliye `if (!name) return;` par har baar
+   yahin ruk jata tha (dead button). Upar se wo purane Firebase-bridge
+   path (appSettings/currentSeason) par likhta tha, jo B18 ke canonical
+   save path se ALAG tha (do sach ka khatra).
+   Ab: app-UI ke asli dialogs (appPrompt/appConfirm) + authoritative
+   server RPC `admin_start_new_season()` — jo bilkul wahi rows/shapes
+   likhta hai jo admin Settings → Seasonal League (B18) likhta hai
+   (app_settings.currentSeason + live_config.seasonName/seasonActive/
+   seasonEndDays/seasonEndDate). Season END pehle ki tarah
+   `admin_end_current_season()` hi karta hai. */
 window.startNewSeason = function() {
-  var db_ = window.rtdb || window.db;
-  if (!db_) return;
-  var name = prompt('New season name? (e.g. Season 2)');
-  if (!name) return;
-  var days = parseInt(prompt('Season duration (days)?', '90'));
-  if (!days) return;
-  if (!confirm('Start "' + name + '" for ' + days + ' days?')) return;
+  var supa = window._supa;
+  if (!supa) { if (window.showToast) showToast('Supabase not connected', true); return; }
 
-  var seasonId = 'S' + Date.now();
-  var endDate = Date.now() + days * 86400000;
-
-  // Save season
-  db_.ref('appSettings/currentSeason').set({
-    id: seasonId, name: name,
-    startDate: Date.now(), endDate: endDate,
-    active: true
+  var oldName = (window.CFG && window.CFG.seasonName) || 'Season 1';
+  var pName = window.appPrompt
+    ? window.appPrompt('Naye season ka naam?', oldName, { icon: '🏆' })
+    : Promise.resolve(null);
+  pName.then(function(name) {
+    name = String(name || '').trim();
+    if (!name) return;                       /* user ne cancel kiya */
+    var pDays = window.appPrompt
+      ? window.appPrompt('Season kitne din chalega? (1-3650)', '90', { icon: '📅' })
+      : Promise.resolve(null);
+    return pDays.then(function(days) {
+      var d = parseInt(days, 10);
+      if (!d || d < 1 || d > 3650) {
+        if (window.showToast) showToast('⏳ Din 1 se 3650 ke beech likho', true);
+        return;
+      }
+      var pOk = window.appConfirm
+        ? window.appConfirm('"' + name + '" shuru karo — ' + d + ' din ke liye?', { icon: '⚠️' })
+        : Promise.resolve(false);
+      return pOk.then(function(ok) {
+        if (!ok) return;
+        supa.rpc('admin_start_new_season', { p_name: name, p_days: d }).then(function(res) {
+          if (res.error || !res.data || res.data.success !== true) {
+            var msg = (res.data && res.data.error) || (res.error && res.error.message) || 'Unknown error';
+            if (window.showToast) showToast('❌ Season start nahi hua: ' + msg, true);
+            return;
+          }
+          /* CFG turant update — user panel wale hi keys (live_config) */
+          if (window.CFG) {
+            window.CFG.seasonName    = name;
+            window.CFG.seasonActive  = 1;
+            window.CFG.seasonEndDays = d;
+            if (res.data.season && res.data.season.endDate) {
+              var _ms = new Date(res.data.season.endDate).getTime();
+              if (!isNaN(_ms)) window.CFG.seasonEndDate = _ms;
+            }
+          }
+          if (window.showToast) {
+            showToast('✅ ' + name + ' shuru (Season #' + ((res.data.season && res.data.season.seasonNum) || '?') + ') — user app me live', false);
+          }
+        }, function(e) {
+          if (window.showToast) showToast('❌ Season start nahi hua: ' + ((e && e.message) || ''), true);
+        });
+      });
+    });
   });
-  // Update liveConfig
-  db_.ref('appSettings/liveConfig').update({
-    seasonName: name, seasonActive: 1,
-    seasonEndDays: days
-  });
-  if (window.showToast) showToast('✅ ' + name + ' started!', false);
 };
 
 window.endCurrentSeason = function() {

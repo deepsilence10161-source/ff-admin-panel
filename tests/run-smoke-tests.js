@@ -391,6 +391,32 @@ console.log('\n── TEST 12: B27/B28 UI (Quick Tools 6 categories + Clan Wars/
      'B28: chaaron sections me Refresh button (functions wahi)');
 }
 
+/* ── TEST 13: B22 (leftover) — "New Season" button ab ZINDA (app-UI + server RPC) ── */
+console.log('\n── TEST 13: B22 New Season (dead native-prompt button → app dialog + RPC) ──');
+{
+  const fa10 = fs.readFileSync(path.join(REPO, 'js/fa-admin-v10-final.js'), 'utf8');
+  const seg = fa10.slice(fa10.indexOf('window.startNewSeason = function()'));
+  const fn = seg.slice(0, seg.indexOf('window.endCurrentSeason = function()'));
+  ok(fn.indexOf("prompt('New season name?") === -1 && fn.indexOf("prompt('Season duration") === -1,
+     'B22: purane native prompt() gaye (B3 shim unhe null kar deta tha = dead button)');
+  ok(fn.indexOf('window.appPrompt') !== -1 && fn.indexOf('window.appConfirm') !== -1,
+     'B22: ab app-UI ke asli dialogs (appPrompt/appConfirm)');
+  ok(fn.indexOf("rpc('admin_start_new_season'") !== -1,
+     'B22: likhne ka kaam authoritative server RPC karta hai');
+  ok(fa10.indexOf("db_.ref('appSettings/currentSeason')") === -1,
+     'B22: purana bridge-path (doosra sach) hata diya');
+  const sql = fs.readFileSync(path.join(REPO, 'migrations/2026-10-07-b22-start-season-rpc.sql'), 'utf8');
+  ok(sql.indexOf('admin_start_new_season') !== -1 && sql.indexOf('SECURITY DEFINER') !== -1
+     && sql.indexOf('is_admin') !== -1,
+     'B22: RPC server par admin-checked (SECURITY DEFINER + users.is_admin)');
+  const set = fs.readFileSync(path.join(REPO, 'js/fa-app-settings-v2.js'), 'utf8');
+  const sameKeys = ['seasonName', 'seasonActive', 'seasonEndDays', 'seasonEndDate'].every(k => sql.indexOf(k) !== -1)
+     && set.indexOf("'currentSeason'") !== -1 && sql.indexOf("'currentSeason'") !== -1
+     && sql.indexOf("'seasonNum'") !== -1 && set.indexOf('seasonNum') !== -1;
+  ok(sameKeys,
+     'B22: RPC bilkul wahi keys/shape likhta hai jo admin Settings (B18) likhta hai (ek hi sach)');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }
