@@ -228,37 +228,44 @@
     /* ⚠️ BUG FIX (2026-10-08, live E2E me pakda gaya): pehle yahan
        `!_bypass` bhi shart thi. Lekin ek flow poora hone ke baad _bypass
        TRUE hi reh jata hai (usko reset karne wala 1.8s wala timer sirf
-       window.__appDialogBypass ko chhoota hai), is liye agli ASLI click
-       par purani queue saaf hoti hi nahi thi.
+       window.__appDialogBypass ko chhoota hai), is liye agli click par
+       purani queue saaf hoti hi nahi thi.
        Asli asar (admin panel, live): Ban (prompt+confirm) ke baad Unban
        (sirf confirm) — “Unban?” dialog baar-baar khulta rehta tha, OK
        dabane par kuch nahi hota tha, DB me is_banned=true hi padi rehti
        thi (page reload ke bina chhutkara nahi).
-       Ab: asli user ke click (isTrusted) par HAMESHA saaf — replay ke
-       andar ke apne-aap wale clicks par kabhi nahi (_replaying true rehta hai). */
-    var _asliUserClick = !!(e && e.isTrusted);
-    if (!inDlg && !_replaying && (_asliUserClick || !_bypass)) {
+       Ab: HAR naYA click queue saaf karta hai (chahe _bypass purana pada ho),
+       bas replay ka apna click chhod kar — wo _replaying/_appDialogReplayClick
+       se pahchana jata hai. */
+    if (!inDlg && !_replaying && !window.__appDialogReplayClick) {
       _q = []; _cur = 0; _bypass = false; _shimFlow = false;
     }
   }, true);
 
+  /* ✅ BUG FIX (2026-10-08): replay ka apna click "naya user click" NAHI hai —
+     is liye us ek click ke dauran chhota flag laga dete hain, taki upar wala
+     click-listener isi click par queue saaf na kar de (warna abhi-abhi diya
+     hua jawab ud jata aur kaam aage hi nahi badhta). */
   function _replayFromLastEl() {
     var el = window.__appDialogLastEl;
-    if (el && el.click) return function () { el.click(); };
+    if (el && el.click) return function () {
+      window.__appDialogReplayClick = true;
+      try { el.click(); } finally { window.__appDialogReplayClick = false; }
+    };
     return null;
   }
 
-  /* ⚠️ BUG FIX (2026-10-08): queue me is soorten ka jawab na mila = nayi
-     shakh. Tab recording theek karo:
-       • replay ke ANDAR (isi flow ka aage ka hissa, jaise Ban me reason
-         ke baad “pakka?”) → sirf utne jawab rakho jitne sach me kharch
-         hue (_cur tak); baaki bekaar hain;
-       • warna (bilkul naya flow) → poori queue saaf.
-     Pehle yahan sirf _bypass=false hota tha aur purane jawab queue me
-     pade rehte the — is liye agla plain confirm unse takra kar phir “nayi
-     shakh” maan leta tha: infinite “OK dabao, wahi dialog phir” loop. */
+  /* ⚠️ BUG FIX (2026-10-08, live E2E): queue me is soorten ka jawab na mila =
+     nayi shakh. Tab sirf utne jawab rakho jitne is flow ne sach me kharch kiye
+     (_cur tak) — baaki bekaar hain. Poori queue saaf karna galat tha: async
+     flows me (jaise Ban: prompt → [await token] → confirm) replay ka fn()
+     await par ruk jata hai, _replaying pehle hi false ho chuka hota hai —
+     “naya flow” maan kar queue saaf karne se user ka diya hua REASON ud jata
+     tha aur prompt↔confirm ka infinite loop ban jata tha (live me M4 ban hi
+     nahi hota tha). Prefix rakhne se replay ko bilkul wahi jawab milta hai
+     jo user ne diya tha. */
   function _shimBranchReset() {
-    if (_replaying) { _q = _q.slice(0, _cur); } else { _q = []; _cur = 0; }
+    _q = _q.slice(0, _cur);
     _bypass = false;
   }
 
