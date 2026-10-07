@@ -782,9 +782,49 @@
     h += '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted)">'
        + '<input type="checkbox" id="bcAllUsers" style="width:16px;height:16px"> '
        + 'Sirf is match ke players ke saath <b>poore app ke sab users</b> ko bhi bhejo</label>';
+    h += '<div id="bcLinkRow" style="margin-top:10px">'
+       + '<div style="font-size:12px;font-weight:800;color:var(--text-muted);margin-bottom:6px">🔴 Live stream link (Watch &amp; Earn ke liye)</div>'
+       + '<div style="display:flex;gap:8px;align-items:center">'
+       + '<input type="text" id="bcLink" class="form-input" style="margin:0;flex:1" placeholder="https://youtu.be/… (khaali chhodo agar match live nahi)">'
+       + '<button class="btn btn-ghost" id="bcLinkBtn" style="white-space:nowrap" onclick="window._saveMatchStreamLink(\'' + matchId + '\')"><i class="fas fa-link"></i> Link Save</button>'
+       + '</div>'
+       + '<div style="font-size:11px;color:var(--text-muted);margin-top:5px">Yeh link save karte hi (match status = live hone par) user panel ke match-details me <b>👀 Watch &amp; Earn Coins</b> button aa jata hai.</div>'
+       + '</div>';
     h += '<div id="bcProgress" style="font-size:12px;color:var(--info);margin-top:8px;min-height:16px"></div>';
     h += '<button class="btn btn-primary w-full" style="margin-top:10px" id="bcSendBtn" onclick="window._sendBroadcast(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-broadcast-tower"></i> Broadcast</button></div>';
     _modal('📡 Match Broadcast', h);
+
+    /* ✅ D6 FIX (2026-10-07): match ka live stream link yahin se set hota hai.
+       Pehle admin panel me `matches.stream_link` likhne ki koi jagah hi nahi
+       thi, is liye user panel ka Watch & Earn kabhi chalu ho hi nahi sakta
+       tha. Ab modal khulte hi maujooda link field me bhar jata hai. */
+    if (window._supa) {
+      window._supa.from('matches').select('stream_link,youtube_link').eq('id', matchId).single()
+        .then(function(r) {
+          var cur = (r && r.data && (r.data.stream_link || r.data.youtube_link)) || '';
+          var el = _$('bcLink');
+          if (el && cur) el.value = cur;
+        }, function() {});
+    }
+  };
+  window._saveMatchStreamLink = function(matchId) {
+    var el   = _$('bcLink');
+    var link = ((el || {}).value || '').trim();
+    if (!link) { _toast('Link khaali hai — pehle live stream ka URL paste karo', true); return; }
+    if (!/^https?:\/\//i.test(link)) { _toast('Link http:// ya https:// se shuru hona chahiye', true); return; }
+    if (!window._supa) { _toast('Supabase taiyar nahi — page reload karo', true); return; }
+    var btn = _$('bcLinkBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+    window._supa.from('matches').update({ stream_link: link }).eq('id', matchId)
+      .then(function(r) {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        if (r && r.error) { _toast('Link save nahi hua: ' + r.error.message, true); return; }
+        _logAction('set_match_stream_link');
+        _toast('✅ Match ka live stream link save ho gaya!');
+      }, function(e) {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        _toast('Link save nahi hua: ' + (e && e.message ? e.message : 'unknown'), true);
+      });
   };
   window._sendBroadcast = function (matchId, matchName) {
     var title = ((_$('bcTitle') || {}).value || '').trim();
