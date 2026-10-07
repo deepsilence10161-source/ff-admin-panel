@@ -575,3 +575,20 @@ th,td{padding:6px 8px}
     gap: 10px !important;
   }
 }
+
+
+/* ══════════════════════════════════════════════════════════════
+   ✅ B27 (2026-10-07): QUICK TOOLS — saaf, grouped layout
+   Pehle 52 buttons ka bina-group dher tha; ab 6 cards me categories,
+   har tile tap-friendly (min-height 40px) aur mobile par 2 column.
+   ══════════════════════════════════════════════════════════════ */
+.qt-card{margin-bottom:12px}
+.qt-card .card-header{flex-wrap:wrap;gap:4px}
+.qt-card .card-header small{flex:1 1 100%;padding-left:16px}
+.qt-count{background:rgba(0,255,156,.12);color:var(--primary);font-size:10px;font-weight:800;padding:1px 7px;border-radius:8px;margin-left:4px}
+.qt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.qt-grid .btn{width:100%;min-height:42px;display:flex;align-items:center;justify-content:center;gap:6px;
+  font-size:11px;font-weight:700;line-height:1.25;text-align:center;white-space:normal;padding:8px 6px}
+.qt-grid .btn i{font-size:12px;flex-shrink:0}
+@media (max-width:400px){ .qt-grid{grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:7px}
+  .qt-grid .btn{font-size:10.5px;min-height:40px} }

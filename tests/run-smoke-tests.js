@@ -335,6 +335,52 @@ console.log('\n── TEST 11: B20 Referral rules (dono ko join bonus + SD pehli
      'B20: teeno referral reward rows maujood hain (join / SD / match)');
 }
 
+/* ── TEST 12: B27 + B28 — Quick Tools grouped UI + v17 sections ka polish ── */
+console.log('\n── TEST 12: B27/B28 UI (Quick Tools 6 categories + Clan Wars/City/Mentors/CleanBadges polish) ──');
+{
+  const idx = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+  const seg = idx.slice(idx.indexOf('id="section-quicktools"'));
+  const section = seg.slice(0, seg.indexOf('<!-- MATCH HISTORY -->'));
+  const qtCards = (section.match(/class="card qt-card"/g) || []).length;
+  const qtBtns = (section.match(/<button\b/g) || []).length;
+  const grids = (section.match(/class="qt-grid"/g) || []).length;
+  ok(qtCards === 6 && grids === 6,
+     'B27: Quick Tools ab 6 saaf category cards me (chaos dher gaya)');
+  ok(qtBtns === 52,
+     'B27: wahi 52 buttons — ek bhi hataya/jodha nahi');
+  ok(section.indexOf('id="fraudAlertBadge"') !== -1 && section.indexOf('id="cheatReportBadge"') !== -1
+     && section.indexOf('id="refundQueueBadge"') !== -1,
+     'B27: teeno live badge counters (fraud/cheat/refund) salamat');
+  const cats = ['Communication & Content', 'Fraud & Safety', 'Match Tools', 'Players & Profiles', 'Money & Finance', 'System & Config'];
+  ok(cats.every(c => section.indexOf(c) !== -1),
+     'B27: chhe categories ke naam header me maujood');
+  ok(/<div class="card qt-card"><div class="card-header">[\s\S]{0,200}qt-count/.test(section),
+     'B27: har category ke header par count chip');
+  const css = fs.readFileSync(path.join(REPO, 'admin-base.css'), 'utf8');
+  ok(css.indexOf('.qt-grid') !== -1 && css.indexOf('.qt-grid .btn') !== -1 && css.indexOf('min-height:42px') !== -1,
+     'B27: tap-friendly tile CSS (min 42px) base css me');
+  ok(css.indexOf('@media (max-width:400px)') !== -1,
+     'B27: chhoti screen ke liye compact grid rule');
+  const upiBtn = section.indexOf('_openManualPaySettings');
+  ok(upiBtn !== -1 && section.indexOf('B22 (2026-10-06)') !== -1,
+     'B27: UPI Settings button abhi bhi Settings ke asli section par (dead modal nahi)');
+
+  const v17 = fs.readFileSync(path.join(REPO, 'js/features/fa-v17-features.js'), 'utf8');
+  ok(v17.indexOf('_v17SectionSub') !== -1 && v17.indexOf('Hafte ke clan challenges') !== -1,
+     'B28: paanchon v17 sections ke header me subtitle line');
+  ok(v17.indexOf('_cwSetStat') !== -1 && v17.indexOf("_cwSetStat('cwStatPending'") !== -1
+     && v17.indexOf("_cwSetStat('cwStatActive'") !== -1 && v17.indexOf("_cwSetStat('cwStatClans'") !== -1,
+     'B28: Clan Wars ke 3 stat cards asli counts se bharte hain');
+  const empties = (v17.match(/class="empty-state"/g) || []).length;
+  ok(empties >= 6,
+     'B28: khaali haalaton ke liye saaf empty-state cards (pehle kuch dikhta hi nahi tha)');
+  ok(v17.indexOf('cwStatPending') !== -1 && v17.indexOf('Top City') !== -1 && v17.indexOf('Active Mentors') !== -1
+     && v17.indexOf('badge status') !== -1,
+     'B28: City Champ/Mentors/CleanBadges me bhi stat cards/help text');
+  ok(v17.indexOf('window.loadClanWarAdmin&&loadClanWarAdmin()') !== -1,
+     'B28: har section me Refresh button (functions wahi)');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }

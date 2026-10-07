@@ -508,22 +508,34 @@
 
 <!-- QUICK TOOLS (standalone section) -->
 <div class="section" id="section-quicktools">
-<div class="section-header"><div class="section-title"><i class="fas fa-tools text-primary"></i> Quick Tools</div></div>
-<div class="card"><div class="card-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding:12px">
+<div class="section-header"><div class="section-title"><i class="fas fa-tools text-primary"></i> Quick Tools <span class="count">52</span></div></div>
+<!-- ✅ B27 (2026-10-07): pehle yahan 52 buttons ka ek bina-group seedha dher tha —
+     mobile par 3-4 line me bas naam dikhte the ("WD Config", "Prize Calc",
+     "Bulk Status"...), samajhna mushkil. Ab wahi 52 buttons (labels/onclick/
+     badges ek-ek hU-ba-hU same) 6 saaf cards me baante hue hain: card-header me
+     icon + naam + count, aur andar tap-friendly (min 40px) tiles. Koi button
+     hataya nahi, jodha nahi. -->
+
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#00d4ff;font-size:8px"></i> 📢 Communication & Content <span class="qt-count">7</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Public messages, votes, aur user-facing content</small></div>
+<div class="card-body compact"><div class="qt-grid">
 <button class="btn btn-ghost btn-sm" onclick="window.showBulkMessage&&showBulkMessage()"><i class="fas fa-bullhorn"></i> Bulk Message</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showPollManager&&showPollManager()"><i class="fas fa-poll"></i> Polls</button>
-<!-- ✅ BUG FIX (2026-08-23): removed the separate "Suggestions" button
-     (showSuggestionManager) that sat right next to "User Feedback"
-     (showUserSuggestions) — the two looked like duplicates of the same
-     feature but were actually different: showSuggestionManager reads a
-     legacy Firebase-only `suggestions/` path that nothing in the current
-     app writes to anymore (always showed "0", confirmed), while
-     showUserSuggestions reads the real, actively-used Supabase
-     user_suggestions table that's what "User Feedback" genuinely is.
-     Kept the live one, removed the dead vestigial one instead of trying
-     to explain the distinction in the UI. -->
+
+<!-- ✅ BUG FIX (2026-08-23): pehle iske bagal me ek alag "Suggestions" button
+     (showSuggestionManager) tha jo legacy Firebase-only `suggestions/` path padhta tha
+     jise ab koi likhta hi nahi (hamesha "0") — hataya. Ye "User Feedback" hi asli,
+     live feature hai (Supabase user_suggestions). -->
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showUserSuggestions&&showUserSuggestions()"><i class="fas fa-comments"></i> User Feedback</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showVoucherManager&&showVoucherManager()"><i class="fas fa-ticket-alt"></i> Vouchers</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showBannerManager&&showBannerManager()"><i class="fas fa-image"></i> Banner Mgr</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showTickerManager&&showTickerManager()"><i class="fas fa-scroll"></i> Ticker Mgr</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showMatchFeedbacks&&showMatchFeedbacks()"><i class="fas fa-star"></i> Feedbacks</button>
+</div></div></div>
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#ff6b6b;font-size:8px"></i> 🛡️ Fraud & Safety <span class="qt-count">11</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Fraud pakdo, report dekho, ban/badges sambhalo</small></div>
+<div class="card-body compact"><div class="qt-grid">
 <button class="btn btn-ghost btn-sm" onclick="window.runFraudCheck&&runFraudCheck()"><i class="fas fa-shield-halved"></i> Fraud Check</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff6b6b" onclick="window.runFraudScan&&runFraudScan()"><i class="fas fa-search-plus"></i> Fraud Scan</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showCheatDetection&&showCheatDetection()"><i class="fas fa-user-secret"></i> Cheat Detect</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.4);color:#ff6b6b;position:relative" onclick="window.showFraudAlerts&&showFraudAlerts()">
   <i class="fas fa-bell"></i> Fraud Alerts
   <span id="fraudAlertBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff4444;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px">0</span>
@@ -532,23 +544,43 @@
   <i class="fas fa-flag"></i> Cheat Reports
   <span id="cheatReportBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:#ff4444;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff8c00" onclick="window.showSuspiciousLog&&showSuspiciousLog()"><i class="fas fa-exclamation-circle"></i> Suspicious Log</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,100,50,.3);color:#ff6432" onclick="window.showFraudHeatmap&&showFraudHeatmap()"><i class="fas fa-map-marked-alt"></i> Fraud Heatmap</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.manageTrustedPlayer&&manageTrustedPlayer()"><i class="fas fa-shield-alt"></i> Trusted Players</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showBanAppeals&&showBanAppeals()"><i class="fas fa-gavel"></i> Ban Appeals</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff6b6b" onclick="window.showBlacklist&&showBlacklist()"><i class="fas fa-ban"></i> Blacklist</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff4444" onclick="window.showMassBan&&showMassBan()"><i class="fas fa-user-slash"></i> Mass Ban</button>
+</div></div></div>
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#00ff9c;font-size:8px"></i> 🎮 Match Tools <span class="qt-count">9</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Match ke saath jude rozana ke kaam</small></div>
+<div class="card-body compact"><div class="qt-grid">
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00;position:relative" onclick="window.showRefundQueue&&showRefundQueue()">
   <i class="fas fa-undo"></i> Refund Queue
   <span id="refundQueueBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:#ffaa00;color:#000;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:9px;align-items:center;justify-content:center;padding:0 4px">0</span>
 </button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,100,50,.3);color:#ff6432" onclick="window.showFraudHeatmap&&showFraudHeatmap()"><i class="fas fa-map-marked-alt"></i> Fraud Heatmap</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.manageTrustedPlayer&&manageTrustedPlayer()"><i class="fas fa-shield-alt"></i> Trusted Players</button>
-<button class="btn btn-ghost btn-sm" onclick="fixMissingTeammateJRs()" style="border-color:rgba(255,215,0,.4);color:#ffd700"><i class="fas fa-wrench"></i> Fix Team JRs</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showDisputes&&showDisputes()"><i class="fas fa-exclamation-triangle"></i> Disputes</button>
-<button class="btn btn-ghost btn-sm" onclick="window.exportCSV&&exportCSV('users')"><i class="fas fa-file-csv"></i> Export Users</button>
-<button class="btn btn-ghost btn-sm" onclick="window.exportCSV&&exportCSV('matches')"><i class="fas fa-download"></i> Export Matches</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showWithdrawalConfig&&showWithdrawalConfig()"><i class="fas fa-cog"></i> WD Config</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showScheduleAnnouncement&&showScheduleAnnouncement()"><i class="fas fa-calendar-plus"></i> Schedule Ann</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showActionLog&&showActionLog()"><i class="fas fa-history"></i> Action Log</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showBanAppeals&&showBanAppeals()"><i class="fas fa-gavel"></i> Ban Appeals</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showMatchClone&&showMatchClone()"><i class="fas fa-copy"></i> Clone Match</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showBulkRoomSetter&&showBulkRoomSetter()"><i class="fas fa-key"></i> Bulk Room Set</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showKillProofs&&showKillProofs()"><i class="fas fa-camera"></i> Kill Proofs</button>
 <button class="btn btn-ghost btn-sm" onclick="window.showLiveScoreboard&&showLiveScoreboard('')"><i class="fas fa-list-ol"></i> Scoreboard</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showAutoComplete&&showAutoComplete()"><i class="fas fa-check-circle"></i> Auto Complete</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff6b6b" onclick="window.showStatsReset&&showStatsReset()"><i class="fas fa-redo"></i> Stats Reset</button>
+<button class="btn btn-ghost btn-sm" onclick="window.runTeamJoinHealthCheck&&runTeamJoinHealthCheck()"><i class="fas fa-users-cog"></i> Team Check</button>
+<button class="btn btn-ghost btn-sm" onclick="fixMissingTeammateJRs()" style="border-color:rgba(255,215,0,.4);color:#ffd700"><i class="fas fa-wrench"></i> Fix Team JRs</button>
+</div></div></div>
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#aa55ff;font-size:8px"></i> 👥 Players & Profiles <span class="qt-count">6</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Player dhoondo, profile/notes/status sambhalo</small></div>
+<div class="card-body compact"><div class="qt-grid">
+<button class="btn btn-ghost btn-sm" onclick="window.showPendingProfiles&&showPendingProfiles()"><i class="fas fa-user-check"></i> Pending Profiles</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showBulkStatusUpdate&&showBulkStatusUpdate()"><i class="fas fa-tasks"></i> Bulk Status</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showAllNotes&&showAllNotes()"><i class="fas fa-sticky-note"></i> User Notes</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(170,85,255,.3);color:#aa55ff" onclick="window.showTopPlayers&&showTopPlayers()"><i class="fas fa-trophy"></i> Top Players</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showPlayerSearch&&showPlayerSearch()"><i class="fas fa-search"></i> Player Search</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,215,0,.3);color:#ffd700" onclick="window.showCoinManager&&showCoinManager()"><i class="fas fa-coins"></i> Coin Manager</button>
+</div></div></div>
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#ffd700;font-size:8px"></i> 💰 Money & Finance <span class="qt-count">9</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Withdrawal, UPI, revenue aur reports</small></div>
+<div class="card-body compact"><div class="qt-grid">
+<button class="btn btn-ghost btn-sm" onclick="window.showWithdrawalConfig&&showWithdrawalConfig()"><i class="fas fa-cog"></i> WD Config</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showWithdrawalSummary&&showWithdrawalSummary()"><i class="fas fa-money-bill-wave"></i> WD Summary</button>
 <button class="btn btn-ghost btn-sm" onclick="window.showAutoPayoutRules&&showAutoPayoutRules()"><i class="fas fa-robot"></i> Auto Payout</button>
-<button class="btn btn-ghost btn-sm" onclick="window.checkPlatformHealth&&checkPlatformHealth()"><i class="fas fa-heartbeat"></i> Platform Health</button>
+
 <!-- ✅ B22 (2026-10-06): pehle ye button ek alag "UPI Settings" modal kholta tha jo
      appSettings/payment.{upiId,qrCodeUrl,...} likhta tha — par user panel wo keys
      padhta hi nahi (wo live_config.manualPayment padhta hai). Yaani wo modal dead
@@ -556,38 +588,25 @@
      Manual UPI Payment section par le jata hai jahan QR upload + UPI ID ka asli
      single source hai. -->
 <button class="btn btn-ghost btn-sm" onclick="window._openManualPaySettings&&window._openManualPaySettings()"><i class="fas fa-university"></i> UPI Settings</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showVoucherManager&&showVoucherManager()"><i class="fas fa-ticket-alt"></i> Vouchers</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showBannerManager&&showBannerManager()"><i class="fas fa-image"></i> Banner Mgr</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showTickerManager&&showTickerManager()"><i class="fas fa-scroll"></i> Ticker Mgr</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showKillProofs&&showKillProofs()"><i class="fas fa-camera"></i> Kill Proofs</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showAllNotes&&showAllNotes()"><i class="fas fa-sticky-note"></i> User Notes</button>
-<button class="btn btn-ghost btn-sm" onclick="window.runTeamJoinHealthCheck&&runTeamJoinHealthCheck()"><i class="fas fa-users-cog"></i> Team Check</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showSeasonManager&&showSeasonManager()"><i class="fas fa-crown"></i> Season Mgr</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showMatchFeedbacks&&showMatchFeedbacks()"><i class="fas fa-star"></i> Feedbacks</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showAppSettings&&showAppSettings()"><i class="fas fa-mobile-alt"></i> App Settings</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showPendingProfiles&&showPendingProfiles()"><i class="fas fa-user-check"></i> Pending Profiles</button>
-<button class="btn btn-ghost btn-sm" onclick="window.showBulkStatusUpdate&&showBulkStatusUpdate()"><i class="fas fa-tasks"></i> Bulk Status</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff6b6b" onclick="window.runFraudScan&&runFraudScan()"><i class="fas fa-search-plus"></i> Fraud Scan</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showUPIVerifier&&showUPIVerifier()"><i class="fas fa-receipt"></i> UPI Verifier</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showRevenueComparison&&showRevenueComparison()"><i class="fas fa-chart-line"></i> Revenue Cmp</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,215,0,.3);color:#ffd700" onclick="window.showDailyReport&&showDailyReport()"><i class="fas fa-chart-bar"></i> Daily Report</button>
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(170,85,255,.3);color:#aa55ff" onclick="window.showPrizeCalc&&showPrizeCalc()"><i class="fas fa-calculator"></i> Prize Calc</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showScheduleAnnouncement&&showScheduleAnnouncement()"><i class="fas fa-calendar-plus"></i> Schedule Ann</button>
+</div></div></div>
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#8b95b5;font-size:8px"></i> ⚙️ System & Config <span class="qt-count">10</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Health, rules, snapshot, export, settings</small></div>
+<div class="card-body compact"><div class="qt-grid">
+<button class="btn btn-ghost btn-sm" onclick="window.checkPlatformHealth&&checkPlatformHealth()"><i class="fas fa-heartbeat"></i> Platform Health</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showSecurityRules&&showSecurityRules()"><i class="fas fa-lock"></i> DB Rules</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showQuickStatusPanel&&showQuickStatusPanel()"><i class="fas fa-bolt"></i> Quick Status</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(170,85,255,.3);color:#aa55ff" onclick="window.showPrizeCalc&&showPrizeCalc()"><i class="fas fa-calculator"></i> Prize Calc</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff6b6b" onclick="window.showBlacklist&&showBlacklist()"><i class="fas fa-ban"></i> Blacklist</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,215,0,.3);color:#ffd700" onclick="window.showDailyReport&&showDailyReport()"><i class="fas fa-chart-bar"></i> Daily Report</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff4444" onclick="window.showMassBan&&showMassBan()"><i class="fas fa-user-slash"></i> Mass Ban</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showWithdrawalSummary&&showWithdrawalSummary()"><i class="fas fa-money-bill-wave"></i> WD Summary</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showMatchClone&&showMatchClone()"><i class="fas fa-copy"></i> Clone Match</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff6b6b" onclick="window.showStatsReset&&showStatsReset()"><i class="fas fa-redo"></i> Stats Reset</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showRevenueComparison&&showRevenueComparison()"><i class="fas fa-chart-line"></i> Revenue Cmp</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showCheatDetection&&showCheatDetection()"><i class="fas fa-user-secret"></i> Cheat Detect</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showBulkRoomSetter&&showBulkRoomSetter()"><i class="fas fa-key"></i> Bulk Room Set</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,215,0,.3);color:#ffd700" onclick="window.showCoinManager&&showCoinManager()"><i class="fas fa-coins"></i> Coin Manager</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(170,85,255,.3);color:#aa55ff" onclick="window.showTopPlayers&&showTopPlayers()"><i class="fas fa-trophy"></i> Top Players</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showAutoComplete&&showAutoComplete()"><i class="fas fa-check-circle"></i> Auto Complete</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,68,68,.3);color:#ff8c00" onclick="window.showSuspiciousLog&&showSuspiciousLog()"><i class="fas fa-exclamation-circle"></i> Suspicious Log</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showTournamentSnapshot&&showTournamentSnapshot()"><i class="fas fa-camera"></i> Snapshot</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showPlayerSearch&&showPlayerSearch()"><i class="fas fa-search"></i> Player Search</button>
-<button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showUPIVerifier&&showUPIVerifier()"><i class="fas fa-receipt"></i> UPI Verifier</button>
-</div></div>
+<button class="btn btn-ghost btn-sm" onclick="window.showActionLog&&showActionLog()"><i class="fas fa-history"></i> Action Log</button>
+<button class="btn btn-ghost btn-sm" onclick="window.exportCSV&&exportCSV('users')"><i class="fas fa-file-csv"></i> Export Users</button>
+<button class="btn btn-ghost btn-sm" onclick="window.exportCSV&&exportCSV('matches')"><i class="fas fa-download"></i> Export Matches</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showAppSettings&&showAppSettings()"><i class="fas fa-mobile-alt"></i> App Settings</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showSeasonManager&&showSeasonManager()"><i class="fas fa-crown"></i> Season Mgr</button>
+<button class="btn btn-ghost btn-sm" onclick="window.showDisputes&&showDisputes()"><i class="fas fa-exclamation-triangle"></i> Disputes</button>
+</div></div></div>
 </div>
 
 <!-- MATCH HISTORY -->

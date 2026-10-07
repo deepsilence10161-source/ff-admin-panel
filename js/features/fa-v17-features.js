@@ -58,7 +58,11 @@ var _navInj=0,_navT=setInterval(function(){
            sections invisible even once correctly populated with
            content. Same bug, same fix as fa-growth-admin.js's
            Creator Program / Growth Analytics sections. */
-        sec.innerHTML='<div class="section-header"><h2>'+_v17SectionTitle(id)+'</h2></div><div id="'+id+'Content" style="padding:16px"></div>';
+        /* ✅ B28 (2026-10-07): header me ab ek line ka subtitle bhi — kis section
+           me kya hota hai, pehli nazar me. */
+        sec.innerHTML='<div class="section-header"><h2>'+_v17SectionTitle(id)+'</h2></div>'
+          +'<div style="padding:0 16px 4px;font-size:11px;color:var(--txt2)">'+_v17SectionSub(id)+'</div>'
+          +'<div id="'+id+'Content" style="padding:16px"></div>';
         main.appendChild(sec);
       }
     });
@@ -68,6 +72,13 @@ var _navInj=0,_navT=setInterval(function(){
 function _v17SectionTitle(id){
   return {bracketAdmin:'🏆 Tournament Brackets',clanWarAdmin:'⚔️ Clan Wars',cityChampAdmin:'🏙️ City Championship',mentorAdmin:'👨‍🏫 Mentor Management',cleanBadgeAdmin:'✅ Clean Badges'}[id]||id;
 }
+/* ✅ B28 (2026-10-07): har section ke header ke neeche ek saaf subtitle —
+   pehle section kholte hi sirf title dikhta tha, andar kya milega pata na chalta. */
+function _v17SectionSub(id){
+  return {bracketAdmin:'Tournament brackets banao aur manage karo',clanWarAdmin:'Hafte ke clan challenges — activate, resolve, standings',cityChampAdmin:'Mahine ki city leaderboard aur reset',mentorAdmin:'Mentor applications aur unke students',cleanBadgeAdmin:'Clean Player badges — search, status, revoke'}[id]||'';
+}
+/* ✅ B28: Clan Wars ke stat cards me value bharne ke liye chhota helper */
+function _cwSetStat(id,v){ var el=document.getElementById(id); if(el) el.textContent=String(v); }
 
 /* ============================================================
    2. BRACKET MANAGEMENT
@@ -244,13 +255,25 @@ window.loadClanWarAdmin=function(){
   var week=_getAdminWeek();
   var mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var wd=new Date(week);
-  var h='<div style="margin-bottom:16px;font-size:13px;color:var(--txt2)">Current War Week: <strong style="color:var(--txt)">'+wd.getDate()+' '+mon[wd.getMonth()]+' – '+(wd.getDate()+6)+' '+mon[wd.getMonth()]+'</strong></div>';
+  /* ✅ B28 (2026-10-07): pehle yahan sirf 3 plain text lines thi aur khaali
+     hone par kuch dikhta hi nahi tha (samajh na aata — data nahi hai ya load
+     fail hua?). Ab: upar stat cards (Pending / Active / Clans), refresh
+     button, aur teeno groups ke liye saaf empty-state card. Handlers/logic
+     bilkul wahi (activate/decline/resolve) — sirf UI. */
+  var h='<div class="stats-grid" style="margin-bottom:12px">'
+    +'<div class="stat-card"><div class="stat-icon orange"><i class="fas fa-hourglass-half"></i></div><h3>Pending</h3><div class="value" id="cwStatPending">–</div><div class="sub">challenges</div></div>'
+    +'<div class="stat-card"><div class="stat-icon red"><i class="fas fa-shield-alt"></i></div><h3>Active Wars</h3><div class="value" id="cwStatActive">–</div><div class="sub">is hafte</div></div>'
+    +'<div class="stat-card"><div class="stat-icon green"><i class="fas fa-trophy"></i></div><h3>Clans</h3><div class="value" id="cwStatClans">–</div><div class="sub">standings me</div></div>'
+    +'</div>';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<div style="font-size:12px;color:var(--txt2)">Current War Week: <strong style="color:var(--txt)">'+wd.getDate()+' '+mon[wd.getMonth()]+' – '+(wd.getDate()+6)+' '+mon[wd.getMonth()]+'</strong></div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="window.loadClanWarAdmin&&loadClanWarAdmin()"><i class="fas fa-rotate"></i> Refresh</button></div>';
   /* Load war challenges */
   db.ref('clanWars/'+week+'/challenges').once('value',function(s){
     var challenges=[]; s.forEach(function(c){ var d=c.val(); d._id=c.key; challenges.push(d); });
     var pending=challenges.filter(function(c){ return c.status==='pending'; });
     var accepted=challenges.filter(function(c){ return c.status==='accepted'; });
-    h+='<div style="font-size:14px;font-weight:800;margin-bottom:10px">⏳ Pending Challenges ('+pending.length+')</div>';
+    h+='<div style="font-size:14px;font-weight:800;margin-bottom:10px">⏳ Pending Challenges <span class="qt-count">'+pending.length+'</span></div>';
     if(pending.length){
       h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">';
       pending.forEach(function(chal){
@@ -262,11 +285,13 @@ window.loadClanWarAdmin=function(){
         h+='</div>';
       });
       h+='</div>';
+    } else {
+      h+='<div class="empty-state" style="padding:22px 16px;margin-bottom:16px">🤝<div style="margin-top:6px;font-size:12px">Koi pending challenge nahi.<br>Clan challenge aayega to yahan <strong>Activate</strong>/<strong>Decline</strong> buttons dikhenge.</div></div>';
     }
     /* Active wars */
     db.ref('clanWars/'+week+'/matches').orderByChild('status').equalTo('active').once('value',function(ms){
       var wars=[]; ms.forEach(function(m){ var d=m.val(); d._id=m.key; wars.push(d); });
-      h+='<div style="font-size:14px;font-weight:800;margin-bottom:10px">⚔️ Active Wars ('+wars.length+')</div>';
+      h+='<div style="font-size:14px;font-weight:800;margin-bottom:10px">⚔️ Active Wars <span class="qt-count">'+wars.length+'</span></div>';
       if(wars.length){
         h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">';
         wars.forEach(function(war){
@@ -281,11 +306,13 @@ window.loadClanWarAdmin=function(){
           h+='</div></div>';
         });
         h+='</div>';
+      } else {
+        h+='<div class="empty-state" style="padding:22px 16px;margin-bottom:16px">⚔️<div style="margin-top:6px;font-size:12px">Abhi koi war chalu nahi.<br>Pending challenge par <strong>Activate</strong> dabao — dono clans yahan aa jayenge.</div></div>';
       }
       /* Standings */
       db.ref('clanWars/'+week+'/clans').orderByChild('score').limitToLast(10).once('value',function(cs){
         var clans=[]; cs.forEach(function(c){ var d=c.val(); d._id=c.key; clans.push(d); }); clans.reverse();
-        h+='<div style="font-size:14px;font-weight:800;margin-bottom:10px">🏆 Weekly Standings</div>';
+        h+='<div style="font-size:14px;font-weight:800;margin-bottom:10px">🏆 Weekly Standings <span class="qt-count">'+clans.length+'</span></div>';
         h+='<div style="display:flex;flex-direction:column;gap:6px">';
         clans.forEach(function(cl,i){
           h+='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--card);border:1px solid var(--border)">';
@@ -295,7 +322,9 @@ window.loadClanWarAdmin=function(){
           h+='</div>';
         });
         h+='</div>';
+        if(!clans.length){ h+='<div class="empty-state" style="padding:22px 16px">🏆<div style="margin-top:6px;font-size:12px">Standings khaali hain — war activate hone par clans ka score yahan judta jaayega.</div></div>'; }
         document.getElementById('clanWarAdminContent').innerHTML=h;
+        _cwSetStat('cwStatPending',pending.length); _cwSetStat('cwStatActive',wars.length); _cwSetStat('cwStatClans',clans.length);
       });
     });
   });
@@ -349,11 +378,20 @@ window.loadCityChampAdmin=function(){
        convention, not the city name — was showing UUIDs instead of
        "Mumbai"/"Delhi" etc. The actual name is in the 'city' column. */
     var cities=[]; s.forEach(function(c){ var d=c.val(); d._city=d.city||c.key; cities.push(d); }); cities.reverse();
-    var h='<div style="margin-bottom:12px;font-size:13px;color:var(--txt2)">Month: <strong style="color:var(--txt)">'+month+'</strong> · '+cities.length+' active cities</div>';
-    h+='<div style="display:flex;gap:8px;margin-bottom:16px">';
-    h+='<button onclick="window._resetCityChamp(\''+month+'\')" style="padding:9px 14px;border-radius:10px;border:1px solid rgba(255,107,107,.3);background:transparent;color:#ff6b6b;font-size:12px;cursor:pointer">⚠️ Reset This Month</button>';
+    /* ✅ B28 (2026-10-07): pehle yahan ek plain line + khaali par sirf
+       "No cities this month" tha. Ab stat cards (Active Cities + Top City),
+       month chip, rang-wala Reset button aur saaf empty-state. Logic wahi. */
+    var h='<div class="stats-grid" style="margin-bottom:12px">'
+      +'<div class="stat-card"><div class="stat-icon blue"><i class="fas fa-city"></i></div><h3>Active Cities</h3><div class="value">'+cities.length+'</div><div class="sub">'+month+'</div></div>';
+    if(cities.length){
+      h+='<div class="stat-card"><div class="stat-icon green"><i class="fas fa-crown"></i></div><h3>Top City</h3><div class="value" style="font-size:15px;line-height:1.3">'+cities[0]._city+'</div><div class="sub">'+(cities[0].score||0)+' pts</div></div>';
+    }
     h+='</div>';
-    if(!cities.length){ h+='<div class="empty-state">No cities this month</div>'; c.innerHTML=h; return; }
+    h+='<div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">';
+    h+='<span style="font-size:12px;color:var(--txt2)">Month: <strong style="color:var(--txt)">'+month+'</strong></span>';
+    h+='<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,107,107,.35);color:#ff6b6b" onclick="window._resetCityChamp(\''+month+'\')"><i class="fas fa-triangle-exclamation"></i> Reset This Month</button>';
+    h+='</div>';
+    if(!cities.length){ h+='<div class="empty-state">🏙️<div style="margin-top:6px;font-size:12px">Is mahine abhi koi city data nahi.<br>User panel me City Championship khela jayega to standings yahan apne-aap bhar jayengi.</div></div>'; c.innerHTML=h; return; }
     h+='<div style="display:flex;flex-direction:column;gap:7px">';
     cities.forEach(function(ci,i){
       h+='<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:13px;background:var(--card);border:1px solid var(--border)">';
@@ -386,16 +424,24 @@ window.loadMentorAdmin=function(){
      resolves it to the real column. */
   db.ref('mentors').orderByChild('isAvailable').equalTo(true).once('value',function(s){
     var mentors=[]; s.forEach(function(m){ var d=m.val(); d._uid=m.key; mentors.push(d); });
-    var h='<div style="margin-bottom:12px;font-size:13px;color:var(--txt2)">Active Mentors: <strong style="color:var(--txt)">'+mentors.length+'</strong></div>';
-    if(!mentors.length){ h+='<div class="empty-state">Koi active mentor nahi</div>'; c.innerHTML=h; return; }
+    /* ✅ B28 (2026-10-07): stat cards (Active Mentors + Total Students) +
+       refresh + saaf empty-state. Mentor cards me ab avatar-initial circle
+       (pehle sirf emoji tha) — list padhne me aasan. Logic/handlers wahi. */
+    var h='<div class="stats-grid" style="margin-bottom:12px">'
+      +'<div class="stat-card"><div class="stat-icon purple"><i class="fas fa-graduation-cap"></i></div><h3>Active Mentors</h3><div class="value">'+mentors.length+'</div><div class="sub">available</div></div>'
+      +'<div class="stat-card"><div class="stat-icon green"><i class="fas fa-user-graduate"></i></div><h3>Total Students</h3><div class="value">'+mentors.reduce(function(a,m){ return a+Number(m.totalStudents||0); },0)+'</div><div class="sub">sab mentors ka</div></div>'
+      +'</div>';
+    h+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn btn-ghost btn-sm" onclick="window.loadMentorAdmin&&loadMentorAdmin()"><i class="fas fa-rotate"></i> Refresh</button></div>';
+    if(!mentors.length){ h+='<div class="empty-state">👨‍🏫<div style="margin-top:6px;font-size:12px">Koi active mentor nahi.<br>User panel → Mentor Hub me koi eligible player <strong>Be Mentor</strong> karega to yahan dikhega (Revoke ke saath).</div></div>'; c.innerHTML=h; return; }
     h+='<div style="display:flex;flex-direction:column;gap:8px">';
     mentors.forEach(function(m){
       h+='<div style="padding:14px;border-radius:13px;background:var(--card);border:1px solid var(--border)">';
-      h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
-      h+='<div style="font-size:14px;font-weight:800">👨‍🏫 '+(m.ign||'Mentor')+' <span style="font-size:11px;color:#ffd700">'+(m.rankTier||'')+'</span></div>';
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
+      h+='<div style="display:flex;align-items:center;gap:9px;min-width:0"><span style="width:34px;height:34px;border-radius:11px;background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.25);color:#ffd700;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0">'+String(m.ign||'M').charAt(0).toUpperCase()+'</span>';
+      h+='<div style="font-size:14px;font-weight:800;min-width:0">👨‍🏫 '+(m.ign||'Mentor')+' <span style="font-size:11px;color:#ffd700">'+(m.rankTier||'')+'</span></div></div>';
       h+='<button onclick="window._revokeMentor(\''+m._uid+'\')" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(255,107,107,.3);background:transparent;color:#ff6b6b;font-size:11px;cursor:pointer">Revoke</button>';
       h+='</div>';
-      h+='<div style="display:flex;gap:14px;font-size:12px;color:var(--txt2)">';
+      h+='<div style="display:flex;gap:14px;font-size:12px;color:var(--txt2);flex-wrap:wrap">';
       h+='<span>Students: <strong style="color:var(--txt)">'+(m.totalStudents||0)+'</strong></span>';
       h+='<span>Ranked Up: <strong style="color:var(--green)">'+(m.successfulStudents||0)+'</strong></span>';
       h+='<span>GD Earned: <strong style="color:#00d4ff">💎 '+(m.gdEarned||0)+'</strong></span>';
@@ -424,14 +470,21 @@ window.loadCleanBadgeAdmin=function(){
   /* Load users with clean badge via Firebase */
   var db=getDB(); if(!db){ c.innerHTML='<p style="color:#ff6b6b">DB error</p>'; return; }
   /* Query Firebase for users with cleanRecord.hasBadge = true */
-  var h='<div style="margin-bottom:12px;font-size:13px;color:var(--txt2)">Users who have earned the Clean Player Badge</div>';
-  h+='<div style="background:rgba(0,255,156,.06);border:1px solid rgba(0,255,156,.2);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--txt2)">';
-  h+='✅ Clean Badge = 30 matches without reports, rage quits, or warnings.<br>⚠️ Report a user to automatically revoke their badge.';
-  h+='</div>';
+  /* ✅ B28 (2026-10-07): pehle sab kuch ek plain box me tha. Ab: header
+     (title + Refresh), rule ek .card me rangeen emoji ke saath, aur khaali
+     results me saaf empty-state ("Search karo..." ki jagah hint ke saath).
+     Search logic/handlers bilkul wahi. */
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<div style="font-size:13px;color:var(--txt2)">Users who have earned the Clean Player Badge</div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="window.loadCleanBadgeAdmin&&loadCleanBadgeAdmin()"><i class="fas fa-rotate"></i> Refresh</button></div>';
+  h+='<div class="card" style="margin-bottom:14px"><div class="card-body" style="padding:12px 14px;font-size:12px;color:var(--txt2);line-height:1.8">';
+  h+='✅ <strong style="color:var(--green)">Clean Badge</strong> = 30 matches without reports, rage quits, or warnings.<br>';
+  h+='⚠️ Report a user to automatically revoke their badge.';
+  h+='</div></div>';
   h+='<div id="cleanBadgeUserSearch"><div style="position:relative;margin-bottom:10px">';
-  h+='<input id="cbSearchIn" type="text" placeholder="UID ya IGN se search..." oninput="window._cbSearch(this.value)" style="width:100%;padding:10px 40px 10px 14px;border-radius:10px;background:var(--bg2);border:1px solid var(--border);color:var(--txt);box-sizing:border-box">';
+  h+='<input id="cbSearchIn" type="text" placeholder="UID ya IGN se search..." oninput="window._cbSearch(this.value)" style="width:100%;padding:11px 40px 11px 14px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);color:var(--txt);box-sizing:border-box">';
   h+='<i class="fas fa-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--txt2)"></i>';
-  h+='</div><div id="cbResults"><div style="text-align:center;padding:16px;color:var(--txt2);font-size:12px">Search karo...</div></div></div>';
+  h+='</div><div id="cbResults"><div class="empty-state">🔍<div style="margin-top:6px;font-size:12px">UID ya IGN se search karo.<br>Result me <strong>badge status</strong> (x/30 clean matches) aur zaroorat par Revoke button dikhega.</div></div></div></div>';
   c.innerHTML=h;
 };
 
@@ -439,7 +492,7 @@ var _cbTimer=null;
 window._cbSearch=function(q){
   q=(q||'').trim();
   var r=document.getElementById('cbResults'); if(!r) return;
-  if(q.length<2){ r.innerHTML='<div style="text-align:center;padding:12px;color:var(--txt2);font-size:12px">2+ chars type karo</div>'; return; }
+  if(q.length<2){ r.innerHTML='<div class="empty-state" style="padding:18px 14px;font-size:12px">🔎 2+ characters type karo</div>'; return; }
   r.innerHTML='<div style="text-align:center;padding:12px;color:var(--txt2)"><i class="fas fa-spinner fa-spin"></i></div>';
   clearTimeout(_cbTimer);
   _cbTimer=setTimeout(function(){
@@ -447,7 +500,7 @@ window._cbSearch=function(q){
     window._supa.from('users').select('id,ign,ff_uid,rank_points').or('ign.ilike.%'+q+'%,ff_uid.ilike.%'+q+'%').limit(10)
     .then(function(res){
       var users=res.data||[];
-      if(!users.length){ r.innerHTML='<div style="text-align:center;padding:12px;color:var(--txt2)">Not found</div>'; return; }
+      if(!users.length){ r.innerHTML='<div class="empty-state" style="padding:18px 14px;font-size:12px">😕 Is naam/UID ka koi user nahi mila</div>'; return; }
       var db=getDB(); var done=0; var allH='<div style="display:flex;flex-direction:column;gap:7px">';
       users.forEach(function(u){
         /* ✅ FIX: bridge maps flat fields 'cleanMatches'->clean_matches and
