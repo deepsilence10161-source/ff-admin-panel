@@ -1,5 +1,5 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
-window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261007x" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261007y" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window._admEntrySym = function(m, j) {
   var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
   if (et === 'coin' || et === 'coins') return '🪙';
@@ -400,7 +400,7 @@ function onEntryTypeChange(){
   if(t==='paid'){
     h.className='info-box green';
     if(entryFeeLabel) entryFeeLabel.textContent='💠 Entry Fee (Sky Diamond) *';
-    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261007x" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
+    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261007y" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
   } else if(t==='coin'){
     h.className='info-box purple';
     if(entryFeeLabel) entryFeeLabel.textContent='🪙 Entry Fee (Coins) *';
@@ -1096,6 +1096,15 @@ async function saveTournament(){
         firstPrize:f1, prize1st:f1,
         secondPrize:f2, prize2nd:f2,
         thirdPrize:f3, prize3rd:f3,
+        /* ✅ FIX (live-testing 2026-10-07, doosra aadha): CREATE path me bhi
+           prizePool jana zaroori hai. Live proof: UI se banaya match DB me
+           first_prize=50/second=30/third=20 ke saath aata tha par
+           prize_pool=0 (bridge matchToSupa prizePool->prize_pool map karta
+           hai; jab payload me prizePool hi nahi hota to column DB-default 0
+           hi reh jata hai). `pp` isi function me f1+f2+f3 se upar calculate
+           hota hai. (Pehla aadha — edit wale updateData/_supaMatchUpd me —
+           already isi commit se pehle wale me tha.) */
+        prizePool:pp,
         matchTime:mt,
         roomId:ri,
         roomPassword:rp,
