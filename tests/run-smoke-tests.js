@@ -346,8 +346,10 @@ console.log('\n── TEST 12: B27/B28 UI (Quick Tools 6 categories + Clan Wars/
   const grids = (section.match(/class="qt-grid"/g) || []).length;
   ok(qtCards === 6 && grids === 6,
      'B27: Quick Tools ab 6 saaf category cards me (chaos dher gaya)');
-  ok(qtBtns === 53,
-     'B27: 52 purane + 1 pakka Daily Bonus tile = 53 buttons (ek bhi hataya nahi)');
+  ok(qtBtns === 54,
+     'B27: 52 purane + 2 pakke tiles (Daily Bonus, Live Users) = 54 (ek bhi hataya nahi)');
+  ok(section.indexOf('id="rtAnalyticsBtn"') !== -1 && section.indexOf('id="rtBadge"') !== -1,
+     'B27: Live Users ab pakka tile — fix13 ka injector guard ise dobara nahi daalta');
   ok(section.indexOf('Daily Bonus Rewards</button>') !== -1 && section.indexOf('showDailyBonusConfig') !== -1,
      'B27: Daily Bonus Editor ab isi grid ka pakka tile (injection nahi)');
   ok(section.indexOf('id="fraudAlertBadge"') !== -1 && section.indexOf('id="cheatReportBadge"') !== -1

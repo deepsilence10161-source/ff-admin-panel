@@ -368,6 +368,10 @@
 
   /* ── Add button to admin header ── */
   function injectButton() {
+    /* ✅ B27 (2026-10-07): Quick Tools me ye button ab apna pakka tile hai
+       (System & Config, id="rtAnalyticsBtn" index.html me) — ye guard ab
+       wahi tile pakad leta hai, isliye dobara inject nahi hota. Baaki page
+       par purana behaviour wahi (DB Rules ke bagal). */
     if (document.getElementById('rtAnalyticsBtn')) return;
     var btn = document.createElement('button');
     btn.id        = 'rtAnalyticsBtn';

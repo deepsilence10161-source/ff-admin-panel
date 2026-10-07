@@ -508,7 +508,7 @@
 
 <!-- QUICK TOOLS (standalone section) -->
 <div class="section" id="section-quicktools">
-<div class="section-header"><div class="section-title"><i class="fas fa-tools text-primary"></i> Quick Tools <span class="count">53</span></div></div>
+<div class="section-header"><div class="section-title"><i class="fas fa-tools text-primary"></i> Quick Tools <span class="count">54</span></div></div>
 <!-- ✅ B27 (2026-10-07): pehle yahan 52+ buttons ka ek bina-group seedha dher tha —
      mobile par 3-4 line me bas naam dikhte the ("WD Config", "Prize Calc",
      "Bulk Status"...), samajhna mushkil. Ab wahi buttons (labels/onclick/
@@ -598,10 +598,16 @@
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(170,85,255,.3);color:#aa55ff" onclick="window.showPrizeCalc&&showPrizeCalc()"><i class="fas fa-calculator"></i> Prize Calc</button>
 <button class="btn btn-ghost btn-sm" onclick="window.showScheduleAnnouncement&&showScheduleAnnouncement()"><i class="fas fa-calendar-plus"></i> Schedule Ann</button>
 </div></div></div>
-<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#8b95b5;font-size:8px"></i> ⚙️ System & Config <span class="qt-count">10</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Health, rules, snapshot, export, settings</small></div>
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#8b95b5;font-size:8px"></i> ⚙️ System & Config <span class="qt-count">11</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Health, rules, snapshot, export, settings</small></div>
 <div class="card-body compact"><div class="qt-grid">
 <button class="btn btn-ghost btn-sm" onclick="window.checkPlatformHealth&&checkPlatformHealth()"><i class="fas fa-heartbeat"></i> Platform Health</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showSecurityRules&&showSecurityRules()"><i class="fas fa-lock"></i> DB Rules</button>
+<!-- ✅ B27 (2026-10-07): Realtime Analytics ka "Live Users" button pehle
+     fix13-realtime-analytics.js runtime me inject karta tha (DB Rules ke
+     bagal) — group ke bahar ghus kar category ka count bigaadta tha. Ab ye
+     pakka tile hai; script ka apna guard (#rtAnalyticsBtn) dekh kar dobara
+     inject nahi karta, aur badge (rtBadge) ko wahi script update karti rehti hai. -->
+<button id="rtAnalyticsBtn" class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c;position:relative" onclick="window.toggleRtAnalytics&&toggleRtAnalytics()"><i class="fas fa-users"></i> Live Users <span id="rtBadge" style="position:absolute;top:-4px;right:-4px;background:#00ff9c;color:#000;border-radius:10px;font-size:9px;font-weight:800;padding:1px 5px;display:none">0</span></button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showQuickStatusPanel&&showQuickStatusPanel()"><i class="fas fa-bolt"></i> Quick Status</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,212,255,.3);color:#00d4ff" onclick="window.showTournamentSnapshot&&showTournamentSnapshot()"><i class="fas fa-camera"></i> Snapshot</button>
 <button class="btn btn-ghost btn-sm" onclick="window.showActionLog&&showActionLog()"><i class="fas fa-history"></i> Action Log</button>
