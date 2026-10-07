@@ -13,13 +13,27 @@
   function _modal(title, html) { if (window.showModal) showModal(title, html); }
   function _close() { if (window.closeModal) closeModal(); }
   function _logAction(action, targetId, extra) {
-    if (!rtdb) return;
-    var id = rtdb.ref('activityLogs').push().key;
-    rtdb.ref('activityLogs/' + id).set({
-      action: action, targetId: targetId || '', extra: extra || {},
-      adminId: firebase.auth().currentUser ? firebase.auth().currentUser.uid : 'admin',
-      ts: Date.now()
-    });
+    /* ✅ FIX (live-testing 2026-10-07): pehle yahan seedha `firebase.auth()`
+       call hota tha. Is app me DEFAULT Firebase app register hi nahi hota
+       (poora data Supabase-bridge se chalta hai), is liye ye line
+       "Firebase: No Firebase App '[DEFAULT]' has been created" THROW karti
+       thi — aur ye Room Manager jaise flows ke success-.then() ke ANDAR
+       chalti hai, is liye uske BAAD wala feedback (toast + "Room details
+       saved!" status box) kabhi chalta hi nahi tha. Live asar: admin
+       "Save Only" dabata tha, DB me sab likha jata tha (creds + release
+       minutes) par screen par koi jawab nahi aata tha — lagta tha kuch hua
+       hi nahi. Ab uid window.auth (Firebase-compat auth jo panel khud use
+       karta hai) se aata hai aur poora logging try/catch me hai — logging
+       kabhi asli kaam ke feedback ko na roke. */
+    try {
+      if (!rtdb) return;
+      var id = rtdb.ref('activityLogs').push().key;
+      var uid = (window.auth && window.auth.currentUser && window.auth.currentUser.uid) || 'admin';
+      rtdb.ref('activityLogs/' + id).set({
+        action: action, targetId: targetId || '', extra: extra || {},
+        adminId: uid, ts: Date.now()
+      });
+    } catch (e) { console.warn('[admin] action log skip:', e && e.message); }
   }
 
   /* =========================================================
@@ -853,7 +867,10 @@
       checks.push({ name: 'Firebase Realtime DB', ok: s.val() === true });
       var latency = Date.now() - startTime;
       checks.push({ name: 'DB Latency (' + latency + 'ms)', ok: latency < 2000 });
-      checks.push({ name: 'Auth Service', ok: !!firebase.auth().currentUser });
+      /* ✅ FIX (live-testing 2026-10-07): yahi firebase.auth() trap —
+         default app na hone par ye poori Platform Health check ko throw kar
+         deta tha. Panel ka asli auth object window.auth hai. */
+      checks.push({ name: 'Auth Service', ok: !!(window.auth && window.auth.currentUser) });
       rtdb.ref('appSettings').once('value', function (s2) {
         checks.push({ name: 'App Settings', ok: s2.exists() });
         var h = '<div>';
