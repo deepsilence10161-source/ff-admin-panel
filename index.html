@@ -87,15 +87,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mini eSports — Admin Panel</title>
-<link rel="icon" type="image/png" href="app-icon.png?v=20261007aa">
-<link rel="apple-touch-icon" href="app-icon.png?v=20261007aa">
+<link rel="icon" type="image/png" href="app-icon.png?v=20261007ab">
+<link rel="apple-touch-icon" href="app-icon.png?v=20261007ab">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="admin-base.css?v=20261007aa">
-<link rel="stylesheet" href="style.css?v=20261007aa">
-<link rel="stylesheet" href="js/admin-ui-v10.css?v=20261007aa">
+<link rel="stylesheet" href="admin-base.css?v=20261007ab">
+<link rel="stylesheet" href="style.css?v=20261007ab">
+<link rel="stylesheet" href="js/admin-ui-v10.css?v=20261007ab">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- ✅ ADDED (2026-08-20): supabase-js v2 query builders are thenables
      with no real .catch()/.finally() — dozens of call sites across this
@@ -106,8 +106,8 @@
      behavior change to successful requests). Must load immediately
      after the Supabase SDK and before every other panel script that
      might call .catch() on a query builder. -->
-<script defer src="js/supabase-compat-patch.js?v=20261007aa"></script>
-<script defer src="js/r8-admin-gateway-shim.js?v=20261007aa"></script><!-- R8 FINAL: admin-only RPCs via trusted backend path (admin-gateway) -->
+<script defer src="js/supabase-compat-patch.js?v=20261007ab"></script>
+<script defer src="js/r8-admin-gateway-shim.js?v=20261007ab"></script><!-- R8 FINAL: admin-only RPCs via trusted backend path (admin-gateway) -->
 <script>
   /* Admin panel constants */
   window.SUPABASE_URL = 'https://hddhkculuyrfoevxmlwy.supabase.co';
@@ -121,9 +121,9 @@
      SUPABASE EARLY INIT — Must load before Firebase scripts
      Initializes window._supa so the bridge can install quickly
 ═══════════════════════════════════════════════ -->
-<script defer src="js/supabase-init-early.js?v=20261007aa"></script>
-<script defer src="js/app-dialog.js?v=20261007aa"></script><!-- ✅ B3: sab confirm/alert/prompt app-UI me -->
-<script defer src="js/security-hardening.js?v=20261007aa"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
+<script defer src="js/supabase-init-early.js?v=20261007ab"></script>
+<script defer src="js/app-dialog.js?v=20261007ab"></script><!-- ✅ B3: sab confirm/alert/prompt app-UI me -->
+<script defer src="js/security-hardening.js?v=20261007ab"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
 <script>
   /* ✅ REPLACED (2026-09-30) — pehle yahan ek bada DIAGNOSTIC block tha:
      green "🔧 build v54-diag" badge, poore page ka click tracer (har click
@@ -158,7 +158,7 @@
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
 <div class="login-card">
-<div class="login-icon"><img src="app-icon.png?v=20261007aa" alt="Mini eSports" style="width:96px;height:96px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 0 18px rgba(57,255,20,.45))"></div>
+<div class="login-icon"><img src="app-icon.png?v=20261007ab" alt="Mini eSports" style="width:96px;height:96px;object-fit:contain;display:block;margin:0 auto;filter:drop-shadow(0 0 18px rgba(57,255,20,.45))"></div>
 <div class="login-title">MINI ESPORT</div>
 <div class="login-subtitle">Admin Control Center</div>
 <div class="login-error" id="loginError"><i class="fas fa-exclamation-circle"></i> <span id="loginErrorMsg"></span></div>
@@ -185,7 +185,7 @@
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar" role="navigation" aria-label="Admin Navigation">
 <div class="sidebar-header">
-<div class="sidebar-logo"><img src="app-icon.png?v=20261007aa" alt="" aria-hidden="true" style="width:38px;height:38px;object-fit:contain;display:block;filter:drop-shadow(0 0 6px rgba(57,255,20,.45))"></div>
+<div class="sidebar-logo"><img src="app-icon.png?v=20261007ab" alt="" aria-hidden="true" style="width:38px;height:38px;object-fit:contain;display:block;filter:drop-shadow(0 0 6px rgba(57,255,20,.45))"></div>
 <div class="sidebar-brand-group">
 <h1 class="sidebar-brand" style="margin:0;line-height:1.2">MINI ESPORT</h1>
 <div class="sidebar-brand-sub">Admin Panel v4.0</div>
@@ -1266,7 +1266,7 @@
 <div class="form-group"><label>Map *</label><select id="tMap" class="form-input"><option>Bermuda</option><option>Kalahari</option><option>Purgatory</option><option>Alpine</option><option>Nexterra</option><option>Bermuda Remastered</option></select></div>
 <div class="form-group"><label>Entry Type *</label><select id="tEntryType" class="form-input" onchange="onEntryTypeChange()"><option value="paid">💠 Paid (Sky Diamond)</option><option value="coin">🪙 Coin</option><option value="ad">📺 Ad-Based (Free)</option><option value="free">🎁 Free Entry (no fee)</option></select></div>
 </div>
-<div id="entryTypeHint" class="info-box green"><i class="fas fa-info-circle"></i> Paid — Entry: 💠 Sky Diamond | Winner Prize: <img src="green-diamond.png?v=20261007aa" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green Diamond</div>
+<div id="entryTypeHint" class="info-box green"><i class="fas fa-info-circle"></i> Paid — Entry: 💠 Sky Diamond | Winner Prize: <img src="green-diamond.png?v=20261007ab" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green Diamond</div>
 <div id="adsRequiredWrap" style="display:none;margin-top:10px">
   <div class="grid-3">
     <div class="form-group"><label>📺 Ads Required to Join</label><select id="tAdsRequired" class="form-input"><option value="1">1 Ad</option><option value="2" selected>2 Ads</option><option value="3">3 Ads</option></select></div>
@@ -1405,7 +1405,7 @@
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-primary" id="manualUserName">—</span><span class="badge green" id="manualUserStatus">—</span></div>
 <div class="flex gap-3 text-xs flex-wrap" style="gap:8px">
   <span>💎 Sky: <strong style="color:#00d4ff" id="manualUserDep">0</strong></span>
-  <span><img src="green-diamond.png?v=20261007aa" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green: <strong style="color:#00ff64" id="manualUserWin">0</strong></span>
+  <span><img src="green-diamond.png?v=20261007ab" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> Green: <strong style="color:#00ff64" id="manualUserWin">0</strong></span>
   <span>🪙 Coins: <strong style="color:#ffd700" id="manualUserCoins">0</strong></span>
 </div>
 </div>
@@ -1626,10 +1626,10 @@
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted, split into 4 parts: B core / C match mgmt / D operations / E peripheral)
 ═══════════════════════════════════════════════ -->
-<script defer src="js/admin-inline-b.js?v=20261007aa"></script>
-<script defer src="js/admin-inline-c.js?v=20261007aa"></script>
-<script defer src="js/admin-inline-d.js?v=20261007aa"></script>
-<script defer src="js/admin-inline-e.js?v=20261007aa"></script>
+<script defer src="js/admin-inline-b.js?v=20261007ab"></script>
+<script defer src="js/admin-inline-c.js?v=20261007ab"></script>
+<script defer src="js/admin-inline-d.js?v=20261007ab"></script>
+<script defer src="js/admin-inline-e.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════
      SUPABASE RTDB BRIDGE — Firebase → Supabase migration
@@ -1637,86 +1637,86 @@
      appSettings/, admins/ which stay on real Firebase RTDB.
      Everything else (matches, users, joinRequests, wallet, etc.) → Supabase.
 ═══════════════════════════════════════════════ -->
-<script defer src="js/supabase-rtdb-bridge.js?v=20261007aa"></script>
+<script defer src="js/supabase-rtdb-bridge.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════
      BASE FEATURES
 ═══════════════════════════════════════════════ -->
-<script defer src="js/fix8-lazy-loading.js?v=20261007aa"></script>
-<script defer src="js/security-patches.js?v=20261007aa"></script>
-<script defer src="js/admin-live-dash.js?v=20261007aa"></script>
-<script defer src="js/admin-analytics.js?v=20261007aa"></script>
-<script defer src="js/admin-scheduler.js?v=20261007aa"></script>
-<script defer src="js/admin-player-lookup.js?v=20261007aa"></script>
-<script defer src="js/admin-notif-templates.js?v=20261007aa"></script>
-<script defer src="js/admin-chat-enhance.js?v=20261007aa"></script>
-<script defer src="js/admin-activity-log.js?v=20261007aa"></script>
-<script defer src="js/features-admin.js?v=20261007aa"></script>
+<script defer src="js/fix8-lazy-loading.js?v=20261007ab"></script>
+<script defer src="js/security-patches.js?v=20261007ab"></script>
+<script defer src="js/admin-live-dash.js?v=20261007ab"></script>
+<script defer src="js/admin-analytics.js?v=20261007ab"></script>
+<script defer src="js/admin-scheduler.js?v=20261007ab"></script>
+<script defer src="js/admin-player-lookup.js?v=20261007ab"></script>
+<script defer src="js/admin-notif-templates.js?v=20261007ab"></script>
+<script defer src="js/admin-chat-enhance.js?v=20261007ab"></script>
+<script defer src="js/admin-activity-log.js?v=20261007ab"></script>
+<script defer src="js/features-admin.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════
      FEATURE MODULES (fa02–fa80)
 ═══════════════════════════════════════════════ -->
-<script defer src="js/features/fa02-smart-search.js?v=20261007aa"></script>
-<script defer src="js/features/fix7-server-side-search.js?v=20261007aa"></script>
-<script defer src="js/features/fa03-quick-match-creator.js?v=20261007aa"></script>
-<script defer src="js/features/fa04-bulk-notification.js?v=20261007aa"></script>
-<script defer src="js/features/fa05-platform-health.js?v=20261007aa"></script>
-<script defer src="js/features/fa06-duplicate-detector.js?v=20261007aa"></script>
-<script defer src="js/features/fa08-match-autopublish.js?v=20261007aa"></script>
-<script defer src="js/features/fa10-user-activity-heatmap.js?v=20261007aa"></script>
-<script defer src="js/features/fa11-result-auto-calc.js?v=20261007aa"></script>
-<script defer src="js/features/fa12-bulk-notify.js?v=20261007aa"></script>
-<script defer src="js/features/fa13-match-clone.js?v=20261007aa"></script>
-<script defer src="js/features/fa14-player-lookup.js?v=20261007aa"></script>
-<script defer src="js/features/fa15-match-result-reminder.js?v=20261007aa"></script>
-<script defer src="js/features/fa16-quick-ban.js?v=20261007aa"></script>
-<script defer src="js/features/fa17-pending-profiles.js?v=20261007aa"></script>
-<script defer src="js/features/fa18-match-stats.js?v=20261007aa"></script>
-<script defer src="js/features/fa19-auto-status.js?v=20261007aa"></script>
-<script defer src="js/features/fa21-match-history.js?v=20261007aa"></script>
-<script defer src="js/features/fa22-match-result.js?v=20261007aa"></script>
-<script defer src="js/features/fa24-admin-smart-tools.js?v=20261007aa"></script>
-<script defer src="js/features/fa25-fraud-dashboard.js?v=20261007aa"></script>
-<script defer src="js/features/fa26-poll-suggestion.js?v=20261007aa"></script>
-<script defer src="js/features/fa27-anticheat-complete.js?v=20261007aa"></script>
-<script defer src="js/features/fa28-fa43-fraud-control-center.js?v=20261007aa"></script>
-<script defer src="js/features/fa44-fa52-final-admin-tools.js?v=20261007aa"></script>
-<script defer src="js/features/fa53-ocr-autofill.js?v=20261007aa"></script>
-<script defer src="js/features/fa53-ocr-engine-plus.js?v=20261007aa"></script>
-<script defer src="js/features/fa-legal-kyc-dispute.js?v=20261007aa"></script>
-<script defer src="js/features/fa56-fa62-automation-bundle.js?v=20261007aa"></script>
-<script defer src="js/features/fa63-fa70-automation-bundle.js?v=20261007aa"></script>
-<script defer src="js/features/fa71-fa80-automation-bundle.js?v=20261007aa"></script>
+<script defer src="js/features/fa02-smart-search.js?v=20261007ab"></script>
+<script defer src="js/features/fix7-server-side-search.js?v=20261007ab"></script>
+<script defer src="js/features/fa03-quick-match-creator.js?v=20261007ab"></script>
+<script defer src="js/features/fa04-bulk-notification.js?v=20261007ab"></script>
+<script defer src="js/features/fa05-platform-health.js?v=20261007ab"></script>
+<script defer src="js/features/fa06-duplicate-detector.js?v=20261007ab"></script>
+<script defer src="js/features/fa08-match-autopublish.js?v=20261007ab"></script>
+<script defer src="js/features/fa10-user-activity-heatmap.js?v=20261007ab"></script>
+<script defer src="js/features/fa11-result-auto-calc.js?v=20261007ab"></script>
+<script defer src="js/features/fa12-bulk-notify.js?v=20261007ab"></script>
+<script defer src="js/features/fa13-match-clone.js?v=20261007ab"></script>
+<script defer src="js/features/fa14-player-lookup.js?v=20261007ab"></script>
+<script defer src="js/features/fa15-match-result-reminder.js?v=20261007ab"></script>
+<script defer src="js/features/fa16-quick-ban.js?v=20261007ab"></script>
+<script defer src="js/features/fa17-pending-profiles.js?v=20261007ab"></script>
+<script defer src="js/features/fa18-match-stats.js?v=20261007ab"></script>
+<script defer src="js/features/fa19-auto-status.js?v=20261007ab"></script>
+<script defer src="js/features/fa21-match-history.js?v=20261007ab"></script>
+<script defer src="js/features/fa22-match-result.js?v=20261007ab"></script>
+<script defer src="js/features/fa24-admin-smart-tools.js?v=20261007ab"></script>
+<script defer src="js/features/fa25-fraud-dashboard.js?v=20261007ab"></script>
+<script defer src="js/features/fa26-poll-suggestion.js?v=20261007ab"></script>
+<script defer src="js/features/fa27-anticheat-complete.js?v=20261007ab"></script>
+<script defer src="js/features/fa28-fa43-fraud-control-center.js?v=20261007ab"></script>
+<script defer src="js/features/fa44-fa52-final-admin-tools.js?v=20261007ab"></script>
+<script defer src="js/features/fa53-ocr-autofill.js?v=20261007ab"></script>
+<script defer src="js/features/fa53-ocr-engine-plus.js?v=20261007ab"></script>
+<script defer src="js/features/fa-legal-kyc-dispute.js?v=20261007ab"></script>
+<script defer src="js/features/fa56-fa62-automation-bundle.js?v=20261007ab"></script>
+<script defer src="js/features/fa63-fa70-automation-bundle.js?v=20261007ab"></script>
+<script defer src="js/features/fa71-fa80-automation-bundle.js?v=20261007ab"></script>
 
 <!-- v17 NEW FEATURES -->
-<script defer src="js/features/fa-v17-features.js?v=20261007aa"></script>
+<script defer src="js/features/fa-v17-features.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════
      PATCH & GROWTH LAYERS
      (load after features, order matters)
 ═══════════════════════════════════════════════ -->
-<script defer src="js/fix13-realtime-analytics.js?v=20261007aa"></script>
-<script defer src="js/admin-fixes-v7.js?v=20261007aa"></script>
-<script defer src="js/fixes-admin-v9.js?v=20261007aa"></script>
-<script defer src="js/fa-admin-v10.js?v=20261007aa"></script>
-<script defer src="js/fa-admin-v10-final.js?v=20261007aa"></script>
-<script defer src="js/fa-sponsored-system.js?v=20261007aa"></script>
-<script defer src="js/fa-growth-admin.js?v=20261007aa"></script>
-<script defer src="js/fa-app-settings-v2.js?v=20261007aa"></script>
+<script defer src="js/fix13-realtime-analytics.js?v=20261007ab"></script>
+<script defer src="js/admin-fixes-v7.js?v=20261007ab"></script>
+<script defer src="js/fixes-admin-v9.js?v=20261007ab"></script>
+<script defer src="js/fa-admin-v10.js?v=20261007ab"></script>
+<script defer src="js/fa-admin-v10-final.js?v=20261007ab"></script>
+<script defer src="js/fa-sponsored-system.js?v=20261007ab"></script>
+<script defer src="js/fa-growth-admin.js?v=20261007ab"></script>
+<script defer src="js/fa-app-settings-v2.js?v=20261007ab"></script>
 <!-- ✅ FIX (Audit H2): yeh file exist karti thi lekin kabhi load hi nahi hoti thi —
      poora Creator Video Review + Strike management feature is wajah se 100%
      unreachable tha (na sidebar mein link tha, na script tag tha). -->
-<script defer src="js/fa-creator-video-review.js?v=20261007aa"></script>
+<script defer src="js/fa-creator-video-review.js?v=20261007ab"></script>
 
-<script defer src="js/imgbb.js?v=20261007aa"></script>
-<script defer src="js/admin-supabase-sync.js?v=20261007aa"></script>
-<script defer src="js/admin-supabase-sponsored.js?v=20261007aa"></script><!-- Bug#118 Fix: separated sponsored WD -->
+<script defer src="js/imgbb.js?v=20261007ab"></script>
+<script defer src="js/admin-supabase-sync.js?v=20261007ab"></script>
+<script defer src="js/admin-supabase-sponsored.js?v=20261007ab"></script><!-- Bug#118 Fix: separated sponsored WD -->
 
 <!-- ═══════════════════════════════════════════════════════
      v21 BUG FIX PATCH — Loads LAST to patch all above scripts
      Fixes all 120 bugs from comprehensive analysis report
      ═══════════════════════════════════════════════════════ -->
-<script defer src="js/admin-fixes-v21.js?v=20261007aa"></script>
+<script defer src="js/admin-fixes-v21.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      v22 FINAL PATCH — Loads AFTER v21
@@ -1733,8 +1733,8 @@
      • Bug#111    Unified _calcPrize() across all functions
      • Bonus: Supabase channel leaks, avatar_bg column, clan_messages
      ═══════════════════════════════════════════════════════ -->
-<script defer src="js/admin-fixes-v22-FINAL.js?v=20261007aa"></script>
-<script defer src="js/qa-live-freshness.js?v=20261007aa"></script>
+<script defer src="js/admin-fixes-v22-FINAL.js?v=20261007ab"></script>
+<script defer src="js/qa-live-freshness.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════════
      Admin Patch v23 FINAL — Applied after v22
@@ -1743,7 +1743,7 @@
      real-time joinRequests listener, approveTeam dup check,
      global Firebase→Supabase notification dual-write, heatmap pagination
      ═══════════════════════════════════════════════════ -->
-<script defer src="js/admin-fixes-v23-FINAL.js?v=20261007aa"></script>
+<script defer src="js/admin-fixes-v23-FINAL.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════════
      Admin Patch v24 FINAL — Applied after v23
@@ -1764,20 +1764,20 @@
      #20 syncTournamentStatuses document.hidden guard
      #26 fa58_showBatchWithdrawals correct walletRequests ref
      ═══════════════════════════════════════════════════ -->
-<script defer src="js/admin-devicejoins-bridge.js?v=20261007aa"></script>
-<script defer src="js/admin-fixes-v24-FINAL.js?v=20261007aa"></script>
+<script defer src="js/admin-devicejoins-bridge.js?v=20261007ab"></script>
+<script defer src="js/admin-fixes-v24-FINAL.js?v=20261007ab"></script>
 
 <!-- ═══════════════════════════════════════════════
      v25 SUPABASE MIGRATION FINAL PATCH
      Loads ABSOLUTELY LAST — overrides listeners with Supabase versions
      Firebase sirf chat/deviceJoins/appSettings/auth ke liye raha
 ═══════════════════════════════════════════════ -->
-  <script defer src="js/admin-fixes-v25-SUPABASE.js?v=20261007aa"></script>
-  <script defer src="js/admin-monitor.js?v=20261007aa"></script>
+  <script defer src="js/admin-fixes-v25-SUPABASE.js?v=20261007ab"></script>
+  <script defer src="js/admin-monitor.js?v=20261007ab"></script>
 <!-- ✅ B13 (2026-10-06): approve/reject har jagah MILLISECONDS me dikhe —
      click par button band, kaam banne par row turant hatti hai (section ke
      dobara load hone ka intezaar nahi). Detail: js/adm-fast-actions.js -->
-<script defer src="js/adm-fast-actions.js?v=20261007aa"></script>
+<script defer src="js/adm-fast-actions.js?v=20261007ab"></script>
 
 </body>
 </html>

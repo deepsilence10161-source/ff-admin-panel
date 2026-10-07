@@ -139,12 +139,22 @@
 
     var panel = document.createElement('div');
     panel.id  = 'rtAnalyticsPanel';
+    /* ✅ D9 FIX (2026-10-07): pehle yeh panel page me kahin bhi `prepend` ho
+       jata tha — `[class*="stats"]`/`main` wale container me, jo live admin
+       panel par aksar 0×0 (ya hidden section ke andar) nikalta tha. Asar:
+       "Live Users" tile dabane par panel ka display 'block' ho jata tha par
+       uski width/height 0 rehti thi — yaani admin ko KUCH DIKHTA HI NAHI
+       tha aur tile "dead" lagta tha (live probe: display block, w=0, h=0).
+       Ab yeh ek asli app-style overlay hai (fixed, dark, scrollable). */
     panel.style.cssText = [
-      'background:var(--card,#1a1a2e)',
-      'border:1px solid rgba(0,212,255,.2)',
+      'background:#12121c',
+      'border:1px solid rgba(0,212,255,.25)',
       'border-radius:16px',
-      'padding:20px',
-      'margin:16px 0',
+      'padding:18px',
+      'width:min(640px,92vw)',
+      'max-height:86vh',
+      'overflow-y:auto',
+      'box-shadow:0 18px 60px rgba(0,0,0,.6)',
       'display:none'
     ].join(';');
 
@@ -156,6 +166,8 @@
         '<div style="display:flex;gap:8px;align-items:center">',
           '<div id="rtOnlineDot" style="width:8px;height:8px;border-radius:50%;background:#00ff9c;animation:rtPulse 1.5s infinite"></div>',
           '<span id="rtOnlineCount" style="font-size:13px;font-weight:700;color:#00ff9c">0 online</span>',
+          /* ✅ D9: overlay ka apna close button (mobile par bahar tap ka bharosa nahi) */
+          '<button onclick="window.toggleRtAnalytics&&toggleRtAnalytics()" style="margin-left:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#aaa;border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer">✕</button>',
         '</div>',
       '</div>',
 
@@ -187,22 +199,35 @@
       '<div style="margin-top:14px">',
         '<div style="font-size:11px;font-weight:700;color:#aaa;margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Active Users</div>',
         '<div id="rtUsersList" style="max-height:160px;overflow-y:auto"></div>',
-      '</div>',
-
-      /* Inject CSS */
-      '<style>',
-        '@keyframes rtPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}',
-        '#rtAnalyticsPanel::-webkit-scrollbar{width:4px}',
-        '.rtUserRow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:11px;margin-bottom:4px;background:rgba(255,255,255,.03)}',
-      '</style>'
+      '</div>'
     ].join('');
 
-    /* Find a good insertion point in admin panel */
-    var target = document.querySelector('.stats-grid, .admin-stats, [id*="stats"], [class*="stats"]')
-              || document.querySelector('main, .main-content, #mainContent, .container')
-              || document.body;
+    /* CSS head me inject karo — panel ke andar <style> rakhne se woh panel ke
+       innerText me ghus jata tha (dekho D9 note). */
+    if (!document.getElementById('_rtAnalyticsCss')) {
+      var st = document.createElement('style');
+      st.id = '_rtAnalyticsCss';
+      st.textContent = '@keyframes rtPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}'
+        + '#rtAnalyticsPanel::-webkit-scrollbar{width:4px}'
+        + '.rtUserRow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:11px;margin-bottom:4px;background:rgba(255,255,255,.03)}';
+      document.head.appendChild(st);
+    }
 
-    target.prepend(panel);
+    /* ✅ D9 FIX: overlay banão (dark backdrop + centered panel) aur BODY me
+       lagao — pehle .stats-grid/main me prepend hota tha jo live page par
+       0×0 nikalta tha, isliye panel kabhi dikhta hi nahi tha. */
+    var ov = document.getElementById('rtAnalyticsOv');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'rtAnalyticsOv';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9998;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);padding:16px';
+      ov.addEventListener('click', function(e) { if (e.target === ov) window.toggleRtAnalytics(); });
+      ov.appendChild(panel);
+      document.body.appendChild(ov);
+    } else if (!ov.contains(panel)) {
+      ov.appendChild(panel);
+    }
+    panel.style.display = 'block';
     initChart();
     return panel;
   }
@@ -358,9 +383,16 @@
 
   /* ── Toggle panel visibility ── */
   window.toggleRtAnalytics = function() {
+    /* ✅ D9 FIX (2026-10-07): pehle sirf panel ki apni display toggli jaati
+       thi — agar woh kisi 0×0/hidden container me prepend ho gaya ho to
+       admin ko kuch nahi dikhta tha (tile "dead" lagta tha). Ab overlay
+       (#rtAnalyticsOv) show/hide hota hai jo body me fixed hai. */
     var panel = document.getElementById('rtAnalyticsPanel') || buildPanel();
+    var ov    = document.getElementById('rtAnalyticsOv');
     _panelVisible = !_panelVisible;
-    panel.style.display = _panelVisible ? 'block' : 'none';
+    panel.style.display = 'block';
+    if (ov) ov.style.display = _panelVisible ? 'flex' : 'none';
+    else panel.style.display = _panelVisible ? 'block' : 'none';
     if (_panelVisible) {
       setTimeout(initChart, 100); /* ensure canvas sized */
     }
