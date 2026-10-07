@@ -540,7 +540,7 @@
     h += '<a href="https://wa.me/?text=' + encodeURIComponent(msg) + '" target="_blank" class="btn" style="background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;justify-content:center;display:flex;align-items:center;gap:6px"><i class="fab fa-whatsapp"></i> WhatsApp</a>';
     h += '<a href="https://t.me/share/url?url=' + encodeURIComponent(window.location.origin || '') + '&text=' + encodeURIComponent(msg) + '" target="_blank" class="btn" style="background:linear-gradient(135deg,#0088cc,#005fa3);color:#fff;justify-content:center;display:flex;align-items:center;gap:6px"><i class="fab fa-telegram"></i> Telegram</a>';
     h += '</div>';
-    h += '<button class="btn btn-ghost w-full" style="margin-top:8px" onclick="window.copyText&&copyText(\'' + msg.replace(/'/g, "\\'") + '\'),\'📋 Message copied!\')"><i class="fas fa-copy"></i> Copy Message</button>';
+    h += '<button class="btn btn-ghost w-full" style="margin-top:8px" onclick="window.copyText&&copyText(\'' + msg.replace(/'/g, "\\'") + '\',\'📋 Message copied!\')"><i class="fas fa-copy"></i> Copy Message</button>';
     h += '</div>';
     _modal('📢 Share This Win', h);
   };

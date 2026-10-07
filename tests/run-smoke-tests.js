@@ -458,6 +458,41 @@ console.log('\n── TEST 14: B31 copy-buttons (clipboard fail par bhi feedback
      'B31: IGN-list copy par bhi reject/fallback ka raasta maujood hai');
 }
 
+/* ── TEST 15: inline onclick handlers ki JS SYNTAX (B31 ke asli bug se seekh) ──
+   Live testing me pakda gaya: copyText wale generated handler me ek extra `)`
+   reh gaya tha — `copyText('UID'),'📋 UID copied!')` — click par SyntaxError aur
+   button bilkul mare jaisa. Substring-check ise pakad nahi paata, isliye ab
+   generated handlers ko Node me sach me COMPILE karke dekhte hain (aur ek pakka
+   pattern-check bhi hai). */
+console.log('\n── TEST 15: generated onclick handlers ki syntax (mare-button jaisa SyntaxError na aaye) ──');
+{
+  const files = ['js/admin-inline-b.js', 'js/admin-fixes-v7.js', 'js/admin-inline-e.js', 'js/fa-admin-v10-final.js', 'index.html'];
+  let bad = [], checked = 0, patternBad = [];
+  function checkHandler(raw, where) {
+    if (raw.indexOf('copyText') === -1) return;
+    let h = raw
+      .replace(/'\s*\+[^']*?\+\s*'/g, 'DYN')   // '...'+expr+'...'  →  DYN
+      .replace(/\\(['"])/g, '$1');             // \'  →  '
+    if (h.indexOf('{{') !== -1) return;
+    if (h.indexOf('\\') !== -1) return;        // jo de-template na ho sake, chhod do
+    if (/replace\(|\/g,|'\s*\+\s*'/.test(h)) return;   // regex/adhoora template wala handler — neeche pakka pattern-check hai
+    try { new Function('copyText', 'window', 'document', 'msg', 'utr', 'DYN', h); checked++; }
+    catch (e) { bad.push(where + ' → ' + e.message + ' :: ' + h.slice(0, 90)); }
+  }
+  files.forEach(f => {
+    const t = fs.readFileSync(path.join(REPO, f), 'utf8');
+    const re = /onclick=\\?"([^"]+)"/g; let m;
+    while ((m = re.exec(t))) checkHandler(m[1], f);
+    /* pakka pattern: copyText(...) ke turant baad `),` = extra band-paren (live bug) */
+    if (/copyText\([^)]*\)\s*,\s*\\?'/.test(t)) patternBad.push(f);
+  });
+  ok(checked >= 4, 'B31: copyText wale generated handlers sach me compile kiye gaye (' + checked + ')');
+  ok(bad.length === 0, 'B31: koi bhi handler SyntaxError nahi deta' + (bad.length ? ' — ' + bad[0] : ''));
+  ok(patternBad.length === 0, 'B31: kisi file me copyText(…),' + "'…'" + ' wala galat pattern nahi (mila: ' + (patternBad.join(',') || 'kuch nahi') + ')');
+  const inB = fs.readFileSync(path.join(REPO, 'js/admin-inline-b.js'), 'utf8');
+  ok(inB.indexOf("),\\'📋") === -1, 'B31: purana galat pattern (extra `)` — live me SyntaxError deta tha) ab nahi hai');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }
