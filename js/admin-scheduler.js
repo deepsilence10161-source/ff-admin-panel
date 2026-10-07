@@ -141,6 +141,11 @@ async function executeBulkCreate() {
                   entry_fee: matchData.entryFee || 0,
                   entry_type: matchData.entryType || 'coin',
                   max_slots: matchData.maxSlots || matchData.totalSlots || 12,
+                  /* ✅ FIX (live-testing 2026-10-07): scheduler se bane match me
+                     bhi prize_pool column khaali (0) reh jata tha jabki
+                     prize1/2/3 set hote the — wahi mismatch jo UI wale path me
+                     tha. Ab pool = teen prizes ka jod. */
+                  prize_pool: (Number(matchData.firstPrize) || 0) + (Number(matchData.secondPrize) || 0) + (Number(matchData.thirdPrize) || 0),
                   mode: matchData.mode || matchData.type || 'solo',
                   map: matchData.map || '',
                   data: matchData

@@ -1,5 +1,5 @@
 /* ── admin-inline.js · Part C: MATCH MANAGEMENT (status, tournaments, joined players, results) ── */
-window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261007w" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
+window.ADM_GD_ICON = '<img src="green-diamond.png?v=20261007x" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block">';
 window._admEntrySym = function(m, j) {
   var et = String((j && (j.entryType || j.entry_type)) || (m && (m.entryType || m.entry_type)) || 'paid').toLowerCase().replace(/[_ -]/g, '');
   if (et === 'coin' || et === 'coins') return '🪙';
@@ -400,7 +400,7 @@ function onEntryTypeChange(){
   if(t==='paid'){
     h.className='info-box green';
     if(entryFeeLabel) entryFeeLabel.textContent='💠 Entry Fee (Sky Diamond) *';
-    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261007w" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
+    h.innerHTML='<i class="fas fa-info-circle"></i> <b>Paid Match</b> — Entry: 💠 Sky Diamond | Default prize: <img src="green-diamond.png?v=20261007x" style="width:14px;height:14px;vertical-align:middle;object-fit:contain;display:inline-block"> GD <span style="color:#888;font-size:11px">(neeche se change kar sakte ho)</span>';
   } else if(t==='coin'){
     h.className='info-box purple';
     if(entryFeeLabel) entryFeeLabel.textContent='🪙 Entry Fee (Coins) *';
@@ -921,6 +921,15 @@ async function saveTournament(){
         firstPrize:f1, prize1st:f1,
         secondPrize:f2, prize2nd:f2,
         thirdPrize:f3, prize3rd:f3,
+        /* ✅ FIX (live-testing 2026-10-07): prize_pool yahan diya hi nahi ja
+           raha tha. Firebase RTDB me prizePool kabhi jata hi nahi tha, aur
+           Supabase mirror me prize_pool = DB-default 0 reh jata tha — jabki
+           admin ne 1st/2nd/3rd prizes bhare hote hain (live proof: UI se
+           banaya match first_prize=50 par prize_pool=0). Iska asar: admin ke
+           CSV/analytics aur kisi bhi "Prize Pool" display me 0, jabki match me
+           asli prizes maujood. `pp` (f1+f2+f3) upar pehle se calculate hota
+           hai — bas yahan pass karna reh gaya tha. */
+        prizePool:pp,
         matchTime:mt,
         isSpecial:sp,
         specialCategory:specialCat,
@@ -1025,6 +1034,10 @@ async function saveTournament(){
           title:nm,mode:gm,map:mp,entry_type:et,entry_fee:ef,
           prize_type:prizeType||null,per_kill_prize:pk,max_slots:ms,
           first_prize:f1,second_prize:f2,third_prize:f3,
+          /* ✅ FIX (live-testing 2026-10-07): edit par bhi prize_pool sync
+             nahi hota tha (upar create wale fix ka doosra aadha) — admin
+             prizes badle to Supabase ka pool purana/0 hi rehta tha. */
+          prize_pool:(f1+f2+f3),
           scheduled_at:new Date(updateData.matchTime||mt).toISOString(),
           room_id:ri||null,room_password:rp||null,
           match_sub_type:matchSubType,
