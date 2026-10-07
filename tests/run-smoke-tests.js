@@ -493,6 +493,23 @@ console.log('\n── TEST 15: generated onclick handlers ki syntax (mare-button
   ok(inB.indexOf("),\\'📋") === -1, 'B31: purana galat pattern (extra `)` — live me SyntaxError deta tha) ab nahi hai');
 }
 
+/* ── TEST 16: B32 — admin panel ki MOBILE (device-friendly) CSS ── */
+console.log('\n── TEST 16: B32 mobile tap-targets + responsive block ──');
+{
+  const css = fs.readFileSync(path.join(REPO, 'js/admin-ui-v10.css'), 'utf8');
+  ok(css.indexOf('@media (max-width: 720px)') !== -1,
+     'B32: chhoti screen ke liye @media block maujood (pehle ek bhi media query nahi thi)');
+  const mob = css.slice(css.indexOf('@media (max-width: 720px)'));
+  ok(/table button[^{]*\{[^}]*min-height:\s*34px/.test(mob),
+     'B32: table ke buttons ka min-height 34px (pehle 22-27px = ungli ke liye bahut chhote)');
+  ok(/input, select, textarea[^{]*\{[^}]*font-size:\s*16px/.test(mob),
+     'B32: mobile par input/select ka font 16px (iOS ka auto-zoom band)');
+  ok(mob.indexOf('scrollbar-width: thin') !== -1 && mob.indexOf('::-webkit-scrollbar') !== -1,
+     'B32: table-wrapper par patli scrollbar = "aur columns hain" ka ishara');
+  ok(css.indexOf('@media (max-width: 720px)') !== -1 && css.indexOf('@media (min-width:') === -1,
+     'B32: sirf chhoti screen ka block joda, desktop ka koi rule nahi chheda');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }

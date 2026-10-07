@@ -487,3 +487,53 @@ tr:hover td {
 .data-table tbody tr:hover td {
   background: rgba(0,255,156,.03) !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ✅ B32 (2026-10-08) — MOBILE (device-friendly) SUDHAAR
+   ══════════════════════════════════════════════════════════════════════════
+   Live mobile sweep (390×844) ka natija:
+     • page kahin bhi side me nahi ja raha (tables .table-wrapper me theek se
+       scroll ho rahe hain) — ye sahi tha.
+     • PAR table ke andar ke chhote buttons sirf 22–27px unche the. Ungli se
+       dabane ke liye ye bahut chhote hain (mobile ka aam manak ≈40px) —
+       admin ko baar-baar galat button lagta hai.
+     • Is panel me ek bhi @media query nahi thi — yaani phone par kuch bhi
+       device ke hisaab se nahi badalta tha.
+   Is liye sirf chhoti screen par (≤720px) tap-targets bade, table ke aage
+   "aur columns hain" ka halka ishara (right fade + patli scrollbar), input/
+   select theek unche aur font 16px (isse iOS par focus karne par screen
+   apne aap zoom nahi hoti). Desktop ka layout bilkul waisa hi rehta hai.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 720px) {
+  /* 1) Tap targets — table/dense area ke saare buttons thoda bade */
+  table button, .table-wrapper button, .btn, button.btn-ghost, .btn-xs {
+    min-height: 34px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+  /* icon-only buttons ka click-area bhi bada */
+  .table-wrapper button i, table button i { padding: 2px 1px; }
+
+  /* 2) Nav items — bade tap area (hamburger ke andar) */
+  .nav-item { padding-top: 12px; padding-bottom: 12px; }
+
+  /* 3) Form controls — ungli se aasan, aur iOS ka auto-zoom band */
+  input, select, textarea, .form-input {
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  /* 4) Table ko scroll karne ka saaf ishara: patli scrollbar + right fade */
+  .table-wrapper {
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,255,156,.45) transparent;
+  }
+  .table-wrapper::-webkit-scrollbar { height: 7px; }
+  .table-wrapper::-webkit-scrollbar-track { background: rgba(255,255,255,.04); border-radius: 4px; }
+  .table-wrapper::-webkit-scrollbar-thumb { background: rgba(0,255,156,.45); border-radius: 4px; }
+
+  /* 5) Section headers/padding thoda kam — phone par jagah bache */
+  .section-header h2, .section-title { font-size: 17px; }
+  .card-body, .section { padding-left: 10px; padding-right: 10px; }
+}
