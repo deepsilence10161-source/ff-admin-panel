@@ -385,10 +385,14 @@ window.loadCityChampAdmin=function(){
       +'<div class="stat-card"><div class="stat-icon blue"><i class="fas fa-city"></i></div><h3>Active Cities</h3><div class="value">'+cities.length+'</div><div class="sub">'+month+'</div></div>';
     if(cities.length){
       h+='<div class="stat-card"><div class="stat-icon green"><i class="fas fa-crown"></i></div><h3>Top City</h3><div class="value" style="font-size:15px;line-height:1.3">'+cities[0]._city+'</div><div class="sub">'+(cities[0].score||0)+' pts</div></div>';
+    } else {
+      /* ✅ B27/B28: khaali mahine me bhi doosra card dikhta hai (layout toota nahi lagta) */
+      h+='<div class="stat-card"><div class="stat-icon green"><i class="fas fa-crown"></i></div><h3>Top City</h3><div class="value" style="font-size:15px">—</div><div class="sub">abhi koi nahi</div></div>';
     }
     h+='</div>';
     h+='<div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">';
     h+='<span style="font-size:12px;color:var(--txt2)">Month: <strong style="color:var(--txt)">'+month+'</strong></span>';
+    h+='<button class="btn btn-ghost btn-sm" onclick="window.loadCityChampAdmin&&loadCityChampAdmin()"><i class="fas fa-rotate"></i> Refresh</button>';
     h+='<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,107,107,.35);color:#ff6b6b" onclick="window._resetCityChamp(\''+month+'\')"><i class="fas fa-triangle-exclamation"></i> Reset This Month</button>';
     h+='</div>';
     if(!cities.length){ h+='<div class="empty-state">🏙️<div style="margin-top:6px;font-size:12px">Is mahine abhi koi city data nahi.<br>User panel me City Championship khela jayega to standings yahan apne-aap bhar jayengi.</div></div>'; c.innerHTML=h; return; }

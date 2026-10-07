@@ -307,6 +307,12 @@
       // Inject button near settings area
       var settingsBtns = document.querySelectorAll('[onclick*="showWithdrawalConfig"], [onclick*="showAppSettings"]');
       settingsBtns.forEach(function (btn) {
+        /* ✅ B27 (2026-10-07): Quick Tools me ye button ab apna pakka tile hai
+           (Money & Finance → "Daily Bonus Rewards") — wahan inject karne se
+           grid me extra button ghus jata tha aur category ka count galat ho
+           jata tha. Baaki jagah (jaise App Settings ke paas) injection pehle
+           jaisa hi chalta hai. */
+        if (btn.closest && btn.closest('#section-quicktools')) return;
         if (!btn.parentNode.querySelector('.daily-bonus-btn')) {
           var newBtn = document.createElement('button');
           newBtn.className = btn.className + ' daily-bonus-btn';

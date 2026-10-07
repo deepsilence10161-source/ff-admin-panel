@@ -508,10 +508,10 @@
 
 <!-- QUICK TOOLS (standalone section) -->
 <div class="section" id="section-quicktools">
-<div class="section-header"><div class="section-title"><i class="fas fa-tools text-primary"></i> Quick Tools <span class="count">52</span></div></div>
-<!-- ✅ B27 (2026-10-07): pehle yahan 52 buttons ka ek bina-group seedha dher tha —
+<div class="section-header"><div class="section-title"><i class="fas fa-tools text-primary"></i> Quick Tools <span class="count">53</span></div></div>
+<!-- ✅ B27 (2026-10-07): pehle yahan 52+ buttons ka ek bina-group seedha dher tha —
      mobile par 3-4 line me bas naam dikhte the ("WD Config", "Prize Calc",
-     "Bulk Status"...), samajhna mushkil. Ab wahi 52 buttons (labels/onclick/
+     "Bulk Status"...), samajhna mushkil. Ab wahi buttons (labels/onclick/
      badges ek-ek hU-ba-hU same) 6 saaf cards me baante hue hain: card-header me
      icon + naam + count, aur andar tap-friendly (min 40px) tiles. Koi button
      hataya nahi, jodha nahi. -->
@@ -575,10 +575,14 @@
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(0,255,156,.3);color:#00ff9c" onclick="window.showPlayerSearch&&showPlayerSearch()"><i class="fas fa-search"></i> Player Search</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(255,215,0,.3);color:#ffd700" onclick="window.showCoinManager&&showCoinManager()"><i class="fas fa-coins"></i> Coin Manager</button>
 </div></div></div>
-<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#ffd700;font-size:8px"></i> 💰 Money & Finance <span class="qt-count">9</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Withdrawal, UPI, revenue aur reports</small></div>
+<div class="card qt-card"><div class="card-header"><span><i class="fas fa-circle" style="color:#ffd700;font-size:8px"></i> 💰 Money & Finance <span class="qt-count">10</span></span><small style="color:var(--txt2);font-size:10px;font-weight:400">Withdrawal, UPI, revenue aur reports</small></div>
 <div class="card-body compact"><div class="qt-grid">
 <button class="btn btn-ghost btn-sm" onclick="window.showWithdrawalConfig&&showWithdrawalConfig()"><i class="fas fa-cog"></i> WD Config</button>
 <button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showWithdrawalSummary&&showWithdrawalSummary()"><i class="fas fa-money-bill-wave"></i> WD Summary</button>
+<!-- ✅ B27 (2026-10-07): B26 ka Daily Bonus Editor pehle runtime-injection se aata tha
+     (admin-fixes-v7.js) — yani group ke bahar chipak jata tha. Ab ye ek pakka tile hai
+     isi category me; injector ab Quick Tools ke andar dobara nahi dalta. -->
+<button class="btn btn-ghost btn-sm" style="border-color:rgba(255,170,0,.3);color:#ffaa00" onclick="window.showDailyBonusConfig&&showDailyBonusConfig()"><i class="fas fa-gift"></i> Daily Bonus Rewards</button>
 <button class="btn btn-ghost btn-sm" onclick="window.showAutoPayoutRules&&showAutoPayoutRules()"><i class="fas fa-robot"></i> Auto Payout</button>
 
 <!-- ✅ B22 (2026-10-06): pehle ye button ek alag "UPI Settings" modal kholta tha jo

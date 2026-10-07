@@ -346,8 +346,10 @@ console.log('\n── TEST 12: B27/B28 UI (Quick Tools 6 categories + Clan Wars/
   const grids = (section.match(/class="qt-grid"/g) || []).length;
   ok(qtCards === 6 && grids === 6,
      'B27: Quick Tools ab 6 saaf category cards me (chaos dher gaya)');
-  ok(qtBtns === 52,
-     'B27: wahi 52 buttons — ek bhi hataya/jodha nahi');
+  ok(qtBtns === 53,
+     'B27: 52 purane + 1 pakka Daily Bonus tile = 53 buttons (ek bhi hataya nahi)');
+  ok(section.indexOf('Daily Bonus Rewards</button>') !== -1 && section.indexOf('showDailyBonusConfig') !== -1,
+     'B27: Daily Bonus Editor ab isi grid ka pakka tile (injection nahi)');
   ok(section.indexOf('id="fraudAlertBadge"') !== -1 && section.indexOf('id="cheatReportBadge"') !== -1
      && section.indexOf('id="refundQueueBadge"') !== -1,
      'B27: teeno live badge counters (fraud/cheat/refund) salamat');
@@ -365,6 +367,9 @@ console.log('\n── TEST 12: B27/B28 UI (Quick Tools 6 categories + Clan Wars/
   ok(upiBtn !== -1 && section.indexOf('B22 (2026-10-06)') !== -1,
      'B27: UPI Settings button abhi bhi Settings ke asli section par (dead modal nahi)');
 
+  const fx7 = fs.readFileSync(path.join(REPO, 'js/admin-fixes-v7.js'), 'utf8');
+  ok(fx7.indexOf("btn.closest('#section-quicktools')") !== -1,
+     'B27: purana injector Quick Tools ke andar dobara button nahi daalta');
   const v17 = fs.readFileSync(path.join(REPO, 'js/features/fa-v17-features.js'), 'utf8');
   ok(v17.indexOf('_v17SectionSub') !== -1 && v17.indexOf('Hafte ke clan challenges') !== -1,
      'B28: paanchon v17 sections ke header me subtitle line');
@@ -377,8 +382,11 @@ console.log('\n── TEST 12: B27/B28 UI (Quick Tools 6 categories + Clan Wars/
   ok(v17.indexOf('cwStatPending') !== -1 && v17.indexOf('Top City') !== -1 && v17.indexOf('Active Mentors') !== -1
      && v17.indexOf('badge status') !== -1,
      'B28: City Champ/Mentors/CleanBadges me bhi stat cards/help text');
-  ok(v17.indexOf('window.loadClanWarAdmin&&loadClanWarAdmin()') !== -1,
-     'B28: har section me Refresh button (functions wahi)');
+  ok(v17.indexOf('window.loadClanWarAdmin&&loadClanWarAdmin()') !== -1
+     && v17.indexOf('window.loadCityChampAdmin&&loadCityChampAdmin()') !== -1
+     && v17.indexOf('window.loadMentorAdmin&&loadMentorAdmin()') !== -1
+     && v17.indexOf('window.loadCleanBadgeAdmin&&loadCleanBadgeAdmin()') !== -1,
+     'B28: chaaron sections me Refresh button (functions wahi)');
 }
 
 console.log('\n══════════════════════════════');
