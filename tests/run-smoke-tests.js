@@ -506,6 +506,8 @@ console.log('\n── TEST 16: B32 mobile tap-targets + responsive block ──'
      'B32: mobile par input/select ka font 16px (iOS ka auto-zoom band)');
   ok(mob.indexOf('scrollbar-width: thin') !== -1 && mob.indexOf('::-webkit-scrollbar') !== -1,
      'B32: table-wrapper par patli scrollbar = "aur columns hain" ka ishara');
+  ok(/\.filter-tab[^{]*\.wa-pill|filter-tab,\s*\.wa-pill/.test(mob) && /min-height:\s*30px/.test(mob),
+     'B32: filter pills (All/Verified/Pending/Banned, Unread) bhi mobile par bade tap-target');
   ok(css.indexOf('@media (max-width: 720px)') !== -1 && css.indexOf('@media (min-width:') === -1,
      'B32: sirf chhoti screen ka block joda, desktop ka koi rule nahi chheda');
 }

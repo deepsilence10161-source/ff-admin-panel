@@ -514,6 +514,15 @@ tr:hover td {
   /* icon-only buttons ka click-area bhi bada */
   .table-wrapper button i, table button i { padding: 2px 1px; }
 
+  /* 1b) Filter pills (All / Verified / Pending / Banned, match-status filters,
+        Support ke All Users / Unread) — admin-base.css me padding:4px 12px,
+        font 11px thi → 22-24px unchi. Ungli ke liye ab 30px+ aur thoda bada font. */
+  .filter-tab, .wa-pill {
+    min-height: 30px;
+    padding: 7px 13px;
+    font-size: 12px;
+  }
+
   /* 2) Nav items — bade tap area (hamburger ke andar) */
   .nav-item { padding-top: 12px; padding-bottom: 12px; }
 
