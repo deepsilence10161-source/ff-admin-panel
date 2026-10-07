@@ -527,8 +527,13 @@ window.initGrowthAdmin = function() {
   `;
   body.appendChild(analyticsSection);
 
-  // Inject season buttons into dashboard header
-  var dashHeader = document.querySelector('#section-dashboard .section-header .section-actions, #section-dashboard .section-actions');
+  /* Inject season buttons into dashboard header.
+     ✅ B22 (2026-10-07): pehle yahan `.section-actions` dhoondha jaata tha —
+     wo class admin HTML me KAHIN maujood hi nahi (live DOM me jaancha gaya),
+     isliye `dashHeader` null rehta tha aur dono season buttons kabhi bante hi
+     nahi the (silently dead). Ab asli header par lagte hain (Refresh button
+     ke baad) — yahi ek jagah jahan se season shuru/khatam hota hai. */
+  var dashHeader = document.querySelector('#section-dashboard .section-header');
   if (dashHeader && !document.getElementById('seasonBtns')) {
     var seasonBtns = document.createElement('div');
     seasonBtns.id = 'seasonBtns';

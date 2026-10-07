@@ -405,6 +405,15 @@ console.log('\n── TEST 13: B22 New Season (dead native-prompt button → app
      'B22: likhne ka kaam authoritative server RPC karta hai');
   ok(fa10.indexOf("db_.ref('appSettings/currentSeason')") === -1,
      'B22: purana bridge-path (doosra sach) hata diya');
+  const gro = fs.readFileSync(path.join(REPO, 'js/fa-growth-admin.js'), 'utf8');
+  ok(gro.indexOf("document.querySelector('#section-dashboard .section-header .section-actions, #section-dashboard .section-actions')") === -1
+     && gro.indexOf("document.querySelector('#section-dashboard .section-header')") !== -1,
+     'B22: season buttons ka anchor ab asli dashboard header (purana .section-actions DOM me hi nahi tha = dead)');
+  const idxB = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+  const _d0 = idxB.indexOf('id="section-dashboard"');
+  const _dHead = idxB.slice(_d0, idxB.indexOf('class="stats-grid"', _d0));
+  ok(_d0 !== -1 && _dHead.indexOf('section-actions') === -1,
+     'B22: dashboard header me .section-actions sach me nahi hai (isi wajah se button kabhi bana hi nahi)');
   const sql = fs.readFileSync(path.join(REPO, 'migrations/2026-10-07-b22-start-season-rpc.sql'), 'utf8');
   ok(sql.indexOf('admin_start_new_season') !== -1 && sql.indexOf('SECURITY DEFINER') !== -1
      && sql.indexOf('is_admin') !== -1,

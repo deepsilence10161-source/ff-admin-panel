@@ -686,7 +686,7 @@ function _showAlert(matchId, matchName, minutesLeft) {
   if (window.Notification && Notification.permission === 'granted') {
     new Notification('Mini eSports — Match Alert', {
       body: minutesLeft + ' min mein "' + matchName + '" shuru hoga!',
-      icon: 'app-icon.png?v=20261007s',
+      icon: 'app-icon.png?v=20261007t',
     });
   }
 
