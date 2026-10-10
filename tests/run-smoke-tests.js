@@ -516,6 +516,76 @@ console.log('\n── TEST 16: B32 mobile tap-targets + responsive block ──'
      'B32: sirf chhoti screen ka block joda, desktop ka koi rule nahi chheda');
 }
 
+/* ── TEST 17: SYSTEM SETTINGS tab (2026-10-09) — Device Cleanup Policy Control ──
+   Owner ki maang: admin panel me "System Settings" tab jahan se tay ho ki
+   KIS user/device ki files kabhi delete na hon. SSOT = app_settings.apk_cleanup
+   (wahi row jo user-panel ka device-cleanup gate + native SafeCleaner padhte hain).
+   Ye test 3 cheezein pakadta hai: wiring, safety locks, fail-safe save gate. */
+console.log('\n── TEST 17: System Settings tab — wiring + safety locks + fail-safe ──');
+{
+  const idx = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+  ok(idx.indexOf('id="section-systemSettings"') !== -1,
+     '17a: section-systemSettings maujood (showSection ise dhoondh sakta hai)');
+  ok(idx.indexOf("showSection('systemSettings'") !== -1 && idx.indexOf('loadSystemSettings') !== -1,
+     '17b: nav-item + loader wired (Settings ke bagal me)');
+  ok(idx.indexOf('js/features/fa81-system-settings.js?v=') !== -1,
+     '17c: fa81-system-settings.js index.html me ?v= stamp ke saath wired');
+
+  const inl = fs.readFileSync(path.join(REPO, 'js/admin-inline-d.js'), 'utf8');
+  ok(inl.indexOf("systemSettings:'fa-shield-alt'") !== -1 && inl.indexOf("systemSettings:'System Settings'") !== -1,
+     '17d: sIcons + sTitles maps me systemSettings (topbar title/icon sahi)');
+
+  const jsPath = path.join(REPO, 'js/features/fa81-system-settings.js');
+  ok(fs.existsSync(jsPath), '17e: fa81-system-settings.js maujood');
+  const js = fs.existsSync(jsPath) ? fs.readFileSync(jsPath, 'utf8') : '';
+
+  ok(js.indexOf("POLICY_KEY = 'apk_cleanup'") !== -1 && js.indexOf(".upsert({ key: POLICY_KEY") !== -1,
+     '17f: SSOT — app_settings.key=apk_cleanup par upsert (wahi row jo user-panel padhta hai)');
+  ok(js.indexOf("mode: 'app_owned_only'") !== -1,
+     '17g: mode LOCKED app_owned_only — UI se kabhi badlega nahi');
+  ok(js.indexOf('_sysSetIsRiskySave') !== -1 && js.indexOf('sysSetSave') !== -1,
+     '17h: risky-save gate (0 exemptions + khaali cutoff = confirm ke bina save nahi)');
+  ok(js.indexOf('window.appConfirm') !== -1 && js.indexOf('cleanup_exempt_remove') !== -1,
+     '17i: exemption hatane par appConfirm + audit log (anjaan me kabhi nahi)');
+  ok(js.indexOf('logAdminActivity') !== -1 && js.indexOf('cleanup_policy_save') !== -1,
+     '17j: har save admin_activity_log me (audit trail)');
+
+  /* PURE logic — VM me asli file load karke */
+  const vm2 = require('vm');
+  const ctx = {
+    console, Date, Promise, Math, JSON, Object, Array, RegExp, String, Number, Boolean,
+    setTimeout: () => 1, clearTimeout() {}, document: { getElementById: () => null },
+    window: {}, logAdminActivity: () => {}, showToast: () => {}, confirm: () => false,
+  };
+  ctx.window = ctx; ctx.globalThis = ctx;
+  vm2.runInNewContext(js, ctx, { filename: 'fa81-system-settings.js' });
+
+  const pol = { exemptUids: ['OWNER1', 'OWNER2'], exemptDeviceFps: ['DFP_X'], exemptRegisteredBefore: '2026-10-10' };
+  ok(ctx._sysSetIsUidExempt(pol, 'OWNER1') === true && ctx._sysSetIsUidExempt(pol, 'OTHER') === false,
+     '17k: _sysSetIsUidExempt sahi (exempt list ka asli faisla)');
+  ok(ctx._sysSetIsDeviceExempt(pol, 'DFP_X') === true && ctx._sysSetIsDeviceExempt(pol, 'DFP_Y') === false,
+     '17l: _sysSetIsDeviceExempt sahi');
+
+  const built = ctx._sysSetBuildPolicy({ policy: {
+    enabled: true, onUpdateWipe: true, exemptUids: ['A', 'A', ' B ', ''], exemptDeviceFps: ['D1', 'D1'],
+    exemptRegisteredBefore: '2026-10-11'
+  }});
+  ok(built.mode === 'app_owned_only' && built.exemptUids.length === 2 && built.exemptUids[1] === 'B'
+     && built.exemptDeviceFps.length === 1,
+     '17m: buildPolicy — mode locked, dedupe + trim (duplicates/khaali entries hat kar sirf [A,B])');
+  ok(ctx._sysSetIsRiskySave(built) === false,
+     '17n: exemptions maujood = save normal (risky nahi)');
+  /* Fail-safe design: buildPolicy KABHI khaali cutoff banata hi nahi —
+     UI se risky state banna hi asambhav. Gate phir bhi haath-pair hai
+     (haath se bane policy object ke liye last line of defense). */
+  const riskyHandmade = { exemptUids: [], exemptDeviceFps: [], exemptRegisteredBefore: '' };
+  ok(ctx._sysSetIsRiskySave(riskyHandmade) === true,
+     '17o: 0 uid + 0 device + khaali cutoff = RISKY (haath se bane policy par gate chalta hai)');
+  const safeDefaulted = ctx._sysSetBuildPolicy({ policy: { enabled: true, exemptUids: [], exemptDeviceFps: [], exemptRegisteredBefore: '' } });
+  ok(safeDefaulted.exemptRegisteredBefore === '2026-10-10' && ctx._sysSetIsRiskySave(safeDefaulted) === false,
+     '17p: UI ka khaali date-field → fail-safe default ' + safeDefaulted.exemptRegisteredBefore + ' (risky state banta hi nahi)');
+}
+
 console.log('\n══════════════════════════════');
 console.log('PASS: ' + PASS + ' | FAIL: ' + FAIL);
 if (failures.length) { console.log('failures:'); failures.forEach(f => console.log('  - ' + f)); }
