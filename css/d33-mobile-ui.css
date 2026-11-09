@@ -1,0 +1,41 @@
+/* ═══════════════════════════════════════════════════════════════
+   D33 (04 Nov 2026) — MOBILE UI POLISH (owner directive: mobile screen
+   par har chhoti cheez perfect). Live audit (412×915 + 360×800) se
+   pakde gaye masle: (1) tables card me CLIP hoti thi — Actions column
+   (Approve/Reject/Cancel-Save) screen ke bahar, swipe bhi nahi hota
+   tha; (2) topbar ka logout button right edge se kata hua; (3) chhote
+   tap-targets; (4) modal ke Cancel/Save buttons mobile par cramped.
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  /* 1) tables: card ke ANDAR horizontal swipe — Actions column pahunch me */
+  .table-wrapper { overflow-x: auto !important; overflow-y: visible; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .table-wrapper table { width: max-content !important; min-width: 100% !important; }
+  .table-wrapper td, .table-wrapper th { overflow: visible; }
+  /* Aug-2021 hack (style.css) table ko display:block scroller banata tha
+     aur thead/tbody ko width:100% par kuchalta tha — columns compress hokar
+     buttons cell ke bahar girte the. Mobile par asli table semantics wapas: */
+  .data-table { display: table !important; overflow: visible !important; max-width: none !important; }
+  .data-table thead { display: table-header-group !important; width: auto !important; }
+  .data-table tbody { display: table-row-group !important; width: auto !important; }
+  .card, .card-body { overflow: visible; }
+
+  /* 2) topbar: sab kuch viewport me, logout kata hua nahi */
+  .topbar { gap: 6px !important; }
+  .topbar .search-wrap, .topbar input[type="search"], .topbar input[type="text"] { min-width: 0 !important; flex: 1 1 50px; }
+  .topbar-actions { gap: 6px !important; margin-left: auto; flex-shrink: 0; }
+
+  /* 3) tap-targets: ungli-friendly */
+  .logout-btn { min-width: 40px; min-height: 40px; justify-content: center; }
+  .toast-close { min-width: 30px; min-height: 30px; }
+  .btn { min-height: 38px; }
+  #admPushEnable { padding: 6px 8px !important; font-size: 12px !important; white-space: nowrap; }
+
+  /* 4) modal ke Cancel/Save: poori chaurai, ek ke neeche ek */
+  .modal-footer { display: flex; flex-direction: column-reverse; gap: 8px; }
+  .modal-footer .btn { width: 100%; min-height: 44px; }
+}
+
+/* modal ka × mobile par ungli-friendly */
+@media (max-width: 900px) {
+  .modal-close { min-width: 40px; min-height: 40px; }
+}

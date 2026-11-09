@@ -1,0 +1,150 @@
+{
+  "rules": {
+
+    "support": {
+      "$ticketId": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "supportTyping": {
+      "$key": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "supportRequests": {
+      ".read":  "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["userId"]
+    },
+
+    /* ✅ BUG FIX (2026-08-23): "Fraud Check error: permission_denied at
+       /deviceJoins" — window.runFraudCheck() does
+       rtdb.ref('deviceJoins').once('value', ...), a BULK READ of the
+       whole node, not a single $deviceId child. A .read rule declared
+       only on the $deviceId wildcard child does not reliably grant a
+       parent-level bulk read in Firebase RTDB — the read is evaluated
+       against the exact node requested first. Added an explicit .read
+       at the deviceJoins root itself so the bulk read this feature
+       actually performs is unambiguously authorized, on top of keeping
+       the existing per-device rule for any code that reads a single
+       device's path directly. NOTE: like every fix in this file, this
+       does nothing until it's re-published in the Firebase Console
+       (Realtime Database → Rules tab → Publish) — saving this file
+       does not push it live. */
+    "deviceJoins": {
+      ".read": "auth != null",
+      "$deviceId": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "appSettings": {
+      ".read":  true,
+      ".write": "auth != null"
+    },
+
+    "adminConfig": {
+      ".read":  true,
+      ".write": "auth != null"
+    },
+
+    "admins": {
+      ".read":  "auth != null",
+      ".write": false
+    },
+
+    "creatorVideos": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "videoReports": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "tdsRecords": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "tdsHeld": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "adminActions": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "earlyAccessUsers": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "platformEarnings": {
+      ".read":  "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+
+    "seasonStats": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "flaggedDevices": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "deviceBlacklist": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "appConfig": {
+      ".read":  true,
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+
+    "analytics": {
+      ".read":  "auth != null",
+      ".write": "auth != null"
+    },
+
+    "users": {
+      "$uid": {
+        "videoStrikes": {
+          ".read":  "auth != null",
+          ".write": "auth != null"
+        },
+        "selfExcluded": {
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "selfExcludedTill": {
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "presence": {
+      "$uid": {
+        ".read":  "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "$other": {
+      ".read":  false,
+      ".write": false
+    }
+  }
+}
