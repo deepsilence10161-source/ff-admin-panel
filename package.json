@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "javascript-obfuscator": "^5.10.1"
+  }
+}
