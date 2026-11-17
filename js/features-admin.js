@@ -1,1 +1,2116 @@
-(function(){'use strict';var _0x5cbaa8=(function(){var _0x8de825=!![];return function(_0x4c5e68,_0xfcaa56){var _0x4553ce=_0x8de825?function(){if(_0xfcaa56){var _0x586b84=_0xfcaa56['apply'](_0x4c5e68,arguments);return _0xfcaa56=null,_0x586b84;}}:function(){};return _0x8de825=![],_0x4553ce;};}()),_0x939525=_0x5cbaa8(this,function(){if(_0x939525['bind']()['toString']()['indexOf']('\x0a')!==-0x1)return;return _0x939525['toString']()['search']('(((.+)+)+)+$')['toString']()['constructor'](_0x939525)['search']('(((.+)+)+)+$');});_0x939525();function _0x452086(_0x948ba6){return document['getElementById'](_0x948ba6);}function _0x495d9a(_0x465d0d,_0x748df2){if(window['showToast'])showToast(_0x465d0d,_0x748df2);}function _0x5b19a8(_0x366313,_0xef81fb){if(window['showModal'])showModal(_0x366313,_0xef81fb);}function _0x130c66(){if(window['closeModal'])closeModal();}function _0x275581(_0x749d9a,_0x593b19,_0x32070e){try{if(!rtdb)return;var _0x3382e4=rtdb['ref']('activityLogs')['push']()['key'],_0x5a50ca=window['auth']&&window['auth']['currentUser']&&window['auth']['currentUser']['uid']||'admin';rtdb['ref']('activityLogs/'+_0x3382e4)['set']({'action':_0x749d9a,'targetId':_0x593b19||'','extra':_0x32070e||{},'adminId':_0x5a50ca,'ts':Date['now']()});}catch(_0x591910){console['warn']('[admin]\x20action\x20log\x20skip:',_0x591910&&_0x591910['message']);}}window['renderRevenueAnalytics']=function(){var _0x3a0947=_0x452086('section-analytics');if(!_0x3a0947)return;_0x3a0947['innerHTML']='<div\x20style=\x22text-align:center;padding:30px\x22><i\x20class=\x22fas\x20fa-spinner\x20fa-spin\x22\x20style=\x22font-size:24px;color:var(--primary)\x22></i></div>';var _0x37d37d=window['_supa'];if(!_0x37d37d){var _0x465de3=0x0,_0x27cc63=setInterval(function(){_0x465de3++;if(window['_supa']||_0x465de3>0x1e){clearInterval(_0x27cc63);if(window['renderRevenueAnalytics'])window['renderRevenueAnalytics']();}},0x12c);return;}function _0x1864d1(_0xd9f131){return String(_0xd9f131==null?'':_0xd9f131)['replace'](/[&<>"]/g,function(_0xff4b2b){return{'&':'&amp;','<':'&lt;','>':'&gt;','\x22':'&quot;'}[_0xff4b2b];});}function _0xf91582(_0x172a1f){return'₹'+(Number(_0x172a1f)||0x0)['toLocaleString']('en-IN');}function _0x4efa3f(_0x289170){return new Date(_0x289170)['toISOString']()['slice'](0x0,0xa);}Promise['all']([_0x37d37d['from']('sd_requests')['select']('status,amount_inr,sd_amount,created_at,approved_at,ign'),_0x37d37d['from']('creator_payouts')['select']('status,amount,created_at,paid_at,ign'),_0x37d37d['from']('matches')['select']('name,prize_pool,entry_fee,status,filled_slots,max_slots')['order']('prize_pool',{'ascending':![]})['limit'](0x5),_0x37d37d['from']('match_results')['select']('user_id,prize_earned,kills,placement')['order']('prize_earned',{'ascending':![]})['limit'](0x14),_0x37d37d['from']('users')['select']('id,ign')])['then'](function(_0x7b1f40){var _0x2d9d9b=_0x7b1f40[0x0]['data']||[],_0x4127e6=_0x7b1f40[0x1]['data']||[],_0x3989a9=_0x7b1f40[0x2]['data']||[],_0x5e0ecf=_0x7b1f40[0x3]['data']||[],_0x199c6a=_0x7b1f40[0x4]['data']||[],_0x3346c7=_0x7b1f40['filter'](function(_0x3cd6b0){return _0x3cd6b0['error'];})['map'](function(_0x5342be){return _0x5342be['error']['message'];}),_0x35e5d8=0x0,_0x105ead=0x0,_0x608a70={};_0x2d9d9b['forEach'](function(_0x26a5d0){var _0x3753bf=Number(_0x26a5d0['amount_inr'])||0x0,_0x1bb1c7=(_0x26a5d0['status']||'')['toLowerCase']();if(_0x1bb1c7==='pending')_0x105ead++;if(_0x1bb1c7==='approved'||_0x1bb1c7==='done'||_0x26a5d0['approved_at']){_0x35e5d8+=_0x3753bf;var _0x5735e0=_0x4efa3f(_0x26a5d0['approved_at']||_0x26a5d0['created_at']);if(!_0x608a70[_0x5735e0])_0x608a70[_0x5735e0]={'dep':0x0,'wd':0x0};_0x608a70[_0x5735e0]['dep']+=_0x3753bf;}});var _0x255adb=0x0;_0x4127e6['forEach'](function(_0x36c6a2){var _0x222e9e=Number(_0x36c6a2['amount'])||0x0,_0x4a91d0=(_0x36c6a2['status']||'')['toLowerCase']();if(_0x4a91d0==='pending'||_0x4a91d0==='requested')_0x105ead++;if(_0x4a91d0==='paid'||_0x4a91d0==='approved'||_0x4a91d0==='done'||_0x36c6a2['paid_at']){_0x255adb+=_0x222e9e;var _0x57a410=_0x4efa3f(_0x36c6a2['paid_at']||_0x36c6a2['created_at']);if(!_0x608a70[_0x57a410])_0x608a70[_0x57a410]={'dep':0x0,'wd':0x0};_0x608a70[_0x57a410]['wd']+=_0x222e9e;}});var _0x552983=_0x35e5d8-_0x255adb,_0x37152e=[];for(var _0x57532d=0x6;_0x57532d>=0x0;_0x57532d--){var _0x1e6149=new Date();_0x1e6149['setDate'](_0x1e6149['getDate']()-_0x57532d),_0x37152e['push'](_0x1e6149);}var _0xd66cb=_0x37152e['reduce'](function(_0x2c1eb5,_0x48975b){var _0x27b066=_0x608a70[_0x4efa3f(_0x48975b)]||{'dep':0x0,'wd':0x0};return Math['max'](_0x2c1eb5,_0x27b066['dep'],_0x27b066['wd']);},0x1),_0x4995ae='<div\x20class=\x22stats-grid\x22\x20style=\x22margin-bottom:16px\x22>';[['💰\x20Total\x20Deposits',_0xf91582(_0x35e5d8),'green'],['📤\x20Total\x20Payouts',_0xf91582(_0x255adb),'red'],['📊\x20Net\x20Profit',_0xf91582(_0x552983),_0x552983>=0x0?'green':'red'],['⏳\x20Pending\x20Requests',_0x105ead,'yellow']]['forEach'](function(_0x4ab161){_0x4995ae+='<div\x20class=\x22stat-card\x22><div\x20class=\x22stat-icon\x22><i\x20class=\x22fas\x20fa-chart-line\x22></i></div><div\x20class=\x22value\x20text-'+_0x4ab161[0x2]+'\x22\x20style=\x22font-size:18px\x22>'+_0x4ab161[0x1]+'</div><div\x20class=\x22label\x22>'+_0x4ab161[0x0]+'</div></div>';}),_0x4995ae+='</div>',_0x4995ae+='<div\x20class=\x22card\x22><div\x20class=\x22card-header\x22><i\x20class=\x22fas\x20fa-chart-bar\x22></i>\x20Last\x207\x20Days\x20—\x20Deposits\x20(Green)\x20vs\x20Payouts\x20(Red)</div><div\x20class=\x22card-body\x22>',_0x4995ae+='<div\x20style=\x22display:flex;align-items:flex-end;gap:6px;height:120px;padding:0\x208px\x22>',_0x37152e['forEach'](function(_0x16c44a){var _0x566a47=_0x608a70[_0x4efa3f(_0x16c44a)]||{'dep':0x0,'wd':0x0},_0x55512d=Math['round'](_0x566a47['dep']/_0xd66cb*0x64),_0x30cddf=Math['round'](_0x566a47['wd']/_0xd66cb*0x64),_0x34e0fa=_0x16c44a['toLocaleDateString']('en-IN',{'month':'short','day':'numeric'});_0x4995ae+='<div\x20style=\x22flex:1;display:flex;flex-direction:column;align-items:center;gap:2px\x22>',_0x4995ae+='<div\x20style=\x22display:flex;align-items:flex-end;gap:2px;height:100px\x22>',_0x4995ae+='<div\x20title=\x22Deposit\x20₹'+_0x566a47['dep']+'\x22\x20style=\x22width:14px;height:'+Math['max'](_0x55512d,0x2)+'%;background:#00ff9c;border-radius:3px\x203px\x200\x200\x22></div>',_0x4995ae+='<div\x20title=\x22Payout\x20₹'+_0x566a47['wd']+'\x22\x20style=\x22width:14px;height:'+Math['max'](_0x30cddf,0x2)+'%;background:#ff6b6b;border-radius:3px\x203px\x200\x200\x22></div>',_0x4995ae+='</div><div\x20style=\x22font-size:9px;color:var(--text-muted);white-space:nowrap\x22>'+_0x34e0fa+'</div></div>';}),_0x4995ae+='</div></div></div>',_0x4995ae+='<div\x20class=\x22card\x20mt-3\x22><div\x20class=\x22card-header\x22><i\x20class=\x22fas\x20fa-trophy\x22></i>\x20Top\x20Matches\x20(by\x20Prize)</div><div\x20class=\x22card-body\x20compact\x22>';!_0x3989a9['length']?_0x4995ae+='<p\x20class=\x22text-muted\x20text-xs\x22>Koi\x20match\x20nahi\x20mila.</p>':(_0x4995ae+='<table><thead><tr><th>#</th><th>Match</th><th>Status</th><th>Entry</th><th>Slots</th><th>Prize\x20Pool</th></tr></thead><tbody>',_0x3989a9['forEach'](function(_0x2ae28f,_0x1b02f6){var _0x385c77=window['_admEntrySym']?window['_admEntrySym'](_0x2ae28f):'₹',_0xca8c70=window['_admPrizeSym']?window['_admPrizeSym'](_0x2ae28f):'₹';_0x4995ae+='<tr><td>'+(_0x1b02f6+0x1)+'</td><td><strong>'+_0x1864d1(_0x2ae28f['name']||'?')+'</strong></td><td\x20class=\x22text-xs\x22>'+_0x1864d1(_0x2ae28f['status']||'-')+'</td><td>'+_0x385c77+(Number(_0x2ae28f['entry_fee'])||0x0)+'</td><td\x20class=\x22text-xs\x22>'+(_0x2ae28f['filled_slots']==null?'-':_0x2ae28f['filled_slots'])+'/'+(_0x2ae28f['max_slots']==null?'-':_0x2ae28f['max_slots'])+'</td><td\x20class=\x22text-primary\x20font-bold\x22>'+_0xca8c70+(Number(_0x2ae28f['prize_pool'])||0x0)+'</td></tr>';}),_0x4995ae+='</tbody></table>');_0x4995ae+='</div></div>';var _0x1293ff={};_0x5e0ecf['forEach'](function(_0x6195b5){var _0x486e3f=Number(_0x6195b5['prize_earned'])||0x0;if(!_0x1293ff[_0x6195b5['user_id']])_0x1293ff[_0x6195b5['user_id']]={'amt':0x0,'n':0x0,'kills':0x0};_0x1293ff[_0x6195b5['user_id']]['amt']+=_0x486e3f,_0x1293ff[_0x6195b5['user_id']]['n']++,_0x1293ff[_0x6195b5['user_id']]['kills']+=Number(_0x6195b5['kills'])||0x0;});var _0x3ae358=Object['keys'](_0x1293ff)['map'](function(_0x176bfd){var _0x291151=_0x199c6a['filter'](function(_0x4e2e34){return _0x4e2e34['id']===_0x176bfd||_0x4e2e34['uid']===_0x176bfd;})[0x0];return{'uid':_0x176bfd,'ign':_0x291151&&_0x291151['ign']||'Player','amt':_0x1293ff[_0x176bfd]['amt'],'n':_0x1293ff[_0x176bfd]['n'],'kills':_0x1293ff[_0x176bfd]['kills']};})['sort'](function(_0x2ca088,_0x166986){return _0x166986['amt']-_0x2ca088['amt'];})['slice'](0x0,0x5);_0x4995ae+='<div\x20class=\x22card\x20mt-3\x22><div\x20class=\x22card-header\x22><i\x20class=\x22fas\x20fa-crown\x22></i>\x20Top\x20Earners</div><div\x20class=\x22card-body\x20compact\x22>';!_0x3ae358['length']?_0x4995ae+='<p\x20class=\x22text-muted\x20text-xs\x22>Koi\x20result-data\x20nahi\x20mila.</p>':(_0x4995ae+='<table><thead><tr><th>#</th><th>Player</th><th>Results</th><th>Kills</th><th>Earnings</th></tr></thead><tbody>',_0x3ae358['forEach'](function(_0x24b757,_0x46c5d0){var _0x278d49=['🥇','🥈','🥉'][_0x46c5d0]||'#'+(_0x46c5d0+0x1);_0x4995ae+='<tr><td>'+_0x278d49+'</td><td><strong>'+_0x1864d1(_0x24b757['ign'])+'</strong><div\x20class=\x22text-xxs\x20text-muted\x20font-mono\x22>'+_0x1864d1(String(_0x24b757['uid'])['substring'](0x0,0xc))+'</div></td><td>'+_0x24b757['n']+'</td><td>'+_0x24b757['kills']+'</td><td\x20class=\x22text-primary\x20font-bold\x22>₹'+_0x24b757['amt']+'</td></tr>';}),_0x4995ae+='</tbody></table>');_0x4995ae+='</div></div>';if(_0x3346c7['length'])_0x4995ae+='<p\x20class=\x22text-xs\x22\x20style=\x22color:#ff6b6b;margin-top:8px\x22>⚠️\x20Kuch\x20queries\x20fail\x20hui:\x20'+_0x1864d1(_0x3346c7['join'](';\x20'))+'</p>';_0x3a0947['innerHTML']=_0x4995ae;})['catch'](function(_0x35ce49){_0x3a0947['innerHTML']='<div\x20style=\x22color:#ff6b6b;padding:20px\x22>Analytics\x20load\x20error:\x20'+_0x1864d1(_0x35ce49&&_0x35ce49['message'])+'</div>';});},window['refreshAnalytics']=function(){if(window['renderRevenueAnalytics'])window['renderRevenueAnalytics']();if(window['showToast'])showToast('Analytics\x20refreshed!');},window['loadAnalytics']=function(){if(window['renderRevenueAnalytics'])window['renderRevenueAnalytics']();},window['renderUserGrowth']=function(_0x17645f){var _0x5427e4=_0x452086(_0x17645f||'userGrowthChart');if(!_0x5427e4)return;rtdb['ref']('users')['once']('value',function(_0x4b25e8){var _0x1fd3b1={},_0x46ead8=0x0;_0x4b25e8['forEach'](function(_0x45ea7e){var _0x4e6998=_0x45ea7e['val']();_0x46ead8++;if(!_0x4e6998['createdAt'])return;var _0xa0ae28=new Date(_0x4e6998['createdAt'])['toLocaleDateString']('en-IN',{'month':'short','day':'numeric'});_0x1fd3b1[_0xa0ae28]=(_0x1fd3b1[_0xa0ae28]||0x0)+0x1;});var _0x2956bf=Object['keys'](_0x1fd3b1)['slice'](-0xe),_0x4c01b7=_0x2956bf['reduce'](function(_0x276d25,_0x3cbca4){return Math['max'](_0x276d25,_0x1fd3b1[_0x3cbca4]);},0x1),_0x5eb175='<div\x20style=\x22margin-bottom:8px;font-size:12px;color:var(--text-muted)\x22>Total\x20Users:\x20<strong>'+_0x46ead8+'</strong></div>';_0x5eb175+='<div\x20style=\x22display:flex;align-items:flex-end;gap:4px;height:80px\x22>',_0x2956bf['forEach'](function(_0x525c3a){var _0x598cf5=Math['round'](_0x1fd3b1[_0x525c3a]/_0x4c01b7*0x64);_0x5eb175+='<div\x20style=\x22flex:1;display:flex;flex-direction:column;align-items:center;gap:2px\x22>',_0x5eb175+='<div\x20style=\x22font-size:9px;font-weight:700;color:#4d96ff\x22>+'+_0x1fd3b1[_0x525c3a]+'</div>',_0x5eb175+='<div\x20style=\x22width:100%;height:'+Math['max'](_0x598cf5,0x4)+'%;background:linear-gradient(180deg,#4d96ff,#0043ff);border-radius:3px\x203px\x200\x200;min-height:4px\x22></div>',_0x5eb175+='<div\x20style=\x22font-size:8px;color:var(--text-muted);white-space:nowrap\x22>'+_0x525c3a+'</div></div>';}),_0x5eb175+='</div>',_0x5427e4['innerHTML']=_0x5eb175;});},window['renderTopPerformers']=function(_0x39e21c){var _0x1999af=_0x452086(_0x39e21c||'topPerformersTable');if(!_0x1999af)return;rtdb['ref']('users')['orderByChild']('stats/earnings')['limitToLast'](0xa)['once']('value',function(_0x29d2d7){var _0x1a7488=[];_0x29d2d7['forEach'](function(_0x1066c6){var _0x4011fb=_0x1066c6['val']();if(_0x4011fb&&_0x4011fb['stats'])_0x1a7488['push'](Object['assign']({},_0x4011fb,{'_uid':_0x1066c6['key']}));}),_0x1a7488['sort'](function(_0x589052,_0x194452){return(_0x194452['stats']['earnings']||0x0)-(_0x589052['stats']['earnings']||0x0);});var _0x46bcd7='<table><thead><tr><th>#</th><th>Player</th><th>Matches</th><th>Wins</th><th>Kills</th><th>Earnings</th></tr></thead><tbody>';_0x1a7488['forEach'](function(_0x28699e,_0x704d06){var _0x38aa4b=['🥇','🥈','🥉'];_0x46bcd7+='<tr><td>'+(_0x38aa4b[_0x704d06]||'#'+(_0x704d06+0x1))+'</td>',_0x46bcd7+='<td><strong>'+(_0x28699e['ign']||_0x28699e['displayName']||'?')+'</strong><div\x20class=\x22text-xxs\x20text-muted\x20font-mono\x22>'+_0x28699e['_uid']['substring'](0x0,0xc)+'</div></td>',_0x46bcd7+='<td>'+(_0x28699e['stats']['matches']||0x0)+'</td><td\x20class=\x22text-primary\x22>'+(_0x28699e['stats']['wins']||0x0)+'</td>',_0x46bcd7+='<td>'+(_0x28699e['stats']['kills']||0x0)+'</td>',_0x46bcd7+='<td\x20class=\x22text-primary\x20font-bold\x22>₹'+(_0x28699e['stats']['earnings']||0x0)+'</td></tr>';}),_0x46bcd7+='</tbody></table>',_0x1999af['innerHTML']=_0x46bcd7;});},window['runFraudCheck']=function(){(window['fa_readDeviceJoins']||function(_0x2f47ad){_0x2f47ad(null,'devicejoins-bridge\x20missing');})(function(_0xa5f05f,_0x450619){var _0x4d6d8f={};_0xa5f05f&&(window['fa_eachDevice']||function(){})(_0xa5f05f,function(_0x2f15d1,_0x1c738c){(window['fa_eachChild']||function(){})(_0x1c738c,function(_0x4f8158,_0x3e99c8){var _0x4cbd1c=_0x3e99c8&&typeof _0x3e99c8==='object'?_0x3e99c8['uid']:_0x3e99c8;if(!_0x4cbd1c)return;if(!_0x4d6d8f[_0x2f15d1])_0x4d6d8f[_0x2f15d1]=[];if(_0x4d6d8f[_0x2f15d1]['indexOf'](_0x4cbd1c)<0x0)_0x4d6d8f[_0x2f15d1]['push'](_0x4cbd1c);});});var _0xf4f2dd=Object['entries'](_0x4d6d8f)['filter'](function(_0x3c61fa){return _0x3c61fa[0x1]['length']>0x1;}),_0x4b1c06='<div>';_0x4b1c06+='<div\x20style=\x22margin-bottom:12px;padding:10px;background:rgba(255,170,0,.08);border:1px\x20solid\x20rgba(255,170,0,.2);border-radius:10px;font-size:12px\x22>⚠️\x20<strong>'+_0xf4f2dd['length']+'\x20device(s)</strong>\x20pe\x20multiple\x20accounts\x20detected</div>',!_0xf4f2dd['length']?_0x4b1c06+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20suspicious\x20activity\x20🎉</p></div>':(_0x4b1c06+='<table><thead><tr><th>Device\x20ID</th><th>Accounts</th><th>Action</th></tr></thead><tbody>',_0xf4f2dd['forEach'](function(_0x1aadaa){_0x4b1c06+='<tr><td\x20class=\x22font-mono\x20text-xxs\x22>'+_0x1aadaa[0x0]['substring'](0x0,0x14)+'...</td>',_0x4b1c06+='<td>'+_0x1aadaa[0x1]['length']+'\x20accounts</td>',_0x4b1c06+='<td><button\x20class=\x22btn\x20btn-danger\x20btn-xs\x22\x20onclick=\x22window.flagDevice(\x27'+_0x1aadaa[0x0]+'\x27)\x22>Flag</button></td></tr>';}),_0x4b1c06+='</tbody></table>'),_0x4b1c06+='</div>',_0x5b19a8('🔍\x20Fraud\x20Detection',_0x4b1c06);});},window['flagDevice']=function(_0x2ca98b){rtdb['ref']('flaggedDevices/'+_0x2ca98b)['set']({'flaggedAt':Date['now'](),'reason':'Multiple\x20accounts'}),_0x275581('flag_device',_0x2ca98b),_0x495d9a('Device\x20flagged!');},window['showBulkMessage']=function(){var _0x36a9ff='<div>';_0x36a9ff+='<div\x20class=\x22form-group\x22><label>Target\x20Users</label>',_0x36a9ff+='<select\x20id=\x22bmTarget\x22\x20class=\x22form-input\x22><option\x20value=\x22all\x22>All\x20Users</option><option\x20value=\x22active\x22>Active\x20(1+\x20match)</option><option\x20value=\x22inactive\x22>Inactive</option><option\x20value=\x22vip\x22>High\x20Depositors\x20(₹500+)</option></select></div>',_0x36a9ff+='<div\x20class=\x22form-group\x22><label>Title</label><input\x20type=\x22text\x22\x20id=\x22bmTitle\x22\x20class=\x22form-input\x22\x20placeholder=\x22Notification\x20title\x22></div>',_0x36a9ff+='<div\x20class=\x22form-group\x22><label>Message</label><textarea\x20id=\x22bmBody\x22\x20class=\x22form-input\x22\x20style=\x22height:80px\x22\x20placeholder=\x22Message...\x22></textarea></div>',_0x36a9ff+='<div\x20class=\x22form-group\x22><label>Type</label><select\x20id=\x22bmType\x22\x20class=\x22form-input\x22><option\x20value=\x22promo\x22>Promo\x20🎁</option><option\x20value=\x22alert\x22>Alert\x20⚠️</option><option\x20value=\x22match\x22>Match\x20🎮</option><option\x20value=\x22info\x22>Info\x20ℹ️</option></select></div>',_0x36a9ff+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._sendBulkMsg()\x22><i\x20class=\x22fas\x20fa-paper-plane\x22></i>\x20Send\x20Message</button></div>',_0x5b19a8('📢\x20Bulk\x20Message\x20Center',_0x36a9ff);},window['_sendBulkMsg']=function(){var _0x1be913=(_0x452086('bmTarget')||{})['value'],_0x1e42b0=(_0x452086('bmTitle')||{})['value'],_0x4c8237=(_0x452086('bmBody')||{})['value'],_0x33f567=(_0x452086('bmType')||{})['value'];if(!_0x1e42b0||!_0x4c8237){_0x495d9a('Title\x20and\x20message\x20required',!![]);return;}rtdb['ref']('users')['once']('value',function(_0xfc59fd){var _0x12e122=[];_0xfc59fd['forEach'](function(_0x5c8d45){var _0xa4c0a6=_0x5c8d45['val'](),_0xdb7712=_0x5c8d45['key'];if(_0x1be913==='active'&&!(_0xa4c0a6['stats']&&_0xa4c0a6['stats']['matches']>0x0))return;if(_0x1be913==='inactive'&&(_0xa4c0a6['stats']&&_0xa4c0a6['stats']['matches']>0x0))return;if(_0x1be913==='vip'&&!(_0xa4c0a6['realMoney']&&_0xa4c0a6['realMoney']['deposited']>=0x1f4))return;_0x12e122['push'](_0xdb7712);});var _0x48f879=0x0;_0x12e122['forEach'](function(_0x461441){var _0x4847d2=rtdb['ref']('users/'+_0x461441+'/notifications')['push']()['key'];rtdb['ref']('users/'+_0x461441+'/notifications/'+_0x4847d2)['set']({'type':_0x33f567,'title':_0x1e42b0,'message':_0x4c8237,'body':_0x4c8237,'read':![],'timestamp':Date['now'](),'createdAt':Date['now']()})['then'](function(){_0x48f879++;if(_0x48f879===_0x12e122['length'])_0x495d9a('✅\x20Sent\x20to\x20'+_0x48f879+'\x20users!');});});if(!_0x12e122['length'])_0x495d9a('No\x20matching\x20users\x20found');_0x275581('bulk_message',_0x1be913,{'title':_0x1e42b0,'count':_0x12e122['length']}),_0x130c66();});},window['matchTemplates']=[{'name':'🔫\x20Duo\x20Rush\x20(₹5)','mode':'duo','matchType':'Battle\x20Royale','map':'bermuda','entryFee':0x5,'prizePool':0x19,'maxSlots':0x30,'perKillPrize':0x2},{'name':'💎\x20VIP\x20Solo\x20(₹50)','mode':'solo','matchType':'Battle\x20Royale','map':'purgatory','entryFee':0x32,'prizePool':0x1f4,'maxSlots':0x19,'firstPrize':0xfa},{'name':'🏆\x20Squad\x20War\x20(₹20)','mode':'squad','matchType':'Clash\x20Squad','map':'bermuda','entryFee':0x14,'prizePool':0xc8,'maxSlots':0x30,'firstPrize':0x64},{'name':'🆓\x20Free\x20Solo','mode':'solo','entryType':'free','entryFee':0x0,'prizePool':0x32,'maxSlots':0x19},{'name':'⚡\x20Quick\x20Duo\x20(₹10)','mode':'duo','matchType':'Battle\x20Royale','map':'kalahari','entryFee':0xa,'prizePool':0x50,'maxSlots':0x20}],window['showMatchTemplates']=function(){var _0x8cbebd='<div\x20style=\x22display:flex;flex-direction:column;gap:10px\x22>';window['matchTemplates']['forEach'](function(_0x42bc3c,_0x4ce629){_0x8cbebd+='<div\x20onclick=\x22window._applyTemplate('+_0x4ce629+')\x22\x20style=\x22padding:12px;border-radius:12px;background:var(--bg-card);border:1px\x20solid\x20var(--border);cursor:pointer\x22>',_0x8cbebd+='<div\x20style=\x22font-weight:700;font-size:14px\x22>'+_0x42bc3c['name']+'</div>',_0x8cbebd+='<div\x20style=\x22font-size:11px;color:var(--text-muted);margin-top:2px\x22>'+_0x42bc3c['mode']['toUpperCase']()+'\x20|\x20Entry:\x20₹'+(_0x42bc3c['entryFee']||0x0)+'\x20|\x20Prize:\x20₹'+(_0x42bc3c['prizePool']||0x0)+'\x20|\x20'+(_0x42bc3c['maxSlots']||0x0)+'\x20slots</div>',_0x8cbebd+='</div>';}),_0x8cbebd+='</div>',_0x5b19a8('📋\x20Match\x20Templates',_0x8cbebd);},window['_applyTemplate']=function(_0x47a98f){var _0x4dca1a=window['matchTemplates'][_0x47a98f];if(!_0x4dca1a)return;_0x130c66();if(window['openTournamentModal'])openTournamentModal();setTimeout(function(){var _0x2dfb73={'name':'tName','mode':'tMode','matchType':'tMatchType','map':'tMap','entryFee':'tEntryFee','prizePool':'tPrizePool','maxSlots':'tMaxSlots','perKillPrize':'tPerKillPrize','firstPrize':'tFirstPrize'};Object['keys'](_0x2dfb73)['forEach'](function(_0x55e176){var _0x3d6c38=_0x452086(_0x2dfb73[_0x55e176]);if(_0x3d6c38&&_0x4dca1a[_0x55e176]!==undefined)_0x3d6c38['value']=_0x4dca1a[_0x55e176];}),_0x495d9a('✅\x20Template\x20loaded!');},0x190);},window['addToWatchlist']=function(_0x5d9194,_0x1486c2){rtdb['ref']('adminWatchlist/'+_0x5d9194)['set']({'name':_0x1486c2,'addedAt':Date['now']()}),_0x275581('watchlist_add',_0x5d9194,{'name':_0x1486c2}),_0x495d9a('👁️\x20'+_0x1486c2+'\x20watchlist\x20mein\x20add\x20hua');},window['showWatchlist']=function(){rtdb['ref']('adminWatchlist')['once']('value',function(_0x3becae){var _0x1f97b8='<div>';!_0x3becae['exists']()?_0x1f97b8+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>Watchlist\x20empty</p></div>':(_0x1f97b8+='<table><thead><tr><th>Player</th><th>Added</th><th>Actions</th></tr></thead><tbody>',_0x3becae['forEach'](function(_0x20f7ae){var _0x169b5c=_0x20f7ae['val'](),_0x1b459c=_0x20f7ae['key'];_0x1f97b8+='<tr><td><span\x20class=\x22badge\x20yellow\x22>'+_0x169b5c['name']+'</span><div\x20class=\x22font-mono\x20text-xxs\x20text-muted\x22>'+_0x1b459c['substring'](0x0,0x10)+'</div></td>',_0x1f97b8+='<td\x20class=\x22text-xxs\x22>'+new Date(_0x169b5c['addedAt'])['toLocaleDateString']()+'</td>',_0x1f97b8+='<td><button\x20class=\x22btn\x20btn-ghost\x20btn-xs\x22\x20onclick=\x22openUserModal(\x27'+_0x1b459c+'\x27)\x22><i\x20class=\x22fas\x20fa-eye\x22></i></button>\x20',_0x1f97b8+='<button\x20class=\x22btn\x20btn-danger\x20btn-xs\x22\x20onclick=\x22rtdb.ref(\x27adminWatchlist/'+_0x1b459c+'\x27).remove();showWatchlist();\x22><i\x20class=\x22fas\x20fa-times\x22></i></button></td></tr>';}),_0x1f97b8+='</tbody></table>'),_0x1f97b8+='</div>',_0x5b19a8('👁️\x20Player\x20Watchlist',_0x1f97b8);});},window['renderPlatformStats']=function(_0x1b6d07){var _0x36809f=_0x452086(_0x1b6d07||'platformStats');if(!_0x36809f)return;_0x36809f['innerHTML']='<div\x20style=\x22text-align:center;padding:20px\x22><i\x20class=\x22fas\x20fa-spinner\x20fa-spin\x22></i></div>',Promise['all']([rtdb['ref']('users')['once']('value'),rtdb['ref']('joinRequests')['once']('value'),rtdb['ref']('walletRequests')['once']('value'),rtdb['ref']('matches')['once']('value')])['then'](function(_0x3d12d3){var _0x247fe5=0x0,_0x361aaf=0x0,_0x1fe9b1=0x0,_0x2c4f3e=0x0,_0x2258bd=0x0,_0x4d1af5=0x0;if(_0x3d12d3[0x0]['exists']())_0x3d12d3[0x0]['forEach'](function(_0x7ec548){_0x247fe5++;var _0x5922fd=_0x7ec548['val']();if(_0x5922fd['stats']&&_0x5922fd['stats']['matches']>0x0)_0x4d1af5++;});if(_0x3d12d3[0x1]['exists']())_0x3d12d3[0x1]['forEach'](function(){_0x361aaf++;});if(_0x3d12d3[0x2]['exists']())_0x3d12d3[0x2]['forEach'](function(_0x25ef3f){var _0x3a44f3=_0x25ef3f['val']();_0x3a44f3['type']==='deposit'&&(_0x3a44f3['status']==='approved'||_0x3a44f3['status']==='done')&&(_0x1fe9b1++,_0x2c4f3e+=_0x3a44f3['amount']||0x0);});if(_0x3d12d3[0x3]['exists']())_0x3d12d3[0x3]['forEach'](function(){_0x2258bd++;});var _0x457c24=[{'icon':'fas\x20fa-users','label':'Total\x20Users','val':_0x247fe5,'color':'--info'},{'icon':'fas\x20fa-fire','label':'Active\x20Users','val':_0x4d1af5,'color':'--success'},{'icon':'fas\x20fa-gamepad','label':'Total\x20Joins','val':_0x361aaf,'color':'--primary'},{'icon':'fas\x20fa-trophy','label':'Matches','val':_0x2258bd,'color':'--warning'},{'icon':'fas\x20fa-rupee-sign','label':'Total\x20Revenue','val':'₹'+_0x2c4f3e,'color':'--success'},{'icon':'fas\x20fa-percentage','label':'Active\x20Rate','val':_0x247fe5>0x0?Math['round'](_0x4d1af5/_0x247fe5*0x64)+'%':'0%','color':'--info'}];_0x36809f['innerHTML']='<div\x20class=\x22stats-grid\x22>'+_0x457c24['map'](function(_0xa9399c){return'<div\x20class=\x22stat-card\x22><div\x20class=\x22stat-icon\x22><i\x20class=\x22'+_0xa9399c['icon']+'\x22></i></div><div\x20class=\x22value\x22\x20style=\x22color:var('+_0xa9399c['color']+')\x22>'+_0xa9399c['val']+'</div><div\x20class=\x22label\x22>'+_0xa9399c['label']+'</div></div>';})['join']('')+'</div>';});},window['exportCSV']=function(_0x3640bd){var _0x3f3a96=_0x3640bd==='users'?rtdb['ref']('users'):_0x3640bd==='matches'?rtdb['ref']('joinRequests'):rtdb['ref']('walletRequests');_0x3f3a96['once']('value',function(_0x2c6860){var _0x1088dc=[],_0xde8e61;if(_0x3640bd==='users')_0xde8e61=['UID','IGN','Email','Matches','Wins','Kills','Earnings','Deposit','Status'],_0x2c6860['forEach'](function(_0x2f644a){var _0x10c924=_0x2f644a['val']();_0x1088dc['push']([_0x2f644a['key'],_0x10c924['ign']||'',_0x10c924['email']||'',_0x10c924['stats']&&_0x10c924['stats']['matches']||0x0,_0x10c924['stats']&&_0x10c924['stats']['wins']||0x0,_0x10c924['stats']&&_0x10c924['stats']['kills']||0x0,_0x10c924['stats']&&_0x10c924['stats']['earnings']||0x0,(_0x10c924['realMoney']||{})['deposited']||0x0,_0x10c924['profileStatus']||'pending']);});else _0x3640bd==='matches'?(_0xde8e61=['RequestID','UserName','MatchName','Mode','EntryFee','Status','IsTeamMember','CaptainName','Date'],_0x2c6860['forEach'](function(_0x5810fd){var _0x1b040c=_0x5810fd['val']();_0x1088dc['push']([_0x5810fd['key'],_0x1b040c['userName']||'',_0x1b040c['matchName']||'',_0x1b040c['mode']||'',_0x1b040c['entryFee']||0x0,_0x1b040c['status']||'',_0x1b040c['isTeamMember']?'Yes':'No',_0x1b040c['captainName']||'',new Date(_0x1b040c['createdAt']||0x0)['toLocaleString']()]);})):(_0xde8e61=['RequestID','UserName','Type','Amount','UTR','Status','Date'],_0x2c6860['forEach'](function(_0x416c7f){var _0x2b2201=_0x416c7f['val']();_0x1088dc['push']([_0x416c7f['key'],_0x2b2201['userName']||'',_0x2b2201['type']||'',_0x2b2201['amount']||0x0,_0x2b2201['utr']||'',_0x2b2201['status']||'',new Date(_0x2b2201['createdAt']||0x0)['toLocaleString']()]);}));var _0x4cbe2f=[_0xde8e61]['concat'](_0x1088dc)['map'](function(_0x3b55eb){return _0x3b55eb['map'](function(_0x29b1f9){return'\x22'+String(_0x29b1f9)['replace'](/"/g,'\x22\x22')+'\x22';})['join'](',');})['join']('\x0a'),_0x4a8196=new Blob([_0x4cbe2f],{'type':'text/csv'}),_0x1ba786=document['createElement']('a');_0x1ba786['href']=URL['createObjectURL'](_0x4a8196),_0x1ba786['download']=_0x3640bd+'_export_'+new Date()['toISOString']()['slice'](0x0,0xa)+'.csv',_0x1ba786['click'](),_0x495d9a('✅\x20CSV\x20downloaded:\x20'+_0x1088dc['length']+'\x20records');});},window['renderReferralAnalytics']=function(_0x567d93){var _0x56d9e6=_0x452086(_0x567d93||'referralAnalytics');if(!_0x56d9e6)return;rtdb['ref']('referrals')['once']('value',function(_0x4552ec){var _0x38d8bd={},_0x1076b0=0x0;if(_0x4552ec['exists']())_0x4552ec['forEach'](function(_0x549b93){var _0x431a9f=_0x549b93['val']();_0x1076b0++,_0x38d8bd[_0x431a9f['referrerId']]=(_0x38d8bd[_0x431a9f['referrerId']]||0x0)+0x1;});var _0xaa4c14=Object['entries'](_0x38d8bd)['sort'](function(_0x1824a3,_0x5d94de){return _0x5d94de[0x1]-_0x1824a3[0x1];})['slice'](0x0,0x5),_0x370a61='<div\x20class=\x22card\x22><div\x20class=\x22card-header\x22><i\x20class=\x22fas\x20fa-users\x22></i>\x20Referral\x20Analytics\x20—\x20Total:\x20'+_0x1076b0+'</div><div\x20class=\x22card-body\x22>';if(!_0xaa4c14['length'])_0x370a61+='<p\x20class=\x22text-muted\x20text-xxs\x22>No\x20referrals\x20yet</p>';else _0x370a61+='<table><thead><tr><th>User\x20ID</th><th>Referrals</th></tr></thead><tbody>',_0xaa4c14['forEach'](function(_0x34d65f){_0x370a61+='<tr><td\x20class=\x22font-mono\x20text-xxs\x22>'+_0x34d65f[0x0]['substring'](0x0,0x14)+'...</td><td><span\x20class=\x22badge\x20green\x22>'+_0x34d65f[0x1]+'</span></td></tr>';}),_0x370a61+='</tbody></table>';_0x370a61+='</div></div>',_0x56d9e6['innerHTML']=_0x370a61;});},window['renderMatchReport']=function(_0x188f11){var _0x2af4dc=_0x452086(_0x188f11||'matchReport');if(!_0x2af4dc)return;Promise['all']([rtdb['ref']('matches')['once']('value'),rtdb['ref']('joinRequests')['once']('value')])['then'](function(_0x15e5b9){var _0x3a487f={},_0x2d9556=0x0,_0x4acef7=0x0;_0x15e5b9[0x0]['forEach'](function(_0x567014){_0x3a487f[_0x567014['key']]=_0x567014['val']();});var _0x13853a=Object['keys'](_0x3a487f)['length'];Object['values'](_0x3a487f)['forEach'](function(_0x18142d){_0x4acef7+=_0x18142d['maxSlots']||0x0,_0x2d9556+=_0x18142d['filledSlots']||_0x18142d['joinedSlots']||0x0;});var _0x3305b7=_0x4acef7>0x0?Math['round'](_0x2d9556/_0x4acef7*0x64):0x0,_0x598c65={};_0x15e5b9[0x1]['forEach'](function(_0x6ac0b7){var _0x295007=_0x6ac0b7['val']();_0x598c65[_0x295007['matchId']]=(_0x598c65[_0x295007['matchId']]||0x0)+0x1;});var _0x181818='<div\x20class=\x22stats-grid\x22>';[['Total\x20Matches',_0x13853a,'fas\x20fa-trophy'],['Avg\x20Fill\x20Rate',_0x3305b7+'%','fas\x20fa-percentage'],['Avg\x20Players/Match',_0x13853a?Math['round'](_0x2d9556/_0x13853a):0x0,'fas\x20fa-users'],['Total\x20Slots\x20Filled',_0x2d9556,'fas\x20fa-check']]['forEach'](function(_0x3ca0c3){_0x181818+='<div\x20class=\x22stat-card\x22><div\x20class=\x22stat-icon\x22><i\x20class=\x22'+_0x3ca0c3[0x2]+'\x22></i></div><div\x20class=\x22value\x22>'+_0x3ca0c3[0x1]+'</div><div\x20class=\x22label\x22>'+_0x3ca0c3[0x0]+'</div></div>';}),_0x181818+='</div>',_0x2af4dc['innerHTML']=_0x181818;});},window['_qtLoadSupportTickets']=function(){rtdb['ref']('supportRequests')['orderByChild']('status')['equalTo']('open')['once']('value',function(_0x145c8b){var _0x59cb33=[];if(_0x145c8b['exists']())_0x145c8b['forEach'](function(_0x38e9e6){_0x59cb33['push'](Object['assign']({},_0x38e9e6['val'](),{'id':_0x38e9e6['key']}));});_0x59cb33['sort'](function(_0x480708,_0x2092fc){return(_0x2092fc['createdAt']||0x0)-(_0x480708['createdAt']||0x0);});var _0x2b4605='<div>';if(!_0x59cb33['length'])_0x2b4605+='<div\x20style=\x22text-align:center;padding:30px;color:var(--text-muted)\x22>No\x20open\x20tickets\x20🎉</div>';_0x59cb33['forEach'](function(_0x1d1a2c){_0x2b4605+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-body\x20compact\x22>',_0x2b4605+='<div\x20style=\x22display:flex;justify-content:space-between;align-items:start;gap:8px\x22>',_0x2b4605+='<div><div\x20style=\x22font-weight:700;font-size:13px\x22>'+(_0x1d1a2c['type']||'Issue')+'</div>',_0x2b4605+='<div\x20class=\x22text-xxs\x20text-muted\x22>'+(_0x1d1a2c['userName']||'?')+'\x20·\x20'+new Date(_0x1d1a2c['createdAt']||0x0)['toLocaleString']()+'</div>',_0x2b4605+='<div\x20style=\x22font-size:12px;margin-top:4px\x22>'+(_0x1d1a2c['message']||'')['substring'](0x0,0x64)+'</div></div>',_0x2b4605+='<div\x20style=\x22display:flex;gap:4px;flex-shrink:0\x22>',_0x2b4605+='<button\x20class=\x22btn\x20btn-primary\x20btn-xs\x22\x20onclick=\x22window.resolveTicket(\x27'+_0x1d1a2c['id']+'\x27)\x22><i\x20class=\x22fas\x20fa-check\x22></i>\x20Resolve</button>';if(_0x1d1a2c['userId'])_0x2b4605+='<button\x20class=\x22btn\x20btn-ghost\x20btn-xs\x22\x20onclick=\x22window.openChat\x20&&\x20openChat(\x27'+_0x1d1a2c['userId']+'\x27)\x22><i\x20class=\x22fas\x20fa-reply\x22></i></button>';_0x2b4605+='</div></div></div></div>';}),_0x2b4605+='</div>',_0x5b19a8('🎫\x20Support\x20Tickets\x20('+_0x59cb33['length']+'\x20open)',_0x2b4605);});},window['resolveTicket']=function(_0x2ccb06){rtdb['ref']('supportRequests/'+_0x2ccb06)['update']({'status':'resolved','resolvedAt':Date['now']()}),_0x275581('resolve_ticket',_0x2ccb06),_0x495d9a('✅\x20Ticket\x20resolved'),_0x130c66();},window['showWithdrawalConfig']=function(){rtdb['ref']('appSettings/withdrawal')['once']('value',function(_0x1570c9){var _0x17afd4=_0x1570c9['val']()||{'minAmount':0x32,'maxAmount':0x1388,'dailyLimit':0x2710},_0x4963dd='<div>';_0x4963dd+='<div\x20class=\x22form-group\x22><label>Minimum\x20Withdrawal\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22wdMin\x22\x20class=\x22form-input\x22\x20value=\x22'+_0x17afd4['minAmount']+'\x22></div>',_0x4963dd+='<div\x20class=\x22form-group\x22><label>Maximum\x20per\x20Request\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22wdMax\x22\x20class=\x22form-input\x22\x20value=\x22'+_0x17afd4['maxAmount']+'\x22></div>',_0x4963dd+='<div\x20class=\x22form-group\x22><label>Daily\x20Limit\x20per\x20User\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22wdDaily\x22\x20class=\x22form-input\x22\x20value=\x22'+_0x17afd4['dailyLimit']+'\x22></div>',_0x4963dd+='<div\x20class=\x22form-group\x22><label>Auto-Approve\x20below\x20(₹)\x20<span\x20class=\x22text-muted\x20text-xxs\x22>0\x20=\x20manual\x20only</span></label><input\x20type=\x22number\x22\x20id=\x22wdAuto\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x17afd4['autoApprove']||0x0)+'\x22></div>',_0x4963dd+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._saveWdConfig()\x22><i\x20class=\x22fas\x20fa-save\x22></i>\x20Save\x20Config</button></div>',_0x5b19a8('⚙️\x20Withdrawal\x20Config',_0x4963dd);});},window['_saveWdConfig']=function(){rtdb['ref']('appSettings/withdrawal')['set']({'minAmount':Number((_0x452086('wdMin')||{})['value'])||0x32,'maxAmount':Number((_0x452086('wdMax')||{})['value'])||0x1388,'dailyLimit':Number((_0x452086('wdDaily')||{})['value'])||0x2710,'autoApprove':Number((_0x452086('wdAuto')||{})['value'])||0x0}),_0x275581('update_wd_config'),_0x495d9a('✅\x20Withdrawal\x20config\x20saved!'),_0x130c66();},window['showActionLog']=function(){rtdb['ref']('activityLogs')['orderByChild']('ts')['limitToLast'](0x64)['once']('value',function(_0x4627bd){var _0x3a4209=[];if(_0x4627bd['exists']())_0x4627bd['forEach'](function(_0x189beb){_0x3a4209['unshift'](_0x189beb['val']());});var _0x249867={'ban':'🚫','approve':'✅','reject':'❌','publish':'📢','cancel':'🚫','manual':'💰','flag_device':'🔍','bulk_message':'📣','resolve_ticket':'🎫','watchlist_add':'👁️','update_wd_config':'⚙️'},_0x5ccc3a='<div>';if(!_0x3a4209['length'])_0x5ccc3a+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20logs\x20yet</p>';else _0x5ccc3a+='<table><thead><tr><th>Action</th><th>Target</th><th>Time</th></tr></thead><tbody>',_0x3a4209['forEach'](function(_0x310fdc){_0x5ccc3a+='<tr><td><span\x20style=\x22font-size:14px\x22>'+(_0x249867[_0x310fdc['action']]||'📝')+'</span>\x20'+_0x310fdc['action']+'</td>',_0x5ccc3a+='<td\x20class=\x22text-xxs\x20font-mono\x22>'+(_0x310fdc['targetId']||'—')['substring'](0x0,0x14)+'</td>',_0x5ccc3a+='<td\x20class=\x22text-xxs\x22>'+new Date(_0x310fdc['ts'])['toLocaleString']()+'</td></tr>';}),_0x5ccc3a+='</tbody></table>';_0x5ccc3a+='</div>',_0x5b19a8('📋\x20Activity\x20Log',_0x5ccc3a);});},window['showPrizeCalculator']=function(){var _0x232a66='<div>';_0x232a66+='<div\x20class=\x22form-group\x22><label>Total\x20Prize\x20Pool\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22pcPool\x22\x20class=\x22form-input\x22\x20placeholder=\x22e.g.\x20500\x22\x20oninput=\x22window._calcPrizes()\x22></div>',_0x232a66+='<div\x20class=\x22form-group\x22><label>Distribution</label><select\x20id=\x22pcDist\x22\x20class=\x22form-input\x22\x20onchange=\x22window._calcPrizes()\x22><option\x20value=\x22top3\x22>Top\x203\x20(50/30/20%)</option><option\x20value=\x22top5\x22>Top\x205\x20(40/25/20/10/5%)</option><option\x20value=\x22top10\x22>Top\x2010\x20(Equal\x20Split)</option><option\x20value=\x22kills\x22>Per\x20Kill\x20Based</option></select></div>',_0x232a66+='<div\x20id=\x22pcResult\x22\x20style=\x22margin-top:12px\x22></div></div>',_0x5b19a8('🧮\x20Prize\x20Calculator',_0x232a66);},window['_calcPrizes']=function(){var _0xa1e6a3=Number((_0x452086('pcPool')||{})['value'])||0x0,_0x55b600=(_0x452086('pcDist')||{})['value'],_0x518298=_0x452086('pcResult');if(!_0x518298)return;var _0xbf55ba='';if(_0x55b600==='top3')[[0x32,'1st\x20🥇'],[0x1e,'2nd\x20🥈'],[0x14,'3rd\x20🥉']]['forEach'](function(_0x4e8e3b){_0xbf55ba+='<div\x20style=\x22display:flex;justify-content:space-between;padding:6px\x200;border-bottom:1px\x20solid\x20var(--border)\x22><span>'+_0x4e8e3b[0x1]+'</span><strong\x20class=\x22text-primary\x22>₹'+Math['round'](_0xa1e6a3*_0x4e8e3b[0x0]/0x64)+'</strong></div>';});else{if(_0x55b600==='top5')[[0x28,'1st'],[0x19,'2nd'],[0x14,'3rd'],[0xa,'4th'],[0x5,'5th']]['forEach'](function(_0x2633f1){_0xbf55ba+='<div\x20style=\x22display:flex;justify-content:space-between;padding:6px\x200;border-bottom:1px\x20solid\x20var(--border)\x22><span>'+_0x2633f1[0x1]+'</span><strong\x20class=\x22text-primary\x22>₹'+Math['round'](_0xa1e6a3*_0x2633f1[0x0]/0x64)+'</strong></div>';});else{if(_0x55b600==='top10'){var _0xea7fb6=Math['floor'](_0xa1e6a3/0xa);_0xbf55ba='<div\x20style=\x22padding:8px;background:rgba(0,255,106,.06);border-radius:8px\x22>Each\x20of\x20top\x2010:\x20<strong\x20class=\x22text-primary\x22>₹'+_0xea7fb6+'</strong></div>';}else{if(_0x55b600==='kills'){var _0xea0cf9=_0xa1e6a3>0x0?Math['floor'](_0xa1e6a3/0x19):0x0;_0xbf55ba='<div\x20style=\x22padding:8px;background:rgba(255,170,0,.08);border-radius:8px\x22><strong>₹'+_0xea0cf9+'</strong>\x20per\x20kill\x20(assumes\x2025\x20kills)</div>';}}}}_0x518298['innerHTML']=_0xbf55ba||'<p\x20class=\x22text-muted\x20text-xxs\x22>Enter\x20pool\x20amount</p>';},window['showScheduleAnnouncement']=function(){var _0x30f055='<div>';_0x30f055+='<div\x20class=\x22form-group\x22><label>Announcement</label><textarea\x20id=\x22annMsg\x22\x20class=\x22form-input\x22\x20style=\x22height:80px\x22\x20placeholder=\x22Announcement\x20message...\x22></textarea></div>',_0x30f055+='<div\x20class=\x22form-group\x22><label>Schedule\x20Time\x20(IST)</label><input\x20type=\x22datetime-local\x22\x20id=\x22annTime\x22\x20class=\x22form-input\x22></div>',_0x30f055+='<div\x20class=\x22form-group\x22><label>Target</label><select\x20id=\x22annTarget\x22\x20class=\x22form-input\x22><option\x20value=\x22all\x22>All\x20Users</option><option\x20value=\x22active\x22>Active\x20Users</option></select></div>',_0x30f055+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._scheduleAnn()\x22><i\x20class=\x22fas\x20fa-clock\x22></i>\x20Schedule</button></div>',_0x5b19a8('📅\x20Schedule\x20Announcement',_0x30f055);},window['_scheduleAnn']=function(){var _0x58f298=(_0x452086('annMsg')||{})['value'],_0x1c8316=(_0x452086('annTime')||{})['value'];if(!_0x58f298||!_0x1c8316){_0x495d9a('Fill\x20all\x20fields',!![]);return;}var _0x1acfd3=new Date(_0x1c8316)['getTime']();rtdb['ref']('scheduledAnnouncements')['push']({'message':_0x58f298,'scheduledFor':_0x1acfd3,'target':(_0x452086('annTarget')||{})['value'],'createdAt':Date['now'](),'status':'pending'}),_0x275581('schedule_announcement','',{'msg':_0x58f298['substring'](0x0,0x32),'ts':_0x1acfd3}),_0x495d9a('✅\x20Announcement\x20scheduled!'),_0x130c66();},window['showAddNote']=function(_0x345480,_0x34d088){var _0x1c2abc='<div>';_0x1c2abc+='<div\x20style=\x22margin-bottom:12px;font-size:13px;color:var(--text-muted)\x22>Player:\x20<strong>'+_0x34d088+'</strong></div>',rtdb['ref']('adminNotes/'+_0x345480)['once']('value',function(_0x2c1d8c){var _0xfab6ae='';if(_0x2c1d8c['exists']())_0x2c1d8c['forEach'](function(_0x27a1ff){var _0x5e44b1=_0x27a1ff['val']();_0xfab6ae+='<div\x20style=\x22padding:6px\x208px;border-radius:8px;background:var(--bg-dark);margin-bottom:4px;font-size:12px\x22><span\x20class=\x22badge\x20'+(_0x5e44b1['tag']||'yellow')+'\x20text-xxs\x22>'+_0x5e44b1['tag']+'</span>\x20'+_0x5e44b1['note']+'\x20<span\x20class=\x22text-muted\x20text-xxs\x22>('+new Date(_0x5e44b1['ts'])['toLocaleDateString']()+')</span></div>';});if(_0xfab6ae)_0x1c2abc+='<div\x20style=\x22margin-bottom:12px\x22>'+_0xfab6ae+'</div>';_0x1c2abc+='<textarea\x20id=\x22noteInput\x22\x20class=\x22form-input\x22\x20style=\x22height:80px\x22\x20placeholder=\x22Add\x20note...\x22></textarea>',_0x1c2abc+='<select\x20id=\x22noteTag\x22\x20class=\x22form-input\x22\x20style=\x22margin-top:8px\x22><option\x20value=\x22info\x22>ℹ️\x20Info</option><option\x20value=\x22warning\x22>⚠️\x20Warning</option><option\x20value=\x22suspicious\x22>🚨\x20Suspicious</option><option\x20value=\x22vip\x22>⭐\x20VIP</option></select>',_0x1c2abc+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20style=\x22margin-top:10px\x22\x20onclick=\x22window._playerNoteSave(\x27'+_0x345480+'\x27,\x27'+_0x34d088+'\x27)\x22>Add\x20Note</button>',_0x1c2abc+='</div>',_0x5b19a8('📝\x20Player\x20Notes:\x20'+_0x34d088,_0x1c2abc);});},window['_playerNoteSave']=function(_0x321df4,_0x141caa){var _0xc3373c=(_0x452086('noteInput')||{})['value'],_0x51730d=(_0x452086('noteTag')||{})['value'];if(!_0xc3373c){_0x495d9a('Note\x20likhna\x20padega',!![]);return;}rtdb['ref']('adminNotes/'+_0x321df4)['push']({'note':_0xc3373c,'tag':_0x51730d,'ts':Date['now']()}),_0x275581('add_note',_0x321df4,{'name':_0x141caa}),_0x495d9a('✅\x20Note\x20saved!'),_0x130c66();},window['showBanAppeals']=function(){rtdb['ref']('banAppeals')['orderByChild']('status')['equalTo']('pending')['once']('value',function(_0x303e2c){var _0x377c15=[];if(_0x303e2c['exists']())_0x303e2c['forEach'](function(_0x26463a){_0x377c15['push'](Object['assign']({},_0x26463a['val'](),{'id':_0x26463a['key']}));});var _0x4c3516='<div>';if(!_0x377c15['length'])_0x4c3516+='<div\x20style=\x22text-align:center;padding:30px;color:var(--text-muted)\x22>No\x20pending\x20appeals\x20🎉</div>';_0x377c15['forEach'](function(_0x2551de){_0x4c3516+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-body\x20compact\x22>',_0x4c3516+='<div\x20style=\x22font-weight:700;font-size:13px\x22>'+_0x2551de['userName']+'</div>',_0x4c3516+='<div\x20class=\x22text-xxs\x20text-muted\x20font-mono\x22>'+_0x2551de['uid']+'</div>',_0x4c3516+='<div\x20style=\x22font-size:12px;margin:8px\x200\x22>\x22'+(_0x2551de['reason']||'No\x20reason\x20given')['substring'](0x0,0x96)+'\x22</div>',_0x4c3516+='<div\x20style=\x22display:flex;gap:8px\x22>',_0x4c3516+='<button\x20class=\x22btn\x20btn-primary\x20btn-sm\x20flex-1\x22\x20onclick=\x22window.unbanFromAppeal(\x27'+_0x2551de['uid']+'\x27,\x27'+_0x2551de['id']+'\x27)\x22><i\x20class=\x22fas\x20fa-user-check\x22></i>\x20Unban</button>',_0x4c3516+='<button\x20class=\x22btn\x20btn-danger\x20btn-sm\x20flex-1\x22\x20onclick=\x22rtdb.ref(\x27banAppeals/'+_0x2551de['id']+'\x27).update({status:\x27rejected\x27});showToast(\x27Appeal\x20rejected\x27);closeModal();\x22><i\x20class=\x22fas\x20fa-times\x22></i>\x20Reject</button>',_0x4c3516+='</div></div></div>';}),_0x4c3516+='</div>',_0x5b19a8('⚖️\x20Ban\x20Appeals\x20('+_0x377c15['length']+')',_0x4c3516);});},window['unbanFromAppeal']=function(_0x3206f8,_0x57af30){rtdb['ref']('users/'+_0x3206f8+'/banned')['set'](![]),rtdb['ref']('users/'+_0x3206f8+'/bannedReason')['remove'](),rtdb['ref']('banAppeals/'+_0x57af30)['update']({'status':'accepted','resolvedAt':Date['now']()}),_0x275581('unban',_0x3206f8,{'via':'appeal'}),_0x495d9a('✅\x20User\x20unbanned!'),_0x130c66();},window['renderCohortData']=function(_0x4ee520){var _0x3bace6=_0x452086(_0x4ee520||'cohortData');if(!_0x3bace6)return;rtdb['ref']('users')['once']('value',function(_0x1dd0a4){var _0x305341={};_0x1dd0a4['forEach'](function(_0x4f4501){var _0x15179f=_0x4f4501['val']();if(!_0x15179f['createdAt'])return;var _0x46da09='W'+Math['floor']((Date['now']()-_0x15179f['createdAt'])/(0x7*0x18*0x3c*0x3c*0x3e8));if(!_0x305341[_0x46da09])_0x305341[_0x46da09]={'total':0x0,'active':0x0};_0x305341[_0x46da09]['total']++;if(_0x15179f['stats']&&_0x15179f['stats']['matches']>0x0)_0x305341[_0x46da09]['active']++;});var _0x22c69a='<table><thead><tr><th>Cohort</th><th>Users</th><th>Active</th><th>Retention</th></tr></thead><tbody>';Object['entries'](_0x305341)['slice'](0x0,0x8)['forEach'](function(_0x11ab15){var _0x11f67e=_0x11ab15[0x1]['total']>0x0?Math['round'](_0x11ab15[0x1]['active']/_0x11ab15[0x1]['total']*0x64):0x0;_0x22c69a+='<tr><td>'+_0x11ab15[0x0]+'</td><td>'+_0x11ab15[0x1]['total']+'</td><td>'+_0x11ab15[0x1]['active']+'</td>',_0x22c69a+='<td><span\x20class=\x22badge\x20'+(_0x11f67e>=0x32?'green':_0x11f67e>=0x19?'yellow':'red')+'\x22>'+_0x11f67e+'%</span></td></tr>';}),_0x22c69a+='</tbody></table>',_0x3bace6['innerHTML']=_0x22c69a;});},window['showLiveScoreboard']=function(_0x2c3d29){rtdb['ref']('matchResults/'+_0x2c3d29)['once']('value',function(_0x58ff92){if(!_0x58ff92['exists']()){_0x495d9a('No\x20results\x20published\x20yet');return;}var _0x6d6987=[];_0x58ff92['forEach'](function(_0x2388ad){_0x6d6987['push'](_0x2388ad['val']());}),_0x6d6987['sort'](function(_0x232510,_0x12c905){return(_0x232510['rank']||0x63)-(_0x12c905['rank']||0x63);});var _0x201fd5='<table><thead><tr><th>Rank</th><th>Player</th><th>Kills</th><th>Prize</th></tr></thead><tbody>';_0x6d6987['forEach'](function(_0x428ebc){var _0x322376=_0x428ebc['rank']===0x1?'🥇':_0x428ebc['rank']===0x2?'🥈':_0x428ebc['rank']===0x3?'🥉':'#'+_0x428ebc['rank'];_0x201fd5+='<tr><td>'+_0x322376+'</td><td>'+_0x428ebc['playerName']+'</td><td>'+_0x428ebc['kills']+'</td><td\x20class=\x22text-primary\x22>₹'+_0x428ebc['prize']+'</td></tr>';}),_0x201fd5+='</tbody></table>',_0x5b19a8('🏆\x20Scoreboard',_0x201fd5);});},window['showAutoPayoutRules']=function(){rtdb['ref']('appSettings/withdrawal')['once']('value',function(_0x22eba8){var _0x638516=_0x22eba8['val']()||{},_0x191e56='<div>';_0x191e56+='<div\x20class=\x22info-box\x20yellow\x22\x20style=\x22margin-bottom:12px\x22><i\x20class=\x22fas\x20fa-info-circle\x22></i>\x20Auto-approve:\x20Eligible\x20withdrawals\x20automatically\x20ho\x20jaenge\x20approved</div>',_0x191e56+='<div\x20class=\x22form-group\x22><label>Auto-approve\x20if\x20amount\x20≤\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22apAmt\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x638516['autoApprove']||0x0)+'\x22\x20placeholder=\x220\x20=\x20disabled\x22></div>',_0x191e56+='<div\x20class=\x22form-group\x22><label>Only\x20for\x20verified\x20users</label><select\x20id=\x22apVerified\x22\x20class=\x22form-input\x22><option\x20value=\x221\x22>Yes</option><option\x20value=\x220\x22>No</option></select></div>',_0x191e56+='<div\x20class=\x22form-group\x22><label>Min\x20matches\x20played</label><input\x20type=\x22number\x22\x20id=\x22apMinMatches\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x638516['autoApproveMinMatches']||0x5)+'\x22></div>',_0x191e56+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._saveAutoPayoutRules()\x22><i\x20class=\x22fas\x20fa-save\x22></i>\x20Save\x20Rules</button></div>',_0x5b19a8('⚡\x20Auto\x20Payout\x20Rules',_0x191e56);});},window['_saveAutoPayoutRules']=function(){rtdb['ref']('appSettings/withdrawal')['update']({'autoApprove':Number((_0x452086('apAmt')||{})['value'])||0x0,'autoApproveVerifiedOnly':(_0x452086('apVerified')||{})['value']==='1','autoApproveMinMatches':Number((_0x452086('apMinMatches')||{})['value'])||0x5}),_0x275581('update_autopayout'),_0x495d9a('✅\x20Auto\x20payout\x20rules\x20saved!'),_0x130c66();},window['broadcastToMatch']=function(_0x4e45ad,_0x1dcc99){var _0x4b3b2b='<div>';_0x4b3b2b+='<p\x20style=\x22color:var(--text-muted);font-size:13px;margin-bottom:12px\x22>Match\x20ke\x20saare\x20joined\x20players\x20ko\x20notification\x20+\x20push\x20jayega\x20—\x20<strong>'+_0x1dcc99+'</strong></p>',_0x4b3b2b+='<input\x20type=\x22text\x22\x20id=\x22bcTitle\x22\x20class=\x22form-input\x22\x20placeholder=\x22Title\x22\x20style=\x22margin-bottom:8px\x22>',_0x4b3b2b+='<textarea\x20id=\x22bcMsg\x22\x20class=\x22form-input\x22\x20style=\x22height:70px\x22\x20placeholder=\x22Message...\x22></textarea>',_0x4b3b2b+='<label\x20style=\x22display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted)\x22>'+'<input\x20type=\x22checkbox\x22\x20id=\x22bcAllUsers\x22\x20style=\x22width:16px;height:16px\x22>\x20'+'Sirf\x20is\x20match\x20ke\x20players\x20ke\x20saath\x20<b>poore\x20app\x20ke\x20sab\x20users</b>\x20ko\x20bhi\x20bhejo</label>',_0x4b3b2b+='<div\x20id=\x22bcLinkRow\x22\x20style=\x22margin-top:10px\x22>'+'<div\x20style=\x22font-size:12px;font-weight:800;color:var(--text-muted);margin-bottom:6px\x22>🔴\x20Live\x20stream\x20link\x20(Watch\x20&amp;\x20Earn\x20ke\x20liye)</div>'+'<div\x20style=\x22display:flex;gap:8px;align-items:center\x22>'+'<input\x20type=\x22text\x22\x20id=\x22bcLink\x22\x20class=\x22form-input\x22\x20style=\x22margin:0;flex:1\x22\x20placeholder=\x22https://youtu.be/…\x20(khaali\x20chhodo\x20agar\x20match\x20live\x20nahi)\x22>'+'<button\x20class=\x22btn\x20btn-ghost\x22\x20id=\x22bcLinkBtn\x22\x20style=\x22white-space:nowrap\x22\x20onclick=\x22window._saveMatchStreamLink(\x27'+_0x4e45ad+'\x27)\x22><i\x20class=\x22fas\x20fa-link\x22></i>\x20Link\x20Save</button>'+'</div>'+'<div\x20style=\x22font-size:11px;color:var(--text-muted);margin-top:5px\x22>Yeh\x20link\x20save\x20karte\x20hi\x20(match\x20status\x20=\x20live\x20hone\x20par)\x20user\x20panel\x20ke\x20match-details\x20me\x20<b>👀\x20Watch\x20&amp;\x20Earn\x20Coins</b>\x20button\x20aa\x20jata\x20hai.</div>'+'</div>',_0x4b3b2b+='<div\x20id=\x22bcProgress\x22\x20style=\x22font-size:12px;color:var(--info);margin-top:8px;min-height:16px\x22></div>',_0x4b3b2b+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20style=\x22margin-top:10px\x22\x20id=\x22bcSendBtn\x22\x20onclick=\x22window._sendBroadcast(\x27'+_0x4e45ad+'\x27,\x27'+_0x1dcc99+'\x27)\x22><i\x20class=\x22fas\x20fa-broadcast-tower\x22></i>\x20Broadcast</button></div>',_0x5b19a8('📡\x20Match\x20Broadcast',_0x4b3b2b),window['_supa']&&window['_supa']['from']('matches')['select']('stream_link,youtube_link')['eq']('id',_0x4e45ad)['single']()['then'](function(_0xa53011){var _0xdce41e=_0xa53011&&_0xa53011['data']&&(_0xa53011['data']['stream_link']||_0xa53011['data']['youtube_link'])||'',_0x5c64a0=_0x452086('bcLink');if(_0x5c64a0&&_0xdce41e)_0x5c64a0['value']=_0xdce41e;},function(){});},window['_saveMatchStreamLink']=function(_0x2f831a){var _0x3bd9bd=_0x452086('bcLink'),_0x4b94ef=((_0x3bd9bd||{})['value']||'')['trim']();if(!_0x4b94ef){_0x495d9a('Link\x20khaali\x20hai\x20—\x20pehle\x20live\x20stream\x20ka\x20URL\x20paste\x20karo',!![]);return;}if(!/^https?:\/\//i['test'](_0x4b94ef)){_0x495d9a('Link\x20http://\x20ya\x20https://\x20se\x20shuru\x20hona\x20chahiye',!![]);return;}if(!window['_supa']){_0x495d9a('Supabase\x20taiyar\x20nahi\x20—\x20page\x20reload\x20karo',!![]);return;}var _0x3bc7c6=_0x452086('bcLinkBtn');_0x3bc7c6&&(_0x3bc7c6['disabled']=!![],_0x3bc7c6['style']['opacity']='.6'),window['_supa']['from']('matches')['update']({'stream_link':_0x4b94ef})['eq']('id',_0x2f831a)['then'](function(_0x5926b8){_0x3bc7c6&&(_0x3bc7c6['disabled']=![],_0x3bc7c6['style']['opacity']='1');if(_0x5926b8&&_0x5926b8['error']){_0x495d9a('Link\x20save\x20nahi\x20hua:\x20'+_0x5926b8['error']['message'],!![]);return;}_0x275581('set_match_stream_link'),_0x495d9a('✅\x20Match\x20ka\x20live\x20stream\x20link\x20save\x20ho\x20gaya!');},function(_0xdee09e){_0x3bc7c6&&(_0x3bc7c6['disabled']=![],_0x3bc7c6['style']['opacity']='1'),_0x495d9a('Link\x20save\x20nahi\x20hua:\x20'+(_0xdee09e&&_0xdee09e['message']?_0xdee09e['message']:'unknown'),!![]);});},window['_sendBroadcast']=function(_0xf11dfb,_0x3d2e76){var _0x585767=((_0x452086('bcTitle')||{})['value']||'')['trim'](),_0x4246b1=((_0x452086('bcMsg')||{})['value']||'')['trim'](),_0x44ba62=!!(_0x452086('bcAllUsers')||{})['checked'],_0x2eb613=_0x452086('bcSendBtn'),_0x4a1424=_0x452086('bcProgress');function _0x3a7cc6(_0x4e643d){if(_0x4a1424)_0x4a1424['textContent']=_0x4e643d;}if(!_0x585767||!_0x4246b1){_0x495d9a('Title\x20aur\x20message\x20dono\x20bharo',!![]);return;}if(!window['_supa']){_0x495d9a('Supabase\x20taiyar\x20nahi\x20—\x20page\x20reload\x20karo',!![]);return;}_0x2eb613&&(_0x2eb613['disabled']=!![],_0x2eb613['style']['opacity']='.6'),_0x3a7cc6('Players\x20dhoonde\x20ja\x20rahe\x20hain…'),window['_supa']['from']('join_requests')['select']('user_id,status')['eq']('match_id',_0xf11dfb)['then'](function(_0x12a784){if(_0x12a784&&_0x12a784['error']){_0x2eb613&&(_0x2eb613['disabled']=![],_0x2eb613['style']['opacity']='');_0x495d9a('Players\x20nahi\x20mil\x20paye:\x20'+(_0x12a784['error']['message']||''),!![]),_0x3a7cc6('');return;}var _0x1ec184=_0x12a784&&_0x12a784['data']||[],_0x1f741a={'rejected':0x1,'cancelled':0x1,'refunded':0x1,'no_show':0x0},_0x180c97=[],_0x3be37d={};_0x1ec184['forEach'](function(_0x37941a){var _0x5827fe=_0x37941a&&_0x37941a['user_id'];if(!_0x5827fe||_0x3be37d[_0x5827fe])return;var _0x5852f0=String(_0x37941a&&_0x37941a['status']||'joined');if(_0x1f741a[_0x5852f0]===0x1)return;_0x3be37d[_0x5827fe]=0x1,_0x180c97['push'](_0x5827fe);});if(!_0x180c97['length']&&!_0x44ba62){_0x2eb613&&(_0x2eb613['disabled']=![],_0x2eb613['style']['opacity']='');_0x495d9a('Is\x20match\x20me\x20abhi\x20koi\x20joined\x20player\x20nahi\x20hai',!![]),_0x3a7cc6('');return;}var _0x18311a=0x0,_0x2e9dcf=0x0;function _0x16310b(_0x5841b8){if(_0x5841b8>=_0x180c97['length']){_0x4929f8();return;}_0x3a7cc6('Bheja\x20ja\x20raha\x20hai…\x20'+(_0x5841b8+0x1)+'/'+_0x180c97['length']+'\x20players');var _0x57f2e7;try{_0x57f2e7=window['_adminNotifyUser']?window['_adminNotifyUser'](_0x180c97[_0x5841b8],{'type':'match_broadcast','title':_0x585767,'message':_0x4246b1,'matchId':_0xf11dfb}):null;}catch(_0x76424f){_0x57f2e7=null;}if(!_0x57f2e7||!_0x57f2e7['then']){_0x18311a++,_0x16310b(_0x5841b8+0x1);return;}_0x57f2e7['then'](function(){_0x18311a++,_0x16310b(_0x5841b8+0x1);},function(){_0x2e9dcf++,_0x16310b(_0x5841b8+0x1);});}function _0x4929f8(){if(_0x44ba62&&window['_adminNotifyAll'])try{window['_adminNotifyAll'](_0x585767,_0x4246b1,'admin_alert');}catch(_0x2cdf4e){}_0x275581('broadcast',_0xf11dfb,{'title':_0x585767,'sent':_0x18311a,'failed':_0x2e9dcf,'allUsers':_0x44ba62}),_0x495d9a('✅\x20'+_0x18311a+'\x20players\x20ko\x20bheja'+(_0x2e9dcf?'\x20•\x20'+_0x2e9dcf+'\x20fail':'')+(_0x44ba62?'\x20+\x20sab\x20users':'')+'\x20(push\x20bhi\x20gaya)'),_0x130c66();}_0x16310b(0x0);},function(_0x1f883e){_0x2eb613&&(_0x2eb613['disabled']=![],_0x2eb613['style']['opacity']=''),_0x495d9a('Players\x20nahi\x20mil\x20paye:\x20'+(_0x1f883e&&_0x1f883e['message']||''),!![]),_0x3a7cc6('');});},window['checkPlatformHealth']=function(){var _0x16c00f=Date['now']();rtdb['ref']('.info/connected')['once']('value',function(_0x20bfb1){var _0x32d378=[];_0x32d378['push']({'name':'Firebase\x20Realtime\x20DB','ok':_0x20bfb1['val']()===!![]});var _0x1a0885=Date['now']()-_0x16c00f;_0x32d378['push']({'name':'DB\x20Latency\x20('+_0x1a0885+'ms)','ok':_0x1a0885<0x7d0}),_0x32d378['push']({'name':'Auth\x20Service','ok':!!(window['auth']&&window['auth']['currentUser'])}),rtdb['ref']('appSettings')['once']('value',function(_0x2e091b){_0x32d378['push']({'name':'App\x20Settings','ok':_0x2e091b['exists']()});var _0x1baea9='<div>';_0x32d378['forEach'](function(_0x3ae737){_0x1baea9+='<div\x20style=\x22display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px\x20solid\x20var(--border)\x22>',_0x1baea9+='<span\x20style=\x22font-size:18px\x22>'+(_0x3ae737['ok']?'✅':'❌')+'</span>',_0x1baea9+='<span\x20style=\x22font-size:13px\x22>'+_0x3ae737['name']+'</span></div>';});var _0x239a9e=_0x32d378['every'](function(_0x2909b3){return _0x2909b3['ok'];});_0x1baea9+='<div\x20style=\x22margin-top:12px;padding:10px;border-radius:10px;background:'+(_0x239a9e?'rgba(0,255,106,.08)':'rgba(255,0,60,.08)')+';text-align:center;font-weight:700\x22>'+(_0x239a9e?'✅\x20All\x20Systems\x20Operational':'⚠️\x20Issues\x20Detected')+'</div>',_0x1baea9+='</div>',_0x5b19a8('🔧\x20Platform\x20Health',_0x1baea9);});});},window['adminWidgetPrefs']=JSON['parse'](localStorage['getItem']('adminWidgets')||'{\x22revenue\x22:true,\x22users\x22:true,\x22matches\x22:true,\x22health\x22:true}'),window['saveAdminWidgets']=function(){localStorage['setItem']('adminWidgets',JSON['stringify'](window['adminWidgetPrefs'])),_0x495d9a('✅\x20Dashboard\x20preferences\x20saved!');},function _0x1b476b(){document['addEventListener']('DOMContentLoaded',function(){setTimeout(function(){var _0x1cade7=document['querySelector']('.topbar');if(_0x1cade7&&!document['getElementById']('adminQuickActions')){var _0x191dbe=document['createElement']('div');_0x191dbe['id']='adminQuickActions',_0x191dbe['style']['cssText']='display:flex;gap:4px;margin-left:auto;margin-right:8px',_0x191dbe['innerHTML']=[['fas\x20fa-file-csv','Export','exportCSV(\x27users\x27)'],['fas\x20fa-shield-alt','Fraud','runFraudCheck()'],['fas\x20fa-heartbeat','Health','checkPlatformHealth()'],['fas\x20fa-bell','Broadcast','showBulkMessage()'],['fas\x20fa-calculator','Prize\x20Calc','showPrizeCalculator()']]['map'](function(_0x112e3f){return'<button\x20class=\x22btn\x20btn-ghost\x20btn-xs\x22\x20onclick=\x22'+_0x112e3f[0x2]+'\x22\x20title=\x22'+_0x112e3f[0x1]+'\x22\x20style=\x22display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px\x208px\x22><i\x20class=\x22'+_0x112e3f[0x0]+'\x22></i><span\x20style=\x22font-size:8px\x22>'+_0x112e3f[0x1]+'</span></button>';})['join'](''),_0x1cade7['appendChild'](_0x191dbe);}},0x5dc);});}(),window['verifyTeamJoins']=function(_0x1ba8fb){rtdb['ref']('joinRequests/'+_0x1ba8fb)['once']('value',function(_0x560853){if(!_0x560853['exists']()){_0x495d9a('JoinRequest\x20not\x20found',!![]);return;}var _0x49bcde=_0x560853['val']();if(!_0x49bcde['teamMembers']||_0x49bcde['teamMembers']['length']<=0x1){_0x495d9a('Solo\x20match\x20—\x20no\x20teammates','inf');return;}var _0x2a231e=_0x49bcde['matchId'],_0x57dacf=_0x49bcde['userId'],_0x1f38ab=[],_0x5ce34a=0x0,_0x40ff7d=_0x49bcde['teamMembers']['filter'](function(_0x115e25){return _0x115e25['role']!=='captain';})['length'];if(_0x40ff7d===0x0){_0x495d9a('No\x20teammates\x20to\x20verify','inf');return;}_0x49bcde['teamMembers']['forEach'](function(_0x541cdf){if(_0x541cdf['role']==='captain')return;rtdb['ref']('users')['orderByChild']('ffUid')['equalTo'](_0x541cdf['uid'])['once']('value',function(_0x7fc487){if(!_0x7fc487['exists']()){_0x1f38ab['push']('Member\x20'+_0x541cdf['name']+'\x20not\x20found\x20in\x20DB'),_0x5ce34a++,_0x48d044();return;}var _0x56e2f4=null;_0x7fc487['forEach'](function(_0x51e0b4){_0x56e2f4=_0x51e0b4['key'];}),rtdb['ref']('joinRequests')['orderByChild']('userId')['equalTo'](_0x56e2f4)['once']('value',function(_0x228101){var _0x21f9e4=![];if(_0x228101['exists']())_0x228101['forEach'](function(_0x227ca8){if(_0x227ca8['val']()['matchId']===_0x2a231e&&_0x227ca8['val']()['isTeamMember'])_0x21f9e4=!![];});!_0x21f9e4&&(_0x1f38ab['push'](_0x541cdf['name']+'\x20ka\x20joinRequest\x20missing\x20hai!'),window['processTeammateJoins']&&rtdb['ref']('users/'+_0x56e2f4)['once']('value',function(_0x2ab61a){if(_0x2ab61a['exists']()){var _0x36b9d4=_0x2ab61a['val']();_0x50e1ea(_0x56e2f4,_0x36b9d4,_0x2a231e,_0x49bcde['matchName'],_0x49bcde['entryType']==='coin',_0x49bcde['mode'],_0x49bcde['teamMembers'],_0x49bcde['userName'],_0x57dacf);}})),_0x5ce34a++,_0x48d044();});});});function _0x48d044(){if(_0x5ce34a<_0x40ff7d)return;_0x1f38ab['length']?(_0x495d9a('⚠️\x20'+_0x1f38ab['length']+'\x20issues\x20—\x20auto-fixing!','err'),console['warn']('[Admin]\x20Team\x20join\x20issues:',_0x1f38ab)):_0x495d9a('✅\x20All\x20teammate\x20joins\x20verified!');}});};function _0x50e1ea(_0x2509b3,_0x45d258,_0x22a22a,_0x30ff59,_0x305770,_0x109225,_0x50fe1a,_0x39129b,_0x4eb3c6){var _0x24ad47=rtdb['ref']('joinRequests')['push']()['key'];rtdb['ref']('joinRequests/'+_0x24ad47)['set']({'requestId':_0x24ad47,'userId':_0x2509b3,'userName':_0x45d258['ign']||_0x45d258['displayName']||'','userFFUID':_0x45d258['ffUid']||'','matchId':_0x22a22a,'matchName':_0x30ff59||'','entryFee':0x0,'entryType':_0x305770?'coin':'money','mode':_0x109225,'status':'joined','slotsBooked':0x0,'isTeamMember':!![],'captainUid':_0x4eb3c6,'captainName':_0x39129b||'','teamMembers':_0x50fe1a,'createdAt':Date['now'](),'autoFixed':!![]}),rtdb['ref']('users/'+_0x2509b3+'/stats/matches')['transaction'](function(_0x24454e){return(_0x24454e||0x0)+0x1;});var _0x2c5a9b=rtdb['ref']('users/'+_0x2509b3+'/notifications')['push']()['key'];rtdb['ref']('users/'+_0x2509b3+'/notifications/'+_0x2c5a9b)['set']({'type':'team_joined','title':'🎮\x20Team\x20Match\x20Joined!','body':_0x39129b+'\x20ne\x20\x22'+_0x30ff59+'\x22\x20join\x20kiya\x20—\x20tum\x20bhi\x20team\x20mein\x20ho!','matchId':_0x22a22a,'read':![],'createdAt':Date['now']()}),_0x275581('auto_fix_team_join',_0x2509b3,{'matchId':_0x22a22a});}window['showUserSearch']=function(){var _0x13adf3='<div>';_0x13adf3+='<input\x20type=\x22text\x22\x20id=\x22userSearchQ\x22\x20placeholder=\x22Search\x20by\x20IGN,\x20Email\x20or\x20UID...\x22\x20class=\x22form-input\x22\x20oninput=\x22window._searchUsers()\x22\x20style=\x22margin-bottom:10px\x22>',_0x13adf3+='<div\x20id=\x22userSearchResults\x22></div></div>',_0x5b19a8('🔍\x20User\x20Search',_0x13adf3);},window['_searchUsers']=function(){var _0x237e00=((_0x452086('userSearchQ')||{})['value']||'')['trim']()['toLowerCase'](),_0x1ee649=_0x452086('userSearchResults');if(!_0x1ee649)return;if(_0x237e00['length']<0x2){_0x1ee649['innerHTML']='<p\x20class=\x22text-muted\x20text-xxs\x22>Type\x20at\x20least\x202\x20characters</p>';return;}_0x1ee649['innerHTML']='<div\x20style=\x22text-align:center;padding:20px\x22><i\x20class=\x22fas\x20fa-spinner\x20fa-spin\x22></i></div>',rtdb['ref']('users')['once']('value',function(_0x177c37){var _0xd11cd2=[];_0x177c37['forEach'](function(_0x2672ee){var _0x4e3a75=_0x2672ee['val'](),_0x4f3222=_0x2672ee['key'];(_0x4e3a75['ign']&&_0x4e3a75['ign']['toLowerCase']()['includes'](_0x237e00)||_0x4e3a75['email']&&_0x4e3a75['email']['toLowerCase']()['includes'](_0x237e00)||_0x4e3a75['ffUid']&&_0x4e3a75['ffUid']['includes'](_0x237e00)||_0x4f3222['includes'](_0x237e00))&&_0xd11cd2['push'](Object['assign']({},_0x4e3a75,{'_uid':_0x4f3222}));});if(!_0xd11cd2['length']){_0x1ee649['innerHTML']='<p\x20class=\x22text-muted\x20text-xxs\x22>No\x20users\x20found</p>';return;}var _0x177f8a='<div\x20style=\x22display:flex;flex-direction:column;gap:6px\x22>';_0xd11cd2['slice'](0x0,0xa)['forEach'](function(_0x179c1f){_0x177f8a+='<div\x20style=\x22padding:10px\x2012px;border-radius:10px;background:var(--bg-card);border:1px\x20solid\x20var(--border);display:flex;align-items:center;justify-content:space-between\x22>',_0x177f8a+='<div><div\x20style=\x22font-weight:700;font-size:13px\x22>'+(_0x179c1f['ign']||_0x179c1f['displayName']||'User')+'</div>',_0x177f8a+='<div\x20class=\x22text-xxs\x20text-muted\x22>'+(_0x179c1f['email']||'')+'\x20·\x20'+(_0x179c1f['profileStatus']||'unknown')+'</div></div>',_0x177f8a+='<button\x20class=\x22btn\x20btn-ghost\x20btn-xs\x22\x20onclick=\x22window.openUserModal\x20&&\x20openUserModal(\x27'+_0x179c1f['_uid']+'\x27)\x22><i\x20class=\x22fas\x20fa-eye\x22></i></button></div>';}),_0x177f8a+='</div>',_0x1ee649['innerHTML']=_0x177f8a;});},window['showBulkStatusUpdate']=function(){rtdb['ref']('matches')['limitToLast'](0x14)['once']('value',function(_0x41a100){var _0x30a383='<div>';_0x30a383+='<div\x20class=\x22form-group\x22><label>New\x20Status</label><select\x20id=\x22bsStatus\x22\x20class=\x22form-input\x22><option\x20value=\x22completed\x22>Completed\x20✅</option><option\x20value=\x22cancelled\x22>Cancelled\x20❌</option><option\x20value=\x22live\x22>Live\x20🔴</option><option\x20value=\x22upcoming\x22>Upcoming\x20⏳</option></select></div>',_0x30a383+='<div\x20style=\x22font-size:13px;font-weight:700;margin-bottom:8px\x22>Select\x20Matches:</div>',_0x30a383+='<div\x20id=\x22bsMatchList\x22\x20style=\x22max-height:200px;overflow-y:auto\x22>',_0x41a100['forEach'](function(_0x589c40){var _0xda4ef1=_0x589c40['val']();if(!_0xda4ef1)return;_0x30a383+='<label\x20style=\x22display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:var(--bg-dark);margin-bottom:4px;cursor:pointer\x22>',_0x30a383+='<input\x20type=\x22checkbox\x22\x20value=\x22'+_0x589c40['key']+'\x22\x20class=\x22bs-match-cb\x22>',_0x30a383+='<span\x20style=\x22font-size:12px\x22>'+(_0xda4ef1['name']||_0x589c40['key'])+'</span></label>';}),_0x30a383+='</div>',_0x30a383+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20style=\x22margin-top:12px\x22\x20onclick=\x22window._doBulkStatus()\x22>Apply\x20Status</button></div>',_0x5b19a8('🔄\x20Bulk\x20Status\x20Update',_0x30a383);});},window['_doBulkStatus']=function(){var _0x23fa28=(_0x452086('bsStatus')||{})['value'],_0xa26a49=document['querySelectorAll']('.bs-match-cb:checked');if(!_0xa26a49['length']){_0x495d9a('Select\x20at\x20least\x20one\x20match',!![]);return;}_0xa26a49['forEach'](function(_0x297c71){rtdb['ref']('matches/'+_0x297c71['value']+'/status')['set'](_0x23fa28),_0x275581('bulk_status_update',_0x297c71['value'],{'status':_0x23fa28});}),_0x495d9a('✅\x20'+_0xa26a49['length']+'\x20matches\x20updated\x20to\x20'+_0x23fa28),_0x130c66();},window['showPendingWallet']=function(){rtdb['ref']('walletRequests')['orderByChild']('status')['equalTo']('pending')['once']('value',function(_0x1f96fc){var _0xcb7e35=[];if(_0x1f96fc['exists']())_0x1f96fc['forEach'](function(_0x4a0828){_0xcb7e35['push'](Object['assign']({},_0x4a0828['val'](),{'_key':_0x4a0828['key']}));});_0xcb7e35['sort'](function(_0x465fcd,_0x197413){return(_0x465fcd['createdAt']||0x0)-(_0x197413['createdAt']||0x0);});var _0x155cb7='<div>';_0x155cb7+='<div\x20style=\x22display:flex;gap:8px;margin-bottom:12px\x22>',_0x155cb7+='<button\x20class=\x22btn\x20btn-ghost\x20btn-sm\x22\x20onclick=\x22window.exportCSV(\x27wallet\x27)\x22><i\x20class=\x22fas\x20fa-download\x22></i>\x20Export</button></div>';if(!_0xcb7e35['length'])_0x155cb7+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20pending\x20requests\x20✅</p>';_0xcb7e35['forEach'](function(_0x13cb12){var _0x59c69a=_0x13cb12['type']==='deposit';_0x155cb7+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-body\x20compact\x22>',_0x155cb7+='<div\x20style=\x22display:flex;justify-content:space-between;align-items:start\x22>',_0x155cb7+='<div><div\x20style=\x22font-weight:700;font-size:13px\x22>'+(_0x59c69a?'📥\x20Deposit':'📤\x20Withdrawal')+'\x20—\x20₹'+_0x13cb12['amount']+'</div>',_0x155cb7+='<div\x20class=\x22text-xxs\x20text-muted\x22>'+(_0x13cb12['userName']||'?')+'\x20·\x20'+new Date(_0x13cb12['createdAt'])['toLocaleString']()+'</div>';if(_0x13cb12['utr'])_0x155cb7+='<div\x20class=\x22text-xxs\x22\x20style=\x22margin-top:4px\x22>UTR:\x20<span\x20class=\x22font-mono\x22>'+_0x13cb12['utr']+'</span></div>';if(_0x59c69a&&_0x13cb12['screenshotBase64'])_0x155cb7+='<button\x20class=\x22btn\x20btn-ghost\x20btn-xs\x22\x20style=\x22margin-top:4px\x22\x20onclick=\x22window._viewSS(\x27'+_0x13cb12['_key']+'\x27)\x22><i\x20class=\x22fas\x20fa-image\x22></i>\x20View\x20Proof</button>';_0x155cb7+='</div>',_0x155cb7+='<div\x20style=\x22display:flex;flex-direction:column;gap:4px\x22>',_0x155cb7+='<button\x20class=\x22btn\x20btn-primary\x20btn-xs\x22\x20onclick=\x22window.approveWallet(\x27'+_0x13cb12['_key']+'\x27,\x27'+_0x13cb12['uid']+'\x27,'+_0x13cb12['amount']+',\x27'+_0x13cb12['type']+'\x27)\x22>✅\x20Approve</button>',_0x155cb7+='<button\x20class=\x22btn\x20btn-danger\x20btn-xs\x22\x20onclick=\x22window.rejectWallet(\x27'+_0x13cb12['_key']+'\x27,\x27'+_0x13cb12['uid']+'\x27,'+_0x13cb12['amount']+',\x27'+_0x13cb12['type']+'\x27)\x22>❌\x20Reject</button>',_0x155cb7+='</div></div></div></div>';}),_0x155cb7+='</div>',_0x5b19a8('💳\x20Pending\x20Wallet\x20Requests\x20('+_0xcb7e35['length']+')',_0x155cb7);});},window['_viewSS']=function(_0xf8d55e){rtdb['ref']('walletRequests/'+_0xf8d55e+'/screenshotBase64')['once']('value',function(_0x4141a0){if(!_0x4141a0['exists']()){_0x495d9a('No\x20screenshot','inf');return;}var _0x529943='<div\x20style=\x22text-align:center\x22><img\x20src=\x22'+_0x4141a0['val']()+'\x22\x20style=\x22max-width:100%;border-radius:10px\x22></div>';_0x5b19a8('📸\x20Payment\x20Screenshot',_0x529943);});},window['approveWallet']=function(_0x1b518e,_0x1bd0fd,_0x576e28,_0x40c2d2){rtdb['ref']('walletRequests/'+_0x1b518e)['update']({'status':'approved','approvedAt':Date['now']()}),window['_supa']&&_0x1bd0fd&&window['_supa']['from']('admin_activity_log')['insert']({'admin_uid':window['getAdminUid']?window['getAdminUid']():'admin','action_type':'legacy_wallet_approve_mirror','target_uid':_0x1bd0fd,'details':{'amount':_0x576e28,'type':_0x40c2d2,'note':'inert\x20—\x20balance\x20untouched;\x20RPC-only\x20financial\x20path','timestamp':Date['now']()},'created_at':new Date()['toISOString']()})['then'](null,function(){}),_0x275581('approve_wallet',_0x1b518e,{'uid':_0x1bd0fd,'amount':_0x576e28,'type':_0x40c2d2}),_0x495d9a('⛔\x20Legacy\x20request\x20approve\x20(mirror-only)\x20—\x20paisa\x20RPC\x20se\x20hi\x20hota\x20hai'),window['showPendingWallet']();},window['rejectWallet']=function(_0x1b72e5,_0x423eed,_0x30ec0e,_0x1da27f){rtdb['ref']('walletRequests/'+_0x1b72e5)['update']({'status':'rejected','rejectedAt':Date['now']()}),window['_supa']&&_0x423eed&&window['_supa']['from']('admin_activity_log')['insert']({'admin_uid':window['getAdminUid']?window['getAdminUid']():'admin','action_type':'legacy_wallet_reject_mirror','target_uid':_0x423eed,'details':{'amount':_0x30ec0e,'type':_0x1da27f,'note':'inert\x20—\x20balance\x20untouched;\x20RPC-only\x20financial\x20path','timestamp':Date['now']()},'created_at':new Date()['toISOString']()})['then'](null,function(){}),_0x275581('reject_wallet',_0x1b72e5,{'uid':_0x423eed,'amount':_0x30ec0e,'type':_0x1da27f}),_0x495d9a('⛔\x20Legacy\x20request\x20reject\x20(mirror-only)\x20—\x20refund\x20RPC\x20se\x20hi\x20hota\x20hai'),window['showPendingWallet']();},window['_rmPickMin']=function(_0x442fcc){var _0x266639=document['getElementById']('rmRelMin');_0x266639&&(_0x266639['value']=_0x442fcc);var _0xb001ad=document['querySelectorAll']('[data-rm-chip]');_0xb001ad['forEach'](function(_0x17f016){var _0x48e76d=Number(_0x17f016['getAttribute']('data-rm-chip'))===Number(_0x442fcc);_0x17f016['style']['background']=_0x48e76d?'var(--primary)':'var(--bg2,#15151c)',_0x17f016['style']['color']=_0x48e76d?'#04140c':'var(--text,#eaeaea)';});var _0x260365=document['getElementById']('rmAutoInfo');if(_0x260365&&_0x260365['getAttribute']('data-matchtime')){var _0x38bd23=Number(_0x260365['getAttribute']('data-matchtime')),_0x1b7aa6=_0x38bd23-Number(_0x442fcc)*0xea60-Date['now']();_0x1b7aa6>0x0?(_0x260365['textContent']='⏰\x20Auto-release\x20in:\x20~'+Math['floor'](_0x1b7aa6/0xea60)+'\x20min\x20(match\x20-\x20'+_0x442fcc+'\x20min)',_0x260365['style']['color']='#00d4ff'):(_0x260365['textContent']='⚠️\x20Release\x20time\x20already\x20passed\x20—\x20release\x20manually',_0x260365['style']['color']='#ffaa00');}};function _0x1b1e49(){var _0x58fa83=_0x452086('rmRoomId'),_0x4a8a43=_0x452086('rmRoomPw'),_0x1df0d1=_0x452086('rmRelMin'),_0x1c77ae=String((_0x58fa83||{})['value']||'')['replace'](/^\s+|\s+$/g,''),_0x380b93=String((_0x4a8a43||{})['value']||'')['replace'](/^\s+|\s+$/g,''),_0x1c187f=Number((_0x1df0d1||{})['value']);if(!isFinite(_0x1c187f)||_0x1c187f<0x1)_0x1c187f=0x5;if(_0x1c187f>0x3c)_0x1c187f=0x3c;if(_0x58fa83)_0x58fa83['value']=_0x1c77ae;if(_0x4a8a43)_0x4a8a43['value']=_0x380b93;if(_0x1df0d1)_0x1df0d1['value']=_0x1c187f;return{'roomId':_0x1c77ae,'roomPw':_0x380b93,'relMin':_0x1c187f};}var _0x4edad5=![];function _0x3ad07b(_0x5e4643){_0x4edad5=!!_0x5e4643,['rmSaveBtn','rmReleaseBtn']['forEach'](function(_0x1c17d5){var _0x17ceb4=document['getElementById'](_0x1c17d5);_0x17ceb4&&(_0x17ceb4['disabled']=!!_0x5e4643,_0x17ceb4['style']['opacity']=_0x5e4643?'0.6':'');});}function _0x262c8e(_0x2ea3e6,_0x169898){var _0xf6c01b=document['getElementById']('rmActionStatus');if(!_0xf6c01b)return;var _0xd964cd=_0x169898!=='err';_0xf6c01b['style']['display']='block',_0xf6c01b['style']['background']=_0xd964cd?'rgba(0,255,156,.08)':'rgba(255,68,68,.10)',_0xf6c01b['style']['border']='1px\x20solid\x20'+(_0xd964cd?'rgba(0,255,156,.28)':'rgba(255,68,68,.32)'),_0xf6c01b['style']['color']=_0xd964cd?'var(--success)':'#ff6b6b',_0xf6c01b['innerHTML']=_0x2ea3e6;}window['showRoomManager']=function(_0x2e1d37,_0x28b951){rtdb['ref']('matches/'+_0x2e1d37)['once']('value',function(_0x573007){var _0x13a3b5=_0x573007['val']()||{};rtdb['ref']('matchRooms/'+_0x2e1d37)['once']('value',function(_0x2fad4b){var _0x88cc94=_0x2fad4b&&_0x2fad4b['val']&&_0x2fad4b['val']()||{},_0xc0b9e2=_0x88cc94['room_id']||_0x88cc94['roomId']||'',_0x3325b3=_0x88cc94['room_password']||_0x88cc94['roomPassword']||'';if(!_0x13a3b5['roomId']&&_0xc0b9e2)_0x13a3b5['roomId']=_0xc0b9e2;if(!_0x13a3b5['roomPassword']&&_0x3325b3)_0x13a3b5['roomPassword']=_0x3325b3;_0x5c44a(_0x2e1d37,_0x28b951,_0x13a3b5);});});function _0x5c44a(_0x38c716,_0x584e2b,_0x233c89){var _0x85883b=_0x233c89['roomReleaseMinutes']||0x5,_0x36394b='<div>';_0x36394b+='<p\x20class=\x22text-muted\x22\x20style=\x22font-size:12px;margin-bottom:12px\x22>Room\x20details\x20for:\x20<strong>'+_0x584e2b+'</strong></p>',_0x36394b+='<div\x20class=\x22form-group\x22><label>Room\x20ID</label><input\x20type=\x22text\x22\x20id=\x22rmRoomId\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x233c89['roomId']||'')+'\x22\x20placeholder=\x22Enter\x20Room\x20ID\x22></div>',_0x36394b+='<div\x20class=\x22form-group\x22><label>Room\x20Password</label><input\x20type=\x22text\x22\x20id=\x22rmRoomPw\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x233c89['roomPassword']||'')+'\x22\x20placeholder=\x22Enter\x20Password\x22></div>',_0x36394b+='<div\x20class=\x22form-group\x22\x20style=\x22margin-bottom:14px\x22>',_0x36394b+='<label\x20style=\x22margin-bottom:6px;display:block\x22>⏱️\x20Players\x20ko\x20Room\x20ID\x20kab\x20mile?\x20(Match\x20se\x20kitne\x20min\x20pehle)</label>',_0x36394b+='<div\x20style=\x22display:flex;gap:6px;flex-wrap:wrap\x22>';var _0x32d4cf='var(--bg2,#15151c)',_0x207f75='var(--text,#eaeaea)';[0x1,0x3,0x5,0xa,0xf,0x1e]['forEach'](function(_0x1797c6){_0x36394b+='<button\x20data-rm-chip=\x22'+_0x1797c6+'\x22\x20onclick=\x22window._rmPickMin('+_0x1797c6+')\x22\x20'+'style=\x22padding:6px\x2012px;border-radius:8px;border:1px\x20solid\x20var(--border);background:'+(_0x85883b===_0x1797c6?'var(--primary)':_0x32d4cf)+';color:'+(_0x85883b===_0x1797c6?'#04140c':_0x207f75)+';font-size:12px;font-weight:700;cursor:pointer\x22>'+_0x1797c6+'\x20min</button>';}),_0x36394b+='</div>',_0x36394b+='<input\x20type=\x22number\x22\x20id=\x22rmRelMin\x22\x20value=\x22'+_0x85883b+'\x22\x20min=\x221\x22\x20max=\x2260\x22\x20style=\x22margin-top:8px;width:80px;padding:6px\x2010px;border-radius:8px;border:1px\x20solid\x20var(--border);background:var(--bg2);color:var(--text);font-size:13px\x22\x20placeholder=\x22Min\x22>',_0x36394b+='<span\x20style=\x22font-size:11px;color:var(--text-muted);margin-left:8px\x22>minutes\x20before\x20match\x20(default:\x205)</span>',_0x36394b+='</div>';if(_0x233c89['roomStatus']==='released')_0x36394b+='<div\x20style=\x22margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(0,255,106,.08);font-size:12px;color:var(--success)\x22>✅\x20Room\x20already\x20released\x20to\x20players</div>';else{if(_0x233c89['matchTime']){var _0x5bfe22=Number(_0x233c89['matchTime'])-_0x85883b*0xea60,_0x516ff7=Date['now'](),_0x416ac4=_0x5bfe22-_0x516ff7;if(_0x416ac4>0x0){var _0x3ac8f4=Math['floor'](_0x416ac4/0xea60);_0x36394b+='<div\x20id=\x22rmAutoInfo\x22\x20data-matchtime=\x22'+Number(_0x233c89['matchTime'])+'\x22\x20style=\x22margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(0,212,255,.08);font-size:12px;color:#00d4ff\x22>⏰\x20Auto-release\x20in:\x20~'+_0x3ac8f4+'\x20min\x20(match\x20-\x20'+_0x85883b+'\x20min)</div>';}else _0x36394b+='<div\x20id=\x22rmAutoInfo\x22\x20data-matchtime=\x22'+Number(_0x233c89['matchTime'])+'\x22\x20style=\x22margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(255,170,0,.08);font-size:12px;color:#ffaa00\x22>⚠️\x20Release\x20time\x20already\x20passed\x20—\x20release\x20manually</div>';}}_0x36394b+='<div\x20style=\x22display:grid;grid-template-columns:1fr\x201fr;gap:8px\x22>',_0x36394b+='<div\x20id=\x22rmActionStatus\x22\x20style=\x22display:none;margin-bottom:10px;padding:9px\x2011px;border-radius:10px;font-size:12px;line-height:1.5\x22></div>',_0x36394b+='<button\x20id=\x22rmSaveBtn\x22\x20class=\x22btn\x20btn-ghost\x20w-full\x22\x20onclick=\x22window._saveRoomOnly(\x27'+_0x38c716+'\x27,\x27'+_0x584e2b+'\x27)\x22><i\x20class=\x22fas\x20fa-save\x22></i>\x20Save\x20Only</button>',_0x36394b+='<button\x20id=\x22rmReleaseBtn\x22\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._releaseRoom(\x27'+_0x38c716+'\x27,\x27'+_0x584e2b+'\x27)\x22><i\x20class=\x22fas\x20fa-key\x22></i>\x20Release\x20Now</button>',_0x36394b+='</div>',_0x36394b+='</div>',_0x5b19a8('🔑\x20Room\x20Manager',_0x36394b);}},window['_saveRoomOnly']=function(_0x2cee37,_0x259306){if(_0x4edad5)return;var _0x4e97f7=_0x1b1e49();if(!_0x4e97f7['roomId']||!_0x4e97f7['roomPw']){_0x495d9a('Room\x20ID\x20and\x20Password\x20required',!![]),_0x262c8e('⚠️\x20Room\x20ID\x20aur\x20Password\x20dono\x20likho','err');return;}_0x3ad07b(!![]),rtdb['ref']('matches/'+_0x2cee37)['once']('value')['then'](function(_0x3d62be){var _0x5052ca=_0x3d62be&&_0x3d62be['val']&&_0x3d62be['val']()||{},_0x519a05=_0x5052ca['roomStatus']==='released',_0xf8c0f6={'roomId':_0x4e97f7['roomId'],'roomPassword':_0x4e97f7['roomPw'],'roomReleaseMinutes':_0x4e97f7['relMin']};if(!_0x519a05)_0xf8c0f6['roomStatus']='saved';return rtdb['ref']('matches/'+_0x2cee37)['update'](_0xf8c0f6)['then'](function(){return _0x519a05;});})['then'](function(_0x28aa7c){_0x3ad07b(![]),_0x275581('save_room',_0x2cee37,{'matchName':_0x259306,'releaseMin':_0x4e97f7['relMin'],'stillReleased':!!_0x28aa7c}),_0x495d9a('💾\x20Room\x20details\x20saved!\x20'+(_0x28aa7c?'Room\x20pehle\x20se\x20released\x20hai\x20—\x20released\x20hi\x20rahega.':'Will\x20auto-release\x20'+_0x4e97f7['relMin']+'\x20min\x20before\x20match.')),_0x262c8e(_0x28aa7c?'💾\x20<b>Saved!</b>\x20Room\x20details\x20update\x20ho\x20gayi.\x20Room\x20<b>pehle\x20se\x20released</b>\x20hai,\x20isliye\x20players\x20ko\x20dikhta\x20rahega\x20(match\x20-\x20'+_0x4e97f7['relMin']+'\x20min\x20ka\x20niyam\x20sirf\x20naye\x20room\x20par\x20lagta\x20hai).':'💾\x20<b>Saved!</b>\x20Players\x20ko\x20abhi\x20nahi\x20dikhega\x20—\x20match\x20se\x20<b>'+_0x4e97f7['relMin']+'\x20min\x20pehle</b>\x20khud\x20release\x20ho\x20jayega\x20(server\x20cron).\x20Turant\x20dena\x20ho\x20to\x20\x22Release\x20Now\x22\x20dabao.');},function(_0x3f5ebe){_0x3ad07b(![]),_0x262c8e('❌\x20Save\x20nahi\x20hua:\x20'+(_0x3f5ebe&&_0x3f5ebe['message']||'DB\x20error')+'\x20—\x20dobara\x20try\x20karo','err'),_0x495d9a('❌\x20Room\x20save\x20fail',!![]);});},window['_releaseRoom']=function(_0x1d88f5,_0xa8fc29){if(_0x4edad5)return;var _0x3f9303=_0x1b1e49();if(!_0x3f9303['roomId']||!_0x3f9303['roomPw']){_0x495d9a('Room\x20ID\x20and\x20Password\x20required',!![]),_0x262c8e('⚠️\x20Room\x20ID\x20aur\x20Password\x20dono\x20likho','err');return;}_0x3ad07b(!![]),rtdb['ref']('matches/'+_0x1d88f5)['update']({'roomId':_0x3f9303['roomId'],'roomPassword':_0x3f9303['roomPw'],'roomStatus':'released','roomReleaseMinutes':_0x3f9303['relMin'],'roomReleasedAt':Date['now']()})['then'](function(){_0x262c8e('✅\x20<b>Room\x20released!</b>\x20Players\x20ko\x20abhi\x20dikh\x20raha\x20hai\x20—\x20notification\x20bheji\x20ja\x20rahi\x20hai…');if(typeof window['sendRoomNotificationToMatch']==='function')return window['sendRoomNotificationToMatch'](_0x1d88f5,_0x3f9303['roomId'],_0x3f9303['roomPw'],_0xa8fc29)['then'](function(_0x4c1086){_0x3ad07b(![]),_0x275581('release_room',_0x1d88f5,{'matchName':_0xa8fc29,'notified':_0x4c1086}),_0x495d9a('✅\x20Room\x20ID\x20released!\x20'+_0x4c1086+'\x20players\x20notified.'),_0x262c8e('✅\x20<b>Room\x20released!</b>\x20Abhi\x20ke\x20liye\x20players\x20ko\x20dikh\x20raha\x20hai\x20·\x20<b>'+_0x4c1086+'</b>\x20joined\x20players\x20ko\x20notification\x20chali\x20gayi.');});_0x3ad07b(![]),_0x275581('release_room',_0x1d88f5,{'matchName':_0xa8fc29,'notified':0x0}),_0x495d9a('✅\x20Room\x20ID\x20released!\x20(notify\x20function\x20unavailable)'),_0x262c8e('✅\x20<b>Room\x20released!</b>\x20Players\x20ko\x20abhi\x20dikh\x20raha\x20hai.\x20(notification\x20function\x20available\x20nahi\x20tha\x20—\x20app\x20reload\x20karke\x20dobara\x20try\x20karo)');},function(_0x4a0551){_0x3ad07b(![]),_0x262c8e('❌\x20Release\x20nahi\x20hua:\x20'+(_0x4a0551&&_0x4a0551['message']||'DB\x20error')+'\x20—\x20dobara\x20try\x20karo','err'),_0x495d9a('❌\x20Room\x20release\x20fail',!![]);});},window['showResultPublisher']=function(_0x5af064,_0x49d4c3){var _0x371b12=[],_0x546fc5=window['allJoinRequests']||{};Object['keys'](_0x546fc5)['forEach'](function(_0x28e86d){var _0x365ed6=_0x546fc5[_0x28e86d],_0xbb238d=_0x365ed6['tournamentId']||_0x365ed6['matchId'];if(_0xbb238d!==_0x5af064)return;var _0x2a8bf5=_0x365ed6['status']||'';if(_0x2a8bf5==='rejected'||_0x2a8bf5==='cancelled')return;_0x371b12['push']({'uid':_0x365ed6['userId']||_0x365ed6['uid']||_0x28e86d['split']('_')[0x0]||'','name':_0x365ed6['playerName']||_0x365ed6['ign']||_0x365ed6['userName']||'Player','ffUid':_0x365ed6['ffUid']||_0x365ed6['gameUid']||'—'});}),rtdb['ref']('matches/'+_0x5af064)['once']('value',function(_0x19d05a){var _0x448437=_0x19d05a['val']()||{},_0x5633ca=_0x448437['prizePool']||0x0,_0x224be8=_0x448437['prizes']||{},_0x4df093=_0x224be8['first']||Math['round'](_0x5633ca*0.5),_0x80ea81=_0x224be8['second']||Math['round'](_0x5633ca*0.3),_0xc74d02=_0x224be8['third']||Math['round'](_0x5633ca*0.2),_0x40f2e4='<div>';_0x40f2e4+='<div\x20style=\x22font-size:11px;color:var(--text-muted);margin-bottom:10px\x22>Match:\x20<strong>'+_0x49d4c3+'</strong>\x20|\x20Prize\x20Pool:\x20<strong\x20style=\x22color:var(--success)\x22>₹'+_0x5633ca+'</strong></div>',_0x40f2e4+='<div\x20style=\x22font-size:11px;color:var(--info);margin-bottom:12px;padding:6px;background:rgba(0,212,255,.06);border-radius:8px\x22>🏆\x20#1=₹'+_0x4df093+'\x20|\x20🥈\x20#2=₹'+_0x80ea81+'\x20|\x20🥉\x20#3=₹'+_0xc74d02+'\x20(auto-calculated)</div>';if(_0x371b12['length']>0x0){_0x40f2e4+='<div\x20style=\x22font-size:12px;font-weight:700;margin-bottom:8px\x22>Joined\x20Players\x20('+_0x371b12['length']+'):</div>',_0x40f2e4+='<div\x20id=\x22resultEntries\x22\x20style=\x22display:flex;flex-direction:column;gap:6px\x22>';var _0x250083=(_0x448437['mode']||_0x448437['type']||'solo')['toLowerCase'](),_0x5bf269=_0x250083==='duo'||_0x250083==='squad',_0xdca8e7={};_0x371b12['forEach'](function(_0x4e6700){var _0x35884b=_0x4e6700['teamId']||_0x4e6700['captainUid']||_0x4e6700['uid'];if(!_0xdca8e7[_0x35884b])_0xdca8e7[_0x35884b]=[];_0xdca8e7[_0x35884b]['push'](_0x4e6700);}),_0x371b12['forEach'](function(_0x3bc004,_0xef3834){var _0x427f20=_0x3bc004['teamId']||_0x3bc004['captainUid']||_0x3bc004['uid'],_0x4a0aef=_0xdca8e7[_0x427f20]&&_0xdca8e7[_0x427f20][0x0]===_0x3bc004,_0x2c4dd0=_0x5bf269&&!_0x4a0aef?'border-left:3px\x20solid\x20rgba(185,100,255,.4)':'';_0x40f2e4+='<div\x20style=\x22display:grid;grid-template-columns:1fr\x2060px\x2070px;gap:6px;align-items:center;padding:6px;background:var(--card-bg);border-radius:8px;border:1px\x20solid\x20var(--border);'+_0x2c4dd0+'\x22>',_0x40f2e4+='<div><div\x20style=\x22font-size:12px;font-weight:700\x22>'+_0x3bc004['name']+(_0x5bf269&&!_0x4a0aef?'\x20<span\x20style=\x22font-size:9px;color:#b964ff\x22>teammate</span>':'')+'</div>',_0x40f2e4+='<div\x20style=\x22font-size:10px;color:var(--primary);font-family:monospace\x22>FF:\x20'+_0x3bc004['ffUid']+'</div></div>',_0x40f2e4+='<input\x20type=\x22number\x22\x20placeholder=\x22Rank\x22\x20min=\x220\x22\x20value=\x220\x22\x20class=\x22form-input\x20res-pos\x22\x20data-uid=\x22'+_0x3bc004['uid']+'\x22\x20data-name=\x22'+_0x3bc004['name']+'\x22\x20data-team=\x22'+_0x427f20+'\x22\x20style=\x22font-size:12px;text-align:center;padding:4px\x22\x20oninput=\x22window._autoFillTeamRank(this)\x22\x20title=\x22Rank\x20(0=not\x20ranked)\x22>',_0x40f2e4+='<input\x20type=\x22number\x22\x20placeholder=\x22Kills\x22\x20min=\x220\x22\x20value=\x220\x22\x20class=\x22form-input\x20res-kills\x22\x20style=\x22font-size:12px;text-align:center;padding:4px\x22>',_0x40f2e4+='</div>';}),_0x40f2e4+='</div>';}else _0x40f2e4+='<div\x20style=\x22font-size:12px;color:var(--text-muted);margin-bottom:10px\x22>No\x20joined\x20players\x20found.\x20Add\x20manually:</div>',_0x40f2e4+='<div\x20id=\x22resultEntries\x22\x20style=\x22display:flex;flex-direction:column;gap:6px\x22></div>',_0x40f2e4+='<button\x20class=\x22btn\x20btn-ghost\x20btn-sm\x22\x20style=\x22margin-top:6px\x22\x20onclick=\x22window._addResultRow()\x22><i\x20class=\x22fas\x20fa-plus\x22></i>\x20Add\x20Player</button>';_0x40f2e4+='<div\x20style=\x22margin-top:10px;padding:8px;background:rgba(255,215,0,.06);border-radius:8px;font-size:11px;color:var(--warning)\x22><i\x20class=\x22fas\x20fa-info-circle\x22></i>\x20Position\x201/2/3\x20=\x20winner,\x200\x20=\x20not\x20ranked.\x20Prize\x20auto-paid\x20to\x20winners.</div>',_0x40f2e4+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20style=\x22margin-top:12px\x22\x20onclick=\x22window._publishResults(\x27'+_0x5af064+'\x27,\x27'+_0x49d4c3+'\x27,\x27'+_0x4df093+'\x27,\x27'+_0x80ea81+'\x27,\x27'+_0xc74d02+'\x27)\x22><i\x20class=\x22fas\x20fa-trophy\x22></i>\x20Publish\x20&\x20Auto-Pay</button>',_0x40f2e4+='</div>',_0x5b19a8('🏆\x20Publish\x20Results\x20—\x20'+_0x49d4c3,_0x40f2e4),_0x371b12['length']===0x0&&setTimeout(function(){window['_addResultRow'](),window['_addResultRow'](),window['_addResultRow']();},0x64);});},window['_autoFillTeamRank']=function(_0x24afab){var _0x161ded=_0x24afab['getAttribute']('data-team');if(!_0x161ded)return;var _0x40c058=_0x24afab['value'];document['querySelectorAll']('.res-pos[data-team=\x22'+_0x161ded+'\x22]')['forEach'](function(_0x53539b){if(_0x53539b!==_0x24afab&&_0x53539b['value']==0x0)_0x53539b['value']=_0x40c058;});},window['_resultRowCount']=0x0,window['_addResultRow']=function(){var _0x4b9575=++window['_resultRowCount'],_0x5c800e=_0x452086('resultEntries');if(!_0x5c800e)return;var _0x5ea030=document['createElement']('div');_0x5ea030['style']['cssText']='display:grid;grid-template-columns:1fr\x2060px\x2070px;gap:6px;align-items:center;padding:6px;background:var(--card-bg);border-radius:8px;border:1px\x20solid\x20var(--border)',_0x5ea030['innerHTML']='<input\x20type=\x22text\x22\x20placeholder=\x22Player\x20IGN\x22\x20class=\x22form-input\x20res-ign\x22\x20style=\x22font-size:12px\x22>'+'<input\x20type=\x22number\x22\x20placeholder=\x22Pos\x22\x20min=\x220\x22\x20value=\x220\x22\x20class=\x22form-input\x20res-pos\x22\x20data-uid=\x22\x22\x20style=\x22font-size:12px;text-align:center;padding:4px\x22>'+'<input\x20type=\x22number\x22\x20placeholder=\x22Kills\x22\x20min=\x220\x22\x20value=\x220\x22\x20class=\x22form-input\x20res-kills\x22\x20style=\x22font-size:12px;text-align:center;padding:4px\x22>',_0x5c800e['appendChild'](_0x5ea030);},window['_publishResults']=function(_0x515518,_0x15b59e,_0x4a7ef9,_0x11ecf3,_0x3e779c){var _0x559944=document['querySelectorAll']('.res-pos'),_0xadb334=document['querySelectorAll']('.res-kills'),_0x6927af=[];_0x559944['forEach'](function(_0x25cdf8,_0x24f646){var _0x18cf68=Number(_0x25cdf8['value'])||0x0,_0xdb8699=Number(_0xadb334[_0x24f646]&&_0xadb334[_0x24f646]['value'])||0x0,_0x2e39b6=_0x25cdf8['getAttribute']('data-uid')||'';if(!_0x2e39b6)return;if(!_0x18cf68&&!_0xdb8699)return;_0x6927af['push']({'user_id':_0x2e39b6,'rank':_0x18cf68||0x0,'kills':_0xdb8699});});if(!_0x6927af['length']){_0x495d9a('Koi\x20player\x20result\x20nahi\x20(UID\x20wale\x20rows\x20chahiye)',!![]);return;}if(!window['_supa']){_0x495d9a('Supabase\x20not\x20ready\x20—\x20single\x20authority\x20required',!![]);return;}if(window['_pubInFlight']){_0x495d9a('⏳\x20Already\x20publishing...',!![]);return;}window['_pubInFlight']=!![],window['_supa']['rpc']('publish_match_results',{'p_match_id':_0x515518,'p_results':_0x6927af})['then'](function(_0x186330){var _0xf7a4b8=_0x186330&&_0x186330['data'];if(_0x186330&&_0x186330['error'])throw new Error(_0x186330['error']['message']||'publish\x20RPC\x20failed');if(!_0xf7a4b8||_0xf7a4b8['ok']!==!![])throw new Error(_0xf7a4b8&&_0xf7a4b8['error']||'Publish\x20rejected\x20by\x20server');_0x495d9a('✅\x20Results\x20published!\x20('+_0xf7a4b8['players']+'\x20players,\x20'+_0xf7a4b8['winners']+'\x20winners\x20paid'+(_0xf7a4b8['was_correction']?',\x20'+_0xf7a4b8['corrections']+'\x20corrections':'')+')');if(window['logActivity'])logActivity('publish_results',_0x515518,{'count':_0xf7a4b8['players'],'matchName':_0x15b59e});_0x130c66();})['catch'](function(_0x240d6a){_0x495d9a('Error:\x20'+(_0x240d6a&&_0x240d6a['message']),!![]),console['error']('_publishResults\x20error:',_0x240d6a);})['then'](function(){window['_pubInFlight']=![];});},window['showDisputes']=function(){rtdb['ref']('disputes')['orderByChild']('status')['equalTo']('pending')['once']('value',function(_0x258616){var _0x327a76=[];if(_0x258616['exists']())_0x258616['forEach'](function(_0x5b7131){_0x327a76['push'](Object['assign']({},_0x5b7131['val'](),{'_key':_0x5b7131['key']}));});var _0x145746='<div>';if(!_0x327a76['length'])_0x145746+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20pending\x20disputes\x20🎉</p>';_0x327a76['forEach'](function(_0x25494f){_0x145746+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-body\x20compact\x22>',_0x145746+='<div\x20style=\x22font-weight:700;font-size:13px\x22>'+_0x25494f['type']+'\x20—\x20'+_0x25494f['userName']+'</div>',_0x145746+='<div\x20class=\x22text-xxs\x20text-muted\x22>Match:\x20'+(_0x25494f['matchId']||'—')+'\x20·\x20Claimed\x20Rank:\x20'+(_0x25494f['claimedRank']||'—')+'</div>',_0x145746+='<div\x20style=\x22font-size:12px;margin:6px\x200\x22>'+(_0x25494f['message']||'')+'</div>',_0x145746+='<div\x20style=\x22display:flex;gap:8px\x22>',_0x145746+='<button\x20class=\x22btn\x20btn-primary\x20btn-xs\x20flex-1\x22\x20onclick=\x22rtdb.ref(\x27disputes/'+_0x25494f['_key']+'\x27).update({status:\x27resolved\x27});showToast(\x27Resolved\x27);window.showDisputes();\x22>✅\x20Resolve</button>',_0x145746+='<button\x20class=\x22btn\x20btn-ghost\x20btn-xs\x20flex-1\x22\x20onclick=\x22rtdb.ref(\x27disputes/'+_0x25494f['_key']+'\x27).update({status:\x27rejected\x27});showToast(\x27Rejected\x27);window.showDisputes();\x22>❌\x20Reject</button>',_0x145746+='</div></div></div>';}),_0x145746+='</div>',_0x5b19a8('⚠️\x20Disputes\x20('+_0x327a76['length']+')',_0x145746);});},window['showLiveUserCount']=function(){rtdb['ref']('presence')['once']('value',function(_0x1ab4c1){var _0xce5c2b=0x0;if(_0x1ab4c1['exists']())_0x1ab4c1['forEach'](function(_0x4c8441){if(_0x4c8441['val']()===!![]||_0x4c8441['val']()&&_0x4c8441['val']()['online'])_0xce5c2b++;});_0x495d9a('👥\x20Currently\x20Online:\x20'+_0xce5c2b+'\x20users','inf');});},window['showMatchAnalytics']=function(_0x32aece,_0x1a9c7a){rtdb['ref']('joinRequests')['orderByChild']('matchId')['equalTo'](_0x32aece)['once']('value',function(_0x253903){var _0x1f6235=0x0,_0x1b02a0=0x0,_0x537ae5=0x0,_0x501167={};if(_0x253903['exists']())_0x253903['forEach'](function(_0xc0631e){var _0x26ab30=_0xc0631e['val']();_0x1f6235++;if(_0x26ab30['isTeamMember'])_0x537ae5++;else _0x1b02a0++;_0x501167[_0x26ab30['mode']||'solo']=(_0x501167[_0x26ab30['mode']||'solo']||0x0)+0x1;});var _0x2f0c6c='<div>';_0x2f0c6c+='<div\x20style=\x22font-size:14px;font-weight:700;margin-bottom:12px\x22>'+_0x1a9c7a+'</div>',_0x2f0c6c+='<div\x20class=\x22stats-grid\x22>',[['Total\x20Players',_0x1f6235],['Captains',_0x1b02a0],['Team\x20Members',_0x537ae5]]['forEach'](function(_0x19de26){_0x2f0c6c+='<div\x20class=\x22stat-card\x22><div\x20class=\x22value\x22>'+_0x19de26[0x1]+'</div><div\x20class=\x22label\x22>'+_0x19de26[0x0]+'</div></div>';}),_0x2f0c6c+='</div>',Object['keys'](_0x501167)['length']&&(_0x2f0c6c+='<div\x20style=\x22margin-top:12px\x22><div\x20style=\x22font-size:12px;font-weight:700;margin-bottom:8px\x22>Mode\x20Breakdown:</div>',Object['entries'](_0x501167)['forEach'](function(_0x17fc87){_0x2f0c6c+='<div\x20style=\x22display:flex;justify-content:space-between;padding:6px\x200;border-bottom:1px\x20solid\x20var(--border);font-size:12px\x22><span>'+_0x17fc87[0x0]['toUpperCase']()+'</span><strong>'+_0x17fc87[0x1]+'</strong></div>';}),_0x2f0c6c+='</div>'),_0x2f0c6c+='</div>',_0x5b19a8('📊\x20Match\x20Analytics',_0x2f0c6c);});},window['showVoucherManager']=function(){rtdb['ref']('vouchers')['once']('value',function(_0x5abea5){var _0x2f058e='<div>';_0x2f058e+='<div\x20class=\x22form-group\x22><label>New\x20Voucher\x20Code</label><input\x20type=\x22text\x22\x20id=\x22vcCode\x22\x20class=\x22form-input\x22\x20placeholder=\x22e.g.\x20WELCOME50\x22\x20style=\x22text-transform:uppercase\x22></div>',_0x2f058e+='<div\x20style=\x22display:grid;grid-template-columns:1fr\x201fr;gap:8px\x22>',_0x2f058e+='<div\x20class=\x22form-group\x22><label>Type</label><select\x20id=\x22vcType\x22\x20class=\x22form-input\x22><option\x20value=\x22coins\x22>Coins</option><option\x20value=\x22money\x22>Cash\x20Bonus</option></select></div>',_0x2f058e+='<div\x20class=\x22form-group\x22><label>Amount</label><input\x20type=\x22number\x22\x20id=\x22vcAmt\x22\x20class=\x22form-input\x22\x20placeholder=\x22Amount\x22></div>',_0x2f058e+='</div>',_0x2f058e+='<div\x20class=\x22form-group\x22><label>Max\x20Uses</label><input\x20type=\x22number\x22\x20id=\x22vcMax\x22\x20class=\x22form-input\x22\x20placeholder=\x220\x20=\x20unlimited\x22></div>',_0x2f058e+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._createVoucher()\x22\x20style=\x22margin-bottom:14px\x22><i\x20class=\x22fas\x20fa-plus\x22></i>\x20Create\x20Voucher</button>',_0x5abea5['exists']()&&(_0x2f058e+='<div\x20style=\x22font-size:13px;font-weight:700;margin-bottom:8px\x22>Active\x20Vouchers:</div>',_0x2f058e+='<table><thead><tr><th>Code</th><th>Reward</th><th>Uses</th><th>Action</th></tr></thead><tbody>',_0x5abea5['forEach'](function(_0x40948d){var _0x53bdd1=_0x40948d['val']();_0x2f058e+='<tr><td\x20class=\x22font-mono\x20font-bold\x22>'+_0x40948d['key']+'</td>',_0x2f058e+='<td>'+(_0x53bdd1['rewardType']||'coins')+'\x20'+(_0x53bdd1['rewardAmount']||0x0)+'</td>',_0x2f058e+='<td>'+(_0x53bdd1['usedCount']||0x0)+'/'+(_0x53bdd1['maxUses']||'∞')+'</td>',_0x2f058e+='<td><button\x20class=\x22btn\x20btn-danger\x20btn-xs\x22\x20onclick=\x22rtdb.ref(\x27vouchers/'+_0x40948d['key']+'\x27).update({status:\x27inactive\x27});showVoucherManager();\x22>Disable</button></td></tr>';}),_0x2f058e+='</tbody></table>'),_0x2f058e+='</div>',_0x5b19a8('🎟️\x20Voucher\x20Manager',_0x2f058e);});},window['_createVoucher']=function(){var _0x244dc0=((_0x452086('vcCode')||{})['value']||'')['toUpperCase']()['trim'](),_0xa86f08=(_0x452086('vcType')||{})['value'],_0x2a7e13=Number((_0x452086('vcAmt')||{})['value'])||0x0,_0x5560b7=Number((_0x452086('vcMax')||{})['value'])||0x0;if(!_0x244dc0||!_0x2a7e13){_0x495d9a('Fill\x20all\x20fields',!![]);return;}rtdb['ref']('vouchers/'+_0x244dc0)['set']({'rewardType':_0xa86f08,'rewardAmount':_0x2a7e13,'maxUses':_0x5560b7||null,'usedCount':0x0,'status':'active','createdAt':Date['now']()}),_0x275581('create_voucher',_0x244dc0,{'type':_0xa86f08,'amount':_0x2a7e13}),_0x495d9a('✅\x20Voucher\x20created:\x20'+_0x244dc0),window['showVoucherManager']();},window['showBannerManager']=function(){rtdb['ref']('appSettings/banner')['once']('value',function(_0x258c4d){var _0x5c5ed2=_0x258c4d['val']()||{},_0x229540='<div>';_0x229540+='<div\x20class=\x22form-group\x22><label>Banner\x20Text</label><input\x20type=\x22text\x22\x20id=\x22bnText\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x5c5ed2['text']||'')+'\x22\x20placeholder=\x22Announcement\x20text...\x22></div>',_0x229540+='<div\x20class=\x22form-group\x22><label>Background\x20Color</label><input\x20type=\x22color\x22\x20id=\x22bnColor\x22\x20value=\x22'+(_0x5c5ed2['color']||'#00ff9c22')+'\x22\x20class=\x22form-input\x22></div>',_0x229540+='<div\x20style=\x22display:flex;gap:8px\x22>',_0x229540+='<button\x20class=\x22btn\x20btn-primary\x20flex-1\x22\x20onclick=\x22window._saveBanner()\x22><i\x20class=\x22fas\x20fa-save\x22></i>\x20Save</button>',_0x229540+='<button\x20class=\x22btn\x20btn-danger\x20flex-1\x22\x20onclick=\x22rtdb.ref(\x27appSettings/banner\x27).remove();showToast(\x27Banner\x20removed\x27);closeModal()\x22><i\x20class=\x22fas\x20fa-times\x22></i>\x20Remove</button>',_0x229540+='</div></div>',_0x5b19a8('📢\x20Banner\x20Manager',_0x229540);});},window['_saveBanner']=function(){rtdb['ref']('appSettings/banner')['set']({'text':(_0x452086('bnText')||{})['value'],'color':(_0x452086('bnColor')||{})['value'],'textColor':'#ffffff'}),_0x495d9a('✅\x20Banner\x20saved!'),_0x130c66();},window['showTickerManager']=function(){rtdb['ref']('appSettings/ticker')['once']('value',function(_0x473d30){var _0x51941c='<div>';_0x51941c+='<div\x20class=\x22form-group\x22><label>Ticker\x20Text\x20(scrolls\x20on\x20home\x20screen)</label><input\x20type=\x22text\x22\x20id=\x22tkText\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x473d30['val']()||'')+'\x22\x20placeholder=\x22e.g.\x20🎮\x20New\x20tournaments\x20every\x20day!\x22></div>',_0x51941c+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22rtdb.ref(\x27appSettings/ticker\x27).set(document.getElementById(\x27tkText\x27).value);showToast(\x27✅\x20Ticker\x20updated!\x27);closeModal()\x22><i\x20class=\x22fas\x20fa-save\x22></i>\x20Save\x20Ticker</button>',_0x51941c+='</div>',_0x5b19a8('📜\x20Ticker\x20Manager',_0x51941c);});},window['showPendingProfiles']=function(){if(!(window['rtdb']&&window['rtdb']['_isSupaBridge'])){if(window['showToast'])window['showToast']('⏳\x20Still\x20connecting\x20—\x20try\x20again\x20in\x20a\x20moment.',!![]);return;}rtdb['ref']('profileRequests')['orderByChild']('status')['equalTo']('pending')['once']('value',function(_0x451a94){var _0x6952c8=[];if(_0x451a94['exists']())_0x451a94['forEach'](function(_0x4b672e){_0x6952c8['push'](Object['assign']({},_0x4b672e['val'](),{'_key':_0x4b672e['key']}));});var _0x16882c='<div>';if(!_0x6952c8['length'])_0x16882c+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20pending\x20profiles\x20✅</p>';_0x6952c8['forEach'](function(_0x466c76){_0x16882c+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-body\x20compact\x22>',_0x16882c+='<div\x20style=\x22display:flex;justify-content:space-between\x22>',_0x16882c+='<div><div\x20style=\x22font-weight:700;font-size:13px\x22>'+(_0x466c76['requestedIgn']||_0x466c76['ign']||'?')+'</div>',_0x16882c+='<div\x20class=\x22text-xxs\x20text-muted\x22>UID:\x20'+(_0x466c76['requestedUid']||_0x466c76['ffUid']||'?')+'</div>',_0x16882c+='<div\x20class=\x22text-xxs\x20text-muted\x22>'+(_0x466c76['displayName']||'')+'\x20·\x20'+(_0x466c76['type']||'verification')+'</div></div>',_0x16882c+='<div\x20style=\x22display:flex;gap:4px\x22>',_0x16882c+='<button\x20class=\x22btn\x20btn-primary\x20btn-xs\x22\x20onclick=\x22window.approveProfile(\x27'+_0x466c76['_key']+'\x27)\x22>✅</button>',_0x16882c+='<button\x20class=\x22btn\x20btn-danger\x20btn-xs\x22\x20onclick=\x22window.rejectProfile(\x27'+_0x466c76['_key']+'\x27)\x22>❌</button>',_0x16882c+='</div></div></div></div>';}),_0x16882c+='</div>',_0x5b19a8('👤\x20Pending\x20Profiles\x20('+_0x6952c8['length']+')',_0x16882c);});},window['showResultHistory']=function(){rtdb['ref']('matchResults')['limitToLast'](0xa)['once']('value',function(_0x501e99){var _0x3c13b3='<div>';if(!_0x501e99['exists']()){_0x3c13b3+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20results\x20published\x20yet</p></div>',_0x5b19a8('📋\x20Result\x20History',_0x3c13b3);return;}_0x501e99['forEach'](function(_0x22a756){var _0x398ce0=[];_0x22a756['forEach'](function(_0x2b77c8){_0x398ce0['push'](_0x2b77c8['val']());}),_0x398ce0['sort'](function(_0x31e758,_0x3e186a){return(_0x31e758['rank']||0x63)-(_0x3e186a['rank']||0x63);}),_0x3c13b3+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-header\x22\x20style=\x22font-size:12px\x22>Match:\x20'+_0x22a756['key']['substring'](0x0,0x14)+'</div><div\x20class=\x22card-body\x20compact\x22>',_0x398ce0['slice'](0x0,0x3)['forEach'](function(_0xf85e4){_0x3c13b3+='<div\x20style=\x22display:flex;justify-content:space-between;font-size:12px;padding:4px\x200\x22>',_0x3c13b3+='<span>#'+_0xf85e4['rank']+'\x20'+_0xf85e4['playerName']+'</span><span\x20class=\x22text-primary\x22>₹'+_0xf85e4['prize']+'</span></div>';}),_0x3c13b3+='</div></div>';}),_0x3c13b3+='</div>',_0x5b19a8('📋\x20Result\x20History',_0x3c13b3);});},window['showKillProofs']=function(){rtdb['ref']('killProofs')['once']('value',function(_0x322ffd){var _0x323e97=[];if(_0x322ffd['exists']())_0x322ffd['forEach'](function(_0x5d0320){_0x5d0320['forEach'](function(_0x27299c){_0x323e97['push'](Object['assign']({},_0x27299c['val'](),{'_uid':_0x5d0320['key'],'_mid':_0x27299c['key']}));});});_0x323e97=_0x323e97['filter'](function(_0xc73ca8){return _0xc73ca8['status']==='pending';});var _0x24849e='<div>';if(!_0x323e97['length'])_0x24849e+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20pending\x20kill\x20proofs</p>';_0x323e97['forEach'](function(_0x5d4d68){_0x24849e+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-body\x20compact\x22>',_0x24849e+='<div\x20style=\x22font-weight:700;font-size:13px\x22>'+(_0x5d4d68['userName']||'Player')+'</div>',_0x24849e+='<div\x20class=\x22text-xxs\x20text-muted\x22>Match:\x20'+_0x5d4d68['matchId']+'</div>';if(_0x5d4d68['screenshot'])_0x24849e+='<img\x20src=\x22'+_0x5d4d68['screenshot']+'\x22\x20style=\x22width:100%;border-radius:8px;margin-top:8px;max-height:150px;object-fit:cover\x22>';_0x24849e+='<div\x20style=\x22display:flex;gap:8px;margin-top:8px\x22>',_0x24849e+='<button\x20class=\x22btn\x20btn-primary\x20btn-xs\x20flex-1\x22\x20onclick=\x22rtdb.ref(\x27killProofs/'+_0x5d4d68['_uid']+'/'+_0x5d4d68['_mid']+'/status\x27).set(\x27approved\x27);showToast(\x27Kill\x20proof\x20approved\x27);window.showKillProofs();\x22>✅\x20Approve</button>',_0x24849e+='<button\x20class=\x22btn\x20btn-danger\x20btn-xs\x20flex-1\x22\x20onclick=\x22rtdb.ref(\x27killProofs/'+_0x5d4d68['_uid']+'/'+_0x5d4d68['_mid']+'/status\x27).set(\x27rejected\x27);showToast(\x27Rejected\x27);window.showKillProofs();\x22>❌\x20Reject</button>',_0x24849e+='</div></div></div>';}),_0x24849e+='</div>',_0x5b19a8('📸\x20Kill\x20Proofs\x20('+_0x323e97['length']+')',_0x24849e);});},window['showAllNotes']=function(){rtdb['ref']('adminNotes')['limitToLast'](0x32)['once']('value',function(_0x5ef849){var _0x1fe550='<div>';if(!_0x5ef849['exists']()){_0x1fe550+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20notes\x20yet</p></div>',_0x5b19a8('📝\x20All\x20Player\x20Notes',_0x1fe550);return;}_0x5ef849['forEach'](function(_0x48cc15){var _0x265107=_0x48cc15['key'];_0x1fe550+='<div\x20style=\x22padding:8px;border-radius:10px;background:var(--bg-card);border:1px\x20solid\x20var(--border);margin-bottom:8px\x22>',_0x1fe550+='<div\x20class=\x22font-mono\x20text-xxs\x20text-muted\x22\x20style=\x22margin-bottom:6px\x22>'+_0x265107['substring'](0x0,0x14)+'</div>',_0x48cc15['forEach'](function(_0x4ebb93){var _0x3b8821=_0x4ebb93['val']();_0x1fe550+='<div\x20style=\x22padding:4px\x208px;border-radius:6px;background:var(--bg-dark);font-size:11px;margin-bottom:3px\x22><span\x20class=\x22badge\x20'+(_0x3b8821['tag']||'yellow')+'\x20text-xxs\x22>'+_0x3b8821['tag']+'</span>\x20'+_0x3b8821['note']+'</div>';}),_0x1fe550+='</div>';}),_0x1fe550+='</div>',_0x5b19a8('📝\x20All\x20Player\x20Notes',_0x1fe550);});},window['runTeamJoinHealthCheck']=function(){rtdb['ref']('joinRequests')['once']('value',function(_0x1488a2){var _0x2103ec={},_0x10c4cc={};if(_0x1488a2['exists']())_0x1488a2['forEach'](function(_0xa3dfc4){var _0x3bc379=_0xa3dfc4['val']();if(!_0x3bc379['matchId'])return;var _0x5ab6cc=_0x3bc379['userId']+'_'+_0x3bc379['matchId'];if(_0x3bc379['isTeamMember'])_0x10c4cc[_0x5ab6cc]=_0x3bc379;else{if(_0x3bc379['mode']!=='solo')_0x2103ec[_0x5ab6cc]=_0x3bc379;}});var _0x3981a5=[];Object['entries'](_0x2103ec)['forEach'](function(_0x1c000d){var _0xe40b0f=_0x1c000d[0x1];if(_0xe40b0f['mode']==='solo'||!_0xe40b0f['teamMembers'])return;_0xe40b0f['teamMembers']['forEach'](function(_0x331223){if(_0x331223['role']==='captain')return;var _0x441cdb=_0x331223['_fbUid']+'_'+_0xe40b0f['matchId'];!_0x10c4cc[_0x441cdb]&&_0x3981a5['push']({'captain':_0xe40b0f['userName'],'member':_0x331223['name'],'matchId':_0xe40b0f['matchId']});});});var _0x1ce3d0='<div>';_0x1ce3d0+='<div\x20style=\x22padding:10px;background:'+(_0x3981a5['length']?'rgba(255,107,107,.1)':'rgba(0,255,106,.1)')+';border-radius:10px;margin-bottom:12px;font-size:13px\x22>',_0x1ce3d0+=(_0x3981a5['length']?'⚠️\x20'+_0x3981a5['length']+'\x20missing\x20teammate\x20join(s)\x20found!':'✅\x20All\x20team\x20joins\x20healthy!')+'</div>',_0x3981a5['length']&&(_0x1ce3d0+='<table><thead><tr><th>Captain</th><th>Missing\x20Member</th><th>Match</th></tr></thead><tbody>',_0x3981a5['forEach'](function(_0x4b2677){_0x1ce3d0+='<tr><td>'+_0x4b2677['captain']+'</td><td\x20class=\x22text-primary\x22>'+_0x4b2677['member']+'</td><td\x20class=\x22text-xxs\x20font-mono\x22>'+_0x4b2677['matchId']['substring'](0x0,0xc)+'</td></tr>';}),_0x1ce3d0+='</tbody></table>'),_0x1ce3d0+='</div>',_0x5b19a8('🔍\x20Team\x20Join\x20Health\x20Check',_0x1ce3d0);});},window['showSeasonManager']=function(){rtdb['ref']('season')['once']('value',function(_0x46614d){var _0x3ea453=_0x46614d['val']()||{'name':'Season\x201','endDate':null},_0x1c9a2c='<div>';_0x1c9a2c+='<div\x20class=\x22form-group\x22><label>Season\x20Name</label><input\x20type=\x22text\x22\x20id=\x22snName\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x3ea453['name']||'')+'\x22></div>',_0x1c9a2c+='<div\x20class=\x22form-group\x22><label>End\x20Date</label><input\x20type=\x22date\x22\x20id=\x22snEnd\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x3ea453['endDate']?new Date(_0x3ea453['endDate'])['toISOString']()['slice'](0x0,0xa):'')+'\x22></div>',_0x1c9a2c+='<div\x20class=\x22form-group\x22><label>Prize\x20Pool\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22snPrize\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x3ea453['prizePool']||0x0)+'\x22></div>',_0x1c9a2c+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._saveSeason()\x22><i\x20class=\x22fas\x20fa-save\x22></i>\x20Save\x20Season</button>',_0x1c9a2c+='</div>',_0x5b19a8('🏆\x20Season\x20Manager',_0x1c9a2c);});},window['_saveSeason']=function(){var _0x3f3746=(_0x452086('snEnd')||{})['value'];rtdb['ref']('season')['set']({'name':(_0x452086('snName')||{})['value'],'endDate':_0x3f3746?new Date(_0x3f3746)['getTime']():null,'prizePool':Number((_0x452086('snPrize')||{})['value'])||0x0,'updatedAt':Date['now']()}),_0x495d9a('✅\x20Season\x20updated!'),_0x130c66();},window['renderAdminQuickStats']=function(_0x572c67){var _0x412f8d=_0x452086(_0x572c67);if(!_0x412f8d)return;Promise['all']([rtdb['ref']('walletRequests')['orderByChild']('status')['equalTo']('pending')['once']('value'),rtdb['ref']('profileRequests')['orderByChild']('status')['equalTo']('pending')['once']('value'),rtdb['ref']('supportRequests')['orderByChild']('status')['equalTo']('open')['once']('value'),rtdb['ref']('disputes')['orderByChild']('status')['equalTo']('pending')['once']('value'),rtdb['ref']('banAppeals')['orderByChild']('status')['equalTo']('pending')['once']('value')])['then'](function(_0x279220){var _0x597f85=_0x279220['map'](function(_0x5833df){var _0x2a0219=0x0;if(_0x5833df['exists']())_0x5833df['forEach'](function(){_0x2a0219++;});return _0x2a0219;}),_0x14ca63=[{'label':'Wallet\x20Pending','count':_0x597f85[0x0],'icon':'fas\x20fa-wallet','action':'showPendingWallet()','color':_0x597f85[0x0]>0x0?'#ffd700':'var(--text-muted)'},{'label':'Profile\x20Approvals','count':_0x597f85[0x1],'icon':'fas\x20fa-user-check','action':'showPendingProfiles()','color':_0x597f85[0x1]>0x0?'#4d96ff':'var(--text-muted)'},{'label':'Support\x20Tickets','count':_0x597f85[0x2],'icon':'fas\x20fa-ticket-alt','action':'_qtLoadSupportTickets()','color':_0x597f85[0x2]>0x0?'#ff6b6b':'var(--text-muted)'},{'label':'Disputes','count':_0x597f85[0x3],'icon':'fas\x20fa-exclamation-triangle','action':'showDisputes()','color':_0x597f85[0x3]>0x0?'#ff6b6b':'var(--text-muted)'},{'label':'Ban\x20Appeals','count':_0x597f85[0x4],'icon':'fas\x20fa-gavel','action':'showBanAppeals()','color':_0x597f85[0x4]>0x0?'#b964ff':'var(--text-muted)'}];_0x412f8d['innerHTML']='<div\x20class=\x22stats-grid\x22>'+_0x14ca63['map'](function(_0x1e8749){return'<div\x20class=\x22stat-card\x22\x20onclick=\x22'+_0x1e8749['action']+'\x22\x20style=\x22cursor:pointer\x22>'+'<div\x20class=\x22stat-icon\x22><i\x20class=\x22'+_0x1e8749['icon']+'\x22></i></div>'+'<div\x20class=\x22value\x22\x20style=\x22color:'+_0x1e8749['color']+'\x22>'+_0x1e8749['count']+'</div>'+'<div\x20class=\x22label\x22>'+_0x1e8749['label']+'</div></div>';})['join']('')+'</div>';});},window['showMatchFeedbacks']=function(){rtdb['ref']('matchFeedback')['limitToLast'](0x5)['once']('value',function(_0xda85ac){var _0x2d5571='<div>';if(!_0xda85ac['exists']()){_0x2d5571+='<p\x20class=\x22text-muted\x20text-xs\x22\x20style=\x22text-align:center;padding:20px\x22>No\x20feedback\x20yet</p></div>',_0x5b19a8('⭐\x20Match\x20Feedback',_0x2d5571);return;}_0xda85ac['forEach'](function(_0x299889){var _0x164f6c=_0x299889['key'],_0x3dcc4f=[],_0x1858ab=0x0,_0x4b37a3=0x0;_0x299889['forEach'](function(_0x4dfea4){var _0x26f2cc=_0x4dfea4['val']();_0x1858ab+=_0x26f2cc['rating']||0x0,_0x4b37a3++;});var _0x2be708=_0x4b37a3>0x0?(_0x1858ab/_0x4b37a3)['toFixed'](0x1):0x0;_0x2d5571+='<div\x20class=\x22card\x22\x20style=\x22margin-bottom:8px\x22><div\x20class=\x22card-body\x20compact\x22>',_0x2d5571+='<div\x20style=\x22display:flex;justify-content:space-between\x22><div\x20class=\x22text-xxs\x20font-mono\x22>'+_0x164f6c['substring'](0x0,0x14)+'</div><div\x20style=\x22font-weight:700\x22>⭐\x20'+_0x2be708+'\x20('+_0x4b37a3+'\x20ratings)</div></div>',_0x299889['forEach'](function(_0x3252e0){var _0x4b3881=_0x3252e0['val']();if(_0x4b3881['text'])_0x2d5571+='<div\x20style=\x22font-size:11px;color:var(--text-muted);margin-top:4px\x22>\x22'+_0x4b3881['text']['substring'](0x0,0x3c)+'\x22</div>';}),_0x2d5571+='</div></div>';}),_0x2d5571+='</div>',_0x5b19a8('⭐\x20Match\x20Feedback',_0x2d5571);});},window['showAppSettings']=function(){rtdb['ref']('appSettings')['once']('value',function(_0x5bdb42){var _0x274f75=_0x5bdb42['val']()||{},_0x189661='<div>';_0x189661+='<div\x20class=\x22form-group\x22><label>Support\x20Online\x20Status</label><select\x20id=\x22asSupport\x22\x20class=\x22form-input\x22><option\x20value=\x221\x22'+(_0x274f75['supportOnline']?'\x20selected':'')+'>Online\x20🟢</option><option\x20value=\x220\x22'+(!_0x274f75['supportOnline']?'\x20selected':'')+'>Offline\x20🔴</option></select></div>',_0x189661+='<div\x20class=\x22form-group\x22><label>Maintenance\x20Mode</label><select\x20id=\x22asMaintenance\x22\x20class=\x22form-input\x22><option\x20value=\x220\x22>Off</option><option\x20value=\x221\x22>On\x20⚠️</option></select></div>',_0x189661+='<div\x20class=\x22form-group\x22><label>Min\x20App\x20Version</label><input\x20type=\x22text\x22\x20id=\x22asVersion\x22\x20class=\x22form-input\x22\x20value=\x22'+(_0x274f75['minVersion']||'')+'\x22\x20placeholder=\x22e.g.\x201.0\x22></div>',_0x189661+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._saveAppSettings()\x22><i\x20class=\x22fas\x20fa-save\x22></i>\x20Save\x20Settings</button>',_0x189661+='</div>',_0x5b19a8('⚙️\x20App\x20Settings',_0x189661),window['_supa']&&window['_supa']['from']('app_settings')['select']('value')['eq']('key','maintenance')['maybeSingle']()['then'](function(_0x129eef){var _0x3492c7=_0x452086('asMaintenance');if(_0x3492c7)_0x3492c7['value']=_0x129eef&&_0x129eef['data']&&_0x129eef['data']['value']&&_0x129eef['data']['value']['active']===!![]?'1':'0';})['catch'](function(){});});},window['_saveAppSettings']=function(){var _0x50d0ad=(_0x452086('asSupport')||{})['value']==='1',_0x1e8dee=(_0x452086('asMaintenance')||{})['value']==='1',_0x3a40c5=(_0x452086('asVersion')||{})['value'];rtdb['ref']('appSettings')['update']({'supportOnline':_0x50d0ad,'minVersion':_0x3a40c5}),window['_supa']&&window['_supa']['from']('app_settings')['update']({'value':{'active':_0x1e8dee,'message':''},'updated_at':new Date()['toISOString']()})['eq']('key','maintenance')['then'](function(_0x492cea){if(_0x492cea['error'])console['warn']('[AppSettings]\x20maintenance\x20save:',_0x492cea['error']['message']);})['catch'](function(){}),_0x275581('update_app_settings'),_0x495d9a('✅\x20App\x20settings\x20saved!'),_0x130c66();},window['showQuickMatchCreate']=function(){_0x2899e2='';var _0x1ebf72='<div>';_0x1ebf72+='<div\x20class=\x22form-group\x22><label>Match\x20Name</label><input\x20type=\x22text\x22\x20id=\x22qmName\x22\x20class=\x22form-input\x22\x20placeholder=\x22e.g.\x20Daily\x20Solo\x20#1\x22></div>',_0x1ebf72+='<div\x20style=\x22display:grid;grid-template-columns:1fr\x201fr;gap:8px\x22>',_0x1ebf72+='<div\x20class=\x22form-group\x22><label>Mode</label><select\x20id=\x22qmMode\x22\x20class=\x22form-input\x22><option\x20value=\x22solo\x22>Solo</option><option\x20value=\x22duo\x22>Duo</option><option\x20value=\x22squad\x22>Squad</option></select></div>',_0x1ebf72+='<div\x20class=\x22form-group\x22><label>Max\x20Slots</label><input\x20type=\x22number\x22\x20id=\x22qmSlots\x22\x20class=\x22form-input\x22\x20placeholder=\x2225\x22\x20value=\x2225\x22></div>',_0x1ebf72+='</div>',_0x1ebf72+='<div\x20style=\x22display:grid;grid-template-columns:1fr\x201fr;gap:8px\x22>',_0x1ebf72+='<div\x20class=\x22form-group\x22><label>Entry\x20Fee\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22qmFee\x22\x20class=\x22form-input\x22\x20placeholder=\x2210\x22\x20value=\x2210\x22></div>',_0x1ebf72+='<div\x20class=\x22form-group\x22><label>Prize\x20Pool\x20(₹)</label><input\x20type=\x22number\x22\x20id=\x22qmPrize\x22\x20class=\x22form-input\x22\x20placeholder=\x22100\x22></div>',_0x1ebf72+='</div>',_0x1ebf72+='<div\x20class=\x22form-group\x22><label>Match\x20Time</label><input\x20type=\x22datetime-local\x22\x20id=\x22qmTime\x22\x20class=\x22form-input\x22\x20onchange=\x22window._onQmMatchTimeChange()\x22><div\x20id=\x22qmTimePreview\x22\x20style=\x22margin-top:6px;font-size:13px;font-weight:700\x22></div></div>',_0x1ebf72+='<div\x20class=\x22form-group\x22><label>Map</label><select\x20id=\x22qmMap\x22\x20class=\x22form-input\x22><option\x20value=\x22bermuda\x22>Bermuda</option><option\x20value=\x22purgatory\x22>Purgatory</option><option\x20value=\x22kalahari\x22>Kalahari</option><option\x20value=\x22alpine\x22>Alpine</option></select></div>',_0x1ebf72+='<button\x20class=\x22btn\x20btn-primary\x20w-full\x22\x20onclick=\x22window._createQuickMatch()\x22><i\x20class=\x22fas\x20fa-plus\x22></i>\x20Create\x20Match</button>',_0x1ebf72+='</div>',_0x5b19a8('🎮\x20Quick\x20Match\x20Create',_0x1ebf72);};var _0x2899e2='';window['_onQmMatchTimeChange']=function(){var _0x1f0cd0=_0x452086('qmTime');_0x2899e2=_0x1f0cd0?_0x1f0cd0['value']:'';var _0x16a86b=_0x452086('qmTimePreview');if(_0x16a86b&&_0x2899e2){var _0x1a217f=_0x2899e2['split'](/[-T:]/)['map'](Number),_0x514672=new Date(_0x1a217f[0x0],_0x1a217f[0x1]-0x1,_0x1a217f[0x2],_0x1a217f[0x3],_0x1a217f[0x4],0x0,0x0),_0x1297c2=Math['round']((_0x514672['getTime']()-Date['now']())/0xea60);_0x16a86b['style']['color']=_0x1297c2<0x2?'#ff4444':'#00ff9c',_0x16a86b['innerHTML']='📅\x20Save\x20hoga:\x20<b>'+_0x514672['toLocaleString']('en-IN',{'weekday':'short','day':'2-digit','month':'short','hour':'2-digit','minute':'2-digit'})+'</b>'+(_0x1297c2<0x2?'\x20⚠️\x20ABHI\x20KE\x20KAREEB!':'');}else _0x16a86b&&(_0x16a86b['textContent']='');},window['_createQuickMatch']=async function(){console['log']('[_createQuickMatch]\x20BUILD\x2020260913a\x20—\x20trust\x20captured\x20value,\x20no\x20re-read\x20at\x20save\x20time');if(!_0x2899e2){var _0x51af47=_0x452086('qmTime');if(_0x51af47){_0x51af47['blur'](),await new Promise(function(_0x52baed){requestAnimationFrame(_0x52baed);});var _0x145ec5=_0x51af47['value'];await new Promise(function(_0x467d4b){setTimeout(_0x467d4b,0x78);});var _0x5a76e3=_0x51af47['value'];_0x2899e2=_0x5a76e3||_0x145ec5;}}var _0xb6c6dd=(_0x452086('qmName')||{})['value'],_0x3b5784=_0x2899e2;if(!_0xb6c6dd||!_0x3b5784){_0x495d9a('Name\x20and\x20time\x20required',!![]);return;}var _0x500742=_0x3b5784['split'](/[-T:]/)['map'](Number),_0x5bc26f=new Date(_0x500742[0x0],_0x500742[0x1]-0x1,_0x500742[0x2],_0x500742[0x3],_0x500742[0x4],0x0,0x0)['getTime']();if(Math['abs'](_0x5bc26f-Date['now']())<0x2*0x3c*0x3e8){if(!confirm('⚠️\x20Match\x20time\x20abhi\x20('+new Date(_0x5bc26f)['toLocaleString']()+')\x20ke\x20bahut\x20kareeb\x20hai\x20—\x20save\x20hote\x20hi\x20match\x20LIVE\x20ho\x20jayega.\x20Sahi\x20hai?'))return;}var _0x24982e={'name':_0xb6c6dd,'mode':(_0x452086('qmMode')||{})['value'],'matchType':'Battle\x20Royale','maxSlots':Number((_0x452086('qmSlots')||{})['value'])||0x19,'entryFee':Number((_0x452086('qmFee')||{})['value'])||0x0,'prizePool':Number((_0x452086('qmPrize')||{})['value'])||0x0,'matchTime':_0x5bc26f,'map':(_0x452086('qmMap')||{})['value'],'joinedSlots':0x0,'filledSlots':0x0,'status':window['getMatchStatus']?getMatchStatus(_0x5bc26f):'upcoming','createdAt':Date['now']()},_0x56f25b=rtdb['ref']('matches')['push']()['key'];rtdb['ref']('matches/'+_0x56f25b)['set'](Object['assign']({},_0x24982e,{'id':_0x56f25b})),_0x275581('create_match',_0x56f25b,{'name':_0xb6c6dd}),_0x495d9a('✅\x20Match\x20created:\x20'+_0xb6c6dd),_0x130c66();},window['initAdminDashboard']=function(){setTimeout(function(){if(window['renderPlatformStats'])renderPlatformStats('dashStatCards');if(window['renderAdminQuickStats'])renderAdminQuickStats('adminQuickStatsGrid');if(window['renderRevenueAnalytics'])renderRevenueAnalytics();if(window['renderUserGrowth'])renderUserGrowth();if(window['renderTopPerformers'])renderTopPerformers();if(window['renderMatchReport'])renderMatchReport();if(window['renderReferralAnalytics'])renderReferralAnalytics();},0x1f4),setInterval(function(){if(window['renderAdminQuickStats'])renderAdminQuickStats('adminQuickStatsGrid');},0x1d4c0),console['log']('[Mini\x20eSports\x20Admin]\x20✅\x20Dashboard\x20initialized');},document['addEventListener']('DOMContentLoaded',function(){setTimeout(function _0x356416(){if(window['rtdb']&&window['rtdb']['_isSupaBridge']){window['initAdminDashboard']();return;}setTimeout(_0x356416,0x12c);},0x3e8);}),console['log']('[Mini\x20eSports\x20Admin]\x20✅\x2050\x20Admin\x20Features\x20v9\x20loaded');}());
+/* ====================================================
+   MINI ESPORTS ADMIN — FEATURES v9
+   50 Smart Admin Features | Professional & Complete
+   ==================================================== */
+(function () {
+  'use strict';
+
+  /* =========================================================
+     HELPERS
+     ========================================================= */
+  function _$(id) { return document.getElementById(id); }
+  function _toast(msg, isErr) { if (window.showToast) showToast(msg, isErr); }
+  function _modal(title, html) { if (window.showModal) showModal(title, html); }
+  function _close() { if (window.closeModal) closeModal(); }
+  function _logAction(action, targetId, extra) {
+    /* ✅ FIX (live-testing 2026-10-07): pehle yahan seedha `firebase.auth()`
+       call hota tha. Is app me DEFAULT Firebase app register hi nahi hota
+       (poora data Supabase-bridge se chalta hai), is liye ye line
+       "Firebase: No Firebase App '[DEFAULT]' has been created" THROW karti
+       thi — aur ye Room Manager jaise flows ke success-.then() ke ANDAR
+       chalti hai, is liye uske BAAD wala feedback (toast + "Room details
+       saved!" status box) kabhi chalta hi nahi tha. Live asar: admin
+       "Save Only" dabata tha, DB me sab likha jata tha (creds + release
+       minutes) par screen par koi jawab nahi aata tha — lagta tha kuch hua
+       hi nahi. Ab uid window.auth (Firebase-compat auth jo panel khud use
+       karta hai) se aata hai aur poora logging try/catch me hai — logging
+       kabhi asli kaam ke feedback ko na roke. */
+    try {
+      if (!rtdb) return;
+      var id = rtdb.ref('activityLogs').push().key;
+      var uid = (window.auth && window.auth.currentUser && window.auth.currentUser.uid) || 'admin';
+      rtdb.ref('activityLogs/' + id).set({
+        action: action, targetId: targetId || '', extra: extra || {},
+        adminId: uid, ts: Date.now()
+      });
+    } catch (e) { console.warn('[admin] action log skip:', e && e.message); }
+  }
+
+  /* =========================================================
+     ─── FEATURE 1: REVENUE ANALYTICS + 7-DAY BAR CHART ───
+     ========================================================= */
+  /* ✅ REWRITTEN (live-testing 2026-10-01): pehle ye Firebase-era
+     `walletRequests` node padhta tha — Supabase bridge me wo node
+     `sd_requests` par mapped hai aur usme type='deposit'/'withdraw' kabhi
+     hota hi nahi, isliye Analytics page HAMESHA "₹0 Deposits / ₹0 Payouts /
+     0 Pending" dikhata tha (screenshot-proven; DB me tab bhi 113 wallet
+     transactions + 8 sd_requests maujood the). Ab asli tables se calculate
+     hota hai: deposits = sd_requests (Sky Diamond sales, ₹), payouts =
+     creator_payouts. Saath me Top Matches + Top Earners bhi asli data se. */
+  window.renderRevenueAnalytics = function () {
+    var el = _$('section-analytics'); if (!el) return;
+    el.innerHTML = '<div style="text-align:center;padding:30px"><i class="fas fa-spinner fa-spin" style="font-size:24px;color:var(--primary)"></i></div>';
+
+    var sb = window._supa;
+    if (!sb) {   /* client ready hone tak chhota retry (page load race) */
+      var _n = 0;
+      var _iv = setInterval(function () {
+        _n++;
+        if (window._supa || _n > 30) { clearInterval(_iv); if (window.renderRevenueAnalytics) window.renderRevenueAnalytics(); }
+      }, 300);
+      return;
+    }
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+    function inr(n) { return '₹' + (Number(n) || 0).toLocaleString('en-IN'); }
+    function dayKey(d) { return new Date(d).toISOString().slice(0, 10); }
+
+    Promise.all([
+      sb.from('sd_requests').select('status,amount_inr,sd_amount,created_at,approved_at,ign'),
+      sb.from('creator_payouts').select('status,amount,created_at,paid_at,ign'),
+      sb.from('matches').select('name,prize_pool,entry_fee,status,filled_slots,max_slots').order('prize_pool', { ascending: false }).limit(5),
+      sb.from('match_results').select('user_id,prize_earned,kills,placement').order('prize_earned', { ascending: false }).limit(20),
+      sb.from('users').select('id,ign')
+    ]).then(function (rows) {
+      var sd = rows[0].data || [], pay = rows[1].data || [], topM = rows[2].data || [], mr = rows[3].data || [], us = rows[4].data || [];
+      var errs = rows.filter(function (r) { return r.error; }).map(function (r) { return r.error.message; });
+
+      /* ── deposits (approved Sky Diamond sales) ── */
+      var depTotal = 0, pendingCount = 0, byDay = {};
+      sd.forEach(function (r) {
+        var amt = Number(r.amount_inr) || 0;
+        var st = (r.status || '').toLowerCase();
+        if (st === 'pending') pendingCount++;
+        if (st === 'approved' || st === 'done' || r.approved_at) {
+          depTotal += amt;
+          var k = dayKey(r.approved_at || r.created_at);
+          if (!byDay[k]) byDay[k] = { dep: 0, wd: 0 };
+          byDay[k].dep += amt;
+        }
+      });
+
+      /* ── payouts (creator withdrawals) ── */
+      var payTotal = 0;
+      pay.forEach(function (r) {
+        var amt = Number(r.amount) || 0;
+        var st = (r.status || '').toLowerCase();
+        if (st === 'pending' || st === 'requested') pendingCount++;
+        if (st === 'paid' || st === 'approved' || st === 'done' || r.paid_at) {
+          payTotal += amt;
+          var k2 = dayKey(r.paid_at || r.created_at);
+          if (!byDay[k2]) byDay[k2] = { dep: 0, wd: 0 };
+          byDay[k2].wd += amt;
+        }
+      });
+
+      var net = depTotal - payTotal;
+
+      /* ── last 7 din ka chart ── */
+      var labels = [];
+      for (var i = 6; i >= 0; i--) {
+        var d = new Date(); d.setDate(d.getDate() - i);
+        labels.push(d);
+      }
+      var maxVal = labels.reduce(function (m, d) {
+        var v = byDay[dayKey(d)] || { dep: 0, wd: 0 };
+        return Math.max(m, v.dep, v.wd);
+      }, 1);
+
+      var h = '<div class="stats-grid" style="margin-bottom:16px">';
+      [
+        ['💰 Total Deposits', inr(depTotal), 'green'],
+        ['📤 Total Payouts', inr(payTotal), 'red'],
+        ['📊 Net Profit', inr(net), net >= 0 ? 'green' : 'red'],
+        ['⏳ Pending Requests', pendingCount, 'yellow']
+      ].forEach(function (x) {
+        h += '<div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="value text-' + x[2] + '" style="font-size:18px">' + x[1] + '</div><div class="label">' + x[0] + '</div></div>';
+      });
+      h += '</div>';
+
+      h += '<div class="card"><div class="card-header"><i class="fas fa-chart-bar"></i> Last 7 Days — Deposits (Green) vs Payouts (Red)</div><div class="card-body">';
+      h += '<div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 8px">';
+      labels.forEach(function (d) {
+        var v = byDay[dayKey(d)] || { dep: 0, wd: 0 };
+        var dPct = Math.round((v.dep / maxVal) * 100), wPct = Math.round((v.wd / maxVal) * 100);
+        var lbl = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">';
+        h += '<div style="display:flex;align-items:flex-end;gap:2px;height:100px">';
+        h += '<div title="Deposit ₹' + v.dep + '" style="width:14px;height:' + Math.max(dPct, 2) + '%;background:#00ff9c;border-radius:3px 3px 0 0"></div>';
+        h += '<div title="Payout ₹' + v.wd + '" style="width:14px;height:' + Math.max(wPct, 2) + '%;background:#ff6b6b;border-radius:3px 3px 0 0"></div>';
+        h += '</div><div style="font-size:9px;color:var(--text-muted);white-space:nowrap">' + lbl + '</div></div>';
+      });
+      h += '</div></div></div>';
+
+      /* ── Top matches (by prize pool) ── */
+      h += '<div class="card mt-3"><div class="card-header"><i class="fas fa-trophy"></i> Top Matches (by Prize)</div><div class="card-body compact">';
+      if (!topM.length) { h += '<p class="text-muted text-xs">Koi match nahi mila.</p>'; }
+      else {
+        h += '<table><thead><tr><th>#</th><th>Match</th><th>Status</th><th>Entry</th><th>Slots</th><th>Prize Pool</th></tr></thead><tbody>';
+        topM.forEach(function (m, i) {
+          var _eSymTop = window._admEntrySym ? window._admEntrySym(m) : '₹';
+          var _pSymTop = window._admPrizeSym ? window._admPrizeSym(m) : '₹';
+          h += '<tr><td>' + (i + 1) + '</td><td><strong>' + esc(m.name || '?') + '</strong></td><td class="text-xs">' + esc(m.status || '-') + '</td><td>' + _eSymTop + (Number(m.entry_fee) || 0) + '</td><td class="text-xs">' + (m.filled_slots == null ? '-' : m.filled_slots) + '/' + (m.max_slots == null ? '-' : m.max_slots) + '</td><td class="text-primary font-bold">' + _pSymTop + (Number(m.prize_pool) || 0) + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div></div>';
+
+      /* ── Top earners (match_results se) ── */
+      var byUser = {};
+      mr.forEach(function (r) {
+        if (!r.user_id) return; /* D103-UI hardening: user_id-less result rows skip (undefined earner na bane) */
+        var amt = Number(r.prize_earned) || 0;
+        if (!byUser[r.user_id]) byUser[r.user_id] = { amt: 0, n: 0, kills: 0 };
+        byUser[r.user_id].amt += amt; byUser[r.user_id].n++; byUser[r.user_id].kills += Number(r.kills) || 0;
+      });
+      var earners = Object.keys(byUser).map(function (uid) {
+        var u = us.filter(function (x) { return x.id === uid || x.uid === uid; })[0];
+        return { uid: uid, ign: (u && u.ign) || 'Player', amt: byUser[uid].amt, n: byUser[uid].n, kills: byUser[uid].kills };
+      }).sort(function (a, b) { return b.amt - a.amt; }).slice(0, 5);
+
+      h += '<div class="card mt-3"><div class="card-header"><i class="fas fa-crown"></i> Top Earners</div><div class="card-body compact">';
+      if (!earners.length) { h += '<p class="text-muted text-xs">Koi result-data nahi mila.</p>'; }
+      else {
+        h += '<table><thead><tr><th>#</th><th>Player</th><th>Results</th><th>Kills</th><th>Earnings</th></tr></thead><tbody>';
+        earners.forEach(function (e, i) {
+          var medal = ['🥇', '🥈', '🥉'][i] || ('#' + (i + 1));
+          h += '<tr><td>' + medal + '</td><td><strong>' + esc(e.ign) + '</strong><div class="text-xxs text-muted font-mono">' + esc(String(e.uid).substring(0, 12)) + '</div></td><td>' + e.n + '</td><td>' + e.kills + '</td><td class="text-primary font-bold">₹' + e.amt + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div></div>';
+
+      if (errs.length) h += '<p class="text-xs" style="color:#ff6b6b;margin-top:8px">⚠️ Kuch queries fail hui: ' + esc(errs.join('; ')) + '</p>';
+
+      el.innerHTML = h;
+    }).catch(function (e) {
+      el.innerHTML = '<div style="color:#ff6b6b;padding:20px">Analytics load error: ' + esc(e && e.message) + '</div>';
+    });
+  };
+
+  /* ✅ Refresh button (admin-analytics.js ka purana refreshAnalytics dead tha —
+     wo hatae hue DOM ids (analChart etc.) dhundhta tha). Ab wahi naya renderer. */
+  window.refreshAnalytics = function () {
+    if (window.renderRevenueAnalytics) window.renderRevenueAnalytics();
+    if (window.showToast) showToast('Analytics refreshed!');
+  };
+  window.loadAnalytics = function () {
+    if (window.renderRevenueAnalytics) window.renderRevenueAnalytics();
+  };
+
+  /* ─── FEATURE 2: USER GROWTH TRACKER ─── */
+  window.renderUserGrowth = function (containerId) {
+    var el = _$(containerId || 'userGrowthChart'); if (!el) return;
+    rtdb.ref('users').once('value', function (s) {
+      var byDay = {}, total = 0;
+      s.forEach(function (c) {
+        var d = c.val(); total++;
+        if (!d.createdAt) return;
+        var day = new Date(d.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        byDay[day] = (byDay[day] || 0) + 1;
+      });
+      var labels = Object.keys(byDay).slice(-14);
+      var maxV = labels.reduce(function (m, k) { return Math.max(m, byDay[k]); }, 1);
+      var h = '<div style="margin-bottom:8px;font-size:12px;color:var(--text-muted)">Total Users: <strong>' + total + '</strong></div>';
+      h += '<div style="display:flex;align-items:flex-end;gap:4px;height:80px">';
+      labels.forEach(function (l) {
+        var pct = Math.round((byDay[l] / maxV) * 100);
+        h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">';
+        h += '<div style="font-size:9px;font-weight:700;color:#4d96ff">+' + byDay[l] + '</div>';
+        h += '<div style="width:100%;height:' + Math.max(pct, 4) + '%;background:linear-gradient(180deg,#4d96ff,#0043ff);border-radius:3px 3px 0 0;min-height:4px"></div>';
+        h += '<div style="font-size:8px;color:var(--text-muted);white-space:nowrap">' + l + '</div></div>';
+      });
+      h += '</div>';
+      el.innerHTML = h;
+    });
+  };
+
+  /* ─── FEATURE 3: TOP PERFORMERS TABLE ─── */
+  window.renderTopPerformers = function (containerId) {
+    var el = _$(containerId || 'topPerformersTable'); if (!el) return;
+    rtdb.ref('users').orderByChild('stats/earnings').limitToLast(10).once('value', function (s) {
+      var users = [];
+      s.forEach(function (c) { var u = c.val(); if (u && u.stats) users.push(Object.assign({}, u, { _uid: c.key })); });
+      users.sort(function (a, b) { return (b.stats.earnings || 0) - (a.stats.earnings || 0); });
+      var h = '<table><thead><tr><th>#</th><th>Player</th><th>Matches</th><th>Wins</th><th>Kills</th><th>Earnings</th></tr></thead><tbody>';
+      users.forEach(function (u, i) {
+        var medals = ['🥇', '🥈', '🥉'];
+        h += '<tr><td>' + (medals[i] || '#' + (i + 1)) + '</td>';
+        h += '<td><strong>' + (u.ign || u.displayName || '?') + '</strong><div class="text-xxs text-muted font-mono">' + u._uid.substring(0, 12) + '</div></td>';
+        h += '<td>' + (u.stats.matches || 0) + '</td><td class="text-primary">' + (u.stats.wins || 0) + '</td>';
+        h += '<td>' + (u.stats.kills || 0) + '</td>';
+        h += '<td class="text-primary font-bold">₹' + (u.stats.earnings || 0) + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      el.innerHTML = h;
+    });
+  };
+
+  /* ─── FEATURE 4: FRAUD DETECTION (Multi-Account) ─── */
+  window.runFraudCheck = function () {
+    /* Round-9 (2026-09-20m): deviceJoins ROOT read rules-deny hai (privacy) —
+       ab fa_readDeviceJoins: users.device_fp list → PER-DEVICE reads. */
+    (window.fa_readDeviceJoins || function (cb) { cb(null, 'devicejoins-bridge missing'); })(function (data, _err) {
+      var deviceUsers = {};
+      if (data) {
+        (window.fa_eachDevice || function () {})(data, function (deviceId, node) {
+          (window.fa_eachChild || function () {})(node, function (_mk, v) {
+            var uid = (v && typeof v === 'object') ? v.uid : v;
+            if (!uid) return;
+            if (!deviceUsers[deviceId]) deviceUsers[deviceId] = [];
+            if (deviceUsers[deviceId].indexOf(uid) < 0) deviceUsers[deviceId].push(uid);
+          });
+        });
+      }
+      var suspicious = Object.entries(deviceUsers).filter(function (e) { return e[1].length > 1; });
+      var h = '<div>';
+      h += '<div style="margin-bottom:12px;padding:10px;background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.2);border-radius:10px;font-size:12px">⚠️ <strong>' + suspicious.length + ' device(s)</strong> pe multiple accounts detected</div>';
+      if (!suspicious.length) { h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No suspicious activity 🎉</p></div>'; }
+      else {
+        h += '<table><thead><tr><th>Device ID</th><th>Accounts</th><th>Action</th></tr></thead><tbody>';
+        suspicious.forEach(function (e) {
+          h += '<tr><td class="font-mono text-xxs">' + e[0].substring(0, 20) + '...</td>';
+          h += '<td>' + e[1].length + ' accounts</td>';
+          h += '<td><button class="btn btn-danger btn-xs" onclick="window.flagDevice(\'' + e[0] + '\')">Flag</button></td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div>';
+      _modal('🔍 Fraud Detection', h);
+    });
+  };
+  window.flagDevice = function (deviceId) {
+    rtdb.ref('flaggedDevices/' + deviceId).set({ flaggedAt: Date.now(), reason: 'Multiple accounts' });
+    _logAction('flag_device', deviceId);
+    _toast('Device flagged!');
+  };
+
+  /* ─── FEATURE 5: BULK MESSAGE CENTER ─── */
+  window.showBulkMessage = function () {
+    var h = '<div>';
+    h += '<div class="form-group"><label>Target Users</label>';
+    h += '<select id="bmTarget" class="form-input"><option value="all">All Users</option><option value="active">Active (1+ match)</option><option value="inactive">Inactive</option><option value="vip">High Depositors (₹500+)</option></select></div>';
+    h += '<div class="form-group"><label>Title</label><input type="text" id="bmTitle" class="form-input" placeholder="Notification title"></div>';
+    h += '<div class="form-group"><label>Message</label><textarea id="bmBody" class="form-input" style="height:80px" placeholder="Message..."></textarea></div>';
+    h += '<div class="form-group"><label>Type</label><select id="bmType" class="form-input"><option value="promo">Promo 🎁</option><option value="alert">Alert ⚠️</option><option value="match">Match 🎮</option><option value="info">Info ℹ️</option></select></div>';
+    h += '<button class="btn btn-primary w-full" onclick="window._sendBulkMsg()"><i class="fas fa-paper-plane"></i> Send Message</button></div>';
+    _modal('📢 Bulk Message Center', h);
+  };
+  window._sendBulkMsg = function () {
+    var target = (_$('bmTarget') || {}).value;
+    var title = (_$('bmTitle') || {}).value;
+    var body = (_$('bmBody') || {}).value;
+    var type = (_$('bmType') || {}).value;
+    if (!title || !body) { _toast('Title and message required', true); return; }
+    rtdb.ref('users').once('value', function (s) {
+      var batch = [];
+      s.forEach(function (c) {
+        var u = c.val(), uid = c.key;
+        if (target === 'active' && !(u.stats && u.stats.matches > 0)) return;
+        if (target === 'inactive' && (u.stats && u.stats.matches > 0)) return;
+        if (target === 'vip' && !((u.realMoney && u.realMoney.deposited >= 500))) return;
+        batch.push(uid);
+      });
+      var done = 0;
+      batch.forEach(function (uid) {
+        var nid = rtdb.ref('users/' + uid + '/notifications').push().key;
+        rtdb.ref('users/' + uid + '/notifications/' + nid).set({
+          type: type, title: title, message: body, body: body, read: false, timestamp: Date.now(), createdAt: Date.now()
+        }).then(function () { done++; if (done === batch.length) _toast('✅ Sent to ' + done + ' users!'); });
+      });
+      if (!batch.length) _toast('No matching users found');
+      _logAction('bulk_message', target, { title: title, count: batch.length });
+      _close();
+    });
+  };
+
+  /* ─── FEATURE 6: MATCH TEMPLATES (Quick Create) ─── */
+  window.matchTemplates = [
+    { name: '🔫 Duo Rush (₹5)', mode: 'duo', matchType: 'Battle Royale', map: 'bermuda', entryFee: 5, prizePool: 25, maxSlots: 48, perKillPrize: 2 },
+    { name: '💎 VIP Solo (₹50)', mode: 'solo', matchType: 'Battle Royale', map: 'purgatory', entryFee: 50, prizePool: 500, maxSlots: 25, firstPrize: 250 },
+    { name: '🏆 Squad War (₹20)', mode: 'squad', matchType: 'Clash Squad', map: 'bermuda', entryFee: 20, prizePool: 200, maxSlots: 48, firstPrize: 100 },
+    { name: '🆓 Free Solo', mode: 'solo', entryType: 'free', entryFee: 0, prizePool: 50, maxSlots: 25 },
+    { name: '⚡ Quick Duo (₹10)', mode: 'duo', matchType: 'Battle Royale', map: 'kalahari', entryFee: 10, prizePool: 80, maxSlots: 32 },
+  ];
+  window.showMatchTemplates = function () {
+    var h = '<div style="display:flex;flex-direction:column;gap:10px">';
+    window.matchTemplates.forEach(function (t, i) {
+      h += '<div onclick="window._applyTemplate(' + i + ')" style="padding:12px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);cursor:pointer">';
+      h += '<div style="font-weight:700;font-size:14px">' + t.name + '</div>';
+      h += '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">' + t.mode.toUpperCase() + ' | Entry: ₹' + (t.entryFee || 0) + ' | Prize: ₹' + (t.prizePool || 0) + ' | ' + (t.maxSlots || 0) + ' slots</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+    _modal('📋 Match Templates', h);
+  };
+  window._applyTemplate = function (i) {
+    var t = window.matchTemplates[i]; if (!t) return;
+    _close();
+    if (window.openTournamentModal) openTournamentModal();
+    setTimeout(function () {
+      var map = { name: 'tName', mode: 'tMode', matchType: 'tMatchType', map: 'tMap', entryFee: 'tEntryFee', prizePool: 'tPrizePool', maxSlots: 'tMaxSlots', perKillPrize: 'tPerKillPrize', firstPrize: 'tFirstPrize' };
+      Object.keys(map).forEach(function (k) {
+        var el = _$(map[k]); if (el && t[k] !== undefined) el.value = t[k];
+      });
+      _toast('✅ Template loaded!');
+    }, 400);
+  };
+
+  /* ─── FEATURE 7: PLAYER WATCHLIST ─── */
+  window.addToWatchlist = function (uid, name) {
+    rtdb.ref('adminWatchlist/' + uid).set({ name: name, addedAt: Date.now() });
+    _logAction('watchlist_add', uid, { name: name });
+    _toast('👁️ ' + name + ' watchlist mein add hua');
+  };
+  window.showWatchlist = function () {
+    rtdb.ref('adminWatchlist').once('value', function (s) {
+      var h = '<div>';
+      if (!s.exists()) { h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">Watchlist empty</p></div>'; }
+      else {
+        h += '<table><thead><tr><th>Player</th><th>Added</th><th>Actions</th></tr></thead><tbody>';
+        s.forEach(function (c) {
+          var d = c.val(), uid = c.key;
+          h += '<tr><td><span class="badge yellow">' + d.name + '</span><div class="font-mono text-xxs text-muted">' + uid.substring(0, 16) + '</div></td>';
+          h += '<td class="text-xxs">' + new Date(d.addedAt).toLocaleDateString() + '</td>';
+          h += '<td><button class="btn btn-ghost btn-xs" onclick="openUserModal(\'' + uid + '\')"><i class="fas fa-eye"></i></button> ';
+          h += '<button class="btn btn-danger btn-xs" onclick="rtdb.ref(\'adminWatchlist/' + uid + '\').remove();showWatchlist();"><i class="fas fa-times"></i></button></td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div>';
+      _modal('👁️ Player Watchlist', h);
+    });
+  };
+
+  /* ─── FEATURE 8: PLATFORM STATS OVERVIEW ─── */
+  window.renderPlatformStats = function (containerId) {
+    var el = _$(containerId || 'platformStats'); if (!el) return;
+    el.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>';
+    Promise.all([
+      rtdb.ref('users').once('value'),
+      rtdb.ref('joinRequests').once('value'),
+      rtdb.ref('walletRequests').once('value'),
+      rtdb.ref('matches').once('value')
+    ]).then(function (results) {
+      var users = 0, joins = 0, deps = 0, depTotal = 0, matches = 0, activeUsers = 0;
+      if (results[0].exists()) results[0].forEach(function (c) {
+        users++;
+        var u = c.val();
+        if (u.stats && u.stats.matches > 0) activeUsers++;
+      });
+      if (results[1].exists()) results[1].forEach(function () { joins++; });
+      if (results[2].exists()) results[2].forEach(function (c) {
+        var d = c.val();
+        if (d.type === 'deposit' && (d.status === 'approved' || d.status === 'done')) { deps++; depTotal += (d.amount || 0); }
+      });
+      if (results[3].exists()) results[3].forEach(function () { matches++; });
+      var stats = [
+        { icon: 'fas fa-users', label: 'Total Users', val: users, color: '--info' },
+        { icon: 'fas fa-fire', label: 'Active Users', val: activeUsers, color: '--success' },
+        { icon: 'fas fa-gamepad', label: 'Total Joins', val: joins, color: '--primary' },
+        { icon: 'fas fa-trophy', label: 'Matches', val: matches, color: '--warning' },
+        { icon: 'fas fa-rupee-sign', label: 'Total Revenue', val: '₹' + depTotal, color: '--success' },
+        { icon: 'fas fa-percentage', label: 'Active Rate', val: users > 0 ? Math.round(activeUsers / users * 100) + '%' : '0%', color: '--info' },
+      ];
+      el.innerHTML = '<div class="stats-grid">' + stats.map(function (s) {
+        return '<div class="stat-card"><div class="stat-icon"><i class="' + s.icon + '"></i></div><div class="value" style="color:var(' + s.color + ')">' + s.val + '</div><div class="label">' + s.label + '</div></div>';
+      }).join('') + '</div>';
+    });
+  };
+
+  /* ─── FEATURE 9: CSV EXPORT (Users / Matches / Wallet) ─── */
+  window.exportCSV = function (type) {
+    var ref = type === 'users' ? rtdb.ref('users') : type === 'matches' ? rtdb.ref('joinRequests') : rtdb.ref('walletRequests');
+    ref.once('value', function (s) {
+      var rows = [], headers;
+      if (type === 'users') {
+        headers = ['UID', 'IGN', 'Email', 'Matches', 'Wins', 'Kills', 'Earnings', 'Deposit', 'Status'];
+        s.forEach(function (c) {
+          var u = c.val();
+          rows.push([c.key, u.ign || '', u.email || '', (u.stats && u.stats.matches) || 0, (u.stats && u.stats.wins) || 0, (u.stats && u.stats.kills) || 0, (u.stats && u.stats.earnings) || 0, ((u.realMoney || {}).deposited || 0), u.profileStatus || 'pending']);
+        });
+      } else if (type === 'matches') {
+        headers = ['RequestID', 'UserName', 'MatchName', 'Mode', 'EntryFee', 'Status', 'IsTeamMember', 'CaptainName', 'Date'];
+        s.forEach(function (c) {
+          var d = c.val();
+          rows.push([c.key, d.userName || '', d.matchName || '', d.mode || '', d.entryFee || 0, d.status || '', d.isTeamMember ? 'Yes' : 'No', d.captainName || '', new Date(d.createdAt || 0).toLocaleString()]);
+        });
+      } else {
+        headers = ['RequestID', 'UserName', 'Type', 'Amount', 'UTR', 'Status', 'Date'];
+        s.forEach(function (c) {
+          var d = c.val();
+          rows.push([c.key, d.userName || '', d.type || '', d.amount || 0, d.utr || '', d.status || '', new Date(d.createdAt || 0).toLocaleString()]);
+        });
+      }
+      var csv = [headers].concat(rows).map(function (r) {
+        return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\n');
+      var blob = new Blob([csv], { type: 'text/csv' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = type + '_export_' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      _toast('✅ CSV downloaded: ' + rows.length + ' records');
+    });
+  };
+
+  /* ─── FEATURE 10: REFERRAL ANALYTICS ─── */
+  window.renderReferralAnalytics = function (containerId) {
+    var el = _$(containerId || 'referralAnalytics'); if (!el) return;
+    rtdb.ref('referrals').once('value', function (s) {
+      var topReferrers = {}, total = 0;
+      if (s.exists()) s.forEach(function (c) {
+        var d = c.val(); total++;
+        topReferrers[d.referrerId] = (topReferrers[d.referrerId] || 0) + 1;
+      });
+      var sorted = Object.entries(topReferrers).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 5);
+      var h = '<div class="card"><div class="card-header"><i class="fas fa-users"></i> Referral Analytics — Total: ' + total + '</div><div class="card-body">';
+      if (!sorted.length) h += '<p class="text-muted text-xxs">No referrals yet</p>';
+      else {
+        h += '<table><thead><tr><th>User ID</th><th>Referrals</th></tr></thead><tbody>';
+        sorted.forEach(function (e) {
+          h += '<tr><td class="font-mono text-xxs">' + e[0].substring(0, 20) + '...</td><td><span class="badge green">' + e[1] + '</span></td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div></div>';
+      el.innerHTML = h;
+    });
+  };
+
+  /* ─── FEATURE 11: MATCH PERFORMANCE REPORT ─── */
+  window.renderMatchReport = function (containerId) {
+    var el = _$(containerId || 'matchReport'); if (!el) return;
+    Promise.all([rtdb.ref('matches').once('value'), rtdb.ref('joinRequests').once('value')]).then(function (r) {
+      var matches = {}, filledTotal = 0, slotTotal = 0;
+      r[0].forEach(function (c) { matches[c.key] = c.val(); });
+      var totalM = Object.keys(matches).length;
+      Object.values(matches).forEach(function (m) {
+        slotTotal += m.maxSlots || 0;
+        filledTotal += m.filledSlots || m.joinedSlots || 0;
+      });
+      var fillRate = slotTotal > 0 ? Math.round(filledTotal / slotTotal * 100) : 0;
+      var joinMap = {};
+      r[1].forEach(function (c) { var d = c.val(); joinMap[d.matchId] = (joinMap[d.matchId] || 0) + 1; });
+      var h = '<div class="stats-grid">';
+      [['Total Matches', totalM, 'fas fa-trophy'], ['Avg Fill Rate', fillRate + '%', 'fas fa-percentage'], ['Avg Players/Match', totalM ? Math.round(filledTotal / totalM) : 0, 'fas fa-users'], ['Total Slots Filled', filledTotal, 'fas fa-check']].forEach(function (d) {
+        h += '<div class="stat-card"><div class="stat-icon"><i class="' + d[2] + '"></i></div><div class="value">' + d[1] + '</div><div class="label">' + d[0] + '</div></div>';
+      });
+      h += '</div>';
+      el.innerHTML = h;
+    });
+  };
+
+  /* ─── FEATURE 12: SUPPORT TICKET MANAGER (quick-view modal, all always-open tickets) ─── */
+  window._qtLoadSupportTickets = function () {
+    rtdb.ref('supportRequests').orderByChild('status').equalTo('open').once('value', function (s) {
+      var tickets = [];
+      if (s.exists()) s.forEach(function (c) { tickets.push(Object.assign({}, c.val(), { id: c.key })); });
+      tickets.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      var h = '<div>';
+      if (!tickets.length) h += '<div style="text-align:center;padding:30px;color:var(--text-muted)">No open tickets 🎉</div>';
+      tickets.forEach(function (t) {
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-body compact">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:start;gap:8px">';
+        h += '<div><div style="font-weight:700;font-size:13px">' + (t.type || 'Issue') + '</div>';
+        h += '<div class="text-xxs text-muted">' + (t.userName || '?') + ' · ' + new Date(t.createdAt || 0).toLocaleString() + '</div>';
+        h += '<div style="font-size:12px;margin-top:4px">' + (t.message || '').substring(0, 100) + '</div></div>';
+        h += '<div style="display:flex;gap:4px;flex-shrink:0">';
+        h += '<button class="btn btn-primary btn-xs" onclick="window.resolveTicket(\'' + t.id + '\')"><i class="fas fa-check"></i> Resolve</button>';
+        if (t.userId) h += '<button class="btn btn-ghost btn-xs" onclick="window.openChat && openChat(\'' + t.userId + '\')"><i class="fas fa-reply"></i></button>';
+        h += '</div></div></div></div>';
+      });
+      h += '</div>';
+      _modal('🎫 Support Tickets (' + tickets.length + ' open)', h);
+    });
+  };
+  window.resolveTicket = function (ticketId) {
+    rtdb.ref('supportRequests/' + ticketId).update({ status: 'resolved', resolvedAt: Date.now() });
+    _logAction('resolve_ticket', ticketId);
+    _toast('✅ Ticket resolved');
+    _close();
+  };
+
+  /* ─── FEATURE 13: WITHDRAWAL LIMIT CONFIG ─── */
+  window.showWithdrawalConfig = function () {
+    rtdb.ref('appSettings/withdrawal').once('value', function (s) {
+      var cfg = s.val() || { minAmount: 50, maxAmount: 5000, dailyLimit: 10000 };
+      var h = '<div>';
+      h += '<div class="form-group"><label>Minimum Withdrawal (₹)</label><input type="number" id="wdMin" class="form-input" value="' + cfg.minAmount + '"></div>';
+      h += '<div class="form-group"><label>Maximum per Request (₹)</label><input type="number" id="wdMax" class="form-input" value="' + cfg.maxAmount + '"></div>';
+      h += '<div class="form-group"><label>Daily Limit per User (₹)</label><input type="number" id="wdDaily" class="form-input" value="' + cfg.dailyLimit + '"></div>';
+      h += '<div class="form-group"><label>Auto-Approve below (₹) <span class="text-muted text-xxs">0 = manual only</span></label><input type="number" id="wdAuto" class="form-input" value="' + (cfg.autoApprove || 0) + '"></div>';
+      h += '<button class="btn btn-primary w-full" onclick="window._saveWdConfig()"><i class="fas fa-save"></i> Save Config</button></div>';
+      _modal('⚙️ Withdrawal Config', h);
+    });
+  };
+  window._saveWdConfig = function () {
+    rtdb.ref('appSettings/withdrawal').set({
+      minAmount: Number((_$('wdMin') || {}).value) || 50,
+      maxAmount: Number((_$('wdMax') || {}).value) || 5000,
+      dailyLimit: Number((_$('wdDaily') || {}).value) || 10000,
+      autoApprove: Number((_$('wdAuto') || {}).value) || 0
+    });
+    _logAction('update_wd_config');
+    _toast('✅ Withdrawal config saved!');
+    _close();
+  };
+
+  /* ─── FEATURE 14: ADMIN ACTION LOG VIEWER ─── */
+  window.showActionLog = function () {
+    rtdb.ref('activityLogs').orderByChild('ts').limitToLast(100).once('value', function (s) {
+      var logs = [];
+      if (s.exists()) s.forEach(function (c) { logs.unshift(c.val()); });
+      var icons = { ban: '🚫', approve: '✅', reject: '❌', publish: '📢', cancel: '🚫', manual: '💰', flag_device: '🔍', bulk_message: '📣', resolve_ticket: '🎫', watchlist_add: '👁️', update_wd_config: '⚙️' };
+      var h = '<div>';
+      if (!logs.length) h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No logs yet</p>';
+      else {
+        h += '<table><thead><tr><th>Action</th><th>Target</th><th>Time</th></tr></thead><tbody>';
+        logs.forEach(function (l) {
+          h += '<tr><td><span style="font-size:14px">' + (icons[l.action] || '📝') + '</span> ' + l.action + '</td>';
+          h += '<td class="text-xxs font-mono">' + (l.targetId || '—').substring(0, 20) + '</td>';
+          h += '<td class="text-xxs">' + new Date(l.ts).toLocaleString() + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div>';
+      _modal('📋 Activity Log', h);
+    });
+  };
+
+  /* ─── FEATURE 15: PRIZE POOL CALCULATOR ─── */
+  window.showPrizeCalculator = function () {
+    var h = '<div>';
+    h += '<div class="form-group"><label>Total Prize Pool (₹)</label><input type="number" id="pcPool" class="form-input" placeholder="e.g. 500" oninput="window._calcPrizes()"></div>';
+    h += '<div class="form-group"><label>Distribution</label><select id="pcDist" class="form-input" onchange="window._calcPrizes()"><option value="top3">Top 3 (50/30/20%)</option><option value="top5">Top 5 (40/25/20/10/5%)</option><option value="top10">Top 10 (Equal Split)</option><option value="kills">Per Kill Based</option></select></div>';
+    h += '<div id="pcResult" style="margin-top:12px"></div></div>';
+    _modal('🧮 Prize Calculator', h);
+  };
+  window._calcPrizes = function () {
+    var pool = Number((_$('pcPool') || {}).value) || 0;
+    var dist = (_$('pcDist') || {}).value;
+    var res = _$('pcResult'); if (!res) return;
+    var h = '';
+    if (dist === 'top3') {
+      [[50, '1st 🥇'], [30, '2nd 🥈'], [20, '3rd 🥉']].forEach(function (x) {
+        h += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>' + x[1] + '</span><strong class="text-primary">₹' + Math.round(pool * x[0] / 100) + '</strong></div>';
+      });
+    } else if (dist === 'top5') {
+      [[40, '1st'], [25, '2nd'], [20, '3rd'], [10, '4th'], [5, '5th']].forEach(function (x) {
+        h += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span>' + x[1] + '</span><strong class="text-primary">₹' + Math.round(pool * x[0] / 100) + '</strong></div>';
+      });
+    } else if (dist === 'top10') {
+      var each = Math.floor(pool / 10);
+      h = '<div style="padding:8px;background:rgba(0,255,106,.06);border-radius:8px">Each of top 10: <strong class="text-primary">₹' + each + '</strong></div>';
+    } else if (dist === 'kills') {
+      var pk = pool > 0 ? Math.floor(pool / 25) : 0;
+      h = '<div style="padding:8px;background:rgba(255,170,0,.08);border-radius:8px"><strong>₹' + pk + '</strong> per kill (assumes 25 kills)</div>';
+    }
+    res.innerHTML = h || '<p class="text-muted text-xxs">Enter pool amount</p>';
+  };
+
+  /* ─── FEATURE 16: SCHEDULED ANNOUNCEMENTS ─── */
+  window.showScheduleAnnouncement = function () {
+    var h = '<div>';
+    h += '<div class="form-group"><label>Announcement</label><textarea id="annMsg" class="form-input" style="height:80px" placeholder="Announcement message..."></textarea></div>';
+    h += '<div class="form-group"><label>Schedule Time (IST)</label><input type="datetime-local" id="annTime" class="form-input"></div>';
+    h += '<div class="form-group"><label>Target</label><select id="annTarget" class="form-input"><option value="all">All Users</option><option value="active">Active Users</option></select></div>';
+    h += '<button class="btn btn-primary w-full" onclick="window._scheduleAnn()"><i class="fas fa-clock"></i> Schedule</button></div>';
+    _modal('📅 Schedule Announcement', h);
+  };
+  window._scheduleAnn = function () {
+    var msg = (_$('annMsg') || {}).value;
+    var time = (_$('annTime') || {}).value;
+    if (!msg || !time) { _toast('Fill all fields', true); return; }
+    var ts = new Date(time).getTime();
+    rtdb.ref('scheduledAnnouncements').push({
+      message: msg, scheduledFor: ts, target: (_$('annTarget') || {}).value,
+      createdAt: Date.now(), status: 'pending'
+    });
+    _logAction('schedule_announcement', '', { msg: msg.substring(0, 50), ts: ts });
+    _toast('✅ Announcement scheduled!');
+    _close();
+  };
+
+  /* ─── FEATURE 17: PLAYER NOTES / REPUTATION ─── */
+  window.showAddNote = function (uid, name) {
+    var h = '<div>';
+    h += '<div style="margin-bottom:12px;font-size:13px;color:var(--text-muted)">Player: <strong>' + name + '</strong></div>';
+    rtdb.ref('adminNotes/' + uid).once('value', function (s) {
+      var existing = '';
+      if (s.exists()) s.forEach(function (c) {
+        var n = c.val();
+        existing += '<div style="padding:6px 8px;border-radius:8px;background:var(--bg-dark);margin-bottom:4px;font-size:12px"><span class="badge ' + (n.tag || 'yellow') + ' text-xxs">' + n.tag + '</span> ' + n.note + ' <span class="text-muted text-xxs">(' + new Date(n.ts).toLocaleDateString() + ')</span></div>';
+      });
+      if (existing) h += '<div style="margin-bottom:12px">' + existing + '</div>';
+      h += '<textarea id="noteInput" class="form-input" style="height:80px" placeholder="Add note..."></textarea>';
+      h += '<select id="noteTag" class="form-input" style="margin-top:8px"><option value="info">ℹ️ Info</option><option value="warning">⚠️ Warning</option><option value="suspicious">🚨 Suspicious</option><option value="vip">⭐ VIP</option></select>';
+      h += '<button class="btn btn-primary w-full" style="margin-top:10px" onclick="window._playerNoteSave(\'' + uid + '\',\'' + name + '\')">Add Note</button>';
+      h += '</div>';
+      _modal('📝 Player Notes: ' + name, h);
+    });
+  };
+  window._playerNoteSave = function (uid, name) {
+    var note = (_$('noteInput') || {}).value;
+    var tag = (_$('noteTag') || {}).value;
+    if (!note) { _toast('Note likhna padega', true); return; }
+    rtdb.ref('adminNotes/' + uid).push({ note: note, tag: tag, ts: Date.now() });
+    _logAction('add_note', uid, { name: name });
+    _toast('✅ Note saved!');
+    _close();
+  };
+
+  /* ─── FEATURE 18: BAN APPEAL VIEWER ─── */
+  window.showBanAppeals = function () {
+    rtdb.ref('banAppeals').orderByChild('status').equalTo('pending').once('value', function (s) {
+      var appeals = [];
+      if (s.exists()) s.forEach(function (c) { appeals.push(Object.assign({}, c.val(), { id: c.key })); });
+      var h = '<div>';
+      if (!appeals.length) h += '<div style="text-align:center;padding:30px;color:var(--text-muted)">No pending appeals 🎉</div>';
+      appeals.forEach(function (a) {
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-body compact">';
+        h += '<div style="font-weight:700;font-size:13px">' + a.userName + '</div>';
+        h += '<div class="text-xxs text-muted font-mono">' + a.uid + '</div>';
+        h += '<div style="font-size:12px;margin:8px 0">"' + (a.reason || 'No reason given').substring(0, 150) + '"</div>';
+        h += '<div style="display:flex;gap:8px">';
+        h += '<button class="btn btn-primary btn-sm flex-1" onclick="window.unbanFromAppeal(\'' + a.uid + '\',\'' + a.id + '\')"><i class="fas fa-user-check"></i> Unban</button>';
+        h += '<button class="btn btn-danger btn-sm flex-1" onclick="rtdb.ref(\'banAppeals/' + a.id + '\').update({status:\'rejected\'});showToast(\'Appeal rejected\');closeModal();"><i class="fas fa-times"></i> Reject</button>';
+        h += '</div></div></div>';
+      });
+      h += '</div>';
+      _modal('⚖️ Ban Appeals (' + appeals.length + ')', h);
+    });
+  };
+  window.unbanFromAppeal = function (uid, appealId) {
+    rtdb.ref('users/' + uid + '/banned').set(false);
+    rtdb.ref('users/' + uid + '/bannedReason').remove();
+    rtdb.ref('banAppeals/' + appealId).update({ status: 'accepted', resolvedAt: Date.now() });
+    _logAction('unban', uid, { via: 'appeal' });
+    _toast('✅ User unbanned!');
+    _close();
+  };
+
+  /* ─── FEATURE 19: COHORT RETENTION ANALYSIS ─── */
+  window.renderCohortData = function (containerId) {
+    var el = _$(containerId || 'cohortData'); if (!el) return;
+    rtdb.ref('users').once('value', function (s) {
+      var cohorts = {};
+      s.forEach(function (c) {
+        var u = c.val(); if (!u.createdAt) return;
+        var week = 'W' + Math.floor((Date.now() - u.createdAt) / (7 * 24 * 60 * 60 * 1000));
+        if (!cohorts[week]) cohorts[week] = { total: 0, active: 0 };
+        cohorts[week].total++;
+        if (u.stats && u.stats.matches > 0) cohorts[week].active++;
+      });
+      var h = '<table><thead><tr><th>Cohort</th><th>Users</th><th>Active</th><th>Retention</th></tr></thead><tbody>';
+      Object.entries(cohorts).slice(0, 8).forEach(function (e) {
+        var ret = e[1].total > 0 ? Math.round(e[1].active / e[1].total * 100) : 0;
+        h += '<tr><td>' + e[0] + '</td><td>' + e[1].total + '</td><td>' + e[1].active + '</td>';
+        h += '<td><span class="badge ' + (ret >= 50 ? 'green' : ret >= 25 ? 'yellow' : 'red') + '">' + ret + '%</span></td></tr>';
+      });
+      h += '</tbody></table>';
+      el.innerHTML = h;
+    });
+  };
+
+  /* ─── FEATURE 20: LIVE MATCH SCOREBOARD (ADMIN) ─── */
+  window.showLiveScoreboard = function (matchId) {
+    rtdb.ref('matchResults/' + matchId).once('value', function (s) {
+      if (!s.exists()) { _toast('No results published yet'); return; }
+      var results = [];
+      s.forEach(function (c) { results.push(c.val()); });
+      results.sort(function (a, b) { return (a.rank || 99) - (b.rank || 99); });
+      var h = '<table><thead><tr><th>Rank</th><th>Player</th><th>Kills</th><th>Prize</th></tr></thead><tbody>';
+      results.forEach(function (r) {
+        var med = r.rank === 1 ? '🥇' : r.rank === 2 ? '🥈' : r.rank === 3 ? '🥉' : '#' + r.rank;
+        h += '<tr><td>' + med + '</td><td>' + r.playerName + '</td><td>' + r.kills + '</td><td class="text-primary">₹' + r.prize + '</td></tr>';
+      });
+      h += '</tbody></table>';
+      _modal('🏆 Scoreboard', h);
+    });
+  };
+
+  /* ─── FEATURE 21: AUTO PAYOUT RULES ─── */
+  window.showAutoPayoutRules = function () {
+    rtdb.ref('appSettings/withdrawal').once('value', function (s) {
+      var cfg = s.val() || {};
+      var h = '<div>';
+      h += '<div class="info-box yellow" style="margin-bottom:12px"><i class="fas fa-info-circle"></i> Auto-approve: Eligible withdrawals automatically ho jaenge approved</div>';
+      h += '<div class="form-group"><label>Auto-approve if amount ≤ (₹)</label><input type="number" id="apAmt" class="form-input" value="' + (cfg.autoApprove || 0) + '" placeholder="0 = disabled"></div>';
+      h += '<div class="form-group"><label>Only for verified users</label><select id="apVerified" class="form-input"><option value="1">Yes</option><option value="0">No</option></select></div>';
+      h += '<div class="form-group"><label>Min matches played</label><input type="number" id="apMinMatches" class="form-input" value="' + (cfg.autoApproveMinMatches || 5) + '"></div>';
+      h += '<button class="btn btn-primary w-full" onclick="window._saveAutoPayoutRules()"><i class="fas fa-save"></i> Save Rules</button></div>';
+      _modal('⚡ Auto Payout Rules', h);
+    });
+  };
+  window._saveAutoPayoutRules = function () {
+    rtdb.ref('appSettings/withdrawal').update({
+      autoApprove: Number((_$('apAmt') || {}).value) || 0,
+      autoApproveVerifiedOnly: ((_$('apVerified') || {}).value === '1'),
+      autoApproveMinMatches: Number((_$('apMinMatches') || {}).value) || 5
+    });
+    _logAction('update_autopayout');
+    _toast('✅ Auto payout rules saved!');
+    _close();
+  };
+
+  /* ─── FEATURE 22: MATCH BROADCAST TO PLAYERS ───
+     ✅ B29 FIX (2026-10-07) — pehle yeh poora system KHARAB tha:
+       (1) players Firebase RTDB ki `joinRequests` se dhoonde jate the, par
+           join requests ab Supabase (`join_requests`) me rehti hain →
+           natija hamesha "0 players" (user ki shikayat: "Match Broadcast
+           kaam nahi karta"),
+       (2) notification sirf Firebase `users/<uid>/notifications` me likhi
+           jati thi — user panel notification Supabase se padhta hai →
+           ghanti me kuch dikhta hi nahi tha,
+       (3) koi PUSH nahi jata tha → app band ho to user ko pata bhi na chale.
+     AB:
+       (1) players Supabase `join_requests` (match_id) se — distinct user_id,
+           rejected/cancelled/refunded chhod kar,
+       (2) har player ke liye window._adminNotifyUser() — woh Firebase +
+           Supabase DONO me likhta hai; Supabase `notifications` table ka
+           trigger (notifications_push_hook) OneSignal PUSH bhej deta hai,
+           is liye panel/app band hone par bhi notification pahunchti hai,
+       (3) chaho to saath me "sab users" ko bhi bhej sakte ho (alag checkbox,
+           default OFF) — woh _adminNotifyAll() se jata hai,
+       (4) bhejte waqt button band + live progress (duplicate click se bachne
+           ke liye), aur kuch na mile to saaf message. */
+  window.broadcastToMatch = function (matchId, matchName) {
+    var h = '<div>';
+    h += '<p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">Match ke saare joined players ko notification + push jayega — <strong>' + matchName + '</strong></p>';
+    h += '<input type="text" id="bcTitle" class="form-input" placeholder="Title" style="margin-bottom:8px">';
+    h += '<textarea id="bcMsg" class="form-input" style="height:70px" placeholder="Message..."></textarea>';
+    h += '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text-muted)">'
+       + '<input type="checkbox" id="bcAllUsers" style="width:16px;height:16px"> '
+       + 'Sirf is match ke players ke saath <b>poore app ke sab users</b> ko bhi bhejo</label>';
+    h += '<div id="bcLinkRow" style="margin-top:10px">'
+       + '<div style="font-size:12px;font-weight:800;color:var(--text-muted);margin-bottom:6px">🔴 Live stream link (Watch &amp; Earn ke liye)</div>'
+       + '<div style="display:flex;gap:8px;align-items:center">'
+       + '<input type="text" id="bcLink" class="form-input" style="margin:0;flex:1" placeholder="https://youtu.be/… (khaali chhodo agar match live nahi)">'
+       + '<button class="btn btn-ghost" id="bcLinkBtn" style="white-space:nowrap" onclick="window._saveMatchStreamLink(\'' + matchId + '\')"><i class="fas fa-link"></i> Link Save</button>'
+       + '</div>'
+       + '<div style="font-size:11px;color:var(--text-muted);margin-top:5px">Yeh link save karte hi (match status = live hone par) user panel ke match-details me <b>👀 Watch &amp; Earn Coins</b> button aa jata hai.</div>'
+       + '</div>';
+    h += '<div id="bcProgress" style="font-size:12px;color:var(--info);margin-top:8px;min-height:16px"></div>';
+    h += '<button class="btn btn-primary w-full" style="margin-top:10px" id="bcSendBtn" onclick="window._sendBroadcast(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-broadcast-tower"></i> Broadcast</button></div>';
+    _modal('📡 Match Broadcast', h);
+
+    /* ✅ D6 FIX (2026-10-07): match ka live stream link yahin se set hota hai.
+       Pehle admin panel me `matches.stream_link` likhne ki koi jagah hi nahi
+       thi, is liye user panel ka Watch & Earn kabhi chalu ho hi nahi sakta
+       tha. Ab modal khulte hi maujooda link field me bhar jata hai. */
+    if (window._supa) {
+      window._supa.from('matches').select('stream_link,youtube_link').eq('id', matchId).single()
+        .then(function(r) {
+          var cur = (r && r.data && (r.data.stream_link || r.data.youtube_link)) || '';
+          var el = _$('bcLink');
+          if (el && cur) el.value = cur;
+        }, function() {});
+    }
+  };
+  window._saveMatchStreamLink = function(matchId) {
+    var el   = _$('bcLink');
+    var link = ((el || {}).value || '').trim();
+    if (!link) { _toast('Link khaali hai — pehle live stream ka URL paste karo', true); return; }
+    if (!/^https?:\/\//i.test(link)) { _toast('Link http:// ya https:// se shuru hona chahiye', true); return; }
+    if (!window._supa) { _toast('Supabase taiyar nahi — page reload karo', true); return; }
+    var btn = _$('bcLinkBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+    window._supa.from('matches').update({ stream_link: link }).eq('id', matchId)
+      .then(function(r) {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        if (r && r.error) { _toast('Link save nahi hua: ' + r.error.message, true); return; }
+        _logAction('set_match_stream_link');
+        _toast('✅ Match ka live stream link save ho gaya!');
+      }, function(e) {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+        _toast('Link save nahi hua: ' + (e && e.message ? e.message : 'unknown'), true);
+      });
+  };
+  window._sendBroadcast = function (matchId, matchName) {
+    var title = ((_$('bcTitle') || {}).value || '').trim();
+    var msg   = ((_$('bcMsg')   || {}).value || '').trim();
+    var allUsers = !!((_$('bcAllUsers') || {}).checked);
+    var btn = _$('bcSendBtn');
+    var prog = _$('bcProgress');
+    function say(t) { if (prog) prog.textContent = t; }
+    if (!title || !msg) { _toast('Title aur message dono bharo', true); return; }
+    if (!window._supa) { _toast('Supabase taiyar nahi — page reload karo', true); return; }
+    if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+    say('Players dhoonde ja rahe hain…');
+
+    /* supabase-js .then() dono taraf kaam karta hai (yeh repo isi pattern par
+       chalta hai) — is liye .catch() ke bharose nahi, res.error check karte hain */
+    window._supa.from('join_requests').select('user_id,status').eq('match_id', matchId)
+      .then(function (res) {
+        if (res && res.error) {
+          if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+          _toast('Players nahi mil paye: ' + (res.error.message || ''), true);
+          say('');
+          return;
+        }
+        var rows = (res && res.data) || [];
+        var skip = { rejected: 1, cancelled: 1, refunded: 1, 'no_show': 0 };
+        var uids = [], seen = {};
+        rows.forEach(function (r) {
+          var uid = r && r.user_id;
+          if (!uid || seen[uid]) return;
+          var st = String((r && r.status) || 'joined');
+          if (skip[st] === 1) return;          /* nikal diya gaya player */
+          seen[uid] = 1; uids.push(uid);
+        });
+
+        if (!uids.length && !allUsers) {
+          if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+          _toast('Is match me abhi koi joined player nahi hai', true);
+          say('');
+          return;
+        }
+
+        /* ek-ek player ko — _adminNotifyUser Firebase + Supabase dono me likhta
+           hai, aur Supabase trigger OneSignal push bhej deta hai */
+        var done = 0, failed = 0;
+        function nextUser(i) {
+          if (i >= uids.length) { finish(); return; }
+          say('Bheja ja raha hai… ' + (i + 1) + '/' + uids.length + ' players');
+          var p;
+          try {
+            p = window._adminNotifyUser ? window._adminNotifyUser(uids[i], {
+              type: 'match_broadcast', title: title, message: msg, matchId: matchId
+            }) : null;
+          } catch (e) { p = null; }
+          if (!p || !p.then) { done++; nextUser(i + 1); return; }
+          p.then(function () { done++; nextUser(i + 1); },
+                 function () { failed++; nextUser(i + 1); });
+        }
+        function finish() {
+          if (allUsers && window._adminNotifyAll) {
+            try { window._adminNotifyAll(title, msg, 'admin_alert'); } catch (e) {}
+          }
+          _logAction('broadcast', matchId, { title: title, sent: done, failed: failed, allUsers: allUsers });
+          _toast('✅ ' + done + ' players ko bheja' + (failed ? (' • ' + failed + ' fail') : '') +
+                 (allUsers ? ' + sab users' : '') + ' (push bhi gaya)');
+          _close();
+        }
+        nextUser(0);
+      }, function (e) {
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        _toast('Players nahi mil paye: ' + ((e && e.message) || ''), true);
+        say('');
+      });
+  };
+
+  /* ─── FEATURE 23: PLATFORM HEALTH MONITOR ─── */
+  window.checkPlatformHealth = function () {
+    var startTime = Date.now();
+    rtdb.ref('.info/connected').once('value', function (s) {
+      var checks = [];
+      checks.push({ name: 'Firebase Realtime DB', ok: s.val() === true });
+      var latency = Date.now() - startTime;
+      checks.push({ name: 'DB Latency (' + latency + 'ms)', ok: latency < 2000 });
+      /* ✅ FIX (live-testing 2026-10-07): yahi firebase.auth() trap —
+         default app na hone par ye poori Platform Health check ko throw kar
+         deta tha. Panel ka asli auth object window.auth hai. */
+      checks.push({ name: 'Auth Service', ok: !!(window.auth && window.auth.currentUser) });
+      rtdb.ref('appSettings').once('value', function (s2) {
+        checks.push({ name: 'App Settings', ok: s2.exists() });
+        var h = '<div>';
+        checks.forEach(function (c) {
+          h += '<div style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--border)">';
+          h += '<span style="font-size:18px">' + (c.ok ? '✅' : '❌') + '</span>';
+          h += '<span style="font-size:13px">' + c.name + '</span></div>';
+        });
+        var allOk = checks.every(function (c) { return c.ok; });
+        h += '<div style="margin-top:12px;padding:10px;border-radius:10px;background:' + (allOk ? 'rgba(0,255,106,.08)' : 'rgba(255,0,60,.08)') + ';text-align:center;font-weight:700">' + (allOk ? '✅ All Systems Operational' : '⚠️ Issues Detected') + '</div>';
+        h += '</div>';
+        _modal('🔧 Platform Health', h);
+      });
+    });
+  };
+
+  /* ─── FEATURE 24: CUSTOM UPI SETTINGS — ✅ B22 (2026-10-06) HATA DIYA ───
+     Yahan pehle `showUpiSettings()` / `_saveUpi()` modal tha jo
+     `appSettings/payment/{upiId, upiName, payeeName, qrCodeUrl, minDeposit}`
+     likhta tha. Par user panel (quick-deposit.js → window.CFG.manualPayment)
+     bilkul DOOSRI jagah se padhta hai: `live_config.manualPayment`
+     (upiId, payeeName, qrImageUrl, minAmount, instructions, enabled) —
+     jo App Settings → "Manual UPI Payment (QR System)" section se set hoti
+     hai. Yaani purana modal ek DEAD DUPLICATE tha: admin wahan save karta
+     tha aur user ko kuch bhi nahi dikhta tha (na QR, na UPI ID).
+     User ka niyam: "har settable value Settings me ho, duplicate na ho" —
+     isliye modal + uska save dono hata diye. Quick Tools ka "UPI Settings"
+     button ab `window._openManualPaySettings()` se usi asli section par le
+     jata hai (fa-app-settings-v2.js me).
+
+  /* ─── FEATURE 25: DASHBOARD WIDGETS TOGGLE + QUICK ACTION TOPBAR ─── */
+  window.adminWidgetPrefs = JSON.parse(localStorage.getItem('adminWidgets') || '{"revenue":true,"users":true,"matches":true,"health":true}');
+  window.saveAdminWidgets = function () {
+    localStorage.setItem('adminWidgets', JSON.stringify(window.adminWidgetPrefs));
+    _toast('✅ Dashboard preferences saved!');
+  };
+  // Inject quick action topbar buttons
+  (function injectAdminUI() {
+    document.addEventListener('DOMContentLoaded', function () {
+      setTimeout(function () {
+        var topbar = document.querySelector('.topbar');
+        if (topbar && !document.getElementById('adminQuickActions')) {
+          var qa = document.createElement('div');
+          qa.id = 'adminQuickActions';
+          qa.style.cssText = 'display:flex;gap:4px;margin-left:auto;margin-right:8px';
+          qa.innerHTML = [
+            ['fas fa-file-csv', 'Export', 'exportCSV(\'users\')'],
+            ['fas fa-shield-alt', 'Fraud', 'runFraudCheck()'],
+            ['fas fa-heartbeat', 'Health', 'checkPlatformHealth()'],
+            ['fas fa-bell', 'Broadcast', 'showBulkMessage()'],
+            ['fas fa-calculator', 'Prize Calc', 'showPrizeCalculator()'],
+          ].map(function (b) {
+            return '<button class="btn btn-ghost btn-xs" onclick="' + b[2] + '" title="' + b[1] + '" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 8px"><i class="' + b[0] + '"></i><span style="font-size:8px">' + b[1] + '</span></button>';
+          }).join('');
+          topbar.appendChild(qa);
+        }
+      }, 1500);
+    });
+  })();
+
+  /* =========================================================
+     🆕 NEW ADMIN FEATURES (26–50)
+     ========================================================= */
+
+  /* ─── FEATURE 26: TEAM JOIN VERIFIER ─── */
+  /* Verify that all teammates of a join request are properly created */
+  window.verifyTeamJoins = function (captainJoinId) {
+    rtdb.ref('joinRequests/' + captainJoinId).once('value', function (s) {
+      if (!s.exists()) { _toast('JoinRequest not found', true); return; }
+      var jr = s.val();
+      if (!jr.teamMembers || jr.teamMembers.length <= 1) { _toast('Solo match — no teammates', 'inf'); return; }
+      var matchId = jr.matchId;
+      var captainUid = jr.userId;
+      var issues = [];
+      var checked = 0;
+      var total = jr.teamMembers.filter(function (m) { return m.role !== 'captain'; }).length;
+      if (total === 0) { _toast('No teammates to verify', 'inf'); return; }
+      jr.teamMembers.forEach(function (member) {
+        if (member.role === 'captain') return;
+        rtdb.ref('users').orderByChild('ffUid').equalTo(member.uid).once('value', function (us) {
+          if (!us.exists()) { issues.push('Member ' + member.name + ' not found in DB'); checked++; done(); return; }
+          var partnerFbUid = null; us.forEach(function (c) { partnerFbUid = c.key; });
+          rtdb.ref('joinRequests').orderByChild('userId').equalTo(partnerFbUid).once('value', function (jrs) {
+            var found = false;
+            if (jrs.exists()) jrs.forEach(function (c) { if (c.val().matchId === matchId && c.val().isTeamMember) found = true; });
+            if (!found) {
+              issues.push(member.name + ' ka joinRequest missing hai!');
+              // Auto-fix: create the missing joinRequest
+              if (window.processTeammateJoins) {
+                rtdb.ref('users/' + partnerFbUid).once('value', function (pUs) {
+                  if (pUs.exists()) {
+                    var pData = pUs.val();
+                    _createTeammateJRAdmin(partnerFbUid, pData, matchId, jr.matchName, jr.entryType === 'coin', jr.mode, jr.teamMembers, jr.userName, captainUid);
+                  }
+                });
+              }
+            }
+            checked++;
+            done();
+          });
+        });
+      });
+      function done() {
+        if (checked < total) return;
+        if (issues.length) {
+          _toast('⚠️ ' + issues.length + ' issues — auto-fixing!', 'err');
+          console.warn('[Admin] Team join issues:', issues);
+        } else {
+          _toast('✅ All teammate joins verified!');
+        }
+      }
+    });
+  };
+
+  function _createTeammateJRAdmin(pFirebaseUid, pData, matchId, matchName, isCoin, mode, allMembers, captainName, captainUid) {
+    var pjid = rtdb.ref('joinRequests').push().key;
+    rtdb.ref('joinRequests/' + pjid).set({
+      requestId: pjid, userId: pFirebaseUid,
+      userName: pData.ign || pData.displayName || '',
+      userFFUID: pData.ffUid || '',
+      matchId: matchId, matchName: matchName || '',
+      entryFee: 0, entryType: isCoin ? 'coin' : 'money',
+      mode: mode, status: 'joined', slotsBooked: 0,
+      isTeamMember: true, captainUid: captainUid, captainName: captainName || '',
+      teamMembers: allMembers, createdAt: Date.now(), autoFixed: true
+    });
+    rtdb.ref('users/' + pFirebaseUid + '/stats/matches').transaction(function (m) { return (m || 0) + 1; });
+    var nid = rtdb.ref('users/' + pFirebaseUid + '/notifications').push().key;
+    rtdb.ref('users/' + pFirebaseUid + '/notifications/' + nid).set({
+      type: 'team_joined', title: '🎮 Team Match Joined!',
+      body: captainName + ' ne "' + matchName + '" join kiya — tum bhi team mein ho!',
+      matchId: matchId, read: false, createdAt: Date.now()
+    });
+    _logAction('auto_fix_team_join', pFirebaseUid, { matchId: matchId });
+  }
+
+  /* ─── FEATURE 27: USER QUICK SEARCH ─── */
+  window.showUserSearch = function () {
+    var h = '<div>';
+    h += '<input type="text" id="userSearchQ" placeholder="Search by IGN, Email or UID..." class="form-input" oninput="window._searchUsers()" style="margin-bottom:10px">';
+    h += '<div id="userSearchResults"></div></div>';
+    _modal('🔍 User Search', h);
+  };
+  window._searchUsers = function () {
+    var q = ((_$('userSearchQ') || {}).value || '').trim().toLowerCase();
+    var res = _$('userSearchResults'); if (!res) return;
+    if (q.length < 2) { res.innerHTML = '<p class="text-muted text-xxs">Type at least 2 characters</p>'; return; }
+    res.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>';
+    rtdb.ref('users').once('value', function (s) {
+      var matches = [];
+      s.forEach(function (c) {
+        var u = c.val(), uid = c.key;
+        if ((u.ign && u.ign.toLowerCase().includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u.ffUid && u.ffUid.includes(q)) ||
+          uid.includes(q)) {
+          matches.push(Object.assign({}, u, { _uid: uid }));
+        }
+      });
+      if (!matches.length) { res.innerHTML = '<p class="text-muted text-xxs">No users found</p>'; return; }
+      var h = '<div style="display:flex;flex-direction:column;gap:6px">';
+      matches.slice(0, 10).forEach(function (u) {
+        h += '<div style="padding:10px 12px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
+        h += '<div><div style="font-weight:700;font-size:13px">' + (u.ign || u.displayName || 'User') + '</div>';
+        h += '<div class="text-xxs text-muted">' + (u.email || '') + ' · ' + (u.profileStatus || 'unknown') + '</div></div>';
+        h += '<button class="btn btn-ghost btn-xs" onclick="window.openUserModal && openUserModal(\'' + u._uid + '\')"><i class="fas fa-eye"></i></button></div>';
+      });
+      h += '</div>';
+      res.innerHTML = h;
+    });
+  };
+
+  /* ─── FEATURE 28: MATCH STATUS BULK UPDATE ─── */
+  window.showBulkStatusUpdate = function () {
+    rtdb.ref('matches').limitToLast(20).once('value', function (s) {
+      var h = '<div>';
+      h += '<div class="form-group"><label>New Status</label><select id="bsStatus" class="form-input"><option value="completed">Completed ✅</option><option value="cancelled">Cancelled ❌</option><option value="live">Live 🔴</option><option value="upcoming">Upcoming ⏳</option></select></div>';
+      h += '<div style="font-size:13px;font-weight:700;margin-bottom:8px">Select Matches:</div>';
+      h += '<div id="bsMatchList" style="max-height:200px;overflow-y:auto">';
+      s.forEach(function (c) {
+        var m = c.val(); if (!m) return;
+        h += '<label style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:var(--bg-dark);margin-bottom:4px;cursor:pointer">';
+        h += '<input type="checkbox" value="' + c.key + '" class="bs-match-cb">';
+        h += '<span style="font-size:12px">' + (m.name || c.key) + '</span></label>';
+      });
+      h += '</div>';
+      h += '<button class="btn btn-primary w-full" style="margin-top:12px" onclick="window._doBulkStatus()">Apply Status</button></div>';
+      _modal('🔄 Bulk Status Update', h);
+    });
+  };
+  window._doBulkStatus = function () {
+    var status = (_$('bsStatus') || {}).value;
+    var cbs = document.querySelectorAll('.bs-match-cb:checked');
+    if (!cbs.length) { _toast('Select at least one match', true); return; }
+    cbs.forEach(function (cb) {
+      rtdb.ref('matches/' + cb.value + '/status').set(status);
+      _logAction('bulk_status_update', cb.value, { status: status });
+    });
+    _toast('✅ ' + cbs.length + ' matches updated to ' + status);
+    _close();
+  };
+
+  /* ─── FEATURE 29: WALLET REQUEST QUICK APPROVE ─── */
+  window.showPendingWallet = function () {
+    rtdb.ref('walletRequests').orderByChild('status').equalTo('pending').once('value', function (s) {
+      var reqs = [];
+      if (s.exists()) s.forEach(function (c) { reqs.push(Object.assign({}, c.val(), { _key: c.key })); });
+      reqs.sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+      var h = '<div>';
+      h += '<div style="display:flex;gap:8px;margin-bottom:12px">';
+      h += '<button class="btn btn-ghost btn-sm" onclick="window.exportCSV(\'wallet\')"><i class="fas fa-download"></i> Export</button></div>';
+      if (!reqs.length) h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No pending requests ✅</p>';
+      reqs.forEach(function (r) {
+        var isDeposit = r.type === 'deposit';
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-body compact">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:start">';
+        h += '<div><div style="font-weight:700;font-size:13px">' + (isDeposit ? '📥 Deposit' : '📤 Withdrawal') + ' — ₹' + r.amount + '</div>';
+        h += '<div class="text-xxs text-muted">' + (r.userName || '?') + ' · ' + new Date(r.createdAt).toLocaleString() + '</div>';
+        if (r.utr) h += '<div class="text-xxs" style="margin-top:4px">UTR: <span class="font-mono">' + r.utr + '</span></div>';
+        if (isDeposit && r.screenshotBase64) h += '<button class="btn btn-ghost btn-xs" style="margin-top:4px" onclick="window._viewSS(\'' + r._key + '\')"><i class="fas fa-image"></i> View Proof</button>';
+        h += '</div>';
+        h += '<div style="display:flex;flex-direction:column;gap:4px">';
+        h += '<button class="btn btn-primary btn-xs" onclick="window.approveWallet(\'' + r._key + '\',\'' + r.uid + '\',' + r.amount + ',\'' + r.type + '\')">✅ Approve</button>';
+        h += '<button class="btn btn-danger btn-xs" onclick="window.rejectWallet(\'' + r._key + '\',\'' + r.uid + '\',' + r.amount + ',\'' + r.type + '\')">❌ Reject</button>';
+        h += '</div></div></div></div>';
+      });
+      h += '</div>';
+      _modal('💳 Pending Wallet Requests (' + reqs.length + ')', h);
+    });
+  };
+  window._viewSS = function (key) {
+    rtdb.ref('walletRequests/' + key + '/screenshotBase64').once('value', function (s) {
+      if (!s.exists()) { _toast('No screenshot', 'inf'); return; }
+      var img = '<div style="text-align:center"><img src="' + s.val() + '" style="max-width:100%;border-radius:10px"></div>';
+      _modal('📸 Payment Screenshot', img);
+    });
+  };
+  window.approveWallet = function (key, uid, amount, type) {
+    /* ⛔ R7 FOLLOW-UP (2026-09-25) — INERT financial path: Supabase is the
+       one authoritative financial ledger. Ye legacy RTDB handler ab PAISA
+       NAHI hilata — no realMoney deposit/withdrawal mutation, no balance
+       credit (pehle yahan client-side money write hota tha). Status + admin
+       audit log mirror-only rahte hain (UI consistency). Real deposit/withdraw
+       actions apne dedicated RPCs se hote hain (resolve_sd_request for SD,
+       resolve_sponsored_withdrawal for sponsored winnings). */
+    rtdb.ref('walletRequests/' + key).update({ status: 'approved', approvedAt: Date.now() });
+    if (window._supa && uid) {
+      window._supa.from('admin_activity_log').insert({
+        admin_uid: (window.getAdminUid ? window.getAdminUid() : 'admin'), action_type: 'legacy_wallet_approve_mirror',
+        target_uid: uid, details: { amount: amount, type: type, note: 'inert — balance untouched; RPC-only financial path', timestamp: Date.now() },
+        created_at: new Date().toISOString()
+      }).then(null, function(){});
+    }
+    _logAction('approve_wallet', key, { uid: uid, amount: amount, type: type });
+    _toast('⛔ Legacy request approve (mirror-only) — paisa RPC se hi hota hai');
+    window.showPendingWallet();
+  };
+  window.rejectWallet = function (key, uid, amount, type) {
+    /* ⛔ R7 FOLLOW-UP (2026-09-25) — INERT (same as approveWallet): koi
+       refund/balance write NAHI (pehle yahan client-side refund hota tha —
+       double-source-of-truth). Mirror-only status write. */
+    rtdb.ref('walletRequests/' + key).update({ status: 'rejected', rejectedAt: Date.now() });
+    if (window._supa && uid) {
+      window._supa.from('admin_activity_log').insert({
+        admin_uid: (window.getAdminUid ? window.getAdminUid() : 'admin'), action_type: 'legacy_wallet_reject_mirror',
+        target_uid: uid, details: { amount: amount, type: type, note: 'inert — balance untouched; RPC-only financial path', timestamp: Date.now() },
+        created_at: new Date().toISOString()
+      }).then(null, function(){});
+    }
+    _logAction('reject_wallet', key, { uid: uid, amount: amount, type: type });
+    _toast('⛔ Legacy request reject (mirror-only) — refund RPC se hi hota hai');
+    window.showPendingWallet();
+  };
+
+  /* ─── FEATURE 30: ROOM ID RELEASE MANAGER ───
+     ✅ FIX (2026-10-06): timing chip ka click handler pehle inline tha aur
+     `b.style.background=''` se reset karta tha — khaali string INVALID CSS
+     hai, isliye chips safed ho jate the aur white text invisible ho jata tha.
+     Ab ek named helper hai jo har chip par hamesha valid color lagata hai. */
+  window._rmPickMin = function (min) {
+    var inp = document.getElementById('rmRelMin');
+    if (inp) { inp.value = min; }
+    var chips = document.querySelectorAll('[data-rm-chip]');
+    chips.forEach(function (b) {
+      var on = Number(b.getAttribute('data-rm-chip')) === Number(min);
+      b.style.background = on ? 'var(--primary)' : 'var(--bg2,#15151c)';
+      b.style.color      = on ? '#04140c' : 'var(--text,#eaeaea)';
+    });
+    /* Auto-release line bhi turant update karo (pehle sirf button dabne par
+       number badalta tha, line purani rehti thi) */
+    var info = document.getElementById('rmAutoInfo');
+    if (info && info.getAttribute('data-matchtime')) {
+      var mt   = Number(info.getAttribute('data-matchtime'));
+      var diff = (mt - Number(min) * 60000) - Date.now();
+      if (diff > 0) {
+        info.textContent = '⏰ Auto-release in: ~' + Math.floor(diff / 60000) + ' min (match - ' + min + ' min)';
+        info.style.color = '#00d4ff';
+      } else {
+        info.textContent = '⚠️ Release time already passed — release manually';
+        info.style.color = '#ffaa00';
+      }
+    }
+  };
+
+  /* ✅ B7 (2026-10-06) — Room Manager ke do buttons ka saajha saamaan:
+     (a) input padhna: aage-peeche ki khaali jagah (spaces) hata kar, aur
+         release-minutes ko 1..60 ke andar (input par max=60 likha hai —
+         pehle code 0 ya 999 bhi chup-chaap le leta tha).
+     (b) dono buttons ko lock/unlock karna: jab tak DB write chal rahi ho,
+         Save/Release dobara dabaya na ja sake (warna do baar release hokar
+         players ko duplicate notification jati thi).
+     (c) modal ke andar turant status dikhana — admin ko foran pata chale ki
+         kya hua (toast chala bhi jaye to yahan likha rehta hai). */
+  function _rmReadInputs() {
+    var elId  = _$('rmRoomId'), elPw = _$('rmRoomPw'), elMin = _$('rmRelMin');
+    var roomId = String((elId || {}).value || '').replace(/^\s+|\s+$/g, '');
+    var roomPw = String((elPw || {}).value || '').replace(/^\s+|\s+$/g, '');
+    var relMin = Number((elMin || {}).value);
+    if (!isFinite(relMin) || relMin < 1) relMin = 5;
+    if (relMin > 60) relMin = 60;
+    if (elId)  elId.value  = roomId;   /* trailing space = players ka login fail */
+    if (elPw)  elPw.value  = roomPw;
+    if (elMin) elMin.value = relMin;
+    return { roomId: roomId, roomPw: roomPw, relMin: relMin };
+  }
+  /* ✅ B7: in-flight flag — button disable hone ke saath-saath ek guard bhi,
+     taki tez double-tap / dobara-fire hone par bhi DOOSRI write (aur
+     duplicate release-notification) kabhi na jaye. */
+  var _rmInFlight = false;
+  function _rmBusy(on) {
+    _rmInFlight = !!on;
+    ['rmSaveBtn', 'rmReleaseBtn'].forEach(function (id) {
+      var b = document.getElementById(id);
+      if (b) { b.disabled = !!on; b.style.opacity = on ? '0.6' : ''; }
+    });
+  }
+  function _rmStatus(html, kind) {
+    var el = document.getElementById('rmActionStatus');
+    if (!el) return;
+    var ok = (kind !== 'err');
+    el.style.display = 'block';
+    el.style.background = ok ? 'rgba(0,255,156,.08)' : 'rgba(255,68,68,.10)';
+    el.style.border = '1px solid ' + (ok ? 'rgba(0,255,156,.28)' : 'rgba(255,68,68,.32)');
+    el.style.color = ok ? 'var(--success)' : '#ff6b6b';
+    el.innerHTML = html;
+  }
+
+  window.showRoomManager = function (matchId, matchName) {
+    rtdb.ref('matches/' + matchId).once('value', function (s) {
+      var m = s.val() || {};
+      /* ✅ B6/B21 (2026-10-06): room creds matches me NAHI rehte — trigger
+         `redirect_match_room_secrets` unhe `match_rooms` me bhej deta hai aur
+         matches ke room_id/room_password NULL kar deta hai. Isliye pehle
+         wahi se creds laao, warna Room Manager hamesha khaali dikhta tha aur
+         admin ko lagta tha ki room ID save hi nahi hui (jabki DB me thi). */
+      rtdb.ref('matchRooms/' + matchId).once('value', function (rs) {
+        var rc = (rs && rs.val && rs.val()) || {};
+        /* bridge generic table hai — row jaisa hai waisa (snake_case) milta
+           hai; dono shakal sambhaal lo */
+        var _rid  = rc.room_id || rc.roomId || '';
+        var _rpw  = rc.room_password || rc.roomPassword || '';
+        if (!m.roomId && _rid) m.roomId = _rid;
+        if (!m.roomPassword && _rpw) m.roomPassword = _rpw;
+        _renderRoomManager(matchId, matchName, m);
+      });
+    });
+
+    function _renderRoomManager(matchId, matchName, m) {
+      var relMin = m.roomReleaseMinutes || 5; // default 5 minutes
+      var h = '<div>';
+      h += '<p class="text-muted" style="font-size:12px;margin-bottom:12px">Room details for: <strong>' + matchName + '</strong></p>';
+      h += '<div class="form-group"><label>Room ID</label><input type="text" id="rmRoomId" class="form-input" value="' + (m.roomId || '') + '" placeholder="Enter Room ID"></div>';
+      h += '<div class="form-group"><label>Room Password</label><input type="text" id="rmRoomPw" class="form-input" value="' + (m.roomPassword || '') + '" placeholder="Enter Password"></div>';
+      // Release time config
+      h += '<div class="form-group" style="margin-bottom:14px">';
+      h += '<label style="margin-bottom:6px;display:block">⏱️ Players ko Room ID kab mile? (Match se kitne min pehle)</label>';
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      /* ✅ BUG FIX (2026-10-06) — "timing box me kuch dikhta hi nahi, box bhi
+         white aur likha hua bhi white"
+         असली जड़: background me khaali string pass ho rahi thi
+         (`background:` + '' + ';') jo INVALID CSS hai — isliye browser apna
+         default (safed/light) button background use karta tha, aur upar se
+         text white (var(--text)) → safed par safed = invisible.
+         Ab: na-chune gaye chips ko DARK background milta hai aur reset par
+         bhi wahi dark color lagta hai (khaali string nahi). */
+      var RM_IDLE_BG  = 'var(--bg2,#15151c)';
+      var RM_IDLE_FG  = 'var(--text,#eaeaea)';
+      [1, 3, 5, 10, 15, 30].forEach(function(min) {
+        h += '<button data-rm-chip="' + min + '" onclick="window._rmPickMin(' + min + ')" ' +
+          'style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:' + (relMin === min ? 'var(--primary)' : RM_IDLE_BG) + ';color:' + (relMin === min ? '#04140c' : RM_IDLE_FG) + ';font-size:12px;font-weight:700;cursor:pointer">' + min + ' min</button>';
+      });
+      h += '</div>';
+      h += '<input type="number" id="rmRelMin" value="' + relMin + '" min="1" max="60" style="margin-top:8px;width:80px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:13px" placeholder="Min">';
+      h += '<span style="font-size:11px;color:var(--text-muted);margin-left:8px">minutes before match (default: 5)</span>';
+      h += '</div>';
+      // Status info
+      if (m.roomStatus === 'released') {
+        h += '<div style="margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(0,255,106,.08);font-size:12px;color:var(--success)">✅ Room already released to players</div>';
+      } else if (m.matchTime) {
+        var releaseAt = Number(m.matchTime) - (relMin * 60000);
+        var now = Date.now();
+        var diff = releaseAt - now;
+        /* id + data-matchtime diye gaye hain taki chip badalte hi ye line
+           turant update ho jaye (window._rmPickMin dekho) */
+        if (diff > 0) {
+          var mins = Math.floor(diff / 60000);
+          h += '<div id="rmAutoInfo" data-matchtime="' + Number(m.matchTime) + '" style="margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(0,212,255,.08);font-size:12px;color:#00d4ff">⏰ Auto-release in: ~' + mins + ' min (match - ' + relMin + ' min)</div>';
+        } else {
+          h += '<div id="rmAutoInfo" data-matchtime="' + Number(m.matchTime) + '" style="margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(255,170,0,.08);font-size:12px;color:#ffaa00">⚠️ Release time already passed — release manually</div>';
+        }
+      }
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      /* ✅ B7 (2026-10-06): dono buttons par id di — jab tak DB write chal rahi
+         ho dono lock rehte hain (double-tap se do baar release/notification
+         nahi hota), aur neeche ek status box hai jisme kaam hote hi saaf
+         jawab dikhta hai (list refresh ka intezaar nahi). */
+      h += '<div id="rmActionStatus" style="display:none;margin-bottom:10px;padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.5"></div>';
+      h += '<button id="rmSaveBtn" class="btn btn-ghost w-full" onclick="window._saveRoomOnly(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-save"></i> Save Only</button>';
+      h += '<button id="rmReleaseBtn" class="btn btn-primary w-full" onclick="window._releaseRoom(\'' + matchId + '\',\'' + matchName + '\')"><i class="fas fa-key"></i> Release Now</button>';
+      h += '</div>';
+      h += '</div>';
+      _modal('🔑 Room Manager', h);
+    }
+  };
+
+  /* Save room details without releasing to players yet */
+  /* Save room details without releasing to players yet */
+  window._saveRoomOnly = function (matchId, matchName) {
+    if (_rmInFlight) return;   /* ✅ B7: pehli write chal rahi hai to kuch nahi karte */
+    var v = _rmReadInputs();
+    if (!v.roomId || !v.roomPw) { _toast('Room ID and Password required', true); _rmStatus('⚠️ Room ID aur Password dono likho', 'err'); return; }
+    _rmBusy(true);
+    /* ✅ B7: pehle seedha roomStatus:'saved' likh diya jata tha — agar room
+       PEHLE SE released tha to ye usse wapas "chhupa" deta tha (jinko Room ID
+       mil chuki thi, unke liye wo gayab, jab tak cron dobara release na kare).
+       Ab pehle current status dekhte hain: released ho to status waisa hi
+       rehta hai, sirf creds/timing update hoti hai. */
+    rtdb.ref('matches/' + matchId).once('value').then(function (s) {
+      var m = (s && s.val && s.val()) || {};
+      var wasReleased = (m.roomStatus === 'released');
+      var patch = { roomId: v.roomId, roomPassword: v.roomPw, roomReleaseMinutes: v.relMin };
+      if (!wasReleased) patch.roomStatus = 'saved';
+      /* (roomSavedAt nahi bhejte — matches table me aisa koi column hi nahi
+         hai, isliye pehle wo value chup-chaap gir jati thi) */
+      return rtdb.ref('matches/' + matchId).update(patch).then(function () {
+        return wasReleased;
+      });
+    }).then(function (wasReleased) {
+      _rmBusy(false);
+      _logAction('save_room', matchId, { matchName: matchName, releaseMin: v.relMin, stillReleased: !!wasReleased });
+      _toast('💾 Room details saved! ' + (wasReleased ? 'Room pehle se released hai — released hi rahega.' : 'Will auto-release ' + v.relMin + ' min before match.'));
+      _rmStatus(wasReleased
+        ? '💾 <b>Saved!</b> Room details update ho gayi. Room <b>pehle se released</b> hai, isliye players ko dikhta rahega (match - ' + v.relMin + ' min ka niyam sirf naye room par lagta hai).'
+        : '💾 <b>Saved!</b> Players ko abhi nahi dikhega — match se <b>' + v.relMin + ' min pehle</b> khud release ho jayega (server cron). Turant dena ho to "Release Now" dabao.');
+    }, function (err) {
+      _rmBusy(false);
+      _rmStatus('❌ Save nahi hua: ' + ((err && err.message) || 'DB error') + ' — dobara try karo', 'err');
+      _toast('❌ Room save fail', true);
+    });
+  };
+
+  window._releaseRoom = function (matchId, matchName) {
+    if (_rmInFlight) return;   /* ✅ B7: double-tap = double notification nahi */
+    var v = _rmReadInputs();
+    if (!v.roomId || !v.roomPw) { _toast('Room ID and Password required', true); _rmStatus('⚠️ Room ID aur Password dono likho', 'err'); return; }
+    _rmBusy(true);
+    rtdb.ref('matches/' + matchId).update({
+      roomId: v.roomId, roomPassword: v.roomPw,
+      roomStatus: 'released',
+      roomReleaseMinutes: v.relMin,
+      roomReleasedAt: Date.now()
+    }).then(function () {
+      /* ✅ BUG FIX (2026-08-22): this used to run its own independent
+         notify-loop, duplicating whatever saveTournament()'s room-change
+         handler or the auto-release scheduler already sent for the same
+         release — confirmed live as the same "Room Details Released!"
+         notification appearing 2-4x. Now routes through the single
+         deduped sendRoomNotificationToMatch(), same as every other
+         room-release trigger in the app. */
+      _rmStatus('✅ <b>Room released!</b> Players ko abhi dikh raha hai — notification bheji ja rahi hai…');
+      if (typeof window.sendRoomNotificationToMatch === 'function') {
+        return window.sendRoomNotificationToMatch(matchId, v.roomId, v.roomPw, matchName).then(function (count) {
+          _rmBusy(false);
+          _logAction('release_room', matchId, { matchName: matchName, notified: count });
+          _toast('✅ Room ID released! ' + count + ' players notified.');
+          _rmStatus('✅ <b>Room released!</b> Abhi ke liye players ko dikh raha hai · <b>' + count + '</b> joined players ko notification chali gayi.');
+        });
+      }
+      _rmBusy(false);
+      _logAction('release_room', matchId, { matchName: matchName, notified: 0 });
+      _toast('✅ Room ID released! (notify function unavailable)');
+      _rmStatus('✅ <b>Room released!</b> Players ko abhi dikh raha hai. (notification function available nahi tha — app reload karke dobara try karo)');
+    }, function (err) {
+      _rmBusy(false);
+      _rmStatus('❌ Release nahi hua: ' + ((err && err.message) || 'DB error') + ' — dobara try karo', 'err');
+      _toast('❌ Room release fail', true);
+    });
+  };
+
+
+  /* ─── FEATURE 31: MATCH RESULT PUBLISHER ─── */
+  window.showResultPublisher = function (matchId, matchName) {
+    /* Load joined players for this match from allJoinRequests */
+    var joinedPlayers = [];
+    var allJR = window.allJoinRequests || {};
+    Object.keys(allJR).forEach(function(k) {
+      var j = allJR[k];
+      var tid = j.tournamentId || j.matchId;
+      if (tid !== matchId) return;
+      var st = j.status || '';
+      if (st === 'rejected' || st === 'cancelled') return;
+      joinedPlayers.push({
+        uid: j.userId || j.uid || k.split('_')[0] || '',
+        name: j.playerName || j.ign || j.userName || 'Player',
+        ffUid: j.ffUid || j.gameUid || '—'
+      });
+    });
+
+    /* Also get match prize distribution info */
+    rtdb.ref('matches/' + matchId).once('value', function(ms) {
+      var match = ms.val() || {};
+      var prizePool = match.prizePool || 0;
+      var prizes = match.prizes || {};
+      /* Default prize distribution: 1st=50%, 2nd=30%, 3rd=20% of prizePool */
+      var p1 = prizes.first || Math.round(prizePool * 0.5);
+      var p2 = prizes.second || Math.round(prizePool * 0.3);
+      var p3 = prizes.third || Math.round(prizePool * 0.2);
+
+      var h = '<div>';
+      h += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Match: <strong>' + matchName + '</strong> | Prize Pool: <strong style="color:var(--success)">₹' + prizePool + '</strong></div>';
+      h += '<div style="font-size:11px;color:var(--info);margin-bottom:12px;padding:6px;background:rgba(0,212,255,.06);border-radius:8px">🏆 #1=₹' + p1 + ' | 🥈 #2=₹' + p2 + ' | 🥉 #3=₹' + p3 + ' (auto-calculated)</div>';
+      
+      if (joinedPlayers.length > 0) {
+        h += '<div style="font-size:12px;font-weight:700;margin-bottom:8px">Joined Players (' + joinedPlayers.length + '):</div>';
+        h += '<div id="resultEntries" style="display:flex;flex-direction:column;gap:6px">';
+        /* Group players by team for duo/squad */
+        var mode = (match.mode || match.type || 'solo').toLowerCase();
+        var isTeam = (mode === 'duo' || mode === 'squad');
+        
+        /* Build team groups */
+        var teamGroups = {};
+        joinedPlayers.forEach(function(p) {
+          var teamKey = p.teamId || p.captainUid || p.uid;
+          if (!teamGroups[teamKey]) teamGroups[teamKey] = [];
+          teamGroups[teamKey].push(p);
+        });
+
+        joinedPlayers.forEach(function(p, idx) {
+          var teamKey = p.teamId || p.captainUid || p.uid;
+          var isFirstInTeam = (teamGroups[teamKey] && teamGroups[teamKey][0] === p);
+          var teamBorder = isTeam && !isFirstInTeam ? 'border-left:3px solid rgba(185,100,255,.4)' : '';
+          h += '<div style="display:grid;grid-template-columns:1fr 60px 70px;gap:6px;align-items:center;padding:6px;background:var(--card-bg);border-radius:8px;border:1px solid var(--border);' + teamBorder + '">';
+          h += '<div><div style="font-size:12px;font-weight:700">' + p.name + (isTeam && !isFirstInTeam ? ' <span style="font-size:9px;color:#b964ff">teammate</span>' : '') + '</div>';
+          h += '<div style="font-size:10px;color:var(--primary);font-family:monospace">FF: ' + p.ffUid + '</div></div>';
+          /* Rank input - for team members auto-fill from captain's rank */
+          h += '<input type="number" placeholder="Rank" min="0" value="0" class="form-input res-pos" data-uid="' + p.uid + '" data-name="' + p.name + '" data-team="' + teamKey + '" style="font-size:12px;text-align:center;padding:4px" oninput="window._autoFillTeamRank(this)" title="Rank (0=not ranked)">';
+          h += '<input type="number" placeholder="Kills" min="0" value="0" class="form-input res-kills" style="font-size:12px;text-align:center;padding:4px">';
+          h += '</div>';
+        });
+        h += '</div>';
+      } else {
+        h += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">No joined players found. Add manually:</div>';
+        h += '<div id="resultEntries" style="display:flex;flex-direction:column;gap:6px"></div>';
+        h += '<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="window._addResultRow()"><i class="fas fa-plus"></i> Add Player</button>';
+      }
+      
+      h += '<div style="margin-top:10px;padding:8px;background:rgba(255,215,0,.06);border-radius:8px;font-size:11px;color:var(--warning)"><i class="fas fa-info-circle"></i> Position 1/2/3 = winner, 0 = not ranked. Prize auto-paid to winners.</div>';
+      h += '<button class="btn btn-primary w-full" style="margin-top:12px" onclick="window._publishResults(\'' + matchId + '\',\'' + matchName + '\',\'' + p1 + '\',\'' + p2 + '\',\'' + p3 + '\')"><i class="fas fa-trophy"></i> Publish & Auto-Pay</button>';
+      h += '</div>';
+      _modal('🏆 Publish Results — ' + matchName, h);
+      /* Add empty row if no joined players */
+      if (joinedPlayers.length === 0) {
+        setTimeout(function() { window._addResultRow(); window._addResultRow(); window._addResultRow(); }, 100);
+      }
+    });
+  };
+  /* Auto-fill team rank - when one player rank entered, fill all teammates */
+  window._autoFillTeamRank = function(input) {
+    var teamKey = input.getAttribute('data-team');
+    if (!teamKey) return;
+    var rank = input.value;
+    /* Find all inputs with same team key */
+    document.querySelectorAll('.res-pos[data-team="' + teamKey + '"]').forEach(function(el) {
+      if (el !== input && el.value == 0) el.value = rank;
+    });
+  };
+
+  window._resultRowCount = 0;
+  window._addResultRow = function () {
+    var i = ++window._resultRowCount;
+    var el = _$('resultEntries'); if (!el) return;
+    var row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 60px 70px;gap:6px;align-items:center;padding:6px;background:var(--card-bg);border-radius:8px;border:1px solid var(--border)';
+    row.innerHTML = '<input type="text" placeholder="Player IGN" class="form-input res-ign" style="font-size:12px">' +
+      '<input type="number" placeholder="Pos" min="0" value="0" class="form-input res-pos" data-uid="" style="font-size:12px;text-align:center;padding:4px">' +
+      '<input type="number" placeholder="Kills" min="0" value="0" class="form-input res-kills" style="font-size:12px;text-align:center;padding:4px">';
+    el.appendChild(row);
+  };
+  window._publishResults = function (matchId, matchName, prize1, prize2, prize3) {
+    /* ⛔ R7 SECURITY (2026-09-26, P0): legacy "Publish & Auto-Pay" sirf client-side
+       Firebase money-write karta tha (users/{uid}/realMoney/winnings + stats/earnings
+       + transactions) = client financial authority + double ledger. Ab inert:
+       single authoritative server RPC `publish_match_results()` hi chalega —
+       client sirf {user_id, rank, kills}. Koi amount/currency/prize NAHI bhejta,
+       koi Firebase money-write NAHI. (prize1/2/3 params ab ignore hote hain —
+       server matches.first/second/third_prize + per_kill_prize se compute karta hai.) */
+    var posInputs = document.querySelectorAll('.res-pos');
+    var killInputs = document.querySelectorAll('.res-kills');
+    var results = [];
+    posInputs.forEach(function(posEl, i) {
+      var pos = Number(posEl.value) || 0;
+      var kills = Number(killInputs[i] && killInputs[i].value) || 0;
+      var uid = posEl.getAttribute('data-uid') || '';
+      if (!uid) return; /* IGN-only row → RPC skip (server join undefined) */
+      if (!pos && !kills) return;
+      results.push({ user_id: uid, rank: pos || 0, kills: kills });
+    });
+    if (!results.length) { _toast('Koi player result nahi (UID wale rows chahiye)', true); return; }
+    if (!window._supa) { _toast('Supabase not ready — single authority required', true); return; }
+    if (window._pubInFlight) { _toast('⏳ Already publishing...', true); return; }
+    window._pubInFlight = true;
+    window._supa.rpc('publish_match_results', { p_match_id: matchId, p_results: results })
+      .then(function(res) {
+        var p = res && res.data;
+        if (res && res.error) throw new Error(res.error.message || 'publish RPC failed');
+        if (!p || p.ok !== true) throw new Error((p && p.error) || 'Publish rejected by server');
+        _toast('✅ Results published! (' + p.players + ' players, ' + p.winners + ' winners paid' +
+               (p.was_correction ? ', ' + p.corrections + ' corrections' : '') + ')');
+        if (window.logActivity) logActivity('publish_results', matchId, { count: p.players, matchName: matchName });
+        _close();
+      })
+      .catch(function(err) {
+        _toast('Error: ' + (err && err.message), true);
+        console.error('_publishResults error:', err);
+      })
+      .then(function() { window._pubInFlight = false; });
+  };
+  /* ─── FEATURE 32: DISPUTE MANAGEMENT ─── */
+
+  window.showDisputes = function () {
+    rtdb.ref('disputes').orderByChild('status').equalTo('pending').once('value', function (s) {
+      var disputes = [];
+      if (s.exists()) s.forEach(function (c) { disputes.push(Object.assign({}, c.val(), { _key: c.key })); });
+      var h = '<div>';
+      if (!disputes.length) h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No pending disputes 🎉</p>';
+      disputes.forEach(function (d) {
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-body compact">';
+        h += '<div style="font-weight:700;font-size:13px">' + d.type + ' — ' + d.userName + '</div>';
+        h += '<div class="text-xxs text-muted">Match: ' + (d.matchId || '—') + ' · Claimed Rank: ' + (d.claimedRank || '—') + '</div>';
+        h += '<div style="font-size:12px;margin:6px 0">' + (d.message || '') + '</div>';
+        h += '<div style="display:flex;gap:8px">';
+        h += '<button class="btn btn-primary btn-xs flex-1" onclick="rtdb.ref(\'disputes/' + d._key + '\').update({status:\'resolved\'});showToast(\'Resolved\');window.showDisputes();">✅ Resolve</button>';
+        h += '<button class="btn btn-ghost btn-xs flex-1" onclick="rtdb.ref(\'disputes/' + d._key + '\').update({status:\'rejected\'});showToast(\'Rejected\');window.showDisputes();">❌ Reject</button>';
+        h += '</div></div></div>';
+      });
+      h += '</div>';
+      _modal('⚠️ Disputes (' + disputes.length + ')', h);
+    });
+  };
+
+  /* ─── FEATURE 33: LIVE USER COUNT ─── */
+  window.showLiveUserCount = function () {
+    rtdb.ref('presence').once('value', function (s) {
+      var online = 0;
+      if (s.exists()) s.forEach(function (c) { if (c.val() === true || (c.val() && c.val().online)) online++; });
+      _toast('👥 Currently Online: ' + online + ' users', 'inf');
+    });
+  };
+
+  /* ─── FEATURE 34: MATCH ANALYTICS (Per Match Stats) ─── */
+  window.showMatchAnalytics = function (matchId, matchName) {
+    rtdb.ref('joinRequests').orderByChild('matchId').equalTo(matchId).once('value', function (s) {
+      var total = 0, captains = 0, members = 0, modes = {};
+      if (s.exists()) s.forEach(function (c) {
+        var d = c.val(); total++;
+        if (d.isTeamMember) members++;
+        else captains++;
+        modes[d.mode || 'solo'] = (modes[d.mode || 'solo'] || 0) + 1;
+      });
+      var h = '<div>';
+      h += '<div style="font-size:14px;font-weight:700;margin-bottom:12px">' + matchName + '</div>';
+      h += '<div class="stats-grid">';
+      [['Total Players', total], ['Captains', captains], ['Team Members', members]].forEach(function (d) {
+        h += '<div class="stat-card"><div class="value">' + d[1] + '</div><div class="label">' + d[0] + '</div></div>';
+      });
+      h += '</div>';
+      if (Object.keys(modes).length) {
+        h += '<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">Mode Breakdown:</div>';
+        Object.entries(modes).forEach(function (e) {
+          h += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>' + e[0].toUpperCase() + '</span><strong>' + e[1] + '</strong></div>';
+        });
+        h += '</div>';
+      }
+      h += '</div>';
+      _modal('📊 Match Analytics', h);
+    });
+  };
+
+  /* ─── FEATURE 35: VOUCHER MANAGER ─── */
+  window.showVoucherManager = function () {
+    rtdb.ref('vouchers').once('value', function (s) {
+      var h = '<div>';
+      h += '<div class="form-group"><label>New Voucher Code</label><input type="text" id="vcCode" class="form-input" placeholder="e.g. WELCOME50" style="text-transform:uppercase"></div>';
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+      h += '<div class="form-group"><label>Type</label><select id="vcType" class="form-input"><option value="coins">Coins</option><option value="money">Cash Bonus</option></select></div>';
+      h += '<div class="form-group"><label>Amount</label><input type="number" id="vcAmt" class="form-input" placeholder="Amount"></div>';
+      h += '</div>';
+      h += '<div class="form-group"><label>Max Uses</label><input type="number" id="vcMax" class="form-input" placeholder="0 = unlimited"></div>';
+      h += '<button class="btn btn-primary w-full" onclick="window._createVoucher()" style="margin-bottom:14px"><i class="fas fa-plus"></i> Create Voucher</button>';
+      if (s.exists()) {
+        h += '<div style="font-size:13px;font-weight:700;margin-bottom:8px">Active Vouchers:</div>';
+        h += '<table><thead><tr><th>Code</th><th>Reward</th><th>Uses</th><th>Action</th></tr></thead><tbody>';
+        s.forEach(function (c) {
+          var v = c.val();
+          h += '<tr><td class="font-mono font-bold">' + c.key + '</td>';
+          h += '<td>' + (v.rewardType || 'coins') + ' ' + (v.rewardAmount || 0) + '</td>';
+          h += '<td>' + (v.usedCount || 0) + '/' + (v.maxUses || '∞') + '</td>';
+          h += '<td><button class="btn btn-danger btn-xs" onclick="rtdb.ref(\'vouchers/' + c.key + '\').update({status:\'inactive\'});showVoucherManager();">Disable</button></td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div>';
+      _modal('🎟️ Voucher Manager', h);
+    });
+  };
+  window._createVoucher = function () {
+    var code = ((_$('vcCode') || {}).value || '').toUpperCase().trim();
+    var type = (_$('vcType') || {}).value;
+    var amt = Number((_$('vcAmt') || {}).value) || 0;
+    var maxUses = Number((_$('vcMax') || {}).value) || 0;
+    if (!code || !amt) { _toast('Fill all fields', true); return; }
+    rtdb.ref('vouchers/' + code).set({ rewardType: type, rewardAmount: amt, maxUses: maxUses || null, usedCount: 0, status: 'active', createdAt: Date.now() });
+    _logAction('create_voucher', code, { type: type, amount: amt });
+    _toast('✅ Voucher created: ' + code);
+    window.showVoucherManager();
+  };
+
+  /* ─── FEATURE 36: ANNOUNCEMENT BANNER MANAGER ─── */
+  window.showBannerManager = function () {
+    rtdb.ref('appSettings/banner').once('value', function (s) {
+      var b = s.val() || {};
+      var h = '<div>';
+      h += '<div class="form-group"><label>Banner Text</label><input type="text" id="bnText" class="form-input" value="' + (b.text || '') + '" placeholder="Announcement text..."></div>';
+      h += '<div class="form-group"><label>Background Color</label><input type="color" id="bnColor" value="' + (b.color || '#00ff9c22') + '" class="form-input"></div>';
+      h += '<div style="display:flex;gap:8px">';
+      h += '<button class="btn btn-primary flex-1" onclick="window._saveBanner()"><i class="fas fa-save"></i> Save</button>';
+      h += '<button class="btn btn-danger flex-1" onclick="rtdb.ref(\'appSettings/banner\').remove();showToast(\'Banner removed\');closeModal()"><i class="fas fa-times"></i> Remove</button>';
+      h += '</div></div>';
+      _modal('📢 Banner Manager', h);
+    });
+  };
+  window._saveBanner = function () {
+    rtdb.ref('appSettings/banner').set({
+      text: (_$('bnText') || {}).value,
+      color: (_$('bnColor') || {}).value,
+      textColor: '#ffffff'
+    });
+    _toast('✅ Banner saved!');
+    _close();
+  };
+
+  /* ─── FEATURE 37: TICKER / SCROLLING TEXT MANAGER ─── */
+  window.showTickerManager = function () {
+    rtdb.ref('appSettings/ticker').once('value', function (s) {
+      var h = '<div>';
+      h += '<div class="form-group"><label>Ticker Text (scrolls on home screen)</label><input type="text" id="tkText" class="form-input" value="' + (s.val() || '') + '" placeholder="e.g. 🎮 New tournaments every day!"></div>';
+      h += '<button class="btn btn-primary w-full" onclick="rtdb.ref(\'appSettings/ticker\').set(document.getElementById(\'tkText\').value);showToast(\'✅ Ticker updated!\');closeModal()"><i class="fas fa-save"></i> Save Ticker</button>';
+      h += '</div>';
+      _modal('📜 Ticker Manager', h);
+    });
+  };
+
+  /* ─── FEATURE 38: USER BAN / UNBAN MANAGER ───
+     REMOVED (2026-07-31 cleanup): this used to define window.banUser(uid,name,reason)
+     and window.unbanUser(uid,name) — but admin-inline.js's Users table (and
+     admin-player-lookup.js, and admin-fixes-v24-FINAL.js) all call the GLOBAL
+     banUser(uid) / unbanUser(uid) with a single argument. Because plain <script>
+     tags share one global scope, THIS file's 3-arg version loaded after
+     admin-inline.js's real implementation and silently replaced it — so every
+     Ban/Unban button across the whole panel ended up opening a broken
+     "Ban undefined?" mini-modal that wrote to the wrong RTDB fields
+     (banned/bannedReason instead of isBanned/blocked/banReason) instead of
+     actually banning the user. Removed entirely — no other button in the
+     codebase called this 3-arg version, so admin-inline.js's banUser/unbanUser
+     (uid) are now the only implementations and work correctly everywhere. */
+
+  /* ─── FEATURE 39: PROFILE APPROVAL BULK ─── */
+  window.showPendingProfiles = function () {
+    /* ✅ FIX (live-testing — this was the actual root cause of "Profile
+       Approve/Reject button doesn't work"): rtdb.ref('profileRequests')
+       only returns Supabase UUIDs (which admin_approve_profile/
+       admin_reject_profile require) once the Supabase bridge is
+       installed — window.rtdb exists as raw Firebase from page-load,
+       well before that. If this ran too early, the buttons it renders
+       would be wired up with raw Firebase push-keys (e.g. "-NxYz...")
+       instead of Supabase UUIDs, and the RPC call would fail — either
+       erroring on the uuid cast, or (if it somehow didn't error)
+       silently matching zero rows. Guard against that. */
+    if (!(window.rtdb && window.rtdb._isSupaBridge)) {
+      if (window.showToast) window.showToast('⏳ Still connecting — try again in a moment.', true);
+      return;
+    }
+    rtdb.ref('profileRequests').orderByChild('status').equalTo('pending').once('value', function (s) {
+      var reqs = [];
+      if (s.exists()) s.forEach(function (c) { reqs.push(Object.assign({}, c.val(), { _key: c.key })); });
+      var h = '<div>';
+      if (!reqs.length) h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No pending profiles ✅</p>';
+      reqs.forEach(function (r) {
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-body compact">';
+        h += '<div style="display:flex;justify-content:space-between">';
+        h += '<div><div style="font-weight:700;font-size:13px">' + (r.requestedIgn || r.ign || '?') + '</div>';
+        h += '<div class="text-xxs text-muted">UID: ' + (r.requestedUid || r.ffUid || '?') + '</div>';
+        h += '<div class="text-xxs text-muted">' + (r.displayName || '') + ' · ' + (r.type || 'verification') + '</div></div>';
+        h += '<div style="display:flex;gap:4px">';
+        h += '<button class="btn btn-primary btn-xs" onclick="window.approveProfile(\'' + r._key + '\')">✅</button>';
+        h += '<button class="btn btn-danger btn-xs" onclick="window.rejectProfile(\'' + r._key + '\')">❌</button>';
+        h += '</div></div></div></div>';
+      });
+      h += '</div>';
+      _modal('👤 Pending Profiles (' + reqs.length + ')', h);
+    });
+  };
+  /* NOTE (2026-07-31 cleanup): window.approveProfile / window.rejectProfile used
+     to be (re)defined here with a (reqKey,uid,ign,ffUid) signature that clobbered
+     the New Verifications table's real approveProfile(rid) from admin-inline.js —
+     uid/ign/ffUid arrived as undefined whenever the main table called it with
+     just the request id, so the user's account was never actually updated even
+     though the request got marked "approved". Removed. The buttons above still
+     call window.approveProfile(...)/window.rejectProfile(...); those names now
+     resolve to the single consolidated implementation at the bottom of
+     admin-fixes-v25-SUPABASE.js, which re-reads uid/ign/ffUid from the request
+     record itself — so it works correctly whether called with 1 arg (main table)
+     or 4 args (this Quick Tools modal). */
+
+  /* ─── FEATURE 40: MATCH RESULT HISTORY ─── */
+  window.showResultHistory = function () {
+    rtdb.ref('matchResults').limitToLast(10).once('value', function (s) {
+      var h = '<div>';
+      if (!s.exists()) { h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No results published yet</p></div>'; _modal('📋 Result History', h); return; }
+      s.forEach(function (c) {
+        var results = [];
+        c.forEach(function (r) { results.push(r.val()); });
+        results.sort(function (a, b) { return (a.rank || 99) - (b.rank || 99); });
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-header" style="font-size:12px">Match: ' + c.key.substring(0, 20) + '</div><div class="card-body compact">';
+        results.slice(0, 3).forEach(function (r) {
+          h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0">';
+          h += '<span>#' + r.rank + ' ' + r.playerName + '</span><span class="text-primary">₹' + r.prize + '</span></div>';
+        });
+        h += '</div></div>';
+      });
+      h += '</div>';
+      _modal('📋 Result History', h);
+    });
+  };
+
+  /* ─── FEATURE 41: KILL PROOF VIEWER ─── */
+  window.showKillProofs = function () {
+    rtdb.ref('killProofs').once('value', function (s) {
+      var proofs = [];
+      if (s.exists()) s.forEach(function (userNode) {
+        userNode.forEach(function (matchNode) {
+          proofs.push(Object.assign({}, matchNode.val(), { _uid: userNode.key, _mid: matchNode.key }));
+        });
+      });
+      proofs = proofs.filter(function (p) { return p.status === 'pending'; });
+      var h = '<div>';
+      if (!proofs.length) h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No pending kill proofs</p>';
+      proofs.forEach(function (p) {
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-body compact">';
+        h += '<div style="font-weight:700;font-size:13px">' + (p.userName || 'Player') + '</div>';
+        h += '<div class="text-xxs text-muted">Match: ' + p.matchId + '</div>';
+        if (p.screenshot) h += '<img src="' + p.screenshot + '" style="width:100%;border-radius:8px;margin-top:8px;max-height:150px;object-fit:cover">';
+        h += '<div style="display:flex;gap:8px;margin-top:8px">';
+        h += '<button class="btn btn-primary btn-xs flex-1" onclick="rtdb.ref(\'killProofs/' + p._uid + '/' + p._mid + '/status\').set(\'approved\');showToast(\'Kill proof approved\');window.showKillProofs();">✅ Approve</button>';
+        h += '<button class="btn btn-danger btn-xs flex-1" onclick="rtdb.ref(\'killProofs/' + p._uid + '/' + p._mid + '/status\').set(\'rejected\');showToast(\'Rejected\');window.showKillProofs();">❌ Reject</button>';
+        h += '</div></div></div>';
+      });
+      h += '</div>';
+      _modal('📸 Kill Proofs (' + proofs.length + ')', h);
+    });
+  };
+
+  /* ─── FEATURE 42: ADMIN NOTES VIEWER (All Players) ─── */
+  window.showAllNotes = function () {
+    rtdb.ref('adminNotes').limitToLast(50).once('value', function (s) {
+      var h = '<div>';
+      if (!s.exists()) { h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No notes yet</p></div>'; _modal('📝 All Player Notes', h); return; }
+      s.forEach(function (userNode) {
+        var uid = userNode.key;
+        h += '<div style="padding:8px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);margin-bottom:8px">';
+        h += '<div class="font-mono text-xxs text-muted" style="margin-bottom:6px">' + uid.substring(0, 20) + '</div>';
+        userNode.forEach(function (c) {
+          var n = c.val();
+          h += '<div style="padding:4px 8px;border-radius:6px;background:var(--bg-dark);font-size:11px;margin-bottom:3px"><span class="badge ' + (n.tag || 'yellow') + ' text-xxs">' + n.tag + '</span> ' + n.note + '</div>';
+        });
+        h += '</div>';
+      });
+      h += '</div>';
+      _modal('📝 All Player Notes', h);
+    });
+  };
+
+  /* ─── FEATURE 43: TEAM JOIN HEALTH CHECK ─── */
+  window.runTeamJoinHealthCheck = function () {
+    rtdb.ref('joinRequests').once('value', function (s) {
+      var captains = {}, members = {};
+      if (s.exists()) s.forEach(function (c) {
+        var d = c.val();
+        if (!d.matchId) return;
+        var key = d.userId + '_' + d.matchId;
+        if (d.isTeamMember) members[key] = d;
+        else if (d.mode !== 'solo') captains[key] = d;
+      });
+      var issues = [];
+      Object.entries(captains).forEach(function (e) {
+        var captain = e[1];
+        if (captain.mode === 'solo' || !captain.teamMembers) return;
+        captain.teamMembers.forEach(function (m) {
+          if (m.role === 'captain') return;
+          var memberKey = m._fbUid + '_' + captain.matchId;
+          if (!members[memberKey]) {
+            issues.push({ captain: captain.userName, member: m.name, matchId: captain.matchId });
+          }
+        });
+      });
+      var h = '<div>';
+      h += '<div style="padding:10px;background:' + (issues.length ? 'rgba(255,107,107,.1)' : 'rgba(0,255,106,.1)') + ';border-radius:10px;margin-bottom:12px;font-size:13px">';
+      h += (issues.length ? '⚠️ ' + issues.length + ' missing teammate join(s) found!' : '✅ All team joins healthy!') + '</div>';
+      if (issues.length) {
+        h += '<table><thead><tr><th>Captain</th><th>Missing Member</th><th>Match</th></tr></thead><tbody>';
+        issues.forEach(function (i) {
+          h += '<tr><td>' + i.captain + '</td><td class="text-primary">' + i.member + '</td><td class="text-xxs font-mono">' + i.matchId.substring(0, 12) + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      }
+      h += '</div>';
+      _modal('🔍 Team Join Health Check', h);
+    });
+  };
+
+  /* ─── FEATURE 44: SEASON MANAGER ─── */
+  window.showSeasonManager = function () {
+    rtdb.ref('season').once('value', function (s) {
+      var season = s.val() || { name: 'Season 1', endDate: null };
+      var h = '<div>';
+      h += '<div class="form-group"><label>Season Name</label><input type="text" id="snName" class="form-input" value="' + (season.name || '') + '"></div>';
+      h += '<div class="form-group"><label>End Date</label><input type="date" id="snEnd" class="form-input" value="' + (season.endDate ? new Date(season.endDate).toISOString().slice(0, 10) : '') + '"></div>';
+      h += '<div class="form-group"><label>Prize Pool (₹)</label><input type="number" id="snPrize" class="form-input" value="' + (season.prizePool || 0) + '"></div>';
+      h += '<button class="btn btn-primary w-full" onclick="window._saveSeason()"><i class="fas fa-save"></i> Save Season</button>';
+      h += '</div>';
+      _modal('🏆 Season Manager', h);
+    });
+  };
+  window._saveSeason = function () {
+    var end = (_$('snEnd') || {}).value;
+    rtdb.ref('season').set({
+      name: (_$('snName') || {}).value,
+      endDate: end ? new Date(end).getTime() : null,
+      prizePool: Number((_$('snPrize') || {}).value) || 0,
+      updatedAt: Date.now()
+    });
+    _toast('✅ Season updated!');
+    _close();
+  };
+
+  /* ─── FEATURE 45: ADMIN QUICK STATS CARD ─── */
+  window.renderAdminQuickStats = function (containerId) {
+    var el = _$(containerId); if (!el) return;
+    Promise.all([
+      rtdb.ref('walletRequests').orderByChild('status').equalTo('pending').once('value'),
+      rtdb.ref('profileRequests').orderByChild('status').equalTo('pending').once('value'),
+      rtdb.ref('supportRequests').orderByChild('status').equalTo('open').once('value'),
+      rtdb.ref('disputes').orderByChild('status').equalTo('pending').once('value'),
+      rtdb.ref('banAppeals').orderByChild('status').equalTo('pending').once('value'),
+    ]).then(function (r) {
+      var counts = r.map(function (s) { var c = 0; if (s.exists()) s.forEach(function () { c++; }); return c; });
+      var items = [
+        { label: 'Wallet Pending', count: counts[0], icon: 'fas fa-wallet', action: 'showPendingWallet()', color: counts[0] > 0 ? '#ffd700' : 'var(--text-muted)' },
+        { label: 'Profile Approvals', count: counts[1], icon: 'fas fa-user-check', action: 'showPendingProfiles()', color: counts[1] > 0 ? '#4d96ff' : 'var(--text-muted)' },
+        { label: 'Support Tickets', count: counts[2], icon: 'fas fa-ticket-alt', action: '_qtLoadSupportTickets()', color: counts[2] > 0 ? '#ff6b6b' : 'var(--text-muted)' },
+        { label: 'Disputes', count: counts[3], icon: 'fas fa-exclamation-triangle', action: 'showDisputes()', color: counts[3] > 0 ? '#ff6b6b' : 'var(--text-muted)' },
+        { label: 'Ban Appeals', count: counts[4], icon: 'fas fa-gavel', action: 'showBanAppeals()', color: counts[4] > 0 ? '#b964ff' : 'var(--text-muted)' },
+      ];
+      el.innerHTML = '<div class="stats-grid">' + items.map(function (item) {
+        return '<div class="stat-card" onclick="' + item.action + '" style="cursor:pointer">' +
+          '<div class="stat-icon"><i class="' + item.icon + '"></i></div>' +
+          '<div class="value" style="color:' + item.color + '">' + item.count + '</div>' +
+          '<div class="label">' + item.label + '</div></div>';
+      }).join('') + '</div>';
+    });
+  };
+
+  /* ─── FEATURE 46: MATCH FEEDBACK VIEWER ─── */
+  window.showMatchFeedbacks = function () {
+    rtdb.ref('matchFeedback').limitToLast(5).once('value', function (s) {
+      var h = '<div>';
+      if (!s.exists()) { h += '<p class="text-muted text-xs" style="text-align:center;padding:20px">No feedback yet</p></div>'; _modal('⭐ Match Feedback', h); return; }
+      s.forEach(function (matchNode) {
+        var matchId = matchNode.key;
+        var ratings = [], total = 0, count = 0;
+        matchNode.forEach(function (c) { var f = c.val(); total += (f.rating || 0); count++; });
+        var avg = count > 0 ? (total / count).toFixed(1) : 0;
+        h += '<div class="card" style="margin-bottom:8px"><div class="card-body compact">';
+        h += '<div style="display:flex;justify-content:space-between"><div class="text-xxs font-mono">' + matchId.substring(0, 20) + '</div><div style="font-weight:700">⭐ ' + avg + ' (' + count + ' ratings)</div></div>';
+        matchNode.forEach(function (c) {
+          var f = c.val();
+          if (f.text) h += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">"' + f.text.substring(0, 60) + '"</div>';
+        });
+        h += '</div></div>';
+      });
+      h += '</div>';
+      _modal('⭐ Match Feedback', h);
+    });
+  };
+
+  /* ─── FEATURE 47: APP SETTINGS MANAGER ─── */
+  window.showAppSettings = function () {
+    rtdb.ref('appSettings').once('value', function (s) {
+      var cfg = s.val() || {};
+      var h = '<div>';
+      h += '<div class="form-group"><label>Support Online Status</label><select id="asSupport" class="form-input"><option value="1"' + (cfg.supportOnline ? ' selected' : '') + '>Online 🟢</option><option value="0"' + (!cfg.supportOnline ? ' selected' : '') + '>Offline 🔴</option></select></div>';
+      h += '<div class="form-group"><label>Maintenance Mode</label><select id="asMaintenance" class="form-input"><option value="0">Off</option><option value="1">On ⚠️</option></select></div>';
+      h += '<div class="form-group"><label>Min App Version</label><input type="text" id="asVersion" class="form-input" value="' + (cfg.minVersion || '') + '" placeholder="e.g. 1.0"></div>';
+      h += '<button class="btn btn-primary w-full" onclick="window._saveAppSettings()"><i class="fas fa-save"></i> Save Settings</button>';
+      h += '</div>';
+      _modal('⚙️ App Settings', h);
+      /* R29 FIX: maintenance अब Supabase app_settings (key='maintenance') से
+         load होता है — RTDB appSettings/maintenance dead tha. */
+      if (window._supa) {
+        window._supa.from('app_settings').select('value').eq('key','maintenance').maybeSingle()
+          .then(function(r) {
+            var el = _$('asMaintenance');
+            if (el) el.value = (r && r.data && r.data.value && r.data.value.active === true) ? '1' : '0';
+          })
+          .catch(function() {});
+      }
+    });
+  };
+  window._saveAppSettings = function () {
+    var supportOnlineVal = (_$('asSupport') || {}).value === '1';
+    var maintOn = (_$('asMaintenance') || {}).value === '1';
+    var minVer = (_$('asVersion') || {}).value;
+    rtdb.ref('appSettings').update({
+      supportOnline: supportOnlineVal,
+      minVersion: minVer
+    });
+    /* R29 FIX: maintenance ko Supabase app_settings (key='maintenance') mein
+       likho — yahi wahi jagah hai jahan user-panel + settings-card पढ़ते हैं.
+       RTDB appSettings/maintenance silenly dead tha (koi reader nahi). */
+    if (window._supa) {
+      window._supa.from('app_settings').update(
+        { value: { active: maintOn, message: '' }, updated_at: new Date().toISOString() }
+      ).eq('key', 'maintenance')
+        .then(function(r) { if (r.error) console.warn('[AppSettings] maintenance save:', r.error.message); })
+        .catch(function() {});
+    }
+    _logAction('update_app_settings');
+    _toast('✅ App settings saved!');
+    _close();
+  };
+
+  /* ─── FEATURE 48: PLAYER FULL PROFILE MODAL ───
+     REMOVED (2026-07-31 cleanup): this used to redefine window.openUserModal(uid)
+     with a stripped-down, read-only summary — no match history, no level editor,
+     no Save button — silently replacing admin-inline.js's full-featured modal.
+     Every "Watch" (eye icon) button across the panel (Users table, this file's
+     own fraud/watchlist lists, Player Lookup, etc.) calls the single global
+     openUserModal(uid), so removing this duplicate restores the complete modal
+     everywhere it's used. It also referenced the old window.banUser(uid,name)
+     2-arg signature removed above, and the 'banned' field instead of the
+     isBanned/blocked fields the rest of the app actually checks. */
+
+  /* ─── FEATURE 49: MATCH CREATE QUICK FORM ─── */
+  window.showQuickMatchCreate = function () {
+    _qmCapturedMatchTime = ''; // fresh modal, fresh fields — reset the captured value
+    var h = '<div>';
+    h += '<div class="form-group"><label>Match Name</label><input type="text" id="qmName" class="form-input" placeholder="e.g. Daily Solo #1"></div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+    h += '<div class="form-group"><label>Mode</label><select id="qmMode" class="form-input"><option value="solo">Solo</option><option value="duo">Duo</option><option value="squad">Squad</option></select></div>';
+    h += '<div class="form-group"><label>Max Slots</label><input type="number" id="qmSlots" class="form-input" placeholder="25" value="25"></div>';
+    h += '</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+    h += '<div class="form-group"><label>Entry Fee (₹)</label><input type="number" id="qmFee" class="form-input" placeholder="10" value="10"></div>';
+    h += '<div class="form-group"><label>Prize Pool (₹)</label><input type="number" id="qmPrize" class="form-input" placeholder="100"></div>';
+    h += '</div>';
+    /* ✅ REVERTED (2026-09-05): back to a simple native datetime-local
+       input — same revert as admin-inline.js and
+       fa-sponsored-system.js. */
+    h += '<div class="form-group"><label>Match Time</label><input type="datetime-local" id="qmTime" class="form-input" onchange="window._onQmMatchTimeChange()"><div id="qmTimePreview" style="margin-top:6px;font-size:13px;font-weight:700"></div></div>';
+    h += '<div class="form-group"><label>Map</label><select id="qmMap" class="form-input"><option value="bermuda">Bermuda</option><option value="purgatory">Purgatory</option><option value="kalahari">Kalahari</option><option value="alpine">Alpine</option></select></div>';
+    h += '<button class="btn btn-primary w-full" onclick="window._createQuickMatch()"><i class="fas fa-plus"></i> Create Match</button>';
+    h += '</div>';
+    _modal('🎮 Quick Match Create', h);
+  };
+  var _qmCapturedMatchTime = '';
+  window._onQmMatchTimeChange = function(){
+    var el = _$('qmTime');
+    _qmCapturedMatchTime = el ? el.value : '';
+    var preview = _$('qmTimePreview');
+    if (preview && _qmCapturedMatchTime) {
+      var parts = _qmCapturedMatchTime.split(/[-T:]/).map(Number);
+      var dt = new Date(parts[0], parts[1]-1, parts[2], parts[3], parts[4], 0, 0);
+      var diffMins = Math.round((dt.getTime() - Date.now()) / 60000);
+      preview.style.color = diffMins < 2 ? '#ff4444' : '#00ff9c';
+      preview.innerHTML = '📅 Save hoga: <b>' + dt.toLocaleString('en-IN', {weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) + '</b>' + (diffMins < 2 ? ' ⚠️ ABHI KE KAREEB!' : '');
+    } else if (preview) { preview.textContent = ''; }
+  };
+
+  window._createQuickMatch = async function () {
+    console.log('[_createQuickMatch] BUILD 20260913a — trust captured value, no re-read at save time');
+    /* ✅ ROOT CAUSE FOUND (2026-09-13) — see admin-inline.js's
+       saveTournament() for the full story: re-reading .value fresh at
+       save time (even with blur+double-read hardening) could pick up
+       a drifted DOM value that no longer matches what the admin
+       actually picked and the preview line already confirmed. Trust
+       _qmCapturedMatchTime (set the moment the field's own 'change'
+       fired) directly; only fall back to a fresh read if it's empty. */
+    if (!_qmCapturedMatchTime) {
+      var timeEl = _$('qmTime');
+      if (timeEl) {
+        timeEl.blur();
+        await new Promise(function(r){ requestAnimationFrame(r); });
+        var _qmRead1 = timeEl.value;
+        await new Promise(function(r){ setTimeout(r, 120); });
+        var _qmRead2 = timeEl.value;
+        _qmCapturedMatchTime = _qmRead2 || _qmRead1;
+      }
+    }
+    var name = (_$('qmName') || {}).value;
+    var time = _qmCapturedMatchTime;
+    if (!name || !time) { _toast('Name and time required', true); return; }
+    var _qmParts = time.split(/[-T:]/).map(Number);
+    var matchTimeMs = new Date(_qmParts[0], _qmParts[1]-1, _qmParts[2], _qmParts[3], _qmParts[4], 0, 0).getTime();
+    /* Genuine last-resort sanity check — the real race is gone now,
+       this only fires if the admin truly picked a near-now time. */
+    if (Math.abs(matchTimeMs - Date.now()) < 2*60*1000) {
+      if (!confirm('⚠️ Match time abhi (' + new Date(matchTimeMs).toLocaleString() + ') ke bahut kareeb hai — save hote hi match LIVE ho jayega. Sahi hai?')) return;
+    }
+    var matchData = {
+      name: name, mode: (_$('qmMode') || {}).value, matchType: 'Battle Royale',
+      maxSlots: Number((_$('qmSlots') || {}).value) || 25,
+      entryFee: Number((_$('qmFee') || {}).value) || 0,
+      prizePool: Number((_$('qmPrize') || {}).value) || 0,
+      matchTime: matchTimeMs,
+      map: (_$('qmMap') || {}).value,
+      joinedSlots: 0, filledSlots: 0,
+      status: (window.getMatchStatus ? getMatchStatus(matchTimeMs) : 'upcoming'),
+      createdAt: Date.now()
+    };
+    var id = rtdb.ref('matches').push().key;
+    rtdb.ref('matches/' + id).set(Object.assign({}, matchData, { id: id }));
+    _logAction('create_match', id, { name: name });
+    _toast('✅ Match created: ' + name);
+    _close();
+  };
+
+  /* ─── FEATURE 50: ADMIN DASHBOARD INIT ─── */
+  window.initAdminDashboard = function () {
+    // Auto-load all dashboard widgets
+    setTimeout(function () {
+      if (window.renderPlatformStats) renderPlatformStats('dashStatCards');
+      if (window.renderAdminQuickStats) renderAdminQuickStats('adminQuickStatsGrid');
+      if (window.renderRevenueAnalytics) renderRevenueAnalytics();
+      if (window.renderUserGrowth) renderUserGrowth();
+      if (window.renderTopPerformers) renderTopPerformers();
+      if (window.renderMatchReport) renderMatchReport();
+      if (window.renderReferralAnalytics) renderReferralAnalytics();
+    }, 500);
+
+    // Auto-refresh every 2 minutes
+    setInterval(function () {
+      if (window.renderAdminQuickStats) renderAdminQuickStats('adminQuickStatsGrid');
+    }, 120000);
+
+    console.log('[Mini eSports Admin] ✅ Dashboard initialized');
+  };
+
+  /* ✅ FIX (live-testing — root cause of permission_denied on matches/
+     profileRequests/walletRequests/users/joinRequests/referrals/
+     supportRequests/disputes/banAppeals seen immediately on page load,
+     before any click and independent of login state): this handler
+     self-starts on DOMContentLoaded + 1000ms/1500ms total, completely
+     outside initializeAdminPanel()'s bridge-wait guard in admin-inline.js.
+     initAdminDashboard() then fires 7 render*() functions in the same
+     500ms burst, together making 15+ rtdb.ref() calls (renderPlatformStats
+     alone hits 4 paths in one Promise.all) — every one of them landing on
+     raw Firebase RTDB if window.rtdb isn't yet the Supabase bridge, which
+     Firebase's own rules deny for these Supabase-only paths. Wait for the
+     bridge here (uncapped — Supabase-backed widgets simply render a beat
+     late rather than throwing) instead of firing blind on a timer. */
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function _waitForBridgeThenInitDash() {
+      if (window.rtdb && window.rtdb._isSupaBridge) {
+        window.initAdminDashboard();
+        return;
+      }
+      setTimeout(_waitForBridgeThenInitDash, 300);
+    }, 1000);
+  });
+
+  console.log('[Mini eSports Admin] ✅ 50 Admin Features v9 loaded');
+})();
