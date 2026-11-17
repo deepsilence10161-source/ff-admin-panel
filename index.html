@@ -137,7 +137,17 @@ button,input,select,textarea{font-family:inherit;}
      might call .catch() on a query builder. -->
 <script defer src="js/supabase-compat-patch.js?v=20261106c"></script>
 <script defer src="js/r8-admin-gateway-shim.js?v=20261106c"></script><!-- R8 FINAL: admin-only RPCs via trusted backend path (admin-gateway) -->
-<script data-obf="1">window['SUPABASE_URL']='https://hddhkculuyrfoevxmlwy.supabase.co',window['SUPABASE_ANON_KEY']='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhkZGhrY3VsdXlyZm9ldnhtbHd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTQ1MTgsImV4cCI6MjA5NDAzMDUxOH0.2hhDGez1fVFjS5ljSU3tSOEJuusLmQpERjcrh45T7po',window['APP_URL']='https://ff-user-panel.deepsilence10161.workers.dev/',window['FIREBASE_SENDER_ID']='247829466483';</script>
+<script>
+  /* Admin panel constants */
+  window.SUPABASE_URL = 'https://hddhkculuyrfoevxmlwy.supabase.co';
+  window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhkZGhrY3VsdXlyZm9ldnhtbHd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NTQ1MTgsImV4cCI6MjA5NDAzMDUxOH0.2hhDGez1fVFjS5ljSU3tSOEJuusLmQpERjcrh45T7po';
+  window.APP_URL = 'https://ff-user-panel.deepsilence10161.workers.dev/';
+  /* IMGBB_KEY removed v32.6 — ab Edge Function (imgbb-upload) server-side secret se padhta hai */
+  /* ONESIGNAL_APP_ID RETIRED (2026-10-31, directive 16): OneSignal → Firebase FCM
+     migration poori; is variable ka koi consumer bacha hi nahi tha (SDK load/init
+     admin panel me kabhi hota hi nahi tha — CSP entries bhi hata di gayi). */
+  window.FIREBASE_SENDER_ID = '247829466483';
+</script>
 <!-- ═══════════════════════════════════════════════
      SUPABASE EARLY INIT — Must load before Firebase scripts
      Initializes window._supa so the bridge can install quickly
@@ -145,7 +155,32 @@ button,input,select,textarea{font-family:inherit;}
 <script defer src="js/supabase-init-early.js?v=20261106c"></script>
 <script defer src="js/app-dialog.js?v=20261106c"></script><!-- ✅ B3: sab confirm/alert/prompt app-UI me -->
 <script defer src="js/security-hardening.js?v=20261106c"></script><!-- 🔒 XSS guards, auth wrappers, validators — MUST be first -->
-<script data-obf="1">(function(){'use strict';function _0x311660(_0x3d376c,_0xd846ab,_0x226e99){try{console['error']('[diag]\x20'+_0x3d376c+':\x20'+_0xd846ab,_0x226e99||'');}catch(_0x1cc3e){}}window['addEventListener']('error',function(_0x1090a2){_0x311660('uncaught',_0x1090a2&&_0x1090a2['message']||'unknown\x20error',_0x1090a2&&_0x1090a2['filename']?_0x1090a2['filename']+':'+_0x1090a2['lineno']:'');}),window['addEventListener']('unhandledrejection',function(_0x45c8b){var _0x493cef=_0x45c8b&&_0x45c8b['reason'];_0x311660('unhandled\x20rejection',_0x493cef&&_0x493cef['message']?_0x493cef['message']:String(_0x493cef),_0x493cef&&_0x493cef['stack']);});}());</script>
+<script>
+  /* ✅ REPLACED (2026-09-30) — pehle yahan ek bada DIAGNOSTIC block tha:
+     green "🔧 build v54-diag" badge, poore page ka click tracer (har click
+     par ek purple bar), 12s baad ek STATUS CHECK panel, aur ek fixed
+     _diagErrorBox. Woh 2026-09-19 ko "App Settings tab atak jaata hai"
+     debug karne ke liye daala gaya tha, aur uske apne comment mein likha
+     tha: "Safe to remove once the real App Settings cause is found and
+     fixed." Woh kaam poora ho chuka hai par block production mein reh gaya,
+     jisse har admin ko yeh debug UI dikhta tha (live verified screenshots).
+     Ab iski jagah ek chhota, SIRF-CONSOLE error logger hai — production
+     diagnostics barkarar, par koi visible debug UI nahi. */
+  (function () {
+    'use strict';
+    function _log(tag, msg, extra) {
+      try { console.error('[diag] ' + tag + ': ' + msg, extra || ''); } catch (e) {}
+    }
+    window.addEventListener('error', function (e) {
+      _log('uncaught', (e && e.message) || 'unknown error',
+           (e && e.filename) ? (e.filename + ':' + e.lineno) : '');
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e && e.reason;
+      _log('unhandled rejection', (r && r.message) ? r.message : String(r), r && r.stack);
+    });
+  })();
+</script>
 </head>
 <body>
 
@@ -1658,7 +1693,62 @@ button,input,select,textarea{font-family:inherit;}
 <!-- firebase-storage-compat removed: screenshots use ImgBB (core/imgbb.js) -->
 <!-- firebase-firestore-compat removed: all data uses Supabase (core/db.js) -->
 <!-- tesseract.js v4.1.1 duplicate removed: fa53-ocr-autofill.js lazy-loads tesseract.js v5 on demand -->
-<script data-obf="1">(function(){function _0x296158(_0x250e38){try{var _0x461a33=_0x250e38&&_0x250e38['querySelectorAll']?_0x250e38:document,_0x496677=_0x461a33['querySelectorAll']('div[onclick],\x20span[onclick]');for(var _0x37d494=0x0;_0x37d494<_0x496677['length'];_0x37d494++){var _0x5abd96=_0x496677[_0x37d494];if(_0x5abd96['classList']['contains']('modal-overlay')||_0x5abd96['classList']['contains']('sidebar-overlay'))continue;if(!_0x5abd96['hasAttribute']('role'))_0x5abd96['setAttribute']('role','button');if(!_0x5abd96['hasAttribute']('tabindex'))_0x5abd96['setAttribute']('tabindex','0');}var _0x1522fb=_0x461a33['querySelectorAll']('button,\x20[role=\x22button\x22]');for(var _0x39fead=0x0;_0x39fead<_0x1522fb['length'];_0x39fead++){var _0x5b8239=_0x1522fb[_0x39fead];if(!_0x5b8239['getAttribute']('aria-label')&&!(_0x5b8239['textContent']||'')['trim']()){var _0x423c82=_0x5b8239['getAttribute']('title')||_0x5b8239['querySelector']('i')&&_0x5b8239['querySelector']('i')['className']||'Action';_0x5b8239['setAttribute']('aria-label',String(_0x423c82)['replace'](/fa[srb]?\s+fa-/g,'')['replace'](/-/g,'\x20')['trim']()||'Action');}}var _0x23e429=_0x461a33['querySelectorAll']('.modal-overlay,\x20.modal');for(var _0x29d6b1=0x0;_0x29d6b1<_0x23e429['length'];_0x29d6b1++){var _0x50f696=_0x23e429[_0x29d6b1];if(_0x50f696['classList']['contains']('modal')){if(!_0x50f696['hasAttribute']('role'))_0x50f696['setAttribute']('role','dialog');if(!_0x50f696['hasAttribute']('aria-modal'))_0x50f696['setAttribute']('aria-modal','true');}}}catch(_0x5195a1){}}document['addEventListener']('DOMContentLoaded',function(){_0x296158(document);try{var _0x261e8e=new MutationObserver(function(_0x352602){for(var _0x54d702=0x0;_0x54d702<_0x352602['length'];_0x54d702++){var _0xe31691=_0x352602[_0x54d702]['addedNodes'];for(var _0x58c67d=0x0;_0x58c67d<_0xe31691['length'];_0x58c67d++){if(_0xe31691[_0x58c67d]&&_0xe31691[_0x58c67d]['nodeType']===0x1)_0x296158(_0xe31691[_0x58c67d]);}}});_0x261e8e['observe'](document['body'],{'childList':!![],'subtree':!![]});}catch(_0x56a1c8){}}),document['addEventListener']('keydown',function(_0x1dfe04){if(_0x1dfe04['key']!=='Enter'&&_0x1dfe04['key']!=='\x20')return;var _0x44577d=_0x1dfe04['target'];_0x44577d&&(_0x44577d['tagName']==='DIV'||_0x44577d['tagName']==='SPAN')&&_0x44577d['getAttribute']('role')==='button'&&typeof _0x44577d['onclick']==='function'&&(_0x1dfe04['preventDefault'](),_0x44577d['click']());});}());</script>
+<script>
+  /* Accessibility (A11Y-004..008): ensure interactive div/span onclick elements,
+     icon-only buttons, and modal dialogs expose proper ARIA roles & keyboard support */
+  (function() {
+    function _enhanceA11y(root) {
+      try {
+        var scope = root && root.querySelectorAll ? root : document;
+        var clickables = scope.querySelectorAll('div[onclick], span[onclick]');
+        for (var i = 0; i < clickables.length; i++) {
+          var el = clickables[i];
+          if (el.classList.contains('modal-overlay') || el.classList.contains('sidebar-overlay')) continue;
+          if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+          if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+        }
+        var btns = scope.querySelectorAll('button, [role="button"]');
+        for (var j = 0; j < btns.length; j++) {
+          var b = btns[j];
+          if (!b.getAttribute('aria-label') && !(b.textContent || '').trim()) {
+            var ttl = b.getAttribute('title') || (b.querySelector('i') && b.querySelector('i').className) || 'Action';
+            b.setAttribute('aria-label', String(ttl).replace(/fa[srb]?\s+fa-/g, '').replace(/-/g, ' ').trim() || 'Action');
+          }
+        }
+        var modals = scope.querySelectorAll('.modal-overlay, .modal');
+        for (var k = 0; k < modals.length; k++) {
+          var m = modals[k];
+          if (m.classList.contains('modal')) {
+            if (!m.hasAttribute('role')) m.setAttribute('role', 'dialog');
+            if (!m.hasAttribute('aria-modal')) m.setAttribute('aria-modal', 'true');
+          }
+        }
+      } catch (_e) {}
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      _enhanceA11y(document);
+      try {
+        var obs = new MutationObserver(function(muts) {
+          for (var i = 0; i < muts.length; i++) {
+            var added = muts[i].addedNodes;
+            for (var j = 0; j < added.length; j++) {
+              if (added[j] && added[j].nodeType === 1) _enhanceA11y(added[j]);
+            }
+          }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      } catch (_e2) {}
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var t = e.target;
+      if (t && (t.tagName === 'DIV' || t.tagName === 'SPAN') && t.getAttribute('role') === 'button' && typeof t.onclick === 'function') {
+        e.preventDefault();
+        t.click();
+      }
+    });
+  })();
+</script>
 
 <!-- ═══════════════════════════════════════════════
      CORE ADMIN LOGIC (inline extracted, split into 4 parts: B core / C match mgmt / D operations / E peripheral)
@@ -1688,7 +1778,7 @@ button,input,select,textarea{font-family:inherit;}
 <script defer src="js/admin-notif-templates.js?v=20261106c"></script>
 <script defer src="js/admin-chat-enhance.js?v=20261106c"></script>
 <script defer src="js/admin-activity-log.js?v=20261106c"></script>
-<script defer src="js/features-admin.js?v=20261106c"></script>
+<script defer src="js/features-admin.js?v=20261117c"></script>
 
 <!-- ═══════════════════════════════════════════════
      FEATURE MODULES (fa02–fa80)
@@ -1826,6 +1916,14 @@ button,input,select,textarea{font-family:inherit;}
 <script defer src="js/adm-fast-actions.js?v=20261106c"></script>
 
 <script defer src="js/admin-notifications-bar.js?v=20261106c"></script>
-<script data-obf="1">'serviceWorker'in navigator&&window['addEventListener']('load',function(){navigator['serviceWorker']['register']('sw.js')['catch'](function(){});});</script>
+<script>
+/* ✅ SW REGISTER (2026-11-03): network-first service worker — owner ke
+   device par purana admin cache dobara kabhi nahi tikega. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
 </body>
 </html>
